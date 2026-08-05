@@ -8,6 +8,7 @@ cells and emits no rules of its own (spec #4, decisions 7, 14).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from gridfind.engine import Engine, GridfindError, Layer
 
@@ -43,7 +44,28 @@ class Board:
         pass
 
 
-LAYER_REGISTRY = {"board": Board()}
+@dataclass
+class RowsDistinct:
+    """The first rule-emitting layer: each row's cells are all different
+    (spec #4, decision 7). Rides on `board`'s `grid` structure — it
+    registers nothing new in phase 1 and only emits rules in phase 2.
+    """
+
+    name: str = "rows-distinct"
+    depends_on: tuple[str, ...] = ("board",)
+
+    def register(self, engine: Engine) -> None:
+        pass
+
+    def emit(self, engine: Engine) -> None:
+        grid = cast("list[list[str]]", engine.structures["grid"])
+        for row in grid:
+            engine.model.add_all_different(
+                engine.cells[name].content[0] for name in row
+            )
+
+
+LAYER_REGISTRY = {"board": Board(), "rows-distinct": RowsDistinct()}
 
 
 def resolve(stack: list[str]) -> list[Layer]:
