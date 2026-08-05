@@ -14,6 +14,7 @@ POPULATIONS_DIR = Path(__file__).parent / "populations"
 STACKS_BY_DIRECTORY = {
     "board": ["board"],
     "board-rows-distinct": ["board", "rows-distinct"],
+    "board-line-count-distinct": ["board", "line-count-distinct"],
 }
 
 

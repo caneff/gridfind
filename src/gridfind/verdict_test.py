@@ -57,3 +57,29 @@ def test_rows_distinct_found_when_no_row_repeats():
 
     assert result.kind == "found"
     assert result.witness is not None
+
+
+def test_line_count_distinct_breaks_when_a_row_already_exceeds_its_target():
+    text = (
+        "stack: board, line-count-distinct\ngiven R2C1 1\ngiven R2C2 2\ngiven R2C3 3\n"
+    )
+
+    board_only = verdict(
+        ["board"], "stack: board\ngiven R2C1 1\ngiven R2C2 2\ngiven R2C3 3\n"
+    )
+    assert board_only.kind != "broke"
+
+    result = verdict(["board", "line-count-distinct"], text)
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_line_count_distinct_found_when_row_counts_are_satisfiable():
+    result = verdict(
+        ["board", "line-count-distinct"],
+        "stack: board, line-count-distinct\ngiven R1C1 4\ngiven R1C2 4\n",
+    )
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert len({result.witness[f"R1C{c}"] for c in range(1, 10)}) == 1

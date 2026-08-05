@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
+from ortools.sat.python import cp_model
+
 from gridfind.engine import Engine, GridfindError, Layer
 
 BOARD_SIZE = 9
@@ -65,7 +67,56 @@ class RowsDistinct:
             )
 
 
-LAYER_REGISTRY = {"board": Board(), "rows-distinct": RowsDistinct()}
+@dataclass
+class LineCountDistinct:
+    """somedoku's rule: row *n* holds exactly *n* distinct digits, repeats
+    allowed (spec #4, decision 7 — line-count-distinct; issue #10). Rides on
+    `board`'s `grid` structure exactly like `rows-distinct` — registers
+    nothing new in phase 1, only emits in phase 2.
+    """
+
+    name: str = "line-count-distinct"
+    depends_on: tuple[str, ...] = ("board",)
+
+    def register(self, engine: Engine) -> None:
+        pass
+
+    def emit(self, engine: Engine) -> None:
+        grid = cast("list[list[str]]", engine.structures["grid"])
+        for row_index, row in enumerate(grid, start=1):
+            cells = [engine.cells[name].content[0] for name in row]
+            _emit_distinct_count(
+                engine, cells, target=row_index, label=f"row{row_index}"
+            )
+
+
+def _emit_distinct_count(
+    engine: Engine, cells: list[cp_model.IntVar], *, target: int, label: str
+) -> None:
+    """Rule: exactly `target` distinct values appear across `cells`, repeats
+    allowed — a counting rule, unlike an AllDifferent (issue #10). For each
+    candidate digit, a reified "present" bool tracks whether any cell holds
+    it; the digit count is the sum of those bools.
+    """
+    present_per_digit = []
+    for digit in range(MIN_DIGIT, MAX_DIGIT + 1):
+        holds_digit = []
+        for i, cell in enumerate(cells):
+            indicator = engine.model.new_bool_var(f"{label}.holds{digit}.{i}")
+            engine.model.add(cell == digit).only_enforce_if(indicator)
+            engine.model.add(cell != digit).only_enforce_if(indicator.negated())
+            holds_digit.append(indicator)
+        present = engine.model.new_bool_var(f"{label}.present{digit}")
+        engine.model.add_max_equality(present, holds_digit)
+        present_per_digit.append(present)
+    engine.model.add(sum(present_per_digit) == target)
+
+
+LAYER_REGISTRY = {
+    "board": Board(),
+    "rows-distinct": RowsDistinct(),
+    "line-count-distinct": LineCountDistinct(),
+}
 
 
 def resolve(stack: list[str]) -> list[Layer]:
