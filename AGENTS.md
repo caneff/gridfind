@@ -20,3 +20,17 @@ Grid-puzzle constraint solving and validation: given a partly-built grid puzzle,
 - Package manager is **uv**. Never `pip` or `poetry`.
 - Type checker is **ty**, linter/formatter is **ruff** — both gate CI.
 - Test files use the **`*_test.py`** suffix, never `test_*.py`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues (`gh` CLI) in `caneff/gridfind`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
