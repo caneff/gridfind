@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from gridfind.engine import Engine, GridfindError
+from gridfind.engine import Engine, GridfindError, Layer
 
 BOARD_SIZE = 9
 MIN_DIGIT = 1
@@ -46,9 +46,9 @@ class Board:
 LAYER_REGISTRY = {"board": Board()}
 
 
-def resolve(stack: list[str]) -> list:
+def resolve(stack: list[str]) -> list[Layer]:
     """Resolve a stack of layer names to layer instances via the registry."""
-    layers = []
+    layers: list[Layer] = []
     for name in stack:
         layer = LAYER_REGISTRY.get(name)
         if layer is None:
