@@ -28,6 +28,7 @@ STACKS_BY_DIRECTORY = {
         "cols-distinct",
         "regions-distinct-irregular",
     ],
+    "classic-sudoku": ["classic-sudoku"],
 }
 
 

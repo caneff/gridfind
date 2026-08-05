@@ -4,6 +4,7 @@ from gridfind.engine import MissingDependencyError, build_engine
 from gridfind.layers import (
     BOARD_SIZE,
     LAYER_REGISTRY,
+    PRESET_REGISTRY,
     RegionsDistinct,
     UnknownLayerError,
     classic_region_map,
@@ -105,6 +106,29 @@ def test_regions_distinct_defaults_to_the_classic_3x3_box_map():
     assert len(layer.region_map) == BOARD_SIZE
     for region in layer.region_map:
         assert len(region) == BOARD_SIZE
+
+
+def test_classic_sudoku_preset_resolves_to_the_full_sudoku_layer_list():
+    assert PRESET_REGISTRY["classic-sudoku"] == [
+        "board",
+        "rows-distinct",
+        "cols-distinct",
+        "regions-distinct",
+    ]
+
+    preset_layers = resolve("classic-sudoku")
+    explicit_layers = resolve(
+        ["board", "rows-distinct", "cols-distinct", "regions-distinct"]
+    )
+
+    assert [layer.name for layer in preset_layers] == [
+        layer.name for layer in explicit_layers
+    ]
+
+
+def test_resolve_rejects_an_unregistered_preset_name():
+    with pytest.raises(UnknownLayerError):
+        resolve("not-a-real-preset")
 
 
 def test_regions_distinct_irregular_registry_entry_uses_a_different_map():

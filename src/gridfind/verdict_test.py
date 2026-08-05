@@ -1,5 +1,6 @@
 import pytest
 
+from gridfind.layers import UnknownLayerError
 from gridfind.verdict import verdict
 
 
@@ -162,6 +163,32 @@ def test_regions_distinct_found_when_no_box_repeats():
     result = verdict(stack, text)
     assert result.kind == "found"
     assert result.witness is not None
+
+
+def test_classic_sudoku_preset_matches_the_explicit_layer_list():
+    explicit_stack = ["board", "rows-distinct", "cols-distinct", "regions-distinct"]
+    text = f"stack: {', '.join(explicit_stack)}\ngiven R1C1 5\ngiven R2C2 5\n"
+    preset_text = "stack: classic-sudoku\ngiven R1C1 5\ngiven R2C2 5\n"
+
+    explicit = verdict(explicit_stack, text)
+    preset = verdict("classic-sudoku", preset_text)
+
+    assert preset.kind == explicit.kind == "broke"
+
+
+def test_classic_sudoku_preset_found_on_a_legal_partial():
+    result = verdict(
+        "classic-sudoku",
+        "stack: classic-sudoku\ngiven R1C1 1\ngiven R4C4 2\n",
+    )
+
+    assert result.kind == "found"
+    assert result.witness is not None
+
+
+def test_verdict_rejects_an_unknown_preset_name():
+    with pytest.raises(UnknownLayerError):
+        verdict("not-a-real-preset", "stack: not-a-real-preset\n")
 
 
 def test_regions_distinct_irregular_catches_a_repeat_classic_regions_would_miss():
