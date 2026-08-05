@@ -1,0 +1,4 @@
+stack: board, line-count-distinct
+given R2C1 1
+given R2C2 2
+given R2C3 3
