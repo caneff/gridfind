@@ -1,0 +1,3 @@
+stack: classic-sudoku
+given R1C1 5
+given R2C2 5

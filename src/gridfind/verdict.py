@@ -13,7 +13,7 @@ from typing import Literal
 from ortools.sat.python import cp_model
 
 from gridfind.engine import build_engine
-from gridfind.layers import resolve
+from gridfind.layers import expand_stack, resolve
 from gridfind.strategy import PURE_SATISFACTION, Strategy
 from gridfind.working_state import apply, parse
 
@@ -30,7 +30,7 @@ class Verdict:
 
 
 def verdict(
-    stack: list[str],
+    stack: str | list[str],
     working_state_text: str,
     *,
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
@@ -38,14 +38,15 @@ def verdict(
     strategy: Strategy = PURE_SATISFACTION,
 ) -> Verdict:
     working_state = parse(working_state_text)
-    if set(working_state.stack) != set(stack):
+    requested_layers = expand_stack(stack)
+    if set(expand_stack(working_state.stack)) != set(requested_layers):
         msg = (
             "working-state header stack "
             f"{working_state.stack!r} does not match requested stack {stack!r}"
         )
         raise ValueError(msg)
 
-    engine = build_engine(resolve(stack))
+    engine = build_engine(resolve(requested_layers))
     apply(engine, working_state)
     strategy.configure(engine.model)
 

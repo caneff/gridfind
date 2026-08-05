@@ -209,14 +209,31 @@ LAYER_REGISTRY = {
     "line-count-distinct": LineCountDistinct(),
 }
 
+PRESET_REGISTRY: dict[str, list[str]] = {
+    "classic-sudoku": ["board", "rows-distinct", "cols-distinct", "regions-distinct"],
+}
 
-def resolve(stack: list[str]) -> list[Layer]:
-    """Resolve a stack of layer names to layer instances via the registry."""
-    layers: list[Layer] = []
-    for name in stack:
-        layer = LAYER_REGISTRY.get(name)
-        if layer is None:
-            msg = f"unknown layer {name!r}"
+
+def expand_stack(stack: str | list[str]) -> list[str]:
+    """Expand preset names in a stack spec into their layer lists (spec #4,
+    decision 29; issue #9). A bare string is a single-entry stack. A name
+    that is neither a registered preset nor a registered layer is rejected
+    rather than silently passed through.
+    """
+    names = [stack] if isinstance(stack, str) else stack
+    expanded: list[str] = []
+    for name in names:
+        if name in PRESET_REGISTRY:
+            expanded.extend(expand_stack(PRESET_REGISTRY[name]))
+        elif name in LAYER_REGISTRY:
+            expanded.append(name)
+        else:
+            msg = f"unknown layer or preset {name!r}"
             raise UnknownLayerError(msg)
-        layers.append(layer)
-    return layers
+    return expanded
+
+
+def resolve(stack: str | list[str]) -> list[Layer]:
+    """Resolve a stack of layer/preset names to layer instances via the
+    registries."""
+    return [LAYER_REGISTRY[name] for name in expand_stack(stack)]
