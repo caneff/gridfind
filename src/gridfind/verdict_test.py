@@ -138,3 +138,48 @@ def test_stack_order_does_not_change_the_verdict():
     reversed_order = verdict(["cols-distinct", "rows-distinct", "board"], text)
 
     assert forward.kind == reversed_order.kind == "broke"
+
+
+def test_regions_distinct_breaks_a_box_repeat_rows_and_cols_distinct_would_miss():
+    stack = ["board", "rows-distinct", "cols-distinct", "regions-distinct"]
+    text = f"stack: {', '.join(stack)}\ngiven R1C1 5\ngiven R2C2 5\n"
+
+    without_regions = verdict(
+        ["board", "rows-distinct", "cols-distinct"],
+        "stack: board, rows-distinct, cols-distinct\ngiven R1C1 5\ngiven R2C2 5\n",
+    )
+    assert without_regions.kind != "broke"
+
+    result = verdict(stack, text)
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_regions_distinct_found_when_no_box_repeats():
+    stack = ["board", "rows-distinct", "cols-distinct", "regions-distinct"]
+    text = f"stack: {', '.join(stack)}\ngiven R1C1 1\ngiven R4C4 2\n"
+
+    result = verdict(stack, text)
+    assert result.kind == "found"
+    assert result.witness is not None
+
+
+def test_regions_distinct_irregular_catches_a_repeat_classic_regions_would_miss():
+    text = (
+        "stack: board, rows-distinct, cols-distinct, regions-distinct-irregular\n"
+        "given R3C3 5\ngiven R2C4 5\n"
+    )
+
+    classic = verdict(
+        ["board", "rows-distinct", "cols-distinct", "regions-distinct"],
+        "stack: board, rows-distinct, cols-distinct, regions-distinct\n"
+        "given R3C3 5\ngiven R2C4 5\n",
+    )
+    assert classic.kind != "broke"
+
+    result = verdict(
+        ["board", "rows-distinct", "cols-distinct", "regions-distinct-irregular"],
+        text,
+    )
+    assert result.kind == "broke"
+    assert result.witness is None
