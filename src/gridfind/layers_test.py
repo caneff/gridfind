@@ -1,6 +1,6 @@
 import pytest
 
-from gridfind.engine import build_engine
+from gridfind.engine import MissingDependencyError, build_engine
 from gridfind.layers import BOARD_SIZE, UnknownLayerError, resolve
 
 
@@ -26,3 +26,19 @@ def test_board_emits_no_rules():
 def test_resolve_rejects_an_unregistered_layer_name():
     with pytest.raises(UnknownLayerError):
         resolve(["not-a-real-layer"])
+
+
+def test_rows_distinct_requires_board():
+    (rows_distinct,) = resolve(["rows-distinct"])
+
+    with pytest.raises(MissingDependencyError):
+        build_engine([rows_distinct])
+
+
+def test_rows_distinct_emits_one_all_different_rule_per_row():
+    engine = build_engine(resolve(["board", "rows-distinct"]))
+
+    assert len(engine.model.proto.constraints) == BOARD_SIZE
+    for constraint in engine.model.proto.constraints:
+        assert constraint.has_all_diff()
+        assert len(constraint.all_diff.exprs) == BOARD_SIZE

@@ -36,3 +36,24 @@ def test_verdict_unknown_when_the_budget_is_exhausted():
 def test_verdict_rejects_a_stack_header_mismatch():
     with pytest.raises(ValueError, match="stack"):
         verdict(["board"], "stack: rows-distinct\ngiven R1C1 5\n")
+
+
+def test_rows_distinct_breaks_a_row_repeat_that_board_alone_would_not():
+    text = "stack: board, rows-distinct\ngiven R1C1 5\ngiven R1C2 5\n"
+
+    board_only = verdict(["board"], "stack: board\ngiven R1C1 5\ngiven R1C2 5\n")
+    assert board_only.kind != "broke"
+
+    result = verdict(["board", "rows-distinct"], text)
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_rows_distinct_found_when_no_row_repeats():
+    result = verdict(
+        ["board", "rows-distinct"],
+        "stack: board, rows-distinct\ngiven R1C1 1\ngiven R1C2 2\n",
+    )
+
+    assert result.kind == "found"
+    assert result.witness is not None
