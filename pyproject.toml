@@ -1,0 +1,70 @@
+[project]
+name = "gridfind"
+version = "0.1.0"
+description = "Grid-puzzle constraint solving and validation: found/broke/unknown via CP-SAT."
+readme = "README.md"
+authors = [
+    { name = "t", email = "t@t" }
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.165.1",
+    "pre-commit>=4.6.1",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.1",
+    "ty>=0.0.66",
+]
+
+# --- ruff (lint + format) ---
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "I", "B", "UP",
+  "SIM", "RUF",
+  "C4", "PIE", "PERF",
+  "PT", "A", "PTH",
+  "S", "N", "ANN", "RET", "ISC",
+]
+ignore = [
+  "N803", "N806",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*_test.py" = ["S101", "ANN"]
+
+# --- ty (type check) ---
+[tool.ty.environment]
+python-version = "3.14"
+root = ["./src"]
+
+[tool.ty.terminal]
+error-on-warning = true
+
+[[tool.ty.overrides]]
+include = ["**/*_test.py"]
+
+[tool.ty.overrides.rules]
+deprecated = "ignore"
+
+# --- pytest (hardened) ---
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config"
+xfail_strict = true
+
+# --- coverage (soft) ---
+[tool.coverage.run]
+branch = true
+
+# --- wheel: don't ship interleaved test files ---
+[tool.uv.build-backend]
+source-exclude = ["**/*_test.py"]
