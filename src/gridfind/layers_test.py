@@ -57,3 +57,19 @@ def test_line_count_distinct_emits_counting_rules_not_all_different():
     assert len(engine.model.proto.constraints) > 0
     assert not any(c.has_all_diff() for c in engine.model.proto.constraints)
     assert any(c.has_lin_max() for c in engine.model.proto.constraints)
+
+
+def test_cols_distinct_requires_board():
+    (cols_distinct,) = resolve(["cols-distinct"])
+
+    with pytest.raises(MissingDependencyError):
+        build_engine([cols_distinct])
+
+
+def test_cols_distinct_emits_one_all_different_rule_per_col():
+    engine = build_engine(resolve(["board", "cols-distinct"]))
+
+    assert len(engine.model.proto.constraints) == BOARD_SIZE
+    for constraint in engine.model.proto.constraints:
+        assert constraint.has_all_diff()
+        assert len(constraint.all_diff.exprs) == BOARD_SIZE

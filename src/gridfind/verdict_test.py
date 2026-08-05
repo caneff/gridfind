@@ -83,3 +83,58 @@ def test_line_count_distinct_found_when_row_counts_are_satisfiable():
     assert result.kind == "found"
     assert result.witness is not None
     assert len({result.witness[f"R1C{c}"] for c in range(1, 10)}) == 1
+
+
+def test_cols_distinct_breaks_a_col_repeat_that_board_alone_would_not():
+    text = "stack: board, cols-distinct\ngiven R1C1 5\ngiven R2C1 5\n"
+
+    board_only = verdict(["board"], "stack: board\ngiven R1C1 5\ngiven R2C1 5\n")
+    assert board_only.kind != "broke"
+
+    result = verdict(["board", "cols-distinct"], text)
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_cols_distinct_found_when_no_col_repeats():
+    result = verdict(
+        ["board", "cols-distinct"],
+        "stack: board, cols-distinct\ngiven R1C1 1\ngiven R2C1 2\n",
+    )
+
+    assert result.kind == "found"
+    assert result.witness is not None
+
+
+def test_latin_square_broke_on_a_column_repeat_rows_distinct_alone_misses():
+    text = "stack: board, rows-distinct, cols-distinct\ngiven R1C1 5\ngiven R5C1 5\n"
+
+    rows_only = verdict(
+        ["board", "rows-distinct"],
+        "stack: board, rows-distinct\ngiven R1C1 5\ngiven R5C1 5\n",
+    )
+    assert rows_only.kind != "broke"
+
+    result = verdict(["board", "rows-distinct", "cols-distinct"], text)
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_latin_square_found_on_a_legal_partial():
+    result = verdict(
+        ["board", "rows-distinct", "cols-distinct"],
+        "stack: board, rows-distinct, cols-distinct\n"
+        "given R1C1 1\ngiven R1C2 2\ngiven R2C1 2\ngiven R2C2 1\n",
+    )
+
+    assert result.kind == "found"
+    assert result.witness is not None
+
+
+def test_stack_order_does_not_change_the_verdict():
+    text = "stack: board, rows-distinct, cols-distinct\ngiven R1C1 5\ngiven R5C1 5\n"
+
+    forward = verdict(["board", "rows-distinct", "cols-distinct"], text)
+    reversed_order = verdict(["cols-distinct", "rows-distinct", "board"], text)
+
+    assert forward.kind == reversed_order.kind == "broke"
