@@ -1,7 +1,14 @@
 import pytest
 
 from gridfind.engine import MissingDependencyError, build_engine
-from gridfind.layers import BOARD_SIZE, UnknownLayerError, resolve
+from gridfind.layers import (
+    BOARD_SIZE,
+    LAYER_REGISTRY,
+    RegionsDistinct,
+    UnknownLayerError,
+    classic_region_map,
+    resolve,
+)
 
 
 def test_board_registers_every_grid_cell_with_rxcy_addressing():
@@ -73,3 +80,40 @@ def test_cols_distinct_emits_one_all_different_rule_per_col():
     for constraint in engine.model.proto.constraints:
         assert constraint.has_all_diff()
         assert len(constraint.all_diff.exprs) == BOARD_SIZE
+
+
+def test_regions_distinct_requires_board():
+    (regions_distinct,) = resolve(["regions-distinct"])
+
+    with pytest.raises(MissingDependencyError):
+        build_engine([regions_distinct])
+
+
+def test_regions_distinct_emits_one_all_different_rule_per_region():
+    engine = build_engine(resolve(["board", "regions-distinct"]))
+
+    assert len(engine.model.proto.constraints) == BOARD_SIZE
+    for constraint in engine.model.proto.constraints:
+        assert constraint.has_all_diff()
+        assert len(constraint.all_diff.exprs) == BOARD_SIZE
+
+
+def test_regions_distinct_defaults_to_the_classic_3x3_box_map():
+    layer = RegionsDistinct()
+
+    assert layer.region_map == classic_region_map()
+    assert len(layer.region_map) == BOARD_SIZE
+    for region in layer.region_map:
+        assert len(region) == BOARD_SIZE
+
+
+def test_regions_distinct_irregular_registry_entry_uses_a_different_map():
+    classic = LAYER_REGISTRY["regions-distinct"]
+    irregular = LAYER_REGISTRY["regions-distinct-irregular"]
+
+    assert isinstance(classic, RegionsDistinct)
+    assert isinstance(irregular, RegionsDistinct)
+    assert classic.region_map != irregular.region_map
+    assert len(irregular.region_map) == BOARD_SIZE
+    for region in irregular.region_map:
+        assert len(region) == BOARD_SIZE

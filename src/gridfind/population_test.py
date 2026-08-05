@@ -16,6 +16,18 @@ STACKS_BY_DIRECTORY = {
     "board-rows-distinct": ["board", "rows-distinct"],
     "board-line-count-distinct": ["board", "line-count-distinct"],
     "board-rows-distinct-cols-distinct": ["board", "rows-distinct", "cols-distinct"],
+    "board-rows-distinct-cols-distinct-regions-distinct": [
+        "board",
+        "rows-distinct",
+        "cols-distinct",
+        "regions-distinct",
+    ],
+    "board-rows-distinct-cols-distinct-regions-distinct-irregular": [
+        "board",
+        "rows-distinct",
+        "cols-distinct",
+        "regions-distinct-irregular",
+    ],
 }
 
 
