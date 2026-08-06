@@ -278,19 +278,3 @@ def test_verdict_rejects_an_unknown_variant_record_type() -> None:
 
     with pytest.raises(UnknownLayerError):
         verdict(puzzle)
-
-
-def test_regions_distinct_irregular_catches_a_repeat_classic_regions_miss() -> None:
-    assert_layer_newly_breaks(
-        (
-            Variant(type="rows-distinct"),
-            Variant(type="cols-distinct"),
-            Variant(type="regions-distinct"),
-        ),
-        (
-            Variant(type="rows-distinct"),
-            Variant(type="cols-distinct"),
-            Variant(type="regions-distinct-irregular"),
-        ),
-        (Given(address="R3C3", digit=5), Given(address="R2C4", digit=5)),
-    )

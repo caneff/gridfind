@@ -1,9 +1,10 @@
 """Shared test fixtures for the layers package.
 
-`assert_one_all_different_rule_per_line` is the common shape of the
-rows/cols/regions-distinct emit tests. It lives here as a fixture so the three
-per-layer test files stay independent without copying the assertion body
-(issue #20's dedup, preserved across issue #17's per-layer split).
+`assert_one_all_different_rule_per_group` is the common shape of the
+distinct-layer emit tests: one AllDifferent rule per group, each over a full
+line's worth of cells. It lives here as a fixture so `distinct_test` and any
+other layer test share the assertion body without copying it (issue #20's
+dedup, carried through the issue #37 unification).
 """
 
 from collections.abc import Callable
@@ -15,7 +16,7 @@ from gridfind.layers.board import BOARD_SIZE
 
 
 @pytest.fixture
-def assert_one_all_different_rule_per_line() -> Callable[[Engine], None]:
+def assert_one_all_different_rule_per_group() -> Callable[[Engine], None]:
     def _assert(engine: Engine) -> None:
         assert len(engine.model.proto.constraints) == BOARD_SIZE
         for constraint in engine.model.proto.constraints:
