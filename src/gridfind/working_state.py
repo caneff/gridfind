@@ -10,36 +10,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from gridfind.engine import Engine
+from gridfind.puzzle import Candidate, Given, Place
 
 HEADER_PREFIX = "stack:"
 MIN_DIGIT = 0
 MAX_DIGIT = 9
 
-
-@dataclass(frozen=True)
-class Given:
-    """A grid cell placed to a single digit."""
-
-    address: str
-    digit: int
-
-
-@dataclass(frozen=True)
-class Place:
-    """A digit sits at a cell, as part of the hand-solve."""
-
-    address: str
-    digit: int
-
-
-@dataclass(frozen=True)
-class Candidate:
-    """A cell narrowed to a subset of digits, without being placed."""
-
-    address: str
-    digits: frozenset[int]
-
-
+# Given/Place/Candidate are defined once in `puzzle`, reused here (issue #46).
 Directive = Given | Place | Candidate
 
 
