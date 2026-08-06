@@ -61,11 +61,8 @@ class RowsDistinct:
         pass
 
     def emit(self, engine: Engine) -> None:
-        grid = cast("list[list[str]]", engine.structures["grid"])
-        for row in grid:
-            engine.model.add_all_different(
-                engine.cells[name].content[0] for name in row
-            )
+        for row in grid_vars(engine):
+            engine.model.add_all_different(row)
 
 
 @dataclass
@@ -83,11 +80,8 @@ class ColsDistinct:
         pass
 
     def emit(self, engine: Engine) -> None:
-        grid = cast("list[list[str]]", engine.structures["grid"])
-        for col in zip(*grid, strict=True):
-            engine.model.add_all_different(
-                engine.cells[name].content[0] for name in col
-            )
+        for col in zip(*grid_vars(engine), strict=True):
+            engine.model.add_all_different(col)
 
 
 def classic_region_map(
@@ -145,10 +139,10 @@ class RegionsDistinct:
         pass
 
     def emit(self, engine: Engine) -> None:
-        grid = cast("list[list[str]]", engine.structures["grid"])
+        grid = grid_vars(engine)
         for region in self.region_map:
             engine.model.add_all_different(
-                engine.cells[grid[row - 1][col - 1]].content[0] for row, col in region
+                grid[row - 1][col - 1] for row, col in region
             )
 
 
@@ -167,12 +161,20 @@ class LineCountDistinct:
         pass
 
     def emit(self, engine: Engine) -> None:
-        grid = cast("list[list[str]]", engine.structures["grid"])
-        for row_index, row in enumerate(grid, start=1):
-            cells = [engine.cells[name].content[0] for name in row]
-            _emit_distinct_count(
-                engine, cells, target=row_index, label=f"row{row_index}"
-            )
+        for row_index, row in enumerate(grid_vars(engine), start=1):
+            _emit_distinct_count(engine, row, target=row_index, label=f"row{row_index}")
+
+
+def grid_vars(engine: Engine) -> list[list[cp_model.IntVar]]:
+    """The grid's cells as their primary CP-SAT variables, resolved at call
+    time in phase 2 (issue #19). `board` stores the grid as cell *names*, not
+    variables, on purpose: a Schrödinger layer can widen a cell's content to
+    length 2 in phase 1, so name-to-variable resolution must wait until here.
+    The one cast lives in this helper — `structures` stays generic so every
+    layer shares one channel; only this consumer needs the concrete type.
+    """
+    grid = cast("list[list[str]]", engine.structures["grid"])
+    return [[engine.cells[name].content[0] for name in row] for row in grid]
 
 
 def _emit_distinct_count(
