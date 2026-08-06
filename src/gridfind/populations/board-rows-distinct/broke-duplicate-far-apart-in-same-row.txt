@@ -1,3 +1,0 @@
-stack: board, rows-distinct
-given R9C9 7
-given R9C1 7
