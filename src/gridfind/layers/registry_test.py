@@ -1,7 +1,6 @@
 import gridfind.layers
 from gridfind.layers import LAYER_REGISTRY
-from gridfind.layers.board import BOARD_SIZE
-from gridfind.layers.regions import RegionsDistinct
+from gridfind.layers.distinct import DistinctOverGroups
 
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
@@ -17,13 +16,9 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
     ]
 
 
-def test_regions_distinct_irregular_registry_entry_uses_a_different_map() -> None:
-    classic = LAYER_REGISTRY["regions-distinct"]
-    irregular = LAYER_REGISTRY["regions-distinct-irregular"]
-
-    assert isinstance(classic, RegionsDistinct)
-    assert isinstance(irregular, RegionsDistinct)
-    assert classic.region_map != irregular.region_map
-    assert len(irregular.region_map) == BOARD_SIZE
-    for region in irregular.region_map:
-        assert len(region) == BOARD_SIZE
+def test_rows_cols_regions_are_all_one_distinct_layer_class() -> None:
+    # Issue #37: the three distinct rules are instances of one
+    # partition-parameterized layer, not three bespoke classes.
+    for name in ("rows-distinct", "cols-distinct", "regions-distinct"):
+        assert isinstance(LAYER_REGISTRY[name], DistinctOverGroups)
+        assert LAYER_REGISTRY[name].name == name

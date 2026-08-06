@@ -20,10 +20,8 @@ from __future__ import annotations
 
 from gridfind.engine import GridfindError, Layer
 from gridfind.layers.board import Board
-from gridfind.layers.cols import ColsDistinct
+from gridfind.layers.distinct import DistinctOverGroups, boxes, cols, rows
 from gridfind.layers.line_count import LineCountDistinct
-from gridfind.layers.regions import RegionsDistinct, _irregular_demo_region_map
-from gridfind.layers.rows import RowsDistinct
 from gridfind.puzzle import Variant
 
 __all__ = [
@@ -40,13 +38,9 @@ class UnknownLayerError(GridfindError):
 
 LAYER_REGISTRY = {
     "board": Board(),
-    "rows-distinct": RowsDistinct(),
-    "cols-distinct": ColsDistinct(),
-    "regions-distinct": RegionsDistinct(),
-    "regions-distinct-irregular": RegionsDistinct(
-        name="regions-distinct-irregular",
-        region_map=_irregular_demo_region_map(),
-    ),
+    "rows-distinct": DistinctOverGroups("rows-distinct", rows),
+    "cols-distinct": DistinctOverGroups("cols-distinct", cols),
+    "regions-distinct": DistinctOverGroups("regions-distinct", boxes),
     "line-count-distinct": LineCountDistinct(),
 }
 
