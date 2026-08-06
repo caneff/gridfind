@@ -5,9 +5,15 @@ explicit list — no decorator, no import-side-effect auto-discovery — and hol
 the stack-resolution API (`resolve`, `expand_stack`, `UnknownLayerError`) that
 callers use today.
 
-The re-exported surface here is **provisional**, not a frozen contract: the
-committed public API (`__all__`, which registries/classes are public) is
-deferred to the wayfinder in issue #18. No `__all__` is declared yet.
+`gridfind.layers` is **internal-only** — no external or plugin callers (issues
+#18, #24). Its committed public surface is exactly `__all__` below: the stack
+API `verdict.py` consumes. Everything else here — the registries, and the
+layer classes imported to build them — is implementation detail: used in-tree,
+not part of the committed surface, and free to change. Tests reach the layer
+classes through their own submodules (e.g. `gridfind.layers.regions`).
+
+The engine->layer contract a layer author codes against (`Layer`, `add_cell`,
+`register_structure`) is a separate surface, tracked in issue #26.
 """
 
 from __future__ import annotations
@@ -18,6 +24,8 @@ from gridfind.layers.cols import ColsDistinct
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.regions import RegionsDistinct, _irregular_demo_region_map
 from gridfind.layers.rows import RowsDistinct
+
+__all__ = ["UnknownLayerError", "expand_stack", "resolve"]
 
 
 class UnknownLayerError(GridfindError):
