@@ -43,6 +43,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "*_test.py" = ["S101"]
+"conftest.py" = ["S101"]
 
 # --- ty (type check) ---
 [tool.ty.environment]
@@ -67,6 +68,6 @@ xfail_strict = true
 [tool.coverage.run]
 branch = true
 
-# --- wheel: don't ship interleaved test files ---
+# --- wheel: don't ship interleaved test files or fixtures ---
 [tool.uv.build-backend]
-source-exclude = ["**/*_test.py"]
+source-exclude = ["**/*_test.py", "**/conftest.py"]
