@@ -40,10 +40,13 @@ def _population_cases() -> list[tuple[list[str], Path]]:
     ]
 
 
+_CASES = _population_cases()
+
+
 @pytest.mark.parametrize(
     ("stack", "path"),
-    _population_cases(),
-    ids=[f"{'+'.join(stack)}/{path.stem}" for stack, path in _population_cases()],
+    _CASES,
+    ids=[f"{'+'.join(stack)}/{path.stem}" for stack, path in _CASES],
 )
 def test_population_matches_its_filename_verdict(stack: list[str], path: Path) -> None:
     expected_kind, _, _ = path.stem.partition("-")
