@@ -1,0 +1,23 @@
+{
+  "puzzle": {
+    "board": {
+      "size": 9
+    },
+    "variants": [],
+    "givens": [
+      {
+        "address": "R1C1",
+        "digit": 5
+      }
+    ]
+  },
+  "working_state": {
+    "places": [
+      {
+        "address": "R1C1",
+        "digit": 6
+      }
+    ],
+    "candidates": []
+  }
+}

@@ -1,5 +1,0 @@
-stack: board, rows-distinct, cols-distinct, regions-distinct-irregular
-given R1C1 1
-given R1C4 2
-given R4C1 3
-given R4C4 4

@@ -1,3 +1,0 @@
-stack: board
-candidate R2C2 {1,2,3}
-place R2C2 9

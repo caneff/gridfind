@@ -1,7 +1,0 @@
-stack: board, rows-distinct, cols-distinct
-given R1C1 1
-given R1C2 2
-given R2C1 2
-given R2C2 1
-place R3C3 3
-candidate R3C4 {3,4,5}

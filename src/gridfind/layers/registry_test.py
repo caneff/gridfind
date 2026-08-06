@@ -1,57 +1,20 @@
-import pytest
-
 import gridfind.layers
-from gridfind.layers import (
-    LAYER_REGISTRY,
-    PRESET_REGISTRY,
-    UnknownLayerError,
-    resolve,
-)
+from gridfind.layers import LAYER_REGISTRY
 from gridfind.layers.board import BOARD_SIZE
 from gridfind.layers.regions import RegionsDistinct
 
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
     # Issue #25 / #24: gridfind.layers is internal-only, so its committed public
-    # surface is these names. Registries and layer classes are internal. The
-    # record-based names (issue #47) sit beside the string stack API until #48
-    # deletes the latter.
+    # surface is these names — the record dispatch API (#47). Registries and
+    # layer classes are internal. #48 deleted the old string stack API
+    # (expand_stack, resolve, the preset registry).
     assert gridfind.layers.__all__ == [
         "UnknownLayerError",
         "canonical_identity",
         "expand_records",
-        "expand_stack",
-        "resolve",
         "resolve_records",
     ]
-
-
-def test_resolve_rejects_an_unregistered_layer_name() -> None:
-    with pytest.raises(UnknownLayerError):
-        resolve(["not-a-real-layer"])
-
-
-def test_classic_sudoku_preset_resolves_to_the_full_sudoku_layer_list() -> None:
-    assert PRESET_REGISTRY["classic-sudoku"] == [
-        "board",
-        "rows-distinct",
-        "cols-distinct",
-        "regions-distinct",
-    ]
-
-    preset_layers = resolve("classic-sudoku")
-    explicit_layers = resolve(
-        ["board", "rows-distinct", "cols-distinct", "regions-distinct"]
-    )
-
-    assert [layer.name for layer in preset_layers] == [
-        layer.name for layer in explicit_layers
-    ]
-
-
-def test_resolve_rejects_an_unregistered_preset_name() -> None:
-    with pytest.raises(UnknownLayerError):
-        resolve("not-a-real-preset")
 
 
 def test_regions_distinct_irregular_registry_entry_uses_a_different_map() -> None:
