@@ -13,8 +13,17 @@ from gridfind.layers.regions import RegionsDistinct
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
     # Issue #25 / #24: gridfind.layers is internal-only, so its committed public
-    # surface is these three names. Registries and layer classes are internal.
-    assert gridfind.layers.__all__ == ["UnknownLayerError", "expand_stack", "resolve"]
+    # surface is these names. Registries and layer classes are internal. The
+    # record-based names (issue #47) sit beside the string stack API until #48
+    # deletes the latter.
+    assert gridfind.layers.__all__ == [
+        "UnknownLayerError",
+        "canonical_identity",
+        "expand_records",
+        "expand_stack",
+        "resolve",
+        "resolve_records",
+    ]
 
 
 def test_resolve_rejects_an_unregistered_layer_name() -> None:
