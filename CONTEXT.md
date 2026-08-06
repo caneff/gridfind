@@ -80,7 +80,8 @@ against a witness-find, never an objective solve.
   identical CP-SAT model a hand-written solver would.
 
 - **two-phase build** — the build protocol that makes composition
-  order-insensitive (map #1, decision 10). **Phase 1**: every layer registers its
+  order-insensitive (map #1, decision 10; engine↔layer contract frozen in
+  [ADR-0001](docs/adr/0001-engine-layer-contract.md)). **Phase 1**: every layer registers its
   cells and structures (a Schrödinger layer widens grid-cell content to length 2
   here). **Phase 2**: every layer emits its rules against the now-final structures
   (a quad-rank layer concatenates the settled content here).
