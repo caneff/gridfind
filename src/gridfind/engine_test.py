@@ -22,14 +22,14 @@ class _FakeLayer:
         self.emitted = True
 
 
-def test_build_refuses_a_stack_with_an_unmet_dependency():
+def test_build_refuses_a_stack_with_an_unmet_dependency() -> None:
     needs_board = _FakeLayer(name="needs-board", depends_on=("board",))
 
     with pytest.raises(MissingDependencyError):
         build_engine([needs_board])
 
 
-def test_build_accepts_a_stack_whose_dependency_is_present():
+def test_build_accepts_a_stack_whose_dependency_is_present() -> None:
     board = _FakeLayer(name="board")
     needs_board = _FakeLayer(name="needs-board", depends_on=("board",))
 
@@ -39,7 +39,7 @@ def test_build_accepts_a_stack_whose_dependency_is_present():
     assert needs_board.emitted
 
 
-def test_build_is_order_insensitive():
+def test_build_is_order_insensitive() -> None:
     board = _FakeLayer(name="board")
     needs_board = _FakeLayer(name="needs-board", depends_on=("board",))
 

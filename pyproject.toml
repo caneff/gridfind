@@ -42,7 +42,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"*_test.py" = ["S101", "ANN"]
+"*_test.py" = ["S101"]
 
 # --- ty (type check) ---
 [tool.ty.environment]

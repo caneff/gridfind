@@ -1,6 +1,6 @@
 import pytest
 
-from gridfind.engine import MissingDependencyError, build_engine
+from gridfind.engine import Engine, MissingDependencyError, build_engine
 from gridfind.layers import (
     BOARD_SIZE,
     LAYER_REGISTRY,
@@ -12,7 +12,17 @@ from gridfind.layers import (
 )
 
 
-def test_board_registers_every_grid_cell_with_rxcy_addressing():
+def assert_one_all_different_rule_per_line(engine: Engine) -> None:
+    """One all-different rule per line, each spanning a full line of cells —
+    the shared shape of the rows/cols/regions-distinct emit tests.
+    """
+    assert len(engine.model.proto.constraints) == BOARD_SIZE
+    for constraint in engine.model.proto.constraints:
+        assert constraint.has_all_diff()
+        assert len(constraint.all_diff.exprs) == BOARD_SIZE
+
+
+def test_board_registers_every_grid_cell_with_rxcy_addressing() -> None:
     (board,) = resolve(["board"])
     engine = build_engine([board])
 
@@ -24,42 +34,39 @@ def test_board_registers_every_grid_cell_with_rxcy_addressing():
         assert len(cell.content) == 1
 
 
-def test_board_emits_no_rules():
+def test_board_emits_no_rules() -> None:
     (board,) = resolve(["board"])
     engine = build_engine([board])
 
     assert len(engine.model.proto.constraints) == 0
 
 
-def test_resolve_rejects_an_unregistered_layer_name():
+def test_resolve_rejects_an_unregistered_layer_name() -> None:
     with pytest.raises(UnknownLayerError):
         resolve(["not-a-real-layer"])
 
 
-def test_rows_distinct_requires_board():
+def test_rows_distinct_requires_board() -> None:
     (rows_distinct,) = resolve(["rows-distinct"])
 
     with pytest.raises(MissingDependencyError):
         build_engine([rows_distinct])
 
 
-def test_rows_distinct_emits_one_all_different_rule_per_row():
+def test_rows_distinct_emits_one_all_different_rule_per_row() -> None:
     engine = build_engine(resolve(["board", "rows-distinct"]))
 
-    assert len(engine.model.proto.constraints) == BOARD_SIZE
-    for constraint in engine.model.proto.constraints:
-        assert constraint.has_all_diff()
-        assert len(constraint.all_diff.exprs) == BOARD_SIZE
+    assert_one_all_different_rule_per_line(engine)
 
 
-def test_line_count_distinct_requires_board():
+def test_line_count_distinct_requires_board() -> None:
     (line_count_distinct,) = resolve(["line-count-distinct"])
 
     with pytest.raises(MissingDependencyError):
         build_engine([line_count_distinct])
 
 
-def test_line_count_distinct_emits_counting_rules_not_all_different():
+def test_line_count_distinct_emits_counting_rules_not_all_different() -> None:
     engine = build_engine(resolve(["board", "line-count-distinct"]))
 
     assert len(engine.model.proto.constraints) > 0
@@ -67,39 +74,33 @@ def test_line_count_distinct_emits_counting_rules_not_all_different():
     assert any(c.has_lin_max() for c in engine.model.proto.constraints)
 
 
-def test_cols_distinct_requires_board():
+def test_cols_distinct_requires_board() -> None:
     (cols_distinct,) = resolve(["cols-distinct"])
 
     with pytest.raises(MissingDependencyError):
         build_engine([cols_distinct])
 
 
-def test_cols_distinct_emits_one_all_different_rule_per_col():
+def test_cols_distinct_emits_one_all_different_rule_per_col() -> None:
     engine = build_engine(resolve(["board", "cols-distinct"]))
 
-    assert len(engine.model.proto.constraints) == BOARD_SIZE
-    for constraint in engine.model.proto.constraints:
-        assert constraint.has_all_diff()
-        assert len(constraint.all_diff.exprs) == BOARD_SIZE
+    assert_one_all_different_rule_per_line(engine)
 
 
-def test_regions_distinct_requires_board():
+def test_regions_distinct_requires_board() -> None:
     (regions_distinct,) = resolve(["regions-distinct"])
 
     with pytest.raises(MissingDependencyError):
         build_engine([regions_distinct])
 
 
-def test_regions_distinct_emits_one_all_different_rule_per_region():
+def test_regions_distinct_emits_one_all_different_rule_per_region() -> None:
     engine = build_engine(resolve(["board", "regions-distinct"]))
 
-    assert len(engine.model.proto.constraints) == BOARD_SIZE
-    for constraint in engine.model.proto.constraints:
-        assert constraint.has_all_diff()
-        assert len(constraint.all_diff.exprs) == BOARD_SIZE
+    assert_one_all_different_rule_per_line(engine)
 
 
-def test_regions_distinct_defaults_to_the_classic_3x3_box_map():
+def test_regions_distinct_defaults_to_the_classic_3x3_box_map() -> None:
     layer = RegionsDistinct()
 
     assert layer.region_map == classic_region_map()
@@ -108,7 +109,7 @@ def test_regions_distinct_defaults_to_the_classic_3x3_box_map():
         assert len(region) == BOARD_SIZE
 
 
-def test_classic_sudoku_preset_resolves_to_the_full_sudoku_layer_list():
+def test_classic_sudoku_preset_resolves_to_the_full_sudoku_layer_list() -> None:
     assert PRESET_REGISTRY["classic-sudoku"] == [
         "board",
         "rows-distinct",
@@ -126,12 +127,12 @@ def test_classic_sudoku_preset_resolves_to_the_full_sudoku_layer_list():
     ]
 
 
-def test_resolve_rejects_an_unregistered_preset_name():
+def test_resolve_rejects_an_unregistered_preset_name() -> None:
     with pytest.raises(UnknownLayerError):
         resolve("not-a-real-preset")
 
 
-def test_regions_distinct_irregular_registry_entry_uses_a_different_map():
+def test_regions_distinct_irregular_registry_entry_uses_a_different_map() -> None:
     classic = LAYER_REGISTRY["regions-distinct"]
     irregular = LAYER_REGISTRY["regions-distinct-irregular"]
 
