@@ -17,3 +17,8 @@ typecheck:
 
 test:
     uv run pytest
+
+# Focused selection over the puzzle corpus, by canonical-stack id or by layer
+# name (e.g. `just puzzles rows-distinct`, `just puzzles board+cols-distinct+regions-distinct+rows-distinct`).
+puzzles PATTERN:
+    uv run pytest src/gridfind/population_test.py -k "{{PATTERN}}"
