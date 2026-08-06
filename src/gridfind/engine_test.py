@@ -2,7 +2,20 @@ from dataclasses import dataclass
 
 import pytest
 
+import gridfind.engine
 from gridfind.engine import Engine, MissingDependencyError, build_engine
+
+
+def test_public_api_surface_is_exactly_the_committed_names() -> None:
+    # Issue #28 / ADR-0001: the engine->layer contract's named vocabulary.
+    assert gridfind.engine.__all__ == [
+        "Cell",
+        "Engine",
+        "GridfindError",
+        "Layer",
+        "MissingDependencyError",
+        "build_engine",
+    ]
 
 
 @dataclass

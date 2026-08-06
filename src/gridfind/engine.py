@@ -11,6 +11,17 @@ from typing import Protocol
 
 from ortools.sat.python import cp_model
 
+# The engine->layer contract's named surface (issue #28, ADR-0001). Layers code
+# against these; everything else in the module is implementation detail.
+__all__ = [
+    "Cell",
+    "Engine",
+    "GridfindError",
+    "Layer",
+    "MissingDependencyError",
+    "build_engine",
+]
+
 
 class GridfindError(Exception):
     """Base for engine-refusal errors."""
