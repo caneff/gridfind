@@ -1,0 +1,62 @@
+{
+  "puzzle": {
+    "board": {
+      "size": 9
+    },
+    "variants": [
+      {
+        "type": "line-count-distinct"
+      }
+    ],
+    "givens": [
+      {
+        "address": "R1C1",
+        "digit": 4
+      },
+      {
+        "address": "R1C2",
+        "digit": 4
+      },
+      {
+        "address": "R9C1",
+        "digit": 1
+      },
+      {
+        "address": "R9C2",
+        "digit": 2
+      },
+      {
+        "address": "R9C3",
+        "digit": 3
+      },
+      {
+        "address": "R9C4",
+        "digit": 4
+      },
+      {
+        "address": "R9C5",
+        "digit": 5
+      },
+      {
+        "address": "R9C6",
+        "digit": 6
+      },
+      {
+        "address": "R9C7",
+        "digit": 7
+      },
+      {
+        "address": "R9C8",
+        "digit": 8
+      },
+      {
+        "address": "R9C9",
+        "digit": 9
+      }
+    ]
+  },
+  "working_state": {
+    "places": [],
+    "candidates": []
+  }
+}

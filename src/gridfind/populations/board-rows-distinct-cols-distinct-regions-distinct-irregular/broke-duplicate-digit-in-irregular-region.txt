@@ -1,3 +1,0 @@
-stack: board, rows-distinct, cols-distinct, regions-distinct-irregular
-given R3C3 5
-given R2C4 5

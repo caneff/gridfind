@@ -1,11 +1,10 @@
 from gridfind.engine import build_engine
-from gridfind.layers import resolve
+from gridfind.layers import LAYER_REGISTRY
 from gridfind.layers.board import BOARD_SIZE
 
 
 def test_board_registers_every_grid_cell_with_rxcy_addressing() -> None:
-    (board,) = resolve(["board"])
-    engine = build_engine([board])
+    engine = build_engine([LAYER_REGISTRY["board"]])
 
     assert len(engine.cells) == BOARD_SIZE * BOARD_SIZE
     assert set(engine.cells) == {
@@ -16,7 +15,6 @@ def test_board_registers_every_grid_cell_with_rxcy_addressing() -> None:
 
 
 def test_board_emits_no_rules() -> None:
-    (board,) = resolve(["board"])
-    engine = build_engine([board])
+    engine = build_engine([LAYER_REGISTRY["board"]])
 
     assert len(engine.model.proto.constraints) == 0

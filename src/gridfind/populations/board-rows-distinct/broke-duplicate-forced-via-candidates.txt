@@ -1,3 +1,0 @@
-stack: board, rows-distinct
-candidate R4C2 {6}
-candidate R4C7 {6}

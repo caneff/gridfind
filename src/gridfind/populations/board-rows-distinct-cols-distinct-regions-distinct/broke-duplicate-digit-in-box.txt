@@ -1,3 +1,0 @@
-stack: board, rows-distinct, cols-distinct, regions-distinct
-given R1C1 5
-given R2C2 5

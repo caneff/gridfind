@@ -1,3 +1,0 @@
-stack: board
-given R1C1 5
-candidate R1C1 {1,2,3}

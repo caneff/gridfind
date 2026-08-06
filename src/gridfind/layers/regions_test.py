@@ -3,22 +3,20 @@ from collections.abc import Callable
 import pytest
 
 from gridfind.engine import Engine, MissingDependencyError, build_engine
-from gridfind.layers import resolve
+from gridfind.layers import LAYER_REGISTRY
 from gridfind.layers.board import BOARD_SIZE
 from gridfind.layers.regions import RegionsDistinct, classic_region_map
 
 
 def test_regions_distinct_requires_board() -> None:
-    (regions_distinct,) = resolve(["regions-distinct"])
-
     with pytest.raises(MissingDependencyError):
-        build_engine([regions_distinct])
+        build_engine([LAYER_REGISTRY["regions-distinct"]])
 
 
 def test_regions_distinct_emits_one_all_different_rule_per_region(
     assert_one_all_different_rule_per_line: Callable[[Engine], None],
 ) -> None:
-    engine = build_engine(resolve(["board", "regions-distinct"]))
+    engine = build_engine([LAYER_REGISTRY["board"], LAYER_REGISTRY["regions-distinct"]])
 
     assert_one_all_different_rule_per_line(engine)
 

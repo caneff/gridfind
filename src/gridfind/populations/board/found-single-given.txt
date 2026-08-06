@@ -1,2 +1,0 @@
-stack: board
-given R1C1 5

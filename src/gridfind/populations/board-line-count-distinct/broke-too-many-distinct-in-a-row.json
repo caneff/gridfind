@@ -1,0 +1,30 @@
+{
+  "puzzle": {
+    "board": {
+      "size": 9
+    },
+    "variants": [
+      {
+        "type": "line-count-distinct"
+      }
+    ],
+    "givens": [
+      {
+        "address": "R2C1",
+        "digit": 1
+      },
+      {
+        "address": "R2C2",
+        "digit": 2
+      },
+      {
+        "address": "R2C3",
+        "digit": 3
+      }
+    ]
+  },
+  "working_state": {
+    "places": [],
+    "candidates": []
+  }
+}

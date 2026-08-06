@@ -1,3 +1,0 @@
-stack: board, rows-distinct
-given R1C1 5
-place R1C5 5
