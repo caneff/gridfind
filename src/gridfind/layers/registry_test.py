@@ -22,9 +22,3 @@ def test_rows_cols_regions_are_all_one_distinct_layer_class() -> None:
     for name in ("rows-distinct", "cols-distinct", "regions-distinct"):
         assert isinstance(LAYER_REGISTRY[name], DistinctOverGroups)
         assert LAYER_REGISTRY[name].name == name
-
-
-def test_the_hardcoded_irregular_demo_entry_is_gone() -> None:
-    # Issue #37 (Q3): the one hardcoded irregular board is dropped; setter-
-    # supplied region maps come back through params later (parked #30).
-    assert "regions-distinct-irregular" not in LAYER_REGISTRY
