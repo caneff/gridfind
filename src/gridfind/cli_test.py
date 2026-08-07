@@ -74,6 +74,17 @@ def test_unknown_prints_word_alone(
     assert capsys.readouterr().out == "unknown\n"
 
 
+def test_help_shows_example_command_lines(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["--help"], io.StringIO())
+
+    out = capsys.readouterr().out
+    assert "gridfind puzzle.json" in out
+    assert "gridfind < puzzle.json" in out
+
+
 def test_empty_input_prints_usage(capsys: pytest.CaptureFixture[str]) -> None:
     code = cli.main([], io.StringIO(""))
 

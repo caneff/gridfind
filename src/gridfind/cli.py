@@ -26,6 +26,11 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         prog="gridfind",
         description="Read a {puzzle, working_state} JSON document and print its "
         "verdict: found / broke / unknown.",
+        epilog="examples:\n"
+        "  gridfind puzzle.json      # read a document from a file\n"
+        "  gridfind < puzzle.json    # read a document from stdin\n"
+        "  cat puzzle.json | gridfind",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "file",
