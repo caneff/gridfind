@@ -151,6 +151,48 @@ decode it with its own schema, not the f-puzzles/SCL mapping.
 (Source: reverse-engineered link generator, aGnomadic gist, confirmed against
 sudokumaker.app.)
 
+### 4a. Classic 9×9 → gridfind mapping (confirmed 2026-08-07, issue #54)
+
+Decoded a real classic link generated at sudokumaker.app (givens + a solver
+placement + center pencilmarks `{1,2,9}` + corner marks `{3}`). This is the
+field-by-field map the milestone-2 decoder is written against.
+
+**Transport / domain.** `?puzzle=<LZString.compressToEncodedURIComponent(json)>`,
+offline via `lzstring`. `formatVersion "1.5.0"`. `puzzle.cells` is an 81-element
+**row-major flat array**; cell index `i` → address `R{i//9+1}C{i%9+1}` (1-indexed).
+No `minDigit`/`maxDigit` on a classic, so the digit domain is **1–9** — the
+`minDigit:0` Schrödinger sample is the only thing that shifts it.
+
+**Constraints.** A classic carries two: `{type:0}` (no params — the normal-sudoku
+ruleset: row + column + box all-distinct) and `{type:1, regions:[…81 ids…]}` (the
+box geometry: the standard 3×3 partition, region ids 0–8, row-major). Rows and
+columns are **never explicit** — `type 0` implies them. So gridfind emits all three
+variants `rows-distinct`, `cols-distinct`, `regions-distinct`. A `type 1` matrix
+that is *not* the standard 3×3 partition means jigsaw/irregular regions — a variant
+past the classic path, which the classic decoder should reject.
+
+**Cells → `Puzzle` / `WorkingState`** (addresses `R{r}C{c}`):
+
+| SudokuMaker cell | gridfind |
+|---|---|
+| `{given:true, value:v}` | `Given(address, digit=v)` |
+| `{value:v}` (no `given`) | `Place(address, digit=v)` |
+| `{candidates:mask}` | `Candidate(address, digits={d : mask & (1<<d)})` |
+| `{cornerPencilMarks:mask}` | **ignored** (see below) |
+| `{colors:…}` / `{}` | ignored / empty cell |
+
+`Board(size)` = `isqrt(len(cells))` (= 9).
+
+**Digit bitmasks are `2^digit`, indexed by digit value directly.** Verified:
+`candidates 518 = 2^1 + 2^2 + 2^9` → `{1,2,9}`; `cornerPencilMarks 8 = 2^3` → `{3}`.
+`candidates` and `cornerPencilMarks` share the convention; bit 0 (`2^0`) is only
+meaningful for a `minDigit:0` variant (digit 0).
+
+**`cornerPencilMarks` is dropped.** gridfind's `Candidate` is a *center* mark — the
+hard "this cell is one of this subset" domain restriction that `candidates` carries.
+Corner marks are a looser box-placement annotation with no gridfind equivalent, so
+they map nowhere, the same as `colors`. Only `candidates` becomes a `Candidate`.
+
 ## 5. Python decode difficulty
 
 Deterministic and offline for all self-contained forms. Building blocks:
