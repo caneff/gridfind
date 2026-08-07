@@ -92,10 +92,20 @@ wheels = [
 ]
 
 [[package]]
+name = "future"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a7/b2/4140c69c6a66432916b26158687e821ba631a4c9273c474343badf84d3ba/future-1.0.0.tar.gz", hash = "sha256:bd2968309307861edae1458a4f8a4f3598c03be43b97521076aebf5d94c07b05", size = 1228490, upload-time = "2024-02-21T11:52:38.461Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/71/ae30dadffc90b9006d77af76b393cb9dfbfc9629f339fc1574a1c52e6806/future-1.0.0-py3-none-any.whl", hash = "sha256:929292d34f5872e70396626ef385ec22355a1fae8ad29e1a734c3e43f9fbc216", size = 491326, upload-time = "2024-02-21T11:52:35.956Z" },
+]
+
+[[package]]
 name = "gridfind"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "lzstring" },
     { name = "ortools" },
 ]
 
@@ -110,7 +120,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ortools", specifier = ">=9.15.6755" }]
+requires-dist = [
+    { name = "lzstring", specifier = ">=1.0.4" },
+    { name = "ortools", specifier = ">=9.15.6755" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -187,6 +200,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
 ]
+
+[[package]]
+name = "lzstring"
+version = "1.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "future" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/0c/28347673b45e5f0975cdf1f6d69ede6ad049be873194c4e164d79aecd34c/lzstring-1.0.4.tar.gz", hash = "sha256:1afa61e598193fbcc211e0899f09a9679e33f9102bccc37fbfda0b7fef4d9ea2", size = 4256, upload-time = "2018-06-01T02:32:12.639Z" }
 
 [[package]]
 name = "nodeenv"
