@@ -6,6 +6,12 @@ calls `verdict`, and prints the outcome: the verdict word, plus a rendered
 witness grid on `found`. All logic lives in `main(argv, stdin) -> int` so tests
 drive it with an argv and a stdin and read back stdout and the exit code;
 `console_main` only wires `sys` for the `[project.scripts]` entry point.
+
+Example:
+    $ gridfind puzzle.json      # or:  gridfind < puzzle.json
+    found
+    1 4 7  2 3 9  5 6 8
+    ...
 """
 
 from __future__ import annotations
