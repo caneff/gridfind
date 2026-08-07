@@ -72,6 +72,7 @@ import {
 } from "./reconcile.mts";
 import { parseOpenIssues, parsePrsClosingIssues } from "./github-parse.mts";
 import { parseSandcastleWorktrees } from "./worktrees.mts";
+import { planRetention } from "./log-retention.mts";
 import {
   REVIEW_RETRY_CAP,
   readAttempts,
@@ -144,6 +145,15 @@ function git(args: string): string | null {
   }
 }
 
+// Write a Markdown body to a log file, then comment it on each issue with
+// `--body-file` (not an inline `--body`) so a body with backticks or quotes
+// can't break shell escaping. One place owns that file-not-shell-string choice.
+function commentIssues(ids: string[], slug: string, body: string): void {
+  const file = `.sandcastle/logs/${slug}.md`;
+  writeFileSync(file, body);
+  for (const id of ids) gh(`issue comment ${id} --body-file ${file}`);
+}
+
 // Log verbosity via SANDCASTLE_VERBOSE:
 //   unset/0  quiet — parsed human-readable log only (drops tool-use blocks). Default.
 //   1/2/full raw   — every raw stdout line verbatim (full firehose, interleaved)
@@ -159,25 +169,18 @@ mkdirSync(".sandcastle/logs", { recursive: true });
 // A log with no run inside the window is emptied (all its runs are stale).
 // ponytail: parse the header we already emit; no run-index/db needed.
 const LOG_RETENTION_DAYS = 14;
+// Thin file-IO caller; the keep/empty/keep-from decision lives in the pure,
+// tested planRetention (ADR-0002).
 function pruneOldRuns(dir: string, cutoffMs: number) {
-  const hdr = /^--- Run started: (.+?) ---$/;
   for (const name of readdirSync(dir)) {
     if (!name.endsWith(".log")) continue;
     const file = `${dir}/${name}`;
     const lines = readFileSync(file, "utf8").split("\n");
-    let keepFrom = lines.length; // no recent run found → empty the file
-    for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(hdr);
-      if (m && Date.parse(m[1]) >= cutoffMs) {
-        keepFrom = i;
-        break;
-      }
-    }
-    if (keepFrom === 0) continue; // already all-recent
-    const kept = lines.slice(keepFrom).join("\n");
-    if (kept.trim() === "")
+    const plan = planRetention(lines, cutoffMs);
+    if (plan.action === "keep-all") continue; // already all-recent
+    if (plan.action === "empty")
       unlinkSync(file); // no recent runs → drop the file
-    else writeFileSync(file, kept);
+    else writeFileSync(file, lines.slice(plan.index).join("\n"));
   }
 }
 try {
@@ -782,9 +785,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
               `failed. Re-implement to address the findings (don't just silence ` +
               `the verdict line).\n\n` +
               sections.join("\n\n");
-            const findingsFile = `.sandcastle/logs/review-findings-${issue.id}.md`;
-            writeFileSync(findingsFile, body);
-            gh(`issue comment ${issue.id} --body-file ${findingsFile}`);
+            commentIssues([issue.id], `review-findings-${issue.id}`, body);
             console.warn(
               `  ⚠ ${issue.id} failed review (${combined.failedAxes.join(
                 ", "
@@ -1086,10 +1087,8 @@ if (components.length === 0) {
         "```\n" +
         `${verdict.tail || "(no output captured)"}\n` +
         "```\n";
-      const gateFile = `.sandcastle/logs/check-gate-${runId}-${n + 1}.md`;
-      writeFileSync(gateFile, body);
+      commentIssues(plan.commentIssueIds, `check-gate-${runId}-${n + 1}`, body);
       for (const id of plan.commentIssueIds) {
-        gh(`issue comment ${id} --body-file ${gateFile}`);
         relabel(id, "ready-for-human", [
           "ready-for-agent",
           "needs-review",
@@ -1114,10 +1113,7 @@ if (components.length === 0) {
         "```\n" +
         `${verdict.tail || "(no output captured)"}\n` +
         "```\n";
-      const gateFile = `.sandcastle/logs/check-gate-${runId}-${n + 1}.md`;
-      writeFileSync(gateFile, body);
-      for (const id of plan.commentIssueIds)
-        gh(`issue comment ${id} --body-file ${gateFile}`);
+      commentIssues(plan.commentIssueIds, `check-gate-${runId}-${n + 1}`, body);
       console.error(
         `  ✗ Component ${n + 1}: full-suite gate ${verdict.status}; PR withheld, ` +
           `${plan.commentIssueIds.length} issue(s) commented → requeued.`
