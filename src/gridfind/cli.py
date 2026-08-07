@@ -1,10 +1,11 @@
-"""The `gridfind` command: a working-state JSON document in, a verdict out.
+"""The `gridfind` command: a working state in, a verdict out.
 
-Milestone 1 (#56) — the first user-facing entry point. Reads one combined
-`{puzzle, working_state}` document (the corpus shape) from a file or stdin,
-calls `verdict`, and prints the outcome: the verdict word, plus a rendered
-witness grid on `found`. All logic lives in `main(argv, stdin) -> int` so tests
-drive it with an argv and a stdin and read back stdout and the exit code;
+Milestone 1 (#56) reads one combined `{puzzle, working_state}` document (the
+corpus shape) from a file or stdin; Milestone 2 (#60) also takes a SudokuMaker
+share link, sniffed and decoded via `decode_link`. Either way it calls
+`verdict` and prints the outcome: the verdict word, plus a rendered witness
+grid on `found`. All logic lives in `main(argv, stdin) -> int` so tests drive
+it with an argv and a stdin and read back stdout and the exit code;
 `console_main` only wires `sys` for the `[project.scripts]` entry point.
 
 Example:
@@ -24,30 +25,49 @@ from pathlib import Path
 from typing import TextIO
 
 from gridfind.puzzle import Puzzle, WorkingState
+from gridfind.sudokumaker import decode_link
 from gridfind.verdict import Verdict, verdict
+
+
+def _is_link(value: str) -> bool:
+    """A SudokuMaker share link, not a file path or a JSON document (a document
+    starts with `{`, so the two never collide). Matches the two shapes #60
+    enumerates: the canonical host prefix, or an embedded `?puzzle=` payload."""
+    value = value.strip()
+    return (
+        value.startswith("https://sudokumaker.app/")
+        or "sudokumaker.app/?puzzle=" in value
+    )
 
 
 def main(argv: Sequence[str], stdin: TextIO) -> int:
     parser = argparse.ArgumentParser(
         prog="gridfind",
-        description="Read a {puzzle, working_state} JSON document and print its "
-        "verdict: found / broke / unknown.",
+        description="Read a {puzzle, working_state} JSON document or a "
+        "SudokuMaker link and print its verdict: found / broke / unknown.",
         epilog="examples:\n"
-        "  gridfind puzzle.json      # read a document from a file\n"
-        "  gridfind < puzzle.json    # read a document from stdin\n"
-        "  cat puzzle.json | gridfind",
+        "  gridfind puzzle.json               # a document from a file\n"
+        "  gridfind < puzzle.json             # a document from stdin\n"
+        "  gridfind 'https://sudokumaker.app/?puzzle=...'   # a share link\n"
+        "  echo 'https://sudokumaker.app/?puzzle=...' | gridfind",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "file",
         nargs="?",
         default="-",
-        help="path to the JSON document; omit or use '-' to read stdin",
+        help="a JSON document path or a SudokuMaker link; omit or use '-' "
+        "to read stdin",
     )
     args = parser.parse_args(argv)
 
     try:
-        text = stdin.read() if args.file == "-" else Path(args.file).read_text()
+        if _is_link(args.file):  # a link argument, not a file path to read
+            text = args.file
+        elif args.file == "-":
+            text = stdin.read()
+        else:
+            text = Path(args.file).read_text()
     except OSError as err:
         print(f"gridfind: {err}", file=sys.stderr)
         return 2
@@ -69,9 +89,13 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 
 
 def _verdict_of(text: str) -> Verdict:
-    doc = json.loads(text)
-    puzzle = Puzzle.from_json(json.dumps(doc["puzzle"]))
-    state = WorkingState.from_json(json.dumps(doc["working_state"]))
+    stripped = text.strip()
+    if _is_link(stripped):
+        puzzle, state = decode_link(stripped)
+    else:
+        doc = json.loads(stripped)
+        puzzle = Puzzle.from_json(json.dumps(doc["puzzle"]))
+        state = WorkingState.from_json(json.dumps(doc["working_state"]))
     return verdict(puzzle, state)
 
 
