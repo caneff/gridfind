@@ -35,8 +35,8 @@ USER ${AGENT_UID}:${AGENT_GID}
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Bake the target's exact interpreter into an image LAYER so no container re-fetches
-# it at run time. The skill substitutes PYTHON_VERSION from the target's
-# .python-version at build time.
+# it at run time. copier renders PYTHON_VERSION from the target's .python-version
+# (recorded as a copier answer) when the template is installed.
 ARG PYTHON_VERSION=3.14
 RUN /home/agent/.local/bin/uv python install ${PYTHON_VERSION}
 
