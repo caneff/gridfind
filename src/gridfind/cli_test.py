@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from gridfind import cli
+from gridfind.sudokumaker_test import CLASSIC_LINK
 from gridfind.verdict import Verdict
 
 POPULATIONS_DIR = Path(__file__).parent / "populations"
@@ -44,6 +45,56 @@ def test_found_prints_verdict_then_witness_grid(
     grid = lines[1:]
     assert re.fullmatch(r"1 \d \d  2 \d \d  \d \d \d", grid[0])
     assert grid[3] == ""  # blank row after the first box-row
+
+
+def test_sudokumaker_link_argument_prints_found_and_grid(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = cli.main([CLASSIC_LINK], io.StringIO())
+
+    out = capsys.readouterr().out
+    lines = out.split("\n")
+    assert code == 0
+    assert lines[0] == "found"
+    # R1C1=7 is a placement in the #54 link, so it renders deterministically.
+    assert re.fullmatch(r"7 \d \d  \d \d \d  \d \d \d", lines[1])
+
+
+def test_sudokumaker_link_on_stdin_matches_argument(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = cli.main([], io.StringIO(f"{CLASSIC_LINK}\n"))
+
+    assert code == 0
+    assert capsys.readouterr().out.split("\n")[0] == "found"
+
+
+def test_non_classic_link_exits_two_with_stderr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = cli.main(
+        ["https://sudokumaker.app/?puzzle=not-a-real-payload"], io.StringIO()
+    )
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert captured.out == ""
+    assert captured.err.startswith("gridfind:")
+
+
+def test_file_path_containing_sudokumaker_app_is_still_read_as_a_file(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    # The sniff matches the #60 link shapes, not the bare host substring: a real
+    # path that merely contains `sudokumaker.app/` must read as a document.
+    doc = tmp_path / "sudokumaker.app" / "found.json"
+    doc.parent.mkdir()
+    doc.write_text(FOUND_DOC.read_text())
+
+    code = cli.main([str(doc)], io.StringIO())
+
+    assert code == 0
+    assert capsys.readouterr().out.split("\n")[0] == "found"
 
 
 def test_broke_prints_word_alone(capsys: pytest.CaptureFixture[str]) -> None:
