@@ -120,9 +120,14 @@ def test_verdict_found_on_a_board_keeps_every_witness_digit_in_1_to_n(
     assert all(1 <= value <= size for value in result.witness.values.values())
 
 
-def test_sudoku_on_a_6x6_breaks_a_digit_repeat_within_one_2x3_box() -> None:
-    # rows/cols alone wouldn't catch a same-box repeat two rows/cols apart —
-    # only correct 2x3 tiling does (issue #77).
+@pytest.mark.parametrize(
+    ("size", "digit"),
+    [pytest.param(4, 3, id="4x4-2x2-boxes"), pytest.param(6, 5, id="6x6-2x3-boxes")],
+)
+def test_sudoku_breaks_a_digit_repeat_within_one_box(size: int, digit: int) -> None:
+    # R1C1 and R2C2 share a box at both sizes but no row and no column, so
+    # rows/cols alone can't catch the repeat — only correct tiling does
+    # (2x2 at 4x4, 2x3 at 6x6; issue #79).
     assert_layer_newly_breaks(
         (Variant(type="rows-distinct"), Variant(type="cols-distinct")),
         (
@@ -130,14 +135,15 @@ def test_sudoku_on_a_6x6_breaks_a_digit_repeat_within_one_2x3_box() -> None:
             Variant(type="cols-distinct"),
             Variant(type="regions-distinct"),
         ),
-        (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5)),
-        board=Board(size=6),
+        (Given(address="R1C1", digit=digit), Given(address="R2C2", digit=digit)),
+        board=Board(size=size),
     )
 
 
-def test_sudoku_found_on_a_legal_6x6() -> None:
+@pytest.mark.parametrize("size", [pytest.param(4, id="4x4"), pytest.param(6, id="6x6")])
+def test_sudoku_found_on_a_legal_board(size: int) -> None:
     puzzle = Puzzle(
-        board=Board(size=6),
+        board=Board(size=size),
         variants=(Variant(type="sudoku"),),
         givens=(Given(address="R1C1", digit=1), Given(address="R3C4", digit=2)),
     )
@@ -146,7 +152,8 @@ def test_sudoku_found_on_a_legal_6x6() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert all(1 <= value <= 6 for value in result.witness.values.values())
+    assert len(result.witness) == size * size
+    assert all(1 <= value <= size for value in result.witness.values.values())
 
 
 def test_regions_distinct_on_a_5x5_board_refuses_with_a_gridfind_error() -> None:

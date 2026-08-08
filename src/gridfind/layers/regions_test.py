@@ -36,6 +36,9 @@ def test_box_region_map_at_9_3_3_reproduces_classic_region_map() -> None:
     assert box_region_map(9, 3, 3) == classic_region_map()
 
 
+# Spelled out rather than read from BOX_SHAPE on purpose: an independent
+# statement of the convention, so a typo in the table fails a test instead of
+# being copied into the expectation.
 @pytest.mark.parametrize(
     ("size", "box_rows", "box_cols"),
     [
@@ -63,8 +66,12 @@ def test_box_region_map_tiles_the_board_and_covers_every_cell_once(
 
 
 def test_region_map_for_falls_back_to_the_boards_box_tiling() -> None:
-    # With no setter-supplied map, the box convention is the default source.
-    assert region_map_for(6) == box_region_map(6, 2, 3)
+    # With no setter-supplied map, the box convention is the default source:
+    # a 6x6 comes back tiled 2x3, R1C1's box holding its two rows of three.
+    region_map = region_map_for(6)
+
+    assert len(region_map) == 6
+    assert region_map[0] == [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)]
 
 
 def test_region_map_for_prefers_a_supplied_region_map() -> None:

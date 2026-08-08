@@ -41,8 +41,9 @@ def boxes(grid: Grid) -> Iterable[list[Cell]]:
     """The regions, cut from whatever grid is handed in — the region partition
     reused as cell groups. `region_map_for` resolves the partition for the live
     grid's size (issue #77: a 6x6 tiles as 2x3, a 4x4 as 2x2, a 9x9 as 3x3 —
-    never four 3x3 mini-grids on a 6x6), and refuses a size with no classic box
-    convention at emit time rather than tiling something wrong.
+    never four 3x3 mini-grids on a 6x6). The refusal for a size with no classic
+    box convention belongs to the resolver's fallback, not here (issue #79
+    ruling), so it surfaces at emit time rather than tiling something wrong.
     """
     size = len(grid)
     return [
