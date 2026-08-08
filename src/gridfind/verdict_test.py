@@ -370,7 +370,7 @@ def test_regions_distinct_found_when_no_box_repeats() -> None:
     assert result.witness is not None
 
 
-def test_sudoku_sugar_matches_the_explicit_three_distinct_constraints() -> None:
+def test_sudoku_preset_matches_the_explicit_three_distinct_constraints() -> None:
     givens = (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5))
     explicit = (
         Constraint(type="rows-distinct"),
@@ -378,15 +378,15 @@ def test_sudoku_sugar_matches_the_explicit_three_distinct_constraints() -> None:
         Constraint(type="regions-distinct"),
     )
 
-    sugar_result = verdict(
+    preset_result = verdict(
         Puzzle(board=BOARD, constraints=(Constraint(type="sudoku"),), givens=givens)
     )
     explicit_result = verdict(Puzzle(board=BOARD, constraints=explicit, givens=givens))
 
-    assert sugar_result.kind == explicit_result.kind == "broke"
+    assert preset_result.kind == explicit_result.kind == "broke"
 
 
-def test_sudoku_sugar_found_on_a_legal_partial() -> None:
+def test_sudoku_preset_found_on_a_legal_partial() -> None:
     puzzle = Puzzle(
         board=BOARD,
         constraints=(Constraint(type="sudoku"),),

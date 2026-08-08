@@ -66,10 +66,10 @@ def verdict(
     strategy: Strategy = PURE_SATISFACTION,
 ) -> Verdict:
     # board is not a constraint — the puzzle's board supplies the grid.
-    # Expand sugar once: the engine carries the canonical constraints so a
-    # layer's constraints_of(name) matches the canonical types the resolver
-    # dispatched on — an `x`/`v` clue reaches its `pair-sum` layer as a
-    # sum-10/5 constraint.
+    # Expand presets and aliases once: the engine carries the canonical
+    # constraints so a layer's constraints_of(name) matches the canonical
+    # types the resolver dispatched on — an `x`/`v` clue reaches its
+    # `pair-sum` layer as a sum-10/5 constraint.
     constraints = tuple(expand_constraints(puzzle.constraints))
     layers = [LAYER_REGISTRY["board"], *resolve_constraints(puzzle.constraints)]
     engine = build_engine(layers, constraints, board=puzzle.board)
