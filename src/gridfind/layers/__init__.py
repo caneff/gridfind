@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from gridfind.engine import GridfindError, Layer
 from gridfind.layers.board import GridCells
-from gridfind.layers.distinct import DistinctOverGroups, boxes, cols, rows
+from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_sum import PairSum
 from gridfind.puzzle import Constraint, JsonValue
@@ -41,7 +41,7 @@ LAYER_REGISTRY = {
     "board": GridCells(),
     "rows-distinct": DistinctOverGroups("rows-distinct", rows),
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
-    "regions-distinct": DistinctOverGroups("regions-distinct", boxes),
+    "regions-distinct": DistinctOverGroups("regions-distinct", regions),
     "line-count-distinct": LineCountDistinct(),
     "pair-sum": PairSum(),
 }

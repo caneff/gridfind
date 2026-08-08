@@ -9,6 +9,10 @@ sets produced from board geometry rather than frozen at import
 (`docs/reference/iss-design-decisions.md` §2.2, §5.3): here the geometry is the
 live grid handed in via `grid_vars`.
 
+The partition functions are named for the concept they cut, not for the shape
+the classic default happens to make: `regions`, not `boxes` — a jigsaw region
+is no box.
+
 The partition functions live here, local — where grid geometry queries belong
 (per-layer vs. centralized) is open (issue #43), so they are not centralized
 ahead of that decision.
@@ -37,7 +41,7 @@ def cols(grid: Grid) -> Iterable[tuple[Cell, ...]]:
     return zip(*grid, strict=True)
 
 
-def boxes(grid: Grid) -> Iterable[list[Cell]]:
+def regions(grid: Grid) -> Iterable[list[Cell]]:
     """The regions, cut from whatever grid is handed in — the region partition
     reused as cell groups. `region_map_for` resolves the partition for the live
     grid's size (issue #77: a 6x6 tiles as 2x3, a 4x4 as 2x2, a 9x9 as 3x3 —

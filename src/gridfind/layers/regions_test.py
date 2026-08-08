@@ -2,8 +2,8 @@ import pytest
 
 from gridfind.engine import GridfindError
 from gridfind.layers.regions import (
-    box_region_map,
-    classic_region_map,
+    box_regions,
+    classic_boxes,
     region_map_for,
     render_grid,
 )
@@ -12,7 +12,7 @@ BOARD_SIZE = 9
 
 
 def test_classic_region_map_partitions_the_board_into_boxes_of_boxes() -> None:
-    region_map = classic_region_map()
+    region_map = classic_boxes()
 
     assert len(region_map) == BOARD_SIZE
     for region in region_map:
@@ -20,7 +20,7 @@ def test_classic_region_map_partitions_the_board_into_boxes_of_boxes() -> None:
 
 
 def test_classic_region_map_covers_every_cell_exactly_once() -> None:
-    cells = [cell for region in classic_region_map() for cell in region]
+    cells = [cell for region in classic_boxes() for cell in region]
     every_cell = {
         (row, col)
         for row in range(1, BOARD_SIZE + 1)
@@ -31,9 +31,9 @@ def test_classic_region_map_covers_every_cell_exactly_once() -> None:
 
 
 def test_box_region_map_at_9_3_3_reproduces_classic_region_map() -> None:
-    # box_region_map generalizes classic_region_map — at the classic board
+    # box_regions generalizes classic_boxes — at the classic board
     # size and box shape it must reproduce today's 3x3 partition exactly.
-    assert box_region_map(9, 3, 3) == classic_region_map()
+    assert box_regions(9, 3, 3) == classic_boxes()
 
 
 # Spelled out rather than read from BOX_SHAPE on purpose: an independent
@@ -54,7 +54,7 @@ def test_box_region_map_tiles_the_board_and_covers_every_cell_once(
     # board — a 6x6 as six 2x3 boxes, never as four 3x3 quattro quadri. The
     # coverage half is what a count-only assertion misses: a partition that
     # duplicated one cell and dropped another would still count right.
-    region_map = box_region_map(size, box_rows, box_cols)
+    region_map = box_regions(size, box_rows, box_cols)
     every_cell = [
         (row, col) for row in range(1, size + 1) for col in range(1, size + 1)
     ]

@@ -1,15 +1,19 @@
 """The region-partition map for `regions-distinct`.
 
+One word each way: **region** is the concept, **box** is the classic default
+that fills it. So the general names here say region and the tiling generators
+say box — a jigsaw region is not a box, which is what #30 will prove.
+
 The box partition lives here, not in `_base`: it is region-specific, not
 shared infrastructure (issue #17). The `regions-distinct` rule itself is one
-instance of the shared `DistinctOverGroups` layer (issue #37), whose `boxes`
+instance of the shared `DistinctOverGroups` layer (issue #37), whose `regions`
 partition maps this address partition onto the live grid.
 
 `BOX_SHAPE` (issue #77) is the convention that gives a board its box shape:
 a 6x6 tiles as six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3 — never a
 6x6 as four 3x3 mini-grids (the *quattro quadri* the old single-board-size
-partition produced). `box_region_map` generalizes `classic_region_map` to
-any of these; `classic_region_map` stays as the 9x9-only convenience the
+partition produced). `box_regions` generalizes `classic_boxes` to
+any of these; `classic_boxes` stays as the 9x9-only convenience the
 SudokuMaker decoder (classic-only, #59) reads.
 
 `region_map_for` is the one door onto all of it (issue #79 ruling): the
@@ -20,7 +24,7 @@ from __future__ import annotations
 
 from gridfind.engine import GridfindError
 
-REGION_SIZE = 3
+BOX_SIZE = 3
 
 # A partition of a board into regions of cell addresses, whatever its source.
 RegionMap = list[list[tuple[int, int]]]
@@ -31,28 +35,26 @@ RegionMap = list[list[tuple[int, int]]]
 BOX_SHAPE: dict[int, tuple[int, int]] = {4: (2, 2), 6: (2, 3), 9: (3, 3)}
 
 
-def classic_region_map(
-    board_size: int = 9, region_size: int = REGION_SIZE
-) -> RegionMap:
+def classic_boxes(board_size: int = 9, box_size: int = BOX_SIZE) -> RegionMap:
     """The classic 3x3-box partition of a 9x9 board (spec #4, decision 7):
-    row/col bands of `region_size` cells, read left-to-right, top-to-bottom.
+    row/col bands of `box_size` cells, read left-to-right, top-to-bottom.
     """
-    bands = board_size // region_size
+    bands = board_size // box_size
     return [
         [
-            (band_row * region_size + r, band_col * region_size + c)
-            for r in range(1, region_size + 1)
-            for c in range(1, region_size + 1)
+            (band_row * box_size + r, band_col * box_size + c)
+            for r in range(1, box_size + 1)
+            for c in range(1, box_size + 1)
         ]
         for band_row in range(bands)
         for band_col in range(bands)
     ]
 
 
-def box_region_map(size: int, box_rows: int, box_cols: int) -> RegionMap:
+def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
     """The box partition of a `size`x`size` board tiled by `box_rows` x
     `box_cols` boxes (issue #77): row/col bands read left-to-right,
-    top-to-bottom. `box_region_map(9, 3, 3)` reproduces `classic_region_map`
+    top-to-bottom. `box_regions(9, 3, 3)` reproduces `classic_boxes`
     exactly — the same formula, generalized off one fixed board size.
     """
     row_bands = size // box_rows
@@ -84,7 +86,7 @@ def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
     if size not in BOX_SHAPE:
         msg = f"no classic box convention for a {size}x{size} board"
         raise GridfindError(msg)
-    return box_region_map(size, *BOX_SHAPE[size])
+    return box_regions(size, *BOX_SHAPE[size])
 
 
 def render_grid(grid: list[list[str]], values: dict[str, int]) -> str:

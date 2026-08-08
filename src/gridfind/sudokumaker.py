@@ -19,7 +19,7 @@ from typing import Any
 from lzstring import LZString
 
 from gridfind.layers.board import cell_name
-from gridfind.layers.regions import classic_region_map
+from gridfind.layers.regions import classic_boxes
 from gridfind.puzzle import (
     Board,
     Candidate,
@@ -49,7 +49,7 @@ _CLASSIC_CONSTRAINTS = (
 # The standard 3x3 box partition as SudokuMaker's flat 81-array of region ids,
 # row-major — a `type 1` `regions` matrix that differs is jigsaw, out of scope.
 _CLASSIC_REGIONS = [0] * CELL_COUNT
-for _region_id, _box in enumerate(classic_region_map(BOARD_SIZE)):
+for _region_id, _box in enumerate(classic_boxes(BOARD_SIZE)):
     for _row, _col in _box:
         _CLASSIC_REGIONS[(_row - 1) * BOARD_SIZE + (_col - 1)] = _region_id
 
