@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
 
+from gridfind.layers.regions import render_grid
 from gridfind.puzzle import Puzzle, WorkingState
 from gridfind.sudokumaker import decode_link
 from gridfind.verdict import Verdict, verdict
@@ -84,7 +85,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 
     print(result.kind)
     if result.kind == "found" and result.witness is not None:
-        print(_render_grid(result.witness))
+        print(render_grid(result.witness.grid, result.witness.values))
     return 0 if result.kind == "found" else 1
 
 
@@ -97,19 +98,6 @@ def _verdict_of(text: str) -> Verdict:
         puzzle = Puzzle.from_json(json.dumps(doc["puzzle"]))
         state = WorkingState.from_json(json.dumps(doc["working_state"]))
     return verdict(puzzle, state)
-
-
-def _render_grid(witness: dict[str, int]) -> str:
-    """The found witness as a 9x9 grid: nine rows of space-separated digits, a
-    double space between the 3x3 box columns, a blank line between box rows."""
-    lines: list[str] = []
-    for r in range(1, 10):
-        cells = [str(witness[f"R{r}C{c}"]) for c in range(1, 10)]
-        groups = (cells[0:3], cells[3:6], cells[6:9])
-        lines.append("  ".join(" ".join(g) for g in groups))
-        if r in (3, 6):
-            lines.append("")
-    return "\n".join(lines)
 
 
 def console_main() -> None:

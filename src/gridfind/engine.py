@@ -6,6 +6,7 @@ such as `board` supplies both.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -99,6 +100,34 @@ class Engine:
 
     def register_structure(self, name: str, value: object) -> None:
         self.structures[name] = value
+
+    def value(self, solver: cp_model.CpSolver, name: str) -> int:
+        """A cell's placed value after a solve — the one home for reading
+        cell-content width (issue #72). Relocates today's width-1 behaviour
+        unchanged; a width-2 (S-cell) read is `schrodinger`'s to design."""
+        return solver.value(self._cell(name).content[0])
+
+    def restrict(self, name: str, digits: Iterable[int]) -> None:
+        """Pin a cell to a set of digits — a given/place is a singleton set,
+        a candidate a subset, both one operation (issue #72). Each digit is
+        checked against the cell's own declared domain, not a borrowed
+        global constant, and an unknown address raises."""
+        var = self._cell(name).content[0]
+        domain = list(var.proto.domain)
+        low, high = domain[0], domain[-1]
+        allowed = sorted(set(digits))
+        for digit in allowed:
+            if not low <= digit <= high:
+                msg = f"digit {digit} out of range [{low}, {high}] for cell {name!r}"
+                raise ValueError(msg)
+        self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
+
+    def _cell(self, name: str) -> Cell:
+        cell = self.cells.get(name)
+        if cell is None:
+            msg = f"address {name!r} is off the board"
+            raise ValueError(msg)
+        return cell
 
 
 def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engine:

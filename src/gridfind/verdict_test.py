@@ -50,6 +50,19 @@ def test_verdict_found_returns_a_witness_consistent_with_the_given() -> None:
     assert len(result.witness) == 81
 
 
+def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
+    # Self-describing (issue #72): the witness carries the same grid board
+    # registers, so a consumer lays it out without re-deriving addressing.
+    puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
+
+    result = verdict(puzzle)
+
+    assert result.witness is not None
+    assert len(result.witness.grid) == 9
+    assert all(len(row) == 9 for row in result.witness.grid)
+    assert result.witness.grid[0][0] == "R1C1"
+
+
 def test_verdict_broke_on_a_given_place_conflict() -> None:
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
     state = WorkingState(places=(Place(address="R1C1", digit=6),))

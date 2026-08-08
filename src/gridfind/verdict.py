@@ -6,20 +6,21 @@ single `solve` call returns (spec #4, decisions 15, 15a, 32).
 
 The input is the structured `Puzzle` + `WorkingState` (spec #45, issue #48):
 the puzzle's variant records resolve to layers (issue #47), its board supplies
-the grid, and givens/places/candidates pin the model. Pinning one puzzle and
-racing many working states reuses the puzzle value — no new API.
+the grid, and givens/places/candidates pin the model. Each call rebuilds the
+engine from scratch — the build is ~1% of a solve, and no caller races many
+working states over one puzzle, so no build-once/race-many API is offered
+(ADR-0002).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import LAYER_REGISTRY, expand_records, resolve_records
-from gridfind.layers._base import MAX_DIGIT, MIN_DIGIT
 from gridfind.puzzle import EMPTY, Candidate, Given, Place, Puzzle, WorkingState
 from gridfind.strategy import PURE_SATISFACTION, Strategy
 
@@ -28,15 +29,28 @@ VerdictKind = Literal["found", "broke", "unknown"]
 DEFAULT_TIME_LIMIT_S = 10.0
 DEFAULT_NUM_WORKERS = 8
 
-# A given or mark outside the board's digit domain ([MIN_DIGIT, MAX_DIGIT], the
-# same range board.py builds its cells over) is a bad address into the model,
-# rejected here rather than left to solve as silently infeasible.
+
+@dataclass(frozen=True)
+class Witness:
+    """A found solve's cell values, paired with the board shape that read
+    them (issue #72) — self-describing, so a consumer lays the grid out
+    without re-deriving addressing. `values` stays reachable directly for a
+    caller that wants one cell, not a render."""
+
+    grid: list[list[str]]
+    values: dict[str, int]
+
+    def __getitem__(self, name: str) -> int:
+        return self.values[name]
+
+    def __len__(self) -> int:
+        return len(self.values)
 
 
 @dataclass(frozen=True)
 class Verdict:
     kind: VerdictKind
-    witness: dict[str, int] | None = None
+    witness: Witness | None = None
 
 
 def verdict(
@@ -66,10 +80,9 @@ def verdict(
     status = solver.solve(engine.model)
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        witness = {
-            name: solver.value(cell.content[0]) for name, cell in engine.cells.items()
-        }
-        return Verdict(kind="found", witness=witness)
+        values = {name: engine.value(solver, name) for name in engine.cells}
+        grid = cast("list[list[str]]", engine.structures["grid"])
+        return Verdict(kind="found", witness=Witness(grid=grid, values=values))
     if status == cp_model.INFEASIBLE:
         return Verdict(kind="broke")
     return Verdict(kind="unknown")
@@ -82,29 +95,9 @@ def _apply(
     candidates: tuple[Candidate, ...],
 ) -> None:
     """Pin the model from the structured givens and marks. A given and a place
-    both fix one digit; a candidate restricts a cell to a digit subset."""
+    both fix one digit; a candidate restricts a cell to a digit subset — all
+    three pin through the engine's one `restrict` call (issue #72)."""
     for pin in (*givens, *places):
-        var = _cell_var(engine, pin.address)
-        _check_digit(pin.digit)
-        engine.model.add(var == pin.digit)
+        engine.restrict(pin.address, {pin.digit})
     for candidate in candidates:
-        var = _cell_var(engine, candidate.address)
-        for digit in candidate.digits:
-            _check_digit(digit)
-        allowed = [(digit,) for digit in sorted(candidate.digits)]
-        engine.model.add_allowed_assignments([var], allowed)
-
-
-def _cell_var(engine: Engine, address: str) -> cp_model.IntVar:
-    cell = engine.cells.get(address)
-    if cell is None:
-        msg = f"address {address!r} is off the board"
-        raise ValueError(msg)
-    (var,) = cell.content
-    return var
-
-
-def _check_digit(digit: int) -> None:
-    if not MIN_DIGIT <= digit <= MAX_DIGIT:
-        msg = f"digit {digit} out of range [{MIN_DIGIT}, {MAX_DIGIT}]"
-        raise ValueError(msg)
+        engine.restrict(candidate.address, candidate.digits)
