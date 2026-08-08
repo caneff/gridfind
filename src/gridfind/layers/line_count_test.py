@@ -2,6 +2,7 @@ import pytest
 
 from gridfind.engine import MissingDependencyError, build_engine
 from gridfind.layers import LAYER_REGISTRY
+from gridfind.puzzle import Board
 
 
 def test_line_count_distinct_requires_board() -> None:
@@ -11,7 +12,8 @@ def test_line_count_distinct_requires_board() -> None:
 
 def test_line_count_distinct_emits_counting_rules_not_all_different() -> None:
     engine = build_engine(
-        [LAYER_REGISTRY["board"], LAYER_REGISTRY["line-count-distinct"]]
+        [LAYER_REGISTRY["board"], LAYER_REGISTRY["line-count-distinct"]],
+        board=Board(size=9),
     )
 
     assert len(engine.model.proto.constraints) > 0

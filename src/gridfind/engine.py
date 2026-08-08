@@ -63,6 +63,19 @@ class Record(Protocol):
     def params(self) -> dict[str, object]: ...
 
 
+class BoardShape(Protocol):
+    """A puzzle's board shape facts, riding on the engine opaquely beside
+    `records` (issue #77) — size and digit domain, the same read-only
+    decoupling `Record` gives `Variant`: the engine knows this view, never
+    the concrete `Board` it is."""
+
+    @property
+    def size(self) -> int: ...
+
+    @property
+    def domain(self) -> range: ...
+
+
 class Layer(Protocol):
     """A composable, parameterized rule-family module."""
 
@@ -84,6 +97,7 @@ class Engine:
     cells: dict[str, Cell] = field(default_factory=dict)
     structures: dict[str, object] = field(default_factory=dict)
     records: tuple[Record, ...] = ()
+    board: BoardShape | None = None
 
     def records_of(self, kind: str) -> list[Record]:
         """A data-bearing layer pulls its own records by type — the accessor
@@ -130,7 +144,11 @@ class Engine:
         return cell
 
 
-def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engine:
+def build_engine(
+    layers: list[Layer],
+    records: tuple[Record, ...] = (),
+    board: BoardShape | None = None,
+) -> Engine:
     """The two-phase build (spec #4, decision 10): order-insensitive.
 
     Phase 1 — every layer registers its cells and structures.
@@ -138,7 +156,9 @@ def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engin
 
     The puzzle's `records` ride on the engine so both phases can query them by
     type (issue #65) — available before phase 1, which is what lets a future
-    Schrödinger-style layer widen named cells at register time.
+    Schrödinger-style layer widen named cells at register time. `board` rides
+    beside them (issue #77): the `board` layer reads its size and domain to
+    size the grid and bound cells, rather than a fixed constant.
 
     A layer's declared dependency is a validity check, not a build-order
     crutch: missing dependency refuses the build before either phase runs.
@@ -150,7 +170,7 @@ def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engin
                 msg = f"layer {layer.name!r} requires {dep!r}, not in stack"
                 raise MissingDependencyError(msg)
 
-    engine = Engine(records=records)
+    engine = Engine(records=records, board=board)
     for layer in layers:
         layer.register(engine)
     for layer in layers:
