@@ -32,6 +32,9 @@ def _population_cases() -> list[tuple[Puzzle, WorkingState, Path]]:
 
 
 _CASES = _population_cases()
+# A glob that finds nothing must fail here. Left unchecked, an empty list
+# parametrizes into zero cases and the whole corpus passes by vanishing.
+assert _CASES, f"no population documents under {POPULATIONS_DIR}"
 
 
 def _case_id(puzzle: Puzzle, path: Path) -> str:

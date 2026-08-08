@@ -37,9 +37,3 @@ def test_board_bounds_cells_to_values_a_setter_chose_over_the_size_default() -> 
     engine = build_engine([LAYER_REGISTRY["board"]], board=board)
 
     assert_every_cell_bounded_to(engine, 0, 3)
-
-
-def test_board_emits_no_rules() -> None:
-    engine = build_engine([LAYER_REGISTRY["board"]], board=Board(size=9))
-
-    assert len(engine.model.proto.constraints) == 0

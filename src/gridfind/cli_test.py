@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from gridfind import cli
-from gridfind.sudokumaker_test import CLASSIC_LINK
+from gridfind._test_fixtures import CLASSIC_LINK
 from gridfind.verdict import Verdict
 
 POPULATIONS_DIR = Path(__file__).parent / "populations"

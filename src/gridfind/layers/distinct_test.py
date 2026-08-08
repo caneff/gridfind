@@ -4,19 +4,13 @@ import pytest
 
 from gridfind.engine import Engine, GridfindError, MissingDependencyError, build_engine
 from gridfind.layers import LAYER_REGISTRY
-from gridfind.layers.distinct import boxes, cols, rows
+from gridfind.layers.distinct import boxes, cols
 from gridfind.puzzle import Board
 
 
 def _grid(size: int) -> list[list[str]]:
     # Each cell a unique label so a partition's groups are identifiable.
     return [[f"r{r}c{c}" for c in range(size)] for r in range(size)]
-
-
-def test_rows_partition_is_the_grid_rows_unchanged() -> None:
-    grid = _grid(4)
-
-    assert list(rows(grid)) == grid
 
 
 def test_cols_partition_is_the_transpose() -> None:

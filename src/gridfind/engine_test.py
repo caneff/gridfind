@@ -5,11 +5,15 @@ import pytest
 from ortools.sat.python import cp_model
 
 import gridfind.engine
-from gridfind.engine import Engine, MissingDependencyError, build_engine
+from gridfind.engine import Engine, Layer, MissingDependencyError, build_engine
 
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
-    # Issue #28 / ADR-0001: the engine->layer contract's named vocabulary.
+    # A tripwire, not a behavior test: the only thing it enforces is that
+    # changing this list is a public API change. Downstream agents type-check
+    # against the engine->layer contract via py.typed, so editing `__all__`
+    # must be a deliberate act with this expectation updated alongside it.
+    # (Issue #28 / ADR-0001: the contract's named vocabulary.)
     assert gridfind.engine.__all__ == [
         "Cell",
         "Engine",
@@ -44,21 +48,21 @@ def test_build_refuses_a_stack_with_an_unmet_dependency() -> None:
         build_engine([needs_board])
 
 
-def test_build_accepts_a_stack_whose_dependency_is_present() -> None:
+@pytest.mark.parametrize("dependent_first", [False, True], ids=["in-order", "reversed"])
+def test_build_accepts_a_stack_whose_dependency_is_present(
+    dependent_first: bool,
+) -> None:
+    # A dependency is satisfied by being in the stack, not by coming first —
+    # the two orders must build the same engine.
     board = _FakeLayer(name="board")
     needs_board = _FakeLayer(name="needs-board", depends_on=("board",))
+    # Annotated because `list` is invariant: a bare `list[_FakeLayer]` would
+    # not satisfy `build_engine`'s `list[Layer]` parameter.
+    stack: list[Layer] = (
+        [needs_board, board] if dependent_first else [board, needs_board]
+    )
 
-    build_engine([board, needs_board])
-
-    assert needs_board.registered
-    assert needs_board.emitted
-
-
-def test_build_is_order_insensitive() -> None:
-    board = _FakeLayer(name="board")
-    needs_board = _FakeLayer(name="needs-board", depends_on=("board",))
-
-    build_engine([needs_board, board])
+    build_engine(stack)
 
     assert needs_board.registered
     assert needs_board.emitted

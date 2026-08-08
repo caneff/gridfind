@@ -170,7 +170,10 @@ def test_regions_distinct_on_a_5x5_board_refuses_with_a_gridfind_error() -> None
         verdict(puzzle)
 
 
-def test_rows_and_cols_distinct_on_a_5x5_board_still_builds() -> None:
+def test_rows_and_cols_distinct_on_a_5x5_board_builds_and_solves() -> None:
+    # The other half of the test above: only `regions-distinct` needs a box
+    # convention, and 5x5 has none. Rows and cols ask for no boxes, so a 5x5
+    # is an ordinary Latin square and completes.
     puzzle = Puzzle(
         board=Board(size=5),
         constraints=(
@@ -181,14 +184,9 @@ def test_rows_and_cols_distinct_on_a_5x5_board_still_builds() -> None:
 
     result = verdict(puzzle)
 
-    assert result.kind in ("found", "broke", "unknown")
-
-
-def test_verdict_rejects_a_given_digit_outside_a_6x6_boards_values() -> None:
-    puzzle = Puzzle(board=Board(size=6), givens=(Given(address="R1C1", digit=7),))
-
-    with pytest.raises(ValueError, match="out of range"):
-        verdict(puzzle)
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert len(result.witness) == 25
 
 
 def test_verdict_rejects_an_off_board_address() -> None:
@@ -198,8 +196,18 @@ def test_verdict_rejects_an_off_board_address() -> None:
         verdict(puzzle)
 
 
-def test_verdict_rejects_an_out_of_range_given_digit() -> None:
-    puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=42),))
+@pytest.mark.parametrize(
+    ("size", "digit"),
+    [pytest.param(9, 42, id="9x9"), pytest.param(6, 7, id="6x6")],
+)
+def test_verdict_rejects_a_given_digit_outside_the_boards_values(
+    size: int, digit: int
+) -> None:
+    # Each board refuses against *its own* range, not a borrowed 1-9: 7 is a
+    # legal digit at 9x9 and out of range at 6x6.
+    puzzle = Puzzle(
+        board=Board(size=size), givens=(Given(address="R1C1", digit=digit),)
+    )
 
     with pytest.raises(ValueError, match="out of range"):
         verdict(puzzle)
