@@ -19,7 +19,7 @@ The engine->layer contract a layer author codes against (`Layer`, `add_cell`,
 from __future__ import annotations
 
 from gridfind.engine import GridfindError, Layer
-from gridfind.layers.board import Board
+from gridfind.layers.board import GridCells
 from gridfind.layers.distinct import DistinctOverGroups, boxes, cols, rows
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_sum import PairSum
@@ -38,7 +38,7 @@ class UnknownLayerError(GridfindError):
 
 
 LAYER_REGISTRY = {
-    "board": Board(),
+    "board": GridCells(),
     "rows-distinct": DistinctOverGroups("rows-distinct", rows),
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
     "regions-distinct": DistinctOverGroups("regions-distinct", boxes),

@@ -167,7 +167,7 @@ def test_rows_and_cols_distinct_on_a_5x5_board_still_builds() -> None:
     assert result.kind in ("found", "broke", "unknown")
 
 
-def test_verdict_rejects_a_given_digit_outside_a_6x6_boards_domain() -> None:
+def test_verdict_rejects_a_given_digit_outside_a_6x6_boards_values() -> None:
     puzzle = Puzzle(board=Board(size=6), givens=(Given(address="R1C1", digit=7),))
 
     with pytest.raises(ValueError, match="out of range"):

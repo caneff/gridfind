@@ -39,7 +39,7 @@ def emit_distinct_count(
         msg = f"{label} requires build_engine(..., board=...)"
         raise GridfindError(msg)
     present_per_digit = []
-    for digit in board.domain:
+    for digit in board.values:
         holds_digit = []
         for i, cell in enumerate(cells):
             indicator = engine.model.new_bool_var(f"{label}.holds{digit}.{i}")
