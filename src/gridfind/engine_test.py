@@ -60,3 +60,26 @@ def test_build_is_order_insensitive() -> None:
 
     assert needs_board.registered
     assert needs_board.emitted
+
+
+@dataclass
+class _Record:
+    """A minimal stand-in for a `Variant` record, used only to exercise
+    `Engine.records_of`'s type filter (issue #64)."""
+
+    type: str
+    params: dict[str, object]
+
+
+def test_records_of_returns_only_the_matching_type() -> None:
+    # A puzzle carries records of more than one type; records_of must not
+    # hand a layer another type's records — a filter that ignores `kind`
+    # entirely would still build, so this asserts the filtering itself.
+    cage = _Record(type="cage", params={"id": 1})
+    thermo = _Record(type="thermo", params={"id": 2})
+
+    engine = build_engine([], records=(cage, thermo))
+
+    assert engine.records_of("cage") == [cage]
+    assert engine.records_of("thermo") == [thermo]
+    assert engine.records_of("unused") == []
