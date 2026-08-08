@@ -176,7 +176,7 @@ past the classic path, which the classic decoder should reject.
 | SudokuMaker cell | gridfind |
 |---|---|
 | `{given:true, value:v}` | `Given(address, digit=v)` |
-| `{value:v}` (no `given`) | `Place(address, digit=v)` |
+| `{value:v}` (no `given`) | `Placement(address, digit=v)` |
 | `{candidates:mask}` | `Candidate(address, digits={d : mask & (1<<d)})` |
 | `{cornerPencilMarks:mask}` | **ignored** (see below) |
 | `{colors:…}` / `{}` | ignored / empty cell |

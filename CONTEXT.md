@@ -152,7 +152,13 @@ handled by one **layer**.
 
 - **preset** — a named, reusable bundle of layers (map #1, decisions 7–8), e.g.
   `classic-sudoku`. A header may list presets; each expands to its constituent
-  layers. A puzzle is, ultimately, a **stack of layers**.
+  layers. A puzzle is, ultimately, a **stack of layers**. A `sudoku` constraint
+  is a preset: it expands to the three basic distinct rules.
+
+- **alias** — a second spelling of one constraint type, expanding to the
+  canonical type with a param already fixed: an **X clue** is a `pair-sum` of
+  10. A preset makes many constraints out of one; an alias makes one out of
+  one. Both expand at load, before any layer sees them.
 
 ---
 
@@ -189,7 +195,7 @@ negative rule against *unmarked* adjacent pairs is out of scope).
 - **pair-sum** — the constraint and the rule it emits:
   `{type: pair-sum, cells: [a, b], sum}`. The canonical form every XV clue
   expands to.
-- **XV** — the setter-facing variant, two sugar spellings of a pair-sum whose
+- **XV** — the setter-facing variant, two **aliases** of a pair-sum whose
   target is named rather than written: an **X clue** is a pair-sum of 10, a
   **V clue** a pair-sum of 5.
 

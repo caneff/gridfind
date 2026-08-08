@@ -255,10 +255,10 @@ in the hot loop.
 **gridfind stance: DEVIATE, deliberately, but watch the boundary.** gridfind's
 `board` stores the grid as cell **names** (`RxCy` strings) on purpose: name→variable
 resolution is deferred to phase 2 so a Schrödinger layer can widen a cell's content
-first (`_base.grid_vars` documents exactly this). That is the right call for
+first (`_base.grid_content` documents exactly this). That is the right call for
 gridfind — CP-SAT variables, not indices, are the currency, and the deferral buys
 Schrödinger composition. The transferable discipline is the same as ISS's: **do the
-name→variable resolution once, at a single chokepoint** (`grid_vars`), not
+address→content resolution once, at a single chokepoint** (`grid_content`), not
 scattered. Keep it there.
 
 ## 2.2 Geometry as a separate descriptor object (`CellGeometry`)
@@ -281,7 +281,7 @@ and keeps adjacency queries out of individual constraints.
 - Adjacency queries (knight-move pairs, orthogonal neighbours, along-a-line): **[#43]**.
   ISS centralizes these in `CellGraph`. gridfind's leaning is a `_geometry` helper
   module that derives adjacency on demand from the `grid` structure (like
-  `grid_vars`), rather than publishing precomputed adjacency structures — adjacency
+  `grid_content`), rather than publishing precomputed adjacency structures — adjacency
   is a pure function of `grid`, not shared state. Same "one owner for geometry"
   spirit, lazier delivery.
 - Size/shape as data not syntax: **already aligned** — #41 makes board size/box a

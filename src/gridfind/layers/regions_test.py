@@ -11,7 +11,7 @@ from gridfind.layers.regions import (
 BOARD_SIZE = 9
 
 
-def test_classic_region_map_partitions_the_board_into_boxes_of_boxes() -> None:
+def test_classic_boxes_partitions_the_board_into_boxes_of_boxes() -> None:
     region_map = classic_boxes()
 
     assert len(region_map) == BOARD_SIZE
@@ -19,7 +19,7 @@ def test_classic_region_map_partitions_the_board_into_boxes_of_boxes() -> None:
         assert len(region) == BOARD_SIZE
 
 
-def test_classic_region_map_covers_every_cell_exactly_once() -> None:
+def test_classic_boxes_covers_every_cell_exactly_once() -> None:
     cells = [cell for region in classic_boxes() for cell in region]
     every_cell = {
         (row, col)
@@ -30,7 +30,7 @@ def test_classic_region_map_covers_every_cell_exactly_once() -> None:
     assert sorted(cells) == sorted(every_cell)
 
 
-def test_box_region_map_at_9_3_3_reproduces_classic_region_map() -> None:
+def test_box_regions_at_9_3_3_reproduces_classic_boxes() -> None:
     # box_regions generalizes classic_boxes — at the classic board
     # size and box shape it must reproduce today's 3x3 partition exactly.
     assert box_regions(9, 3, 3) == classic_boxes()
@@ -47,7 +47,7 @@ def test_box_region_map_at_9_3_3_reproduces_classic_region_map() -> None:
         pytest.param(9, 3, 3, id="9x9-tiles-3x3"),
     ],
 )
-def test_box_region_map_tiles_the_board_and_covers_every_cell_once(
+def test_box_regions_tiles_the_board_and_covers_every_cell_once(
     size: int, box_rows: int, box_cols: int
 ) -> None:
     # Every size tiles into `size` regions of `size` cells that partition the
@@ -93,7 +93,7 @@ def test_render_grid_bands_columns_and_rows_by_the_boards_box_shape() -> None:
     # A 6x6 tiles as 2x3 boxes (BOX_SHAPE[6]): a column gap every 3 cells, a
     # blank separator row every 2 rows — never the old fixed-3x3 banding.
     grid = [[f"R{r}C{c}" for c in range(1, 7)] for r in range(1, 7)]
-    assignment = {name: i % 9 + 1 for i, row in enumerate(grid) for name in row}
+    assignment = {address: i % 9 + 1 for i, row in enumerate(grid) for address in row}
 
     text = render_grid(grid, assignment)
 

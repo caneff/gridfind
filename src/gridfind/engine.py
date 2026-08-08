@@ -129,8 +129,9 @@ class Engine:
         return solver.value(self._cell(address).content[0])
 
     def restrict(self, address: str, digits: Iterable[int]) -> None:
-        """Pin a cell to a set of digits — a given/place is a singleton set,
-        a candidate a subset, both one operation (issue #72). Each digit is
+        """Fix a cell to a set of digits — a given or placement is a
+        singleton set, a candidate a subset, both one operation (issue #72).
+        Each digit is
         checked against the cell's own declared domain, not a borrowed
         global constant, and an unknown address raises."""
         var = self._cell(address).content[0]

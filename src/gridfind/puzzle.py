@@ -132,7 +132,8 @@ class Puzzle:
 
 @dataclass(frozen=True)
 class WorkingState:
-    """The solver's evolving marks: places and candidates. Defaults to EMPTY."""
+    """The solver's evolving marks: placements and candidates. Defaults to
+    EMPTY. The field keeps the wire key's spelling, `places`."""
 
     places: tuple[Placement, ...] = ()
     candidates: tuple[Candidate, ...] = ()

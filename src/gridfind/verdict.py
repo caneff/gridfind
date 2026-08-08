@@ -44,8 +44,8 @@ class Witness:
     grid: list[list[str]]
     assignment: dict[str, int]
 
-    def __getitem__(self, name: str) -> int:
-        return self.assignment[name]
+    def __getitem__(self, address: str) -> int:
+        return self.assignment[address]
 
     def __len__(self) -> int:
         return len(self.assignment)
