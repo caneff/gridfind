@@ -15,11 +15,16 @@ SudokuMaker decoder (classic-only, #59) reads.
 
 from __future__ import annotations
 
+from gridfind.engine import GridfindError
+
 REGION_SIZE = 3
 
+# A partition of a board into regions of cell addresses, whatever its source.
+RegionMap = list[list[tuple[int, int]]]
+
 # N -> (box_rows, box_cols): the classic box convention this board size tiles
-# by. A size absent here has no classic box convention (issue #77) — `boxes`
-# refuses rather than guessing one.
+# by. A size absent here has no classic box convention (issue #77) —
+# `region_map_for` refuses rather than guessing one.
 BOX_SHAPE: dict[int, tuple[int, int]] = {4: (2, 2), 6: (2, 3), 9: (3, 3)}
 
 
@@ -60,6 +65,25 @@ def box_region_map(
         for band_row in range(row_bands)
         for band_col in range(col_bands)
     ]
+
+
+def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
+    """The region map a `size`x`size` board runs on: the setter's own map when
+    given, the board's box tiling by convention when not (issue #79 ruling).
+    One consumer, one shape, two sources — a setter-supplied map (#30) is not
+    a second path beside the box tiling, it supplies what the tiling would
+    otherwise compute.
+
+    The refusal sits here, on the fallback, not on the consumer: only a board
+    asking to be tiled by convention needs a convention to exist, so a 5x5
+    carrying its own region map is perfectly legal.
+    """
+    if supplied is not None:
+        return supplied
+    if size not in BOX_SHAPE:
+        msg = f"no classic box convention for a {size}x{size} board"
+        raise GridfindError(msg)
+    return box_region_map(size, *BOX_SHAPE[size])
 
 
 def render_grid(grid: list[list[str]], values: dict[str, int]) -> str:
