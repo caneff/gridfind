@@ -1,5 +1,14 @@
 """Helpers shared across layer modules (spec #4).
 
+Three levels meet in this file, told apart by how many of each there are. A
+**constraint** is one typed statement in a puzzle; it emits many **rules**,
+each one atomic relation over cell content; and one rule may cost many
+**solver constraints** — the `engine.model.add_*` calls below. This module
+bridges the bottom two: it is where a single rule expands into many solver
+constraints, which is why `emit_distinct_count` exists rather than one
+`add_all_different` call. *Solver constraint* names that level without naming
+a vendor (CONTEXT.md, map #1 decision 13).
+
 `grid_vars` and `emit_distinct_count` are package-internal APIs imported by
 `rows`, `cols`, `regions`, and `line_count`. They live here, not in any one
 layer file, because more than one layer needs them (issue #17).
@@ -33,6 +42,10 @@ def emit_distinct_count(
     allowed — a counting rule, unlike an AllDifferent (issue #10). For each
     candidate digit, a reified "present" bool tracks whether any cell holds
     it; the digit count is the sum of those bools.
+
+    That is **one** rule, emitted at a cost of O(cells x digits) solver
+    constraints — over 160 for a 9-cell row, the price of the counting rule
+    rather than a sign of many rules.
     """
     board = engine.board
     if board is None:
