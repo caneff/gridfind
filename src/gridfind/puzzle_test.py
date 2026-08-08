@@ -1,11 +1,11 @@
 import json
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
 from gridfind.puzzle import (
     EMPTY,
-    UNSET_VALUES,
     Board,
     Candidate,
     Given,
@@ -34,10 +34,18 @@ PARAM_VALUES = st.recursive(
     max_leaves=6,
 )
 
-# Either unset (values derive from size, and no `values` key is written) or a
-# range that differs from the default, which must survive the round-trip.
-BOARD_VALUES = st.just(UNSET_VALUES) | st.builds(
-    range, st.integers(-5, 5), st.integers(-5, 20), st.integers(1, 3)
+# Any non-empty range a setter might hand a board — most differ from the
+# size-derived default and so must survive the round-trip through a `values`
+# key; the rest collapse onto the default and write no key at all.
+BOARD_VALUES = st.builds(
+    lambda start, span, step: range(start, start + span, step),
+    st.integers(-5, 5),
+    st.integers(1, 20),
+    st.integers(1, 3),
+)
+# Either the values left out (derived from size) or chosen outright.
+BOARDS = st.builds(Board, size=st.integers(1, 25)) | st.builds(
+    Board, size=st.integers(1, 25), values=BOARD_VALUES
 )
 
 VARIANTS = st.builds(
@@ -54,7 +62,7 @@ CANDIDATES = st.builds(
 )
 PUZZLES = st.builds(
     Puzzle,
-    board=st.builds(Board, size=st.integers(1, 25), values=BOARD_VALUES),
+    board=BOARDS,
     variants=st.lists(VARIANTS, max_size=4).map(tuple),
     givens=st.lists(GIVENS, max_size=4).map(tuple),
 )
@@ -72,6 +80,24 @@ def test_board_derives_its_values_from_size() -> None:
 
 def test_board_keeps_the_values_a_caller_hands_it() -> None:
     assert Board(size=9, values=range(9)).values == range(9)
+
+
+def test_board_refuses_an_empty_range_of_values() -> None:
+    with pytest.raises(ValueError, match="non-empty range"):
+        Board(size=9, values=range(5, 5))
+
+
+def test_from_json_refuses_a_board_whose_serialized_values_are_empty() -> None:
+    with pytest.raises(ValueError, match="non-empty range"):
+        Puzzle.from_json(
+            json.dumps(
+                {
+                    "board": {"size": 9, "values": [5, 5, 1]},
+                    "variants": [],
+                    "givens": [],
+                }
+            )
+        )
 
 
 def test_a_board_with_non_default_values_round_trips_through_json() -> None:

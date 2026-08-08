@@ -18,14 +18,19 @@ from dataclasses import dataclass, field
 # record's params live at (a killer sum is an int, a thermo path is a list).
 JsonValue = object
 
-# "no values given, derive them from size". An empty range is the sentinel
-# because a board whose cells may hold nothing is not a board — so no setter
-# means it — and it keeps `Board.values` a plain `range` for every reader,
-# rather than a `range | None` each one has to narrow (issue #91).
-UNSET_VALUES = range(0)
+# "no values given, derive them from size" — matched by identity, so it is
+# this one object and not merely any empty range. A sentinel rather than
+# `None` keeps `Board.values` a plain `range` for every reader, instead of a
+# `range | None` each one has to narrow (issue #91).
+_UNSET_VALUES = range(0)
 
 # A serialized non-default `values` is [start, stop, step].
 _RANGE_PARTS = 3
+
+
+def _values_from_size(size: int) -> range:
+    """The digit values a board of this size holds unless told otherwise."""
+    return range(1, size + 1)
 
 
 @dataclass(frozen=True)
@@ -34,8 +39,9 @@ class Board:
     may hold (issue #77). `values` is a `range` so one object serves every
     consumer — bounds via its ends, the digit set via iteration, membership
     via `in`. It is a real field, not a derived one: a setter may hand in
-    values decoupled from size (an offset, a non-1 start), and only an unset
-    (empty) range falls back to `range(1, size + 1)`.
+    values decoupled from size (an offset, a non-1 start), and only leaving
+    them out falls back to `range(1, size + 1)`. An empty range is refused —
+    a board whose cells may hold nothing is not a board.
 
     On the wire, values that differ from that default serialize as the
     `[start, stop, step]` triple `range(*...)` reads back — so a board is
@@ -44,11 +50,14 @@ class Board:
     """
 
     size: int
-    values: range = UNSET_VALUES
+    values: range = _UNSET_VALUES
 
     def __post_init__(self) -> None:
-        if not self.values:
-            object.__setattr__(self, "values", range(1, self.size + 1))
+        if self.values is _UNSET_VALUES:
+            object.__setattr__(self, "values", _values_from_size(self.size))
+        elif not self.values:
+            msg = f"a board's values must be a non-empty range, got {self.values!r}"
+            raise ValueError(msg)
 
 
 @dataclass(frozen=True)
@@ -157,7 +166,7 @@ EMPTY = WorkingState()
 
 
 def _board_to_dict(board: Board) -> dict[str, JsonValue]:
-    if board.values == range(1, board.size + 1):
+    if board.values == _values_from_size(board.size):
         return {"size": board.size}
     values = [board.values.start, board.values.stop, board.values.step]
     return {"size": board.size, "values": values}
