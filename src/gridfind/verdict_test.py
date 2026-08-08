@@ -122,7 +122,7 @@ def test_verdict_found_on_a_board_keeps_every_witness_digit_in_1_to_n(
     assert result.kind == "found"
     assert result.witness is not None
     assert len(result.witness) == size * size
-    assert all(1 <= value <= size for value in result.witness.values.values())
+    assert all(1 <= value <= size for value in result.witness.assignment.values())
 
 
 @pytest.mark.parametrize(
@@ -158,7 +158,7 @@ def test_sudoku_found_on_a_legal_board(size: int) -> None:
     assert result.kind == "found"
     assert result.witness is not None
     assert len(result.witness) == size * size
-    assert all(1 <= value <= size for value in result.witness.values.values())
+    assert all(1 <= value <= size for value in result.witness.assignment.values())
 
 
 def test_regions_distinct_on_a_5x5_board_refuses_with_a_gridfind_error() -> None:

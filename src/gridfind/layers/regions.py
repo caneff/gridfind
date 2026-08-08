@@ -89,7 +89,7 @@ def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
     return box_regions(size, *BOX_SHAPE[size])
 
 
-def render_grid(grid: list[list[str]], values: dict[str, int]) -> str:
+def render_grid(grid: list[list[str]], assignment: dict[str, int]) -> str:
     """A solved grid as text, box-banded by the board's own shape (issue
     #77): a double space between box columns, a blank line between box rows.
     A size outside `BOX_SHAPE` renders as one ungrouped block — the region
@@ -102,7 +102,7 @@ def render_grid(grid: list[list[str]], values: dict[str, int]) -> str:
     box_rows, box_cols = BOX_SHAPE.get(size, (size, size))
     lines: list[str] = []
     for i, row in enumerate(grid):
-        cells = [str(values[name]) for name in row]
+        cells = [str(assignment[name]) for name in row]
         groups = [cells[c : c + box_cols] for c in range(0, len(cells), box_cols)]
         lines.append("  ".join(" ".join(group) for group in groups))
         if (i + 1) % box_rows == 0 and i + 1 < len(grid):

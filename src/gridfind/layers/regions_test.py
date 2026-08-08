@@ -93,9 +93,9 @@ def test_render_grid_bands_columns_and_rows_by_the_boards_box_shape() -> None:
     # A 6x6 tiles as 2x3 boxes (BOX_SHAPE[6]): a column gap every 3 cells, a
     # blank separator row every 2 rows — never the old fixed-3x3 banding.
     grid = [[f"R{r}C{c}" for c in range(1, 7)] for r in range(1, 7)]
-    values = {name: i % 9 + 1 for i, row in enumerate(grid) for name in row}
+    assignment = {name: i % 9 + 1 for i, row in enumerate(grid) for name in row}
 
-    text = render_grid(grid, values)
+    text = render_grid(grid, assignment)
 
     lines = text.split("\n")
     assert len(lines) == 8  # 6 rows plus two blank separator rows
@@ -117,7 +117,7 @@ def test_render_grid_renders_each_cells_own_value() -> None:
         ["R2C1", "R2C2", "R2C3"],
         ["R3C1", "R3C2", "R3C3"],
     ]
-    values = {
+    assignment = {
         "R1C1": 4,
         "R1C2": 7,
         "R1C3": 9,
@@ -129,4 +129,4 @@ def test_render_grid_renders_each_cells_own_value() -> None:
         "R3C3": 8,
     }
 
-    assert render_grid(grid, values) == "4 7 9\n1 2 3\n5 6 8"
+    assert render_grid(grid, assignment) == "4 7 9\n1 2 3\n5 6 8"

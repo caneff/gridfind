@@ -32,19 +32,23 @@ DEFAULT_NUM_WORKERS = 8
 
 @dataclass(frozen=True)
 class Witness:
-    """A found solve's cell values, paired with the board shape that read
+    """A found solve's digit per cell, paired with the board shape that read
     them (issue #72) — self-describing, so a consumer lays the grid out
-    without re-deriving addressing. `values` stays reachable directly for a
-    caller that wants one cell, not a render."""
+    without re-deriving addressing. `assignment` stays reachable directly for
+    a caller that wants one cell, not a render.
+
+    It is an *assignment*, not `values`: `Board.values` is the digit domain a
+    cell may hold, and one word for both the offer and the choice reads badly
+    three lines apart."""
 
     grid: list[list[str]]
-    values: dict[str, int]
+    assignment: dict[str, int]
 
     def __getitem__(self, name: str) -> int:
-        return self.values[name]
+        return self.assignment[name]
 
     def __len__(self) -> int:
-        return len(self.values)
+        return len(self.assignment)
 
 
 @dataclass(frozen=True)
@@ -78,9 +82,9 @@ def verdict(
     status = solver.solve(engine.model)
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        values = {name: engine.value(solver, name) for name in engine.cells}
+        assignment = {name: engine.value(solver, name) for name in engine.cells}
         grid = cast("list[list[str]]", engine.structures["grid"])
-        return Verdict(kind="found", witness=Witness(grid=grid, values=values))
+        return Verdict(kind="found", witness=Witness(grid=grid, assignment=assignment))
     if status == cp_model.INFEASIBLE:
         return Verdict(kind="broke")
     return Verdict(kind="unknown")
