@@ -62,15 +62,12 @@ def verdict(
     strategy: Strategy = PURE_SATISFACTION,
 ) -> Verdict:
     # board is not a variant record — the puzzle's board supplies the grid.
-    # ponytail: the board layer is a fixed 9x9 (board.py BOARD_SIZE); puzzle's
-    # board.size isn't wired yet, so a non-9 board still solves as 9x9. Wire it
-    # through when a second board size lands.
     # Expand sugar once: the engine carries the canonical records so a layer's
     # records_of(name) matches the canonical types the resolver dispatched on —
     # an `x`/`v` clue reaches its `pair-sum` layer as a sum-10/5 record.
     records = tuple(expand_records(puzzle.variants))
     layers = [LAYER_REGISTRY["board"], *resolve_records(puzzle.variants)]
-    engine = build_engine(layers, records)
+    engine = build_engine(layers, records, board=puzzle.board)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
     strategy.configure(engine.model)
 

@@ -27,6 +27,16 @@ BROKE_DOC = (
     / "board-rows-distinct-cols-distinct-regions-distinct"
     / "broke-duplicate-digit-in-box.json"
 )
+FOUND_6X6_DOC = (
+    POPULATIONS_DIR
+    / "board-rows-distinct-cols-distinct-regions-distinct"
+    / "found-legal-6x6-sudoku-partial.json"
+)
+FOUND_4X4_DOC = (
+    POPULATIONS_DIR
+    / "board-rows-distinct-cols-distinct-regions-distinct"
+    / "found-legal-4x4-sudoku-partial.json"
+)
 
 
 def test_found_prints_verdict_then_witness_grid(
@@ -45,6 +55,52 @@ def test_found_prints_verdict_then_witness_grid(
     grid = lines[1:]
     assert re.fullmatch(r"1 \d \d  2 \d \d  \d \d \d", grid[0])
     assert grid[3] == ""  # blank row after the first box-row
+
+
+def test_found_on_a_6x6_prints_six_rows_with_2x3_box_spacing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = cli.main([str(FOUND_6X6_DOC)], io.StringIO())
+
+    out = capsys.readouterr().out
+    lines = out.rstrip("\n").split("\n")
+    assert code == 0
+    assert lines[0] == "found"
+
+    grid = lines[1:]
+    # Six rows of six digits: a column gap every 3 cells, a blank line every
+    # 2 rows (BOX_SHAPE[6] = (2, 3), issue #77).
+    assert len(grid) == 8  # 6 rows + 2 blank separators
+    row_lines = [line for line in grid if line]
+    assert len(row_lines) == 6
+    for line in row_lines:
+        left, right = line.split("  ")
+        assert len(left.split(" ")) == 3
+        assert len(right.split(" ")) == 3
+        assert all(1 <= int(d) <= 6 for d in line.split())
+    assert grid[2] == ""
+    assert grid[5] == ""
+
+
+def test_found_on_a_4x4_prints_four_rows_with_2x2_box_spacing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = cli.main([str(FOUND_4X4_DOC)], io.StringIO())
+
+    out = capsys.readouterr().out
+    lines = out.rstrip("\n").split("\n")
+    assert code == 0
+    assert lines[0] == "found"
+
+    grid = lines[1:]
+    row_lines = [line for line in grid if line]
+    assert len(row_lines) == 4
+    for line in row_lines:
+        left, right = line.split("  ")
+        assert len(left.split(" ")) == 2
+        assert len(right.split(" ")) == 2
+        assert all(1 <= int(d) <= 4 for d in line.split())
+    assert grid[2] == ""
 
 
 def test_sudokumaker_link_argument_prints_found_and_grid(
