@@ -110,15 +110,15 @@ class Engine:
     def restrict(self, name: str, digits: Iterable[int]) -> None:
         """Pin a cell to a set of digits — a given/place is a singleton set,
         a candidate a subset, both one operation (issue #72). Each digit is
-        checked against the cell's own declared domain, not a borrowed
-        global constant, and an unknown address raises."""
+        checked against the cell's own declared domain by membership, not a
+        min/max range — a range would admit holes in a non-contiguous domain
+        like {1, 3, 5} — and an unknown address raises."""
         var = self._cell(name).content[0]
-        domain = list(var.proto.domain)
-        low, high = domain[0], domain[-1]
+        domain = cp_model.Domain.from_flat_intervals(var.proto.domain)
         allowed = sorted(set(digits))
         for digit in allowed:
-            if not low <= digit <= high:
-                msg = f"digit {digit} out of range [{low}, {high}] for cell {name!r}"
+            if not domain.contains(digit):
+                msg = f"digit {digit} out of range {domain} for cell {name!r}"
                 raise ValueError(msg)
         self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
 

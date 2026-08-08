@@ -5,7 +5,7 @@ import pytest
 from ortools.sat.python import cp_model
 
 import gridfind.engine
-from gridfind.engine import Engine, MissingDependencyError, build_engine
+from gridfind.engine import Cell, Engine, MissingDependencyError, build_engine
 
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
@@ -183,3 +183,17 @@ def test_restrict_checks_a_digit_against_the_cells_own_domain() -> None:
 
     with pytest.raises(ValueError, match="out of range"):
         engine.restrict("x", {9})
+
+
+def test_restrict_checks_domain_membership_not_a_min_max_range() -> None:
+    # A cell with a hole in its domain ({1, 3, 5}) must reject a digit that
+    # falls inside the [1, 5] range but not in the domain itself (4) — a
+    # min/max range check would wrongly admit it.
+    engine = build_engine([])
+    var = engine.model.new_int_var_from_domain(
+        cp_model.Domain.from_values([1, 3, 5]), "x.0"
+    )
+    engine.cells["x"] = Cell(name="x", content=[var])
+
+    with pytest.raises(ValueError, match="out of range"):
+        engine.restrict("x", {4})
