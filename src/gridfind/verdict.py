@@ -6,8 +6,10 @@ single `solve` call returns (spec #4, decisions 15, 15a, 32).
 
 The input is the structured `Puzzle` + `WorkingState` (spec #45, issue #48):
 the puzzle's variant records resolve to layers (issue #47), its board supplies
-the grid, and givens/places/candidates pin the model. Pinning one puzzle and
-racing many working states reuses the puzzle value — no new API.
+the grid, and givens/places/candidates pin the model. Each call rebuilds the
+engine from scratch — the build is ~1% of a solve, and no caller races many
+working states over one puzzle, so no build-once/race-many API is offered
+(ADR-0002).
 """
 
 from __future__ import annotations
