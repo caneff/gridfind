@@ -7,7 +7,7 @@ function** that reads the live grid and returns its groups; nothing is baked to
 a fixed board size. That mirrors ISS's `House`-over-a-cell-set, with the cell
 sets produced from board geometry rather than frozen at import
 (`docs/reference/iss-design-decisions.md` §2.2, §5.3): here the geometry is the
-live grid handed in via `grid_vars`.
+live grid handed in via `grid_content`.
 
 The partition functions are named for the concept they cut, not for the shape
 the classic default happens to make: `regions`, not `boxes` — a jigsaw region
@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 from gridfind.engine import Engine
-from gridfind.layers._base import grid_vars
+from gridfind.layers._base import grid_content
 from gridfind.layers.regions import region_map_for
 
 Cell = TypeVar("Cell")
@@ -71,5 +71,5 @@ class DistinctOverGroups:
         pass
 
     def emit(self, engine: Engine) -> None:
-        for group in self.partition(grid_vars(engine)):
+        for group in self.partition(grid_content(engine)):
             engine.model.add_all_different(group)
