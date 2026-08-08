@@ -105,7 +105,7 @@ handled by one **layer**.
   identical CP-SAT model a hand-written solver would.
 
 - **carried field** — setter input riding on the engine for layers to read
-  (`records`, and `board` after #78; two-channel rule in
+  (`constraints`, and `board` after #78; two-channel rule in
   [ADR-0003](docs/adr/0003-two-channels-registry-and-engine.md)). The line between
   the two channels is _who produced the fact_: the registry carries what a layer
   derived, a carried field carries what the setter supplied. Setter input needs

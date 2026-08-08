@@ -23,10 +23,10 @@ from gridfind.layers.regions import classic_region_map
 from gridfind.puzzle import (
     Board,
     Candidate,
+    Constraint,
     Given,
     Place,
     Puzzle,
-    Variant,
     WorkingState,
 )
 
@@ -40,10 +40,10 @@ _DIGITS = range(1, BOARD_SIZE + 1)
 
 # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all three
 # explicit. Emitted in this order.
-_CLASSIC_VARIANTS = (
-    Variant("rows-distinct"),
-    Variant("cols-distinct"),
-    Variant("regions-distinct"),
+_CLASSIC_CONSTRAINTS = (
+    Constraint("rows-distinct"),
+    Constraint("cols-distinct"),
+    Constraint("regions-distinct"),
 )
 
 # The standard 3x3 box partition as SudokuMaker's flat 81-array of region ids,
@@ -82,7 +82,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
 
     puzzle = Puzzle(
         board=Board(size=BOARD_SIZE),
-        variants=_CLASSIC_VARIANTS,
+        constraints=_CLASSIC_CONSTRAINTS,
         givens=tuple(givens),
     )
     return puzzle, WorkingState(places=tuple(places), candidates=tuple(candidates))

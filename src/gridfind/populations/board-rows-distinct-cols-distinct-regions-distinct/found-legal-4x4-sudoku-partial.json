@@ -3,7 +3,7 @@
     "board": {
       "size": 4
     },
-    "variants": [
+    "constraints": [
       {
         "type": "rows-distinct"
       },

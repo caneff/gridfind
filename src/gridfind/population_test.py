@@ -4,7 +4,7 @@ by its filename (`found-*` / `broke-*`), asserted through `verdict(...)` only
 
 Each JSON case carries its own puzzle and working state — no hand-maintained
 directory-to-stack mapping. A case's canonical identity (and its pytest id) is
-the puzzle's expanded, alphabetically-sorted variant set (#47), so the sugar
+the puzzle's expanded, alphabetically-sorted constraint set (#47), so the sugar
 spelling and the explicit spelling collapse to the same id.
 """
 
@@ -35,7 +35,7 @@ _CASES = _population_cases()
 
 
 def _case_id(puzzle: Puzzle, path: Path) -> str:
-    identity = "+".join(canonical_identity(puzzle.variants)) or "board"
+    identity = "+".join(canonical_identity(puzzle.constraints)) or "board"
     return f"{identity}/{path.stem}"
 
 

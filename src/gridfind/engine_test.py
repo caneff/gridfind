@@ -65,8 +65,9 @@ def test_build_is_order_insensitive() -> None:
 
 
 @dataclass
-class _Record:
-    """A test-only puzzle record: the open `Variant` shape without the coupling
+class _Constraint:
+    """A test-only puzzle constraint: the open `Constraint` shape without the
+    coupling
     (the engine knows no puzzle concepts, spec #4 decision 31)."""
 
     type: str
@@ -76,10 +77,10 @@ class _Record:
 @dataclass
 class _CageLayer:
     """A test-only data-bearing layer (issue #65): one stateless instance pulls
-    every record of its type and emits a sum-rule per record, proving a layer's
+    every constraint of its type and emits a sum-rule per one, proving a layer's
     `params` reach the code that turns them into rules.
 
-    Scaffolding — delete it (and `_Record` above) once a production data-bearing
+    Scaffolding — delete it (and `_Constraint` above) once a production data-bearing
     layer (a killer or thermo) lands. Its own test then exercises this mechanism
     against a real constraint, and this stand-in has nothing left to prove.
     """
@@ -92,7 +93,7 @@ class _CageLayer:
             engine.add_cell(name, low=1, high=9)
 
     def emit(self, engine: Engine) -> None:
-        for cage in engine.records_of(self.name):
+        for cage in engine.constraints_of(self.name):
             # params is the open JSON boundary (object) — a layer narrows it.
             names = cast("list[str]", cage.params["cells"])
             total = cast("int", cage.params["sum"])
@@ -105,25 +106,25 @@ def _solves(engine: Engine) -> bool:
     return status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 
 
-def test_records_of_returns_only_the_matching_type() -> None:
-    engine = build_engine([], (_Record("cage"), _Record("other")))
+def test_constraints_of_returns_only_the_matching_type() -> None:
+    engine = build_engine([], (_Constraint("cage"), _Constraint("other")))
 
-    assert engine.records_of("cage") == [_Record("cage")]
+    assert engine.constraints_of("cage") == [_Constraint("cage")]
 
 
-def test_a_layer_binds_from_its_records_and_a_satisfiable_cage_solves() -> None:
-    records = (_Record("cage", {"cells": ["a", "b"], "sum": 5}),)
+def test_a_layer_binds_from_its_constraints_and_a_satisfiable_cage_solves() -> None:
+    constraints = (_Constraint("cage", {"cells": ["a", "b"], "sum": 5}),)
 
-    engine = build_engine([_CageLayer()], records)
+    engine = build_engine([_CageLayer()], constraints)
 
     assert _solves(engine)
 
 
-def test_a_layer_binds_from_its_records_and_an_impossible_cage_is_infeasible() -> None:
+def test_a_layer_binds_from_its_constraints_and_an_impossible_cage_breaks() -> None:
     # Two cells over a 1-9 domain can't sum to 1 — the params reach the rule.
-    records = (_Record("cage", {"cells": ["a", "b"], "sum": 1}),)
+    constraints = (_Constraint("cage", {"cells": ["a", "b"], "sum": 1}),)
 
-    engine = build_engine([_CageLayer()], records)
+    engine = build_engine([_CageLayer()], constraints)
 
     assert not _solves(engine)
 
