@@ -30,10 +30,11 @@ Do this in order, in one pass:
 
 1. `mkdir -p .sandcastle/logs`, then write the PR body (sections below) to
    `.sandcastle/logs/pr-body.md`. Write it there, never in the repo root: that
-   directory is gitignored, so the body cannot leave the checkout dirty, and a
-   stray untracked file in the root makes `pushpr` cut a junk branch. The
-   `mkdir` matters because `logs/` is gitignored and so is absent from a fresh
-   worktree or clone.
+   directory is gitignored, so the body cannot leave the checkout dirty. A stray
+   untracked file in the root makes every later `git status` read dirty, which
+   breaks any tooling that treats a clean tree as its go signal. The `mkdir`
+   matters because `logs/` is gitignored and so is absent from a fresh worktree
+   or clone.
 2. `gh pr create --base main --head {{MERGE_HEAD}} --title "Sandcastle: <N> issue(s)" --body-file .sandcastle/logs/pr-body.md`
    where `<N>` is the number of issues actually folded in.
 
