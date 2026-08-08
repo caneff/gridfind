@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 
 from gridfind import cli
-from gridfind._test_fixtures import CLASSIC_LINK
 from gridfind.verdict import Verdict
 
 POPULATIONS_DIR = Path(__file__).parent / "populations"
@@ -95,9 +94,9 @@ def test_found_prints_rows_with_box_aware_spacing(
 
 
 def test_sudokumaker_link_argument_prints_found_and_grid(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], classic_link: str
 ) -> None:
-    code = cli.main([CLASSIC_LINK], io.StringIO())
+    code = cli.main([classic_link], io.StringIO())
 
     out = capsys.readouterr().out
     lines = out.split("\n")
@@ -108,9 +107,9 @@ def test_sudokumaker_link_argument_prints_found_and_grid(
 
 
 def test_sudokumaker_link_on_stdin_matches_argument(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], classic_link: str
 ) -> None:
-    code = cli.main([], io.StringIO(f"{CLASSIC_LINK}\n"))
+    code = cli.main([], io.StringIO(f"{classic_link}\n"))
 
     assert code == 0
     assert capsys.readouterr().out.split("\n")[0] == "found"

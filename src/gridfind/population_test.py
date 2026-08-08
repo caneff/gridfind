@@ -28,13 +28,16 @@ def _load(path: Path) -> tuple[Puzzle, WorkingState]:
 
 
 def _population_cases() -> list[tuple[Puzzle, WorkingState, Path]]:
-    return [(*_load(path), path) for path in sorted(POPULATIONS_DIR.rglob("*.json"))]
+    cases = [(*_load(path), path) for path in sorted(POPULATIONS_DIR.rglob("*.json"))]
+    if not cases:
+        # A glob that finds nothing must fail here. Left unchecked, an empty
+        # list parametrizes into zero cases and the corpus passes by vanishing.
+        msg = f"no population documents under {POPULATIONS_DIR}"
+        raise RuntimeError(msg)
+    return cases
 
 
 _CASES = _population_cases()
-# A glob that finds nothing must fail here. Left unchecked, an empty list
-# parametrizes into zero cases and the whole corpus passes by vanishing.
-assert _CASES, f"no population documents under {POPULATIONS_DIR}"
 
 
 def _case_id(puzzle: Puzzle, path: Path) -> str:
