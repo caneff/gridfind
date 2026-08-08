@@ -14,8 +14,9 @@ from gridfind.layers._base import emit_distinct_count
 from gridfind.puzzle import Board
 
 
-def _board_engine(size: int = 4) -> Engine:
-    return build_engine([LAYER_REGISTRY["board"]], board=Board(size=size))
+def _board_engine() -> Engine:
+    """A 4x4 board and nothing else — cells to count over, no rules on them."""
+    return build_engine([LAYER_REGISTRY["board"]], board=Board(size=4))
 
 
 def test_emit_distinct_count_states_the_target_it_was_given(
