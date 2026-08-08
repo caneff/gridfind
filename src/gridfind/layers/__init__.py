@@ -69,16 +69,17 @@ def expand_records(records: tuple[Variant, ...]) -> list[Variant]:
 
 def resolve_records(records: tuple[Variant, ...]) -> list[Layer]:
     """Resolve a puzzle's variant records to layer instances: expand sugar,
-    then dispatch each record's `type` through the registry. An unrecognized
-    `type` is rejected.
+    then dispatch each distinct `type` through the registry. Two records of one
+    type resolve to a single layer that loops its own records (issue #65) — the
+    layer, not the layer twice. An unrecognized `type` is rejected.
     """
-    layers: list[Layer] = []
+    layers: dict[str, Layer] = {}
     for record in expand_records(records):
         if record.type not in LAYER_REGISTRY:
             msg = f"unknown variant record type {record.type!r}"
             raise UnknownLayerError(msg)
-        layers.append(LAYER_REGISTRY[record.type])
-    return layers
+        layers.setdefault(record.type, LAYER_REGISTRY[record.type])
+    return list(layers.values())
 
 
 def canonical_identity(records: tuple[Variant, ...]) -> tuple[str, ...]:

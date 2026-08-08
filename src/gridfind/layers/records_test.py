@@ -46,6 +46,14 @@ def test_canonical_identity_is_order_independent() -> None:
     assert canonical_identity(forward) == canonical_identity(reversed_)
 
 
+def test_two_records_of_one_type_resolve_to_a_single_layer_instance() -> None:
+    # Dedup by type (issue #65): a puzzle with two cages of the same kind
+    # resolves to one layer that loops its own records, not the layer twice.
+    records = (Variant(type="rows-distinct"), Variant(type="rows-distinct"))
+
+    assert resolve_records(records) == [LAYER_REGISTRY["rows-distinct"]]
+
+
 def test_unknown_record_type_is_rejected() -> None:
     with pytest.raises(UnknownLayerError):
         resolve_records((Variant(type="not-a-real-rule"),))
