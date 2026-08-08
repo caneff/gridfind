@@ -63,9 +63,25 @@ against a witness-find, never an objective solve.
 
 ## Composition model
 
+Four words name four levels, told apart by how many of each there are: one
+**variant** is stated as many **constraints**, each emitting many **rules**, all
+handled by one **layer**.
+
+- **variant** — a rule family: XV, killer, thermo, Schrödinger. What a setter
+  names when they say what kind of puzzle this is. One variant is served by one
+  layer.
+
+- **constraint** — one typed statement in a puzzle: a killer cage with its cells
+  and its sum, an X clue naming its pair, or a bare `sudoku` naming a family that
+  carries no data of its own. The level a setter writes and gridfind serializes.
+  Many constraints per variant — two X clues are two constraints of one variant.
+
 - **rule** — one atomic relation a layer emits over cell content (an AllDifferent,
-  a sum, an equality). "Constraint" is retired from the vocabulary (map #1,
-  decision 6): CP-SAT's internal constraint hides behind _rule_.
+  a sum, an equality). Many rules per constraint. _Constraint_ is retired at
+  **this** level and stays retired (map #1, decision 6): CP-SAT's internal
+  constraint hides behind _rule_. The word is spoken only one level up, where
+  nothing can collide with it — a killer cage is not a solver constraint, it
+  becomes several.
 
 - **layer** — a composable, parameterized rule-family module (map #1, decisions
   5, 7). Layers are granular, not monolithic puzzle types: `board`,
@@ -143,8 +159,9 @@ it, one rule per clue. Explicit-pair and positive-only — it sums the named pai
 without asking whether it is a **domino**, and constrains only marked pairs (the
 negative rule against *unmarked* adjacent pairs is out of scope).
 
-- **pair-sum** — the rule and its record: `{type: pair-sum, cells: [a, b], sum}`.
-  The canonical form every XV clue expands to.
+- **pair-sum** — the constraint and the rule it emits:
+  `{type: pair-sum, cells: [a, b], sum}`. The canonical form every XV clue
+  expands to.
 - **XV** — the setter-facing variant, two sugar spellings of a pair-sum whose
   target is named rather than written: an **X clue** is a pair-sum of 10, a
   **V clue** a pair-sum of 5.
