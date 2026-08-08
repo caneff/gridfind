@@ -17,7 +17,7 @@ from gridfind.puzzle import (
     Candidate,
     Constraint,
     Given,
-    Place,
+    Placement,
     Puzzle,
     WorkingState,
 )
@@ -45,7 +45,7 @@ def test_classic_link_decodes_to_expected_puzzle_and_state(classic_link: str) ->
         ),
     )
     assert state == WorkingState(
-        places=(Place("R1C1", 7),),
+        places=(Placement("R1C1", 7),),
         candidates=(
             Candidate("R2C9", frozenset({1, 2, 9})),
             Candidate("R6C8", frozenset({2})),

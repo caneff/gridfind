@@ -8,7 +8,7 @@ from gridfind.puzzle import (
     Candidate,
     Constraint,
     Given,
-    Place,
+    Placement,
     Puzzle,
     WorkingState,
 )
@@ -69,7 +69,7 @@ def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
 
 def test_verdict_broke_on_a_given_place_conflict() -> None:
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
-    state = WorkingState(places=(Place(address="R1C1", digit=6),))
+    state = WorkingState(places=(Placement(address="R1C1", digit=6),))
 
     result = verdict(puzzle, state)
 

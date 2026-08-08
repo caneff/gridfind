@@ -2,8 +2,8 @@
 
 gridfind's one user-facing input is a `Puzzle` (the setter's definition: a
 board, a list of typed constraints, and the givens) paired with a
-`WorkingState` (the solver's evolving places and candidates). Both are frozen
-dataclasses that serialize to JSON and read back to an *equal* object — JSON is
+`WorkingState` (the solver's evolving placements and candidates). Both are
+frozen dataclasses that serialize to JSON and read back to an *equal* object — JSON is
 the one durable on-disk form (spec #45, issue #46).
 
 This module is schema only: nothing here calls `verdict` or touches the engine.
@@ -69,7 +69,7 @@ class Given:
 
 
 @dataclass(frozen=True)
-class Place:
+class Placement:
     """A digit a solver has placed at a cell, as part of the hand-solve."""
 
     address: str
@@ -134,7 +134,7 @@ class Puzzle:
 class WorkingState:
     """The solver's evolving marks: places and candidates. Defaults to EMPTY."""
 
-    places: tuple[Place, ...] = ()
+    places: tuple[Placement, ...] = ()
     candidates: tuple[Candidate, ...] = ()
 
     def to_json(self) -> str:
@@ -155,7 +155,8 @@ class WorkingState:
         data = json.loads(text)
         return cls(
             places=tuple(
-                Place(address=p["address"], digit=p["digit"]) for p in data["places"]
+                Placement(address=p["address"], digit=p["digit"])
+                for p in data["places"]
             ),
             candidates=tuple(
                 Candidate(address=c["address"], digits=frozenset(c["digits"]))

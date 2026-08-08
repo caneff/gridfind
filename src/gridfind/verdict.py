@@ -6,7 +6,7 @@ single `solve` call returns (spec #4, decisions 15, 15a, 32).
 
 The input is the structured `Puzzle` + `WorkingState` (spec #45, issue #48):
 the puzzle's constraints resolve to layers (issue #47), its board supplies
-the grid, and givens/places/candidates pin the model. Each call rebuilds the
+the grid, and givens/placements/candidates fix the model. Each call rebuilds the
 engine from scratch — the build is ~1% of a solve, and no caller races many
 working states over one puzzle, so no build-once/race-many API is offered
 (ADR-0002).
@@ -21,7 +21,7 @@ from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import LAYER_REGISTRY, expand_constraints, resolve_constraints
-from gridfind.puzzle import EMPTY, Candidate, Given, Place, Puzzle, WorkingState
+from gridfind.puzzle import EMPTY, Candidate, Given, Placement, Puzzle, WorkingState
 from gridfind.strategy import PURE_SATISFACTION, Strategy
 
 VerdictKind = Literal["found", "broke", "unknown"]
@@ -93,13 +93,15 @@ def verdict(
 def _apply(
     engine: Engine,
     givens: tuple[Given, ...],
-    places: tuple[Place, ...],
+    places: tuple[Placement, ...],
     candidates: tuple[Candidate, ...],
 ) -> None:
-    """Pin the model from the structured givens and marks. A given and a place
-    both fix one digit; a candidate restricts a cell to a digit subset — all
-    three pin through the engine's one `restrict` call (issue #72)."""
-    for pin in (*givens, *places):
-        engine.restrict(pin.address, {pin.digit})
+    """Fix the model from the structured givens and marks. A given and a
+    placement both fix one digit; a candidate restricts a cell to a digit
+    subset — all three go through the engine's one `restrict` call (issue
+    #72). *Pin* is the Schrödinger layer's word, for the S-cell axis; a plain
+    digit fix borrows nothing from it."""
+    for fixed in (*givens, *places):
+        engine.restrict(fixed.address, {fixed.digit})
     for candidate in candidates:
         engine.restrict(candidate.address, candidate.digits)

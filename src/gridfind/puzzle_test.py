@@ -9,7 +9,7 @@ from gridfind.puzzle import (
     Candidate,
     Constraint,
     Given,
-    Place,
+    Placement,
     Puzzle,
     WorkingState,
 )
@@ -53,7 +53,7 @@ CONSTRAINTS = st.builds(
     params=st.dictionaries(PARAM_KEYS, PARAM_VALUES, max_size=4),
 )
 GIVENS = st.builds(Given, address=ADDRESSES, digit=DIGITS)
-PLACES = st.builds(Place, address=ADDRESSES, digit=DIGITS)
+PLACES = st.builds(Placement, address=ADDRESSES, digit=DIGITS)
 CANDIDATES = st.builds(
     Candidate,
     address=ADDRESSES,
@@ -132,7 +132,7 @@ def test_puzzle_serializes_its_constraints_under_the_constraints_key() -> None:
 
 def test_working_state_round_trips_through_json() -> None:
     state = WorkingState(
-        places=(Place(address="R5C5", digit=7),),
+        places=(Placement(address="R5C5", digit=7),),
         candidates=(Candidate(address="R6C6", digits=frozenset({5, 6, 7})),),
     )
 

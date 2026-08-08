@@ -25,7 +25,7 @@ from gridfind.puzzle import (
     Candidate,
     Constraint,
     Given,
-    Place,
+    Placement,
     Puzzle,
     WorkingState,
 )
@@ -66,7 +66,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
 
     cells = puzzle_data["cells"]
     givens: list[Given] = []
-    places: list[Place] = []
+    places: list[Placement] = []
     candidates: list[Candidate] = []
     for i, cell in enumerate(cells):
         address = cell_name(i // BOARD_SIZE + 1, i % BOARD_SIZE + 1)
@@ -74,7 +74,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
             if cell.get("given"):
                 givens.append(Given(address, cell["value"]))
             else:
-                places.append(Place(address, cell["value"]))
+                places.append(Placement(address, cell["value"]))
         elif "candidates" in cell:
             digits = frozenset(d for d in _DIGITS if cell["candidates"] & (1 << d))
             candidates.append(Candidate(address, digits))
