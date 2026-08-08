@@ -1,9 +1,20 @@
-"""pair-sum behaviour, tested at the top seam — `verdict` (issue #66).
+"""pair-sum behaviour, tested at two seams.
 
-The canonical `pair-sum` clue names a pair and its target; the XV variant rides
-on top as aliases — a `v` clue is a pair-sum of 5, an `x` clue a pair-sum of 10.
+Most of it is behaviour at the top seam — `verdict` (issue #66): a clue's
+effect on the completion, and the XV aliases riding on top, where a `v` clue is
+a pair-sum of 5 and an `x` clue a pair-sum of 10.
+
+The rules the layer emits are read back directly (issue #100), which is the one
+claim a solve cannot make: that a clue emitted its *own* rule rather than being
+satisfied by accident.
 """
 
+from collections.abc import Callable
+
+import pytest
+
+from gridfind.engine import Engine, build_engine
+from gridfind.layers import LAYER_REGISTRY, expand_constraints
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
 
@@ -17,6 +28,36 @@ def _pair_sum(cells: tuple[str, str], total: int) -> Constraint:
 def _clue(kind: str, cells: tuple[str, str]) -> Constraint:
     """An X or V alias clue — names its pair, leaves the sum to the alias."""
     return Constraint(type=kind, params={"cells": list(cells)})
+
+
+@pytest.mark.parametrize(
+    ("constraints", "expected"),
+    [
+        ((_pair_sum(("R1C1", "R1C2"), 5),), [(["R1C1", "R1C2"], 5)]),
+        (
+            (_pair_sum(("R1C1", "R1C2"), 5), _pair_sum(("R3C3", "R3C4"), 10)),
+            [(["R1C1", "R1C2"], 5), (["R3C3", "R3C4"], 10)],
+        ),
+        ((_clue("x", ("R1C1", "R1C2")),), [(["R1C1", "R1C2"], 10)]),
+        ((_clue("v", ("R1C1", "R1C2")),), [(["R1C1", "R1C2"], 5)]),
+    ],
+    ids=["one clue", "two clues", "x alias", "v alias"],
+)
+def test_pair_sum_emits_one_rule_per_clue(
+    constraints: tuple[Constraint, ...],
+    expected: list[tuple[list[str], int]],
+    pair_sum_rules: Callable[[Engine], list[tuple[list[str], int]]],
+) -> None:
+    """One stateless layer, one rule per clue — including a clue that arrived
+    as an alias, whose total the expansion fixed."""
+    puzzle = Puzzle(board=BOARD, constraints=constraints)
+    engine = build_engine(
+        [LAYER_REGISTRY["board"], LAYER_REGISTRY["pair-sum"]],
+        tuple(expand_constraints(puzzle.constraints)),
+        board=BOARD,
+    )
+
+    assert pair_sum_rules(engine) == expected
 
 
 def test_a_satisfiable_pair_resolves_found() -> None:
