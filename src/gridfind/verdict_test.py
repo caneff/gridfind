@@ -197,11 +197,15 @@ def test_verdict_rejects_an_out_of_range_candidate_digit() -> None:
         verdict(Puzzle(board=BOARD), state)
 
 
-def test_rows_distinct_breaks_a_row_repeat_that_board_alone_would_not() -> None:
+@pytest.mark.parametrize("size", [9, 6], ids=["9x9", "6x6"])
+def test_rows_distinct_breaks_a_row_repeat_that_board_alone_would_not(
+    size: int,
+) -> None:
     assert_layer_newly_breaks(
         (),
         (Variant(type="rows-distinct"),),
         (Given(address="R1C1", digit=5), Given(address="R1C2", digit=5)),
+        board=Board(size=size),
     )
 
 
@@ -244,11 +248,15 @@ def test_line_count_distinct_found_when_row_counts_are_satisfiable() -> None:
     assert len({result.witness[f"R1C{c}"] for c in range(1, 10)}) == 1
 
 
-def test_cols_distinct_breaks_a_col_repeat_that_board_alone_would_not() -> None:
+@pytest.mark.parametrize("size", [9, 6], ids=["9x9", "6x6"])
+def test_cols_distinct_breaks_a_col_repeat_that_board_alone_would_not(
+    size: int,
+) -> None:
     assert_layer_newly_breaks(
         (),
         (Variant(type="cols-distinct"),),
         (Given(address="R1C1", digit=5), Given(address="R2C1", digit=5)),
+        board=Board(size=size),
     )
 
 
