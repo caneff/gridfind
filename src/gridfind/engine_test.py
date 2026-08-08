@@ -1,8 +1,6 @@
-from dataclasses import dataclass, field
-from typing import cast
+from dataclasses import dataclass
 
 import pytest
-from ortools.sat.python import cp_model
 
 import gridfind.engine
 from gridfind.engine import Engine, MissingDependencyError, build_engine
@@ -66,63 +64,22 @@ def test_build_is_order_insensitive() -> None:
 
 @dataclass
 class _Record:
-    """A test-only puzzle record: the open `Variant` shape without the coupling
-    (the engine knows no puzzle concepts, spec #4 decision 31)."""
+    """A minimal stand-in for a `Variant` record, used only to exercise
+    `Engine.records_of`'s type filter (issue #64)."""
 
     type: str
-    params: dict[str, object] = field(default_factory=dict)
-
-
-@dataclass
-class _CageLayer:
-    """A test-only data-bearing layer (issue #65): one stateless instance pulls
-    every record of its type and emits a sum-rule per record, proving a layer's
-    `params` reach the code that turns them into rules.
-
-    Scaffolding — delete it (and `_Record` above) once a production data-bearing
-    layer (a killer or thermo) lands. Its own test then exercises this mechanism
-    against a real constraint, and this stand-in has nothing left to prove.
-    """
-
-    name: str = "cage"
-    depends_on: tuple[str, ...] = ()
-
-    def register(self, engine: Engine) -> None:
-        for name in ("a", "b"):
-            engine.add_cell(name, low=1, high=9)
-
-    def emit(self, engine: Engine) -> None:
-        for cage in engine.records_of(self.name):
-            # params is the open JSON boundary (object) — a layer narrows it.
-            names = cast("list[str]", cage.params["cells"])
-            total = cast("int", cage.params["sum"])
-            cells = [engine.cells[n].content[0] for n in names]
-            engine.model.add(sum(cells) == total)
-
-
-def _solves(engine: Engine) -> bool:
-    status = cp_model.CpSolver().solve(engine.model)
-    return status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    params: dict[str, object]
 
 
 def test_records_of_returns_only_the_matching_type() -> None:
-    engine = build_engine([], (_Record("cage"), _Record("other")))
+    # A puzzle carries records of more than one type; records_of must not
+    # hand a layer another type's records — a filter that ignores `kind`
+    # entirely would still build, so this asserts the filtering itself.
+    cage = _Record(type="cage", params={"id": 1})
+    thermo = _Record(type="thermo", params={"id": 2})
 
-    assert engine.records_of("cage") == [_Record("cage")]
+    engine = build_engine([], records=(cage, thermo))
 
-
-def test_a_layer_binds_from_its_records_and_a_satisfiable_cage_solves() -> None:
-    records = (_Record("cage", {"cells": ["a", "b"], "sum": 5}),)
-
-    engine = build_engine([_CageLayer()], records)
-
-    assert _solves(engine)
-
-
-def test_a_layer_binds_from_its_records_and_an_impossible_cage_is_infeasible() -> None:
-    # Two cells over a 1-9 domain can't sum to 1 — the params reach the rule.
-    records = (_Record("cage", {"cells": ["a", "b"], "sum": 1}),)
-
-    engine = build_engine([_CageLayer()], records)
-
-    assert not _solves(engine)
+    assert engine.records_of("cage") == [cage]
+    assert engine.records_of("thermo") == [thermo]
+    assert engine.records_of("unused") == []
