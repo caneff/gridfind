@@ -1,5 +1,6 @@
 import pytest
 
+from gridfind.engine import GridfindError
 from gridfind.layers import UnknownLayerError
 from gridfind.puzzle import (
     EMPTY,
@@ -21,6 +22,7 @@ def assert_layer_newly_breaks(
     full: tuple[Variant, ...],
     givens: tuple[Given, ...],
     working_state: WorkingState = EMPTY,
+    board: Board = BOARD,
 ) -> None:
     """The full record set newly breaks a state the smaller set still allows.
 
@@ -30,11 +32,11 @@ def assert_layer_newly_breaks(
     nothing.
     """
     lenient = verdict(
-        Puzzle(board=BOARD, variants=smaller, givens=givens), working_state
+        Puzzle(board=board, variants=smaller, givens=givens), working_state
     )
     assert lenient.kind != "broke"
 
-    strict = verdict(Puzzle(board=BOARD, variants=full, givens=givens), working_state)
+    strict = verdict(Puzzle(board=board, variants=full, givens=givens), working_state)
     assert strict.kind == "broke"
     assert strict.witness is None
 
@@ -48,6 +50,19 @@ def test_verdict_found_returns_a_witness_consistent_with_the_given() -> None:
     assert result.witness is not None
     assert result.witness["R1C1"] == 5
     assert len(result.witness) == 81
+
+
+def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
+    # Self-describing (issue #72): the witness carries the same grid board
+    # registers, so a consumer lays it out without re-deriving addressing.
+    puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
+
+    result = verdict(puzzle)
+
+    assert result.witness is not None
+    assert len(result.witness.grid) == 9
+    assert all(len(row) == 9 for row in result.witness.grid)
+    assert result.witness.grid[0][0] == "R1C1"
 
 
 def test_verdict_broke_on_a_given_place_conflict() -> None:
@@ -85,6 +100,78 @@ def test_verdict_defaults_to_the_empty_working_state() -> None:
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
 
     assert verdict(puzzle).kind == "found"
+
+
+@pytest.mark.parametrize("size", [6, 4], ids=["6x6", "4x4"])
+def test_verdict_found_on_a_board_keeps_every_witness_digit_in_1_to_n(
+    size: int,
+) -> None:
+    puzzle = Puzzle(
+        board=Board(size=size),
+        variants=(Variant(type="rows-distinct"), Variant(type="cols-distinct")),
+        givens=(Given(address="R1C1", digit=1),),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert len(result.witness) == size * size
+    assert all(1 <= value <= size for value in result.witness.values.values())
+
+
+def test_sudoku_on_a_6x6_breaks_a_digit_repeat_within_one_2x3_box() -> None:
+    # rows/cols alone wouldn't catch a same-box repeat two rows/cols apart —
+    # only correct 2x3 tiling does (issue #77).
+    assert_layer_newly_breaks(
+        (Variant(type="rows-distinct"), Variant(type="cols-distinct")),
+        (
+            Variant(type="rows-distinct"),
+            Variant(type="cols-distinct"),
+            Variant(type="regions-distinct"),
+        ),
+        (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5)),
+        board=Board(size=6),
+    )
+
+
+def test_sudoku_found_on_a_legal_6x6() -> None:
+    puzzle = Puzzle(
+        board=Board(size=6),
+        variants=(Variant(type="sudoku"),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R3C4", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert all(1 <= value <= 6 for value in result.witness.values.values())
+
+
+def test_regions_distinct_on_a_5x5_board_refuses_with_a_gridfind_error() -> None:
+    puzzle = Puzzle(board=Board(size=5), variants=(Variant(type="regions-distinct"),))
+
+    with pytest.raises(GridfindError):
+        verdict(puzzle)
+
+
+def test_rows_and_cols_distinct_on_a_5x5_board_still_builds() -> None:
+    puzzle = Puzzle(
+        board=Board(size=5),
+        variants=(Variant(type="rows-distinct"), Variant(type="cols-distinct")),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind in ("found", "broke", "unknown")
+
+
+def test_verdict_rejects_a_given_digit_outside_a_6x6_boards_domain() -> None:
+    puzzle = Puzzle(board=Board(size=6), givens=(Given(address="R1C1", digit=7),))
+
+    with pytest.raises(ValueError, match="out of range"):
+        verdict(puzzle)
 
 
 def test_verdict_rejects_an_off_board_address() -> None:

@@ -2,9 +2,10 @@ from collections.abc import Callable
 
 import pytest
 
-from gridfind.engine import Engine, MissingDependencyError, build_engine
+from gridfind.engine import Engine, GridfindError, MissingDependencyError, build_engine
 from gridfind.layers import LAYER_REGISTRY
 from gridfind.layers.distinct import boxes, cols, rows
+from gridfind.puzzle import Board
 
 
 def _grid(size: int) -> list[list[str]]:
@@ -30,16 +31,21 @@ def test_cols_partition_is_the_transpose() -> None:
 
 
 def test_boxes_partition_covers_every_cell_exactly_once() -> None:
-    # Size-agnostic: 3x3 boxes cut from whatever grid — here a 6x6, four boxes
-    # of nine, together the whole grid with no cell repeated.
+    # Size-agnostic via BOX_SHAPE — a 6x6 tiles as six 2x3 boxes, never as
+    # four 3x3 mini-grids, together the whole grid with no cell repeated.
     grid = _grid(6)
     groups = [list(g) for g in boxes(grid)]
 
-    assert len(groups) == 4
+    assert len(groups) == 6
     for group in groups:
-        assert len(group) == 9
+        assert len(group) == 6
     flat = [cell for group in groups for cell in group]
     assert sorted(flat) == sorted(cell for row in grid for cell in row)
+
+
+def test_boxes_raises_for_a_board_size_with_no_classic_box_convention() -> None:
+    with pytest.raises(GridfindError):
+        list(boxes(_grid(5)))
 
 
 def test_boxes_first_box_is_the_top_left_3x3_block() -> None:
@@ -69,6 +75,8 @@ def test_distinct_layer_emits_one_all_different_rule_per_group(
     name: str,
     assert_one_all_different_rule_per_group: Callable[[Engine], None],
 ) -> None:
-    engine = build_engine([LAYER_REGISTRY["board"], LAYER_REGISTRY[name]])
+    engine = build_engine(
+        [LAYER_REGISTRY["board"], LAYER_REGISTRY[name]], board=Board(size=9)
+    )
 
     assert_one_all_different_rule_per_group(engine)

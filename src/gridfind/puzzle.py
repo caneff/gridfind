@@ -21,9 +21,19 @@ JsonValue = object
 
 @dataclass(frozen=True)
 class Board:
-    """The grid the puzzle is played on — at minimum its size."""
+    """The grid the puzzle is played on: its size, and the digit domain that
+    size implies (issue #77). `domain` is a `range` so one object serves
+    every consumer — bounds via its ends, the digit set via iteration,
+    membership via `in`. A domain decoupled from size (an offset, a non-1
+    start) would be a matter of setting a different range; the plumbing to
+    pass one in isn't built yet, so `domain` always derives from `size`.
+    """
 
     size: int
+    domain: range = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "domain", range(1, self.size + 1))
 
 
 @dataclass(frozen=True)

@@ -27,6 +27,16 @@ BROKE_DOC = (
     / "board-rows-distinct-cols-distinct-regions-distinct"
     / "broke-duplicate-digit-in-box.json"
 )
+FOUND_6X6_DOC = (
+    POPULATIONS_DIR
+    / "board-rows-distinct-cols-distinct-regions-distinct"
+    / "found-legal-6x6-sudoku-partial.json"
+)
+FOUND_4X4_DOC = (
+    POPULATIONS_DIR
+    / "board-rows-distinct-cols-distinct-regions-distinct"
+    / "found-legal-4x4-sudoku-partial.json"
+)
 
 
 def test_found_prints_verdict_then_witness_grid(
@@ -45,6 +55,43 @@ def test_found_prints_verdict_then_witness_grid(
     grid = lines[1:]
     assert re.fullmatch(r"1 \d \d  2 \d \d  \d \d \d", grid[0])
     assert grid[3] == ""  # blank row after the first box-row
+
+
+@pytest.mark.parametrize(
+    ("doc", "size", "box_rows", "box_cols"),
+    [(FOUND_6X6_DOC, 6, 2, 3), (FOUND_4X4_DOC, 4, 2, 2)],
+    ids=["6x6", "4x4"],
+)
+def test_found_prints_rows_with_box_aware_spacing(
+    capsys: pytest.CaptureFixture[str],
+    doc: Path,
+    size: int,
+    box_rows: int,
+    box_cols: int,
+) -> None:
+    code = cli.main([str(doc)], io.StringIO())
+
+    out = capsys.readouterr().out
+    lines = out.rstrip("\n").split("\n")
+    assert code == 0
+    assert lines[0] == "found"
+
+    grid = lines[1:]
+    # size rows of size digits: a column gap every box_cols cells, a blank
+    # line every box_rows rows (BOX_SHAPE[size] = (box_rows, box_cols),
+    # issue #77).
+    row_lines = [line for line in grid if line]
+    assert len(row_lines) == size
+    for line in row_lines:
+        left, right = line.split("  ")
+        assert len(left.split(" ")) == box_cols
+        assert len(right.split(" ")) == size - box_cols
+        assert all(1 <= int(d) <= size for d in line.split())
+
+    blank_rows = list(range(box_rows, size, box_rows + 1))
+    assert len(grid) == size + len(blank_rows)
+    for index in blank_rows:
+        assert grid[index] == ""
 
 
 def test_sudokumaker_link_argument_prints_found_and_grid(

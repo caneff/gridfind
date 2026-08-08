@@ -11,10 +11,7 @@ from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine
-
-MIN_DIGIT = 1
-MAX_DIGIT = 9
+from gridfind.engine import Engine, GridfindError
 
 
 def grid_vars(engine: Engine) -> list[list[cp_model.IntVar]]:
@@ -37,8 +34,12 @@ def emit_distinct_count(
     candidate digit, a reified "present" bool tracks whether any cell holds
     it; the digit count is the sum of those bools.
     """
+    board = engine.board
+    if board is None:
+        msg = f"{label} requires build_engine(..., board=...)"
+        raise GridfindError(msg)
     present_per_digit = []
-    for digit in range(MIN_DIGIT, MAX_DIGIT + 1):
+    for digit in board.domain:
         holds_digit = []
         for i, cell in enumerate(cells):
             indicator = engine.model.new_bool_var(f"{label}.holds{digit}.{i}")

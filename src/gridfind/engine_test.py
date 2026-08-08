@@ -126,3 +126,60 @@ def test_a_layer_binds_from_its_records_and_an_impossible_cage_is_infeasible() -
     engine = build_engine([_CageLayer()], records)
 
     assert not _solves(engine)
+
+
+def test_value_reads_a_cells_placed_value_after_a_solve() -> None:
+    engine = build_engine([])
+    cell = engine.add_cell("x", low=1, high=9)
+    engine.model.add(cell.content[0] == 7)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.value(solver, "x") == 7
+
+
+def test_value_on_an_off_board_address_raises() -> None:
+    engine = build_engine([])
+    solver = cp_model.CpSolver()
+
+    with pytest.raises(ValueError, match="off the board"):
+        engine.value(solver, "nope")
+
+
+def test_restrict_pins_a_cell_to_a_singleton_digit() -> None:
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=9)
+
+    engine.restrict("x", {7})
+
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+    assert engine.value(solver, "x") == 7
+
+
+def test_restrict_pins_a_cell_to_a_digit_subset() -> None:
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=9)
+
+    engine.restrict("x", {1, 2})
+
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+    assert engine.value(solver, "x") in (1, 2)
+
+
+def test_restrict_on_an_off_board_address_raises() -> None:
+    engine = build_engine([])
+
+    with pytest.raises(ValueError, match="off the board"):
+        engine.restrict("nope", {1})
+
+
+def test_restrict_checks_a_digit_against_the_cells_own_domain() -> None:
+    # A cell declared over a narrower domain than the global 1-9 range rejects
+    # a digit outside *its own* bounds, not a borrowed global constant.
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=5)
+
+    with pytest.raises(ValueError, match="out of range"):
+        engine.restrict("x", {9})
