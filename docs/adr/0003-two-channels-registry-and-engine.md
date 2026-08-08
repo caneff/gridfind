@@ -13,7 +13,7 @@ layers talk. That was true when every shared fact was something one layer
 derived and another consumed — a cell's content, a window's concatenation.
 
 It stopped being the whole truth when `Puzzle` arrived. The engine already
-carries `records`: the setter's typed statements, handed to the engine by
+carries `constraints`: the setter's typed statements, handed to the engine by
 `build_engine` and read by the layer that handles each type. #78 adds `board`
 the same way, so `layers/board.py` can size the grid from the setter's `size`
 instead of a hard-coded 9.
@@ -26,7 +26,7 @@ needs, layer or not, does not belong in a channel only layers can read.
 The two channels are not a leak; they are a real distinction the vocabulary
 had not yet named. **Who produced the fact** is the line:
 
-- Setter input flowing *in* — `records`, and `board` after #78 — rides the
+- Setter input flowing *in* — `constraints`, and `board` after #78 — rides the
   engine as a carried field. It exists before any layer runs.
 - Facts one layer *derives* for another to consume — `grid`, cell content —
   ride the structure registry. They exist only once a layer has built them.

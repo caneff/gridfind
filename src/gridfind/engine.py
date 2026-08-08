@@ -71,9 +71,9 @@ class Constraint(Protocol):
 
 class BoardShape(Protocol):
     """A puzzle's board shape facts, riding on the engine opaquely beside
-    `constraints` (issue #77) — size and digit values, the same read-only
-    decoupling `Constraint` gives the puzzle's own: the engine knows this
-    view, never the concrete `Board` it is."""
+    `constraints` (issue #77) — size and digit values. The same read-only
+    decoupling this module's `Constraint` protocol gives `puzzle.Constraint`:
+    the engine knows this view, never the concrete `Board` it is."""
 
     @property
     def size(self) -> int: ...
