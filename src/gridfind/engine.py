@@ -39,6 +39,29 @@ class Cell:
     content: list[cp_model.IntVar]
 
 
+class Record(Protocol):
+    """One variant's data, riding on the engine for a layer to turn into rules.
+
+    A record pairs a `type` — the layer that handles it — with `params`, that
+    variant's own settings: a killer cage's cells and target sum, a thermo's
+    path. A layer pulls every record of its type with `records_of` and loops
+    them, so one stateless layer serves a puzzle's many cages (issue #65).
+
+    `params` is the open JSON boundary (spec #45), so its values are `object` —
+    a layer narrows each to the shape it expects.
+
+    The engine stays puzzle-agnostic (spec #4, decision 31): it knows this
+    read-only view — `type` and `params` — never the `Variant` a record is. A
+    layer reads a record; it never writes one back.
+    """
+
+    @property
+    def type(self) -> str: ...
+
+    @property
+    def params(self) -> dict[str, object]: ...
+
+
 class Layer(Protocol):
     """A composable, parameterized rule-family module."""
 
@@ -59,6 +82,12 @@ class Engine:
     model: cp_model.CpModel = field(default_factory=cp_model.CpModel)
     cells: dict[str, Cell] = field(default_factory=dict)
     structures: dict[str, object] = field(default_factory=dict)
+    records: tuple[Record, ...] = ()
+
+    def records_of(self, kind: str) -> list[Record]:
+        """A data-bearing layer pulls its own records by type — the accessor
+        beside the `cells` and `structures` a layer already reaches into."""
+        return [record for record in self.records if record.type == kind]
 
     def add_cell(self, name: str, *, low: int, high: int, width: int = 1) -> Cell:
         content = [
@@ -72,11 +101,15 @@ class Engine:
         self.structures[name] = value
 
 
-def build_engine(layers: list[Layer]) -> Engine:
+def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engine:
     """The two-phase build (spec #4, decision 10): order-insensitive.
 
     Phase 1 — every layer registers its cells and structures.
     Phase 2 — every layer emits its rules against the now-final structures.
+
+    The puzzle's `records` ride on the engine so both phases can query them by
+    type (issue #65) — available before phase 1, which is what lets a future
+    Schrödinger-style layer widen named cells at register time.
 
     A layer's declared dependency is a validity check, not a build-order
     crutch: missing dependency refuses the build before either phase runs.
@@ -88,7 +121,7 @@ def build_engine(layers: list[Layer]) -> Engine:
                 msg = f"layer {layer.name!r} requires {dep!r}, not in stack"
                 raise MissingDependencyError(msg)
 
-    engine = Engine()
+    engine = Engine(records=records)
     for layer in layers:
         layer.register(engine)
     for layer in layers:

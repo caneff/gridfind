@@ -52,7 +52,7 @@ def verdict(
     # board.size isn't wired yet, so a non-9 board still solves as 9x9. Wire it
     # through when a second board size lands.
     layers = [LAYER_REGISTRY["board"], *resolve_records(puzzle.variants)]
-    engine = build_engine(layers)
+    engine = build_engine(layers, puzzle.variants)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
     strategy.configure(engine.model)
 
