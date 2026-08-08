@@ -8,7 +8,7 @@ from gridfind.puzzle import (
     Candidate,
     Constraint,
     Given,
-    Place,
+    Placement,
     Puzzle,
     WorkingState,
 )
@@ -69,7 +69,7 @@ def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
 
 def test_verdict_broke_on_a_given_place_conflict() -> None:
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
-    state = WorkingState(places=(Place(address="R1C1", digit=6),))
+    state = WorkingState(places=(Placement(address="R1C1", digit=6),))
 
     result = verdict(puzzle, state)
 
@@ -122,7 +122,7 @@ def test_verdict_found_on_a_board_keeps_every_witness_digit_in_1_to_n(
     assert result.kind == "found"
     assert result.witness is not None
     assert len(result.witness) == size * size
-    assert all(1 <= value <= size for value in result.witness.values.values())
+    assert all(1 <= value <= size for value in result.witness.assignment.values())
 
 
 @pytest.mark.parametrize(
@@ -158,7 +158,7 @@ def test_sudoku_found_on_a_legal_board(size: int) -> None:
     assert result.kind == "found"
     assert result.witness is not None
     assert len(result.witness) == size * size
-    assert all(1 <= value <= size for value in result.witness.values.values())
+    assert all(1 <= value <= size for value in result.witness.assignment.values())
 
 
 def test_regions_distinct_on_a_5x5_board_refuses_with_a_gridfind_error() -> None:
@@ -370,7 +370,7 @@ def test_regions_distinct_found_when_no_box_repeats() -> None:
     assert result.witness is not None
 
 
-def test_sudoku_sugar_matches_the_explicit_three_distinct_constraints() -> None:
+def test_sudoku_preset_matches_the_explicit_three_distinct_constraints() -> None:
     givens = (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5))
     explicit = (
         Constraint(type="rows-distinct"),
@@ -378,15 +378,15 @@ def test_sudoku_sugar_matches_the_explicit_three_distinct_constraints() -> None:
         Constraint(type="regions-distinct"),
     )
 
-    sugar_result = verdict(
+    preset_result = verdict(
         Puzzle(board=BOARD, constraints=(Constraint(type="sudoku"),), givens=givens)
     )
     explicit_result = verdict(Puzzle(board=BOARD, constraints=explicit, givens=givens))
 
-    assert sugar_result.kind == explicit_result.kind == "broke"
+    assert preset_result.kind == explicit_result.kind == "broke"
 
 
-def test_sudoku_sugar_found_on_a_legal_partial() -> None:
+def test_sudoku_preset_found_on_a_legal_partial() -> None:
     puzzle = Puzzle(
         board=BOARD,
         constraints=(Constraint(type="sudoku"),),

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from gridfind.engine import GridfindError, Layer
 from gridfind.layers.board import GridCells
-from gridfind.layers.distinct import DistinctOverGroups, boxes, cols, rows
+from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_sum import PairSum
 from gridfind.puzzle import Constraint, JsonValue
@@ -41,42 +41,47 @@ LAYER_REGISTRY = {
     "board": GridCells(),
     "rows-distinct": DistinctOverGroups("rows-distinct", rows),
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
-    "regions-distinct": DistinctOverGroups("regions-distinct", boxes),
+    "regions-distinct": DistinctOverGroups("regions-distinct", regions),
     "line-count-distinct": LineCountDistinct(),
     "pair-sum": PairSum(),
 }
 
-# Sugar constraint types expand at load into their canonical constraints
-# (spec #45, issue #47). `sudoku` is the three basic distinct rules — board is
-# not here: it comes from the Puzzle's board field, not a constraint.
-SUGAR_REGISTRY: dict[str, list[str]] = {
+# Two mechanisms expand a constraint at load (spec #45, issue #47), and they
+# are not the same shape — one type becoming many is a preset, one type
+# becoming another is an alias.
+#
+# A **preset** is the decided word for a named, reusable bundle (CONTEXT.md):
+# `sudoku` is the three basic distinct rules. Board is not here — it comes
+# from the Puzzle's board field, not a constraint.
+PRESET_REGISTRY: dict[str, list[str]] = {
     "sudoku": ["rows-distinct", "cols-distinct", "regions-distinct"],
 }
 
-# Param sugar: a constraint that renames to a canonical type and fixes one
-# param, carrying its own params through. X and V are pair-sum clues whose
-# target is spelled in the name — an X pair sums to 10, a V to 5 (issue #66).
-PARAM_SUGAR: dict[str, tuple[str, dict[str, JsonValue]]] = {
+# An **alias** renames one type to another and fixes one param, carrying its
+# own params through. X and V are pair-sum clues whose target is spelled in
+# the name — an X pair sums to 10, a V to 5 (issue #66).
+ALIAS_REGISTRY: dict[str, tuple[str, dict[str, JsonValue]]] = {
     "x": ("pair-sum", {"sum": 10}),
     "v": ("pair-sum", {"sum": 5}),
 }
 
 
 def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
-    """Expand sugar constraints into their canonical constraints — a load-time
-    pass that runs before dispatch. A `{type: "sudoku"}` constraint becomes the
-    three bare distinct constraints; an `{type: "x", cells}` constraint becomes
-    a `pair-sum` carrying its cells and `sum: 10`; every other constraint
-    passes through unchanged.
+    """Expand presets and aliases into canonical constraints — a load-time
+    pass that runs before dispatch. A `{type: "sudoku"}` constraint is a
+    preset and becomes the three bare distinct constraints; an
+    `{type: "x", cells}` constraint is an alias and becomes a `pair-sum`
+    carrying its cells and `sum: 10`; every other constraint passes through
+    unchanged.
     """
     expanded: list[Constraint] = []
     for constraint in constraints:
-        if constraint.type in SUGAR_REGISTRY:
+        if constraint.type in PRESET_REGISTRY:
             expanded.extend(
-                Constraint(type=name) for name in SUGAR_REGISTRY[constraint.type]
+                Constraint(type=name) for name in PRESET_REGISTRY[constraint.type]
             )
-        elif constraint.type in PARAM_SUGAR:
-            canonical, fixed = PARAM_SUGAR[constraint.type]
+        elif constraint.type in ALIAS_REGISTRY:
+            canonical, fixed = ALIAS_REGISTRY[constraint.type]
             expanded.append(
                 Constraint(type=canonical, params={**constraint.params, **fixed})
             )
@@ -86,10 +91,11 @@ def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
 
 
 def resolve_constraints(constraints: tuple[Constraint, ...]) -> list[Layer]:
-    """Resolve a puzzle's constraints to layer instances: expand sugar, then
-    dispatch each distinct `type` through the registry. Two constraints of one
-    type resolve to a single layer that loops its own constraints (issue #65) —
-    the layer, not the layer twice. An unrecognized `type` is rejected.
+    """Resolve a puzzle's constraints to layer instances: expand presets and
+    aliases, then dispatch each distinct `type` through the registry. Two
+    constraints of one type resolve to a single layer that loops its own
+    constraints (issue #65) — the layer, not the layer twice. An unrecognized
+    `type` is rejected.
     """
     layers: dict[str, Layer] = {}
     for constraint in expand_constraints(constraints):
@@ -102,7 +108,7 @@ def resolve_constraints(constraints: tuple[Constraint, ...]) -> list[Layer]:
 
 def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
     """A puzzle's identity: its expanded constraint set, alphabetically
-    normalized. The sugar spelling and the explicit spelling compare equal
+    normalized. The preset spelling and the explicit spelling compare equal
     (the #33 duplicate-detection rule, over constraints instead of a stack
     string).
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from gridfind.engine import Engine
-from gridfind.layers._base import emit_distinct_count, grid_vars
+from gridfind.layers._base import emit_distinct_count, grid_content
 
 
 @dataclass
@@ -23,5 +23,5 @@ class LineCountDistinct:
         pass
 
     def emit(self, engine: Engine) -> None:
-        for row_index, row in enumerate(grid_vars(engine), start=1):
+        for row_index, row in enumerate(grid_content(engine), start=1):
             emit_distinct_count(engine, row, target=row_index, label=f"row{row_index}")

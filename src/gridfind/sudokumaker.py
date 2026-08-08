@@ -18,14 +18,14 @@ from typing import Any
 
 from lzstring import LZString
 
-from gridfind.layers.board import cell_name
-from gridfind.layers.regions import classic_region_map
+from gridfind.layers.board import cell_address
+from gridfind.layers.regions import classic_boxes
 from gridfind.puzzle import (
     Board,
     Candidate,
     Constraint,
     Given,
-    Place,
+    Placement,
     Puzzle,
     WorkingState,
 )
@@ -49,7 +49,7 @@ _CLASSIC_CONSTRAINTS = (
 # The standard 3x3 box partition as SudokuMaker's flat 81-array of region ids,
 # row-major — a `type 1` `regions` matrix that differs is jigsaw, out of scope.
 _CLASSIC_REGIONS = [0] * CELL_COUNT
-for _region_id, _box in enumerate(classic_region_map(BOARD_SIZE)):
+for _region_id, _box in enumerate(classic_boxes(BOARD_SIZE)):
     for _row, _col in _box:
         _CLASSIC_REGIONS[(_row - 1) * BOARD_SIZE + (_col - 1)] = _region_id
 
@@ -66,15 +66,15 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
 
     cells = puzzle_data["cells"]
     givens: list[Given] = []
-    places: list[Place] = []
+    places: list[Placement] = []
     candidates: list[Candidate] = []
     for i, cell in enumerate(cells):
-        address = cell_name(i // BOARD_SIZE + 1, i % BOARD_SIZE + 1)
+        address = cell_address(i // BOARD_SIZE + 1, i % BOARD_SIZE + 1)
         if "value" in cell:
             if cell.get("given"):
                 givens.append(Given(address, cell["value"]))
             else:
-                places.append(Place(address, cell["value"]))
+                places.append(Placement(address, cell["value"]))
         elif "candidates" in cell:
             digits = frozenset(d for d in _DIGITS if cell["candidates"] & (1 << d))
             candidates.append(Candidate(address, digits))

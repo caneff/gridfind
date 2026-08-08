@@ -7,7 +7,11 @@ function** that reads the live grid and returns its groups; nothing is baked to
 a fixed board size. That mirrors ISS's `House`-over-a-cell-set, with the cell
 sets produced from board geometry rather than frozen at import
 (`docs/reference/iss-design-decisions.md` §2.2, §5.3): here the geometry is the
-live grid handed in via `grid_vars`.
+live grid handed in via `grid_content`.
+
+The partition functions are named for the concept they cut, not for the shape
+the classic default happens to make: `regions`, not `boxes` — a jigsaw region
+is no box.
 
 The partition functions live here, local — where grid geometry queries belong
 (per-layer vs. centralized) is open (issue #43), so they are not centralized
@@ -21,7 +25,7 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 from gridfind.engine import Engine
-from gridfind.layers._base import grid_vars
+from gridfind.layers._base import grid_content
 from gridfind.layers.regions import region_map_for
 
 Cell = TypeVar("Cell")
@@ -37,7 +41,7 @@ def cols(grid: Grid) -> Iterable[tuple[Cell, ...]]:
     return zip(*grid, strict=True)
 
 
-def boxes(grid: Grid) -> Iterable[list[Cell]]:
+def regions(grid: Grid) -> Iterable[list[Cell]]:
     """The regions, cut from whatever grid is handed in — the region partition
     reused as cell groups. `region_map_for` resolves the partition for the live
     grid's size (issue #77: a 6x6 tiles as 2x3, a 4x4 as 2x2, a 9x9 as 3x3 —
@@ -67,5 +71,5 @@ class DistinctOverGroups:
         pass
 
     def emit(self, engine: Engine) -> None:
-        for group in self.partition(grid_vars(engine)):
+        for group in self.partition(grid_content(engine)):
             engine.model.add_all_different(group)

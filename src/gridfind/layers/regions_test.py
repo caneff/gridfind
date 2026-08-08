@@ -2,8 +2,8 @@ import pytest
 
 from gridfind.engine import GridfindError
 from gridfind.layers.regions import (
-    box_region_map,
-    classic_region_map,
+    box_regions,
+    classic_boxes,
     region_map_for,
     render_grid,
 )
@@ -11,16 +11,16 @@ from gridfind.layers.regions import (
 BOARD_SIZE = 9
 
 
-def test_classic_region_map_partitions_the_board_into_boxes_of_boxes() -> None:
-    region_map = classic_region_map()
+def test_classic_boxes_partitions_the_board_into_boxes_of_boxes() -> None:
+    region_map = classic_boxes()
 
     assert len(region_map) == BOARD_SIZE
     for region in region_map:
         assert len(region) == BOARD_SIZE
 
 
-def test_classic_region_map_covers_every_cell_exactly_once() -> None:
-    cells = [cell for region in classic_region_map() for cell in region]
+def test_classic_boxes_covers_every_cell_exactly_once() -> None:
+    cells = [cell for region in classic_boxes() for cell in region]
     every_cell = {
         (row, col)
         for row in range(1, BOARD_SIZE + 1)
@@ -30,10 +30,10 @@ def test_classic_region_map_covers_every_cell_exactly_once() -> None:
     assert sorted(cells) == sorted(every_cell)
 
 
-def test_box_region_map_at_9_3_3_reproduces_classic_region_map() -> None:
-    # box_region_map generalizes classic_region_map — at the classic board
+def test_box_regions_at_9_3_3_reproduces_classic_boxes() -> None:
+    # box_regions generalizes classic_boxes — at the classic board
     # size and box shape it must reproduce today's 3x3 partition exactly.
-    assert box_region_map(9, 3, 3) == classic_region_map()
+    assert box_regions(9, 3, 3) == classic_boxes()
 
 
 # Spelled out rather than read from BOX_SHAPE on purpose: an independent
@@ -47,14 +47,14 @@ def test_box_region_map_at_9_3_3_reproduces_classic_region_map() -> None:
         pytest.param(9, 3, 3, id="9x9-tiles-3x3"),
     ],
 )
-def test_box_region_map_tiles_the_board_and_covers_every_cell_once(
+def test_box_regions_tiles_the_board_and_covers_every_cell_once(
     size: int, box_rows: int, box_cols: int
 ) -> None:
     # Every size tiles into `size` regions of `size` cells that partition the
     # board — a 6x6 as six 2x3 boxes, never as four 3x3 quattro quadri. The
     # coverage half is what a count-only assertion misses: a partition that
     # duplicated one cell and dropped another would still count right.
-    region_map = box_region_map(size, box_rows, box_cols)
+    region_map = box_regions(size, box_rows, box_cols)
     every_cell = [
         (row, col) for row in range(1, size + 1) for col in range(1, size + 1)
     ]
@@ -93,9 +93,9 @@ def test_render_grid_bands_columns_and_rows_by_the_boards_box_shape() -> None:
     # A 6x6 tiles as 2x3 boxes (BOX_SHAPE[6]): a column gap every 3 cells, a
     # blank separator row every 2 rows — never the old fixed-3x3 banding.
     grid = [[f"R{r}C{c}" for c in range(1, 7)] for r in range(1, 7)]
-    values = {name: i % 9 + 1 for i, row in enumerate(grid) for name in row}
+    assignment = {address: i % 9 + 1 for i, row in enumerate(grid) for address in row}
 
-    text = render_grid(grid, values)
+    text = render_grid(grid, assignment)
 
     lines = text.split("\n")
     assert len(lines) == 8  # 6 rows plus two blank separator rows
@@ -117,7 +117,7 @@ def test_render_grid_renders_each_cells_own_value() -> None:
         ["R2C1", "R2C2", "R2C3"],
         ["R3C1", "R3C2", "R3C3"],
     ]
-    values = {
+    assignment = {
         "R1C1": 4,
         "R1C2": 7,
         "R1C3": 9,
@@ -129,4 +129,4 @@ def test_render_grid_renders_each_cells_own_value() -> None:
         "R3C3": 8,
     }
 
-    assert render_grid(grid, values) == "4 7 9\n1 2 3\n5 6 8"
+    assert render_grid(grid, assignment) == "4 7 9\n1 2 3\n5 6 8"

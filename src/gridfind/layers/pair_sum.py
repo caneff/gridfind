@@ -3,7 +3,7 @@
 A pair-sum clue names two cells whose contents must add to a target. One
 stateless `pair-sum` instance pulls every such constraint via `constraints_of`
 and emits one sum-rule per clue, so a puzzle's many clues resolve to this
-single layer (issue #65). The XV variant is spelled on top of it as sugar: an X clue
+single layer (issue #65). The XV variant is spelled on top of it as an alias: an X clue
 is a pair-sum of 10, a V clue a pair-sum of 5 (expanded in `layers/__init__`).
 
 Deliberately narrow (issue #66): the constraint names both cells outright — a
@@ -34,8 +34,8 @@ class PairSum:
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object) — narrow to this clue's
-            # shape: a pair of cell names and its target sum.
-            names = cast("list[str]", clue.params["cells"])
+            # shape: a pair of cell addresses and its target sum.
+            addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
-            pair = [engine.cells[name].content[0] for name in names]
+            pair = [engine.cells[address].content[0] for address in addresses]
             engine.model.add(sum(pair) == total)

@@ -85,7 +85,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 
     print(result.kind)
     if result.kind == "found" and result.witness is not None:
-        print(render_grid(result.witness.grid, result.witness.values))
+        print(render_grid(result.witness.grid, result.witness.assignment))
     return 0 if result.kind == "found" else 1
 
 

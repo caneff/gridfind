@@ -4,7 +4,7 @@ import pytest
 
 from gridfind.engine import Engine, GridfindError, MissingDependencyError, build_engine
 from gridfind.layers import LAYER_REGISTRY
-from gridfind.layers.distinct import boxes, cols
+from gridfind.layers.distinct import cols, regions
 from gridfind.puzzle import Board
 
 
@@ -24,11 +24,11 @@ def test_cols_partition_is_the_transpose() -> None:
     ]
 
 
-def test_boxes_partition_covers_every_cell_exactly_once() -> None:
+def test_regions_partition_covers_every_cell_exactly_once() -> None:
     # Size-agnostic via BOX_SHAPE — a 6x6 tiles as six 2x3 boxes, never as
     # four 3x3 mini-grids, together the whole grid with no cell repeated.
     grid = _grid(6)
-    groups = [list(g) for g in boxes(grid)]
+    groups = [list(g) for g in regions(grid)]
 
     assert len(groups) == 6
     for group in groups:
@@ -37,15 +37,15 @@ def test_boxes_partition_covers_every_cell_exactly_once() -> None:
     assert sorted(flat) == sorted(cell for row in grid for cell in row)
 
 
-def test_boxes_raises_for_a_board_size_with_no_classic_box_convention() -> None:
+def test_regions_raises_for_a_board_size_with_no_classic_box_convention() -> None:
     with pytest.raises(GridfindError):
-        list(boxes(_grid(5)))
+        list(regions(_grid(5)))
 
 
-def test_boxes_first_box_is_the_top_left_3x3_block() -> None:
+def test_regions_first_region_is_the_top_left_3x3_box() -> None:
     grid = _grid(9)
 
-    assert set(next(iter(boxes(grid)))) == {
+    assert set(next(iter(regions(grid)))) == {
         "r0c0",
         "r0c1",
         "r0c2",

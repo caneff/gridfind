@@ -9,7 +9,7 @@ constraints, which is why `emit_distinct_count` exists rather than one
 `add_all_different` call. *Solver constraint* names that level without naming
 a vendor (CONTEXT.md, map #1 decision 13).
 
-`grid_vars` and `emit_distinct_count` are package-internal APIs imported by
+`grid_content` and `emit_distinct_count` are package-internal APIs imported by
 `rows`, `cols`, `regions`, and `line_count`. They live here, not in any one
 layer file, because more than one layer needs them (issue #17).
 """
@@ -23,16 +23,20 @@ from ortools.sat.python import cp_model
 from gridfind.engine import Engine, GridfindError
 
 
-def grid_vars(engine: Engine) -> list[list[cp_model.IntVar]]:
-    """The grid's cells as their primary CP-SAT variables, resolved at call
-    time in phase 2 (issue #19). `board` stores the grid as cell *names*, not
-    variables, on purpose: a Schrödinger layer can widen a cell's content to
-    length 2 in phase 1, so name-to-variable resolution must wait until here.
-    The one cast lives in this helper — `structures` stays generic so every
-    layer shares one channel; only this consumer needs the concrete type.
+def grid_content(engine: Engine) -> list[list[cp_model.IntVar]]:
+    """The grid's cells as their primary content, resolved at call time in
+    phase 2 (issue #19). Named for *content*, the decided word, rather than
+    for the CP-SAT variables it happens to return — "variable" is an
+    implementation word kept out of the spoken vocabulary (CONTEXT.md).
+
+    `board` stores the grid as cell *addresses*, not content, on purpose: a
+    Schrödinger layer can widen a cell's content to length 2 in phase 1, so
+    resolving an address to its content must wait until here. The one cast
+    lives in this helper — `structures` stays generic so every layer shares
+    one channel; only this consumer needs the concrete type.
     """
     grid = cast("list[list[str]]", engine.structures["grid"])
-    return [[engine.cells[name].content[0] for name in row] for row in grid]
+    return [[engine.cells[address].content[0] for address in row] for row in grid]
 
 
 def emit_distinct_count(

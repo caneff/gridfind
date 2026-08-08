@@ -4,7 +4,7 @@ by its filename (`found-*` / `broke-*`), asserted through `verdict(...)` only
 
 Each JSON case carries its own puzzle and working state — no hand-maintained
 directory-to-stack mapping. A case's canonical identity (and its pytest id) is
-the puzzle's expanded, alphabetically-sorted constraint set (#47), so the sugar
+the puzzle's expanded, alphabetically-sorted constraint set (#47), so a preset
 spelling and the explicit spelling collapse to the same id.
 """
 

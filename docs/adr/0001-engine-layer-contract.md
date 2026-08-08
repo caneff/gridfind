@@ -23,9 +23,9 @@ The seam a layer actually codes against today is wider than it first looks:
     `add(...).only_enforce_if(...)`, `add_max_equality`). This is the
     most-used and most load-bearing part of the seam.
   - `engine.structures` / `engine.cells` — read directly (via the `_base`
-    helpers `grid_vars` / `emit_distinct_count`) to resolve cell names to
-    variables in phase 2.
-  - `engine.add_cell(name, *, low, high, width=1)` and
+    helpers `grid_content` / `emit_distinct_count`) to resolve cell addresses
+    to their content in phase 2.
+  - `engine.add_cell(address, *, low, high, width=1)` and
     `engine.register_structure(name, value)` — the phase-1 write side, called
     only by `board` today.
 - Supporting types: `Cell`, `GridfindError`, `MissingDependencyError`.

@@ -1,7 +1,7 @@
 """pair-sum behaviour, tested at the top seam — `verdict` (issue #66).
 
 The canonical `pair-sum` clue names a pair and its target; the XV variant rides
-on top as sugar — a `v` clue is a pair-sum of 5, an `x` clue a pair-sum of 10.
+on top as aliases — a `v` clue is a pair-sum of 5, an `x` clue a pair-sum of 10.
 """
 
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
@@ -15,7 +15,7 @@ def _pair_sum(cells: tuple[str, str], total: int) -> Constraint:
 
 
 def _clue(kind: str, cells: tuple[str, str]) -> Constraint:
-    """An X or V sugar clue — names its pair, leaves the sum to the sugar."""
+    """An X or V alias clue — names its pair, leaves the sum to the alias."""
     return Constraint(type=kind, params={"cells": list(cells)})
 
 
@@ -75,7 +75,7 @@ def test_a_broken_second_clue_breaks_the_whole_puzzle() -> None:
     assert result.witness is None
 
 
-def test_a_v_clue_is_sugar_for_a_pair_sum_of_five() -> None:
+def test_a_v_clue_is_an_alias_for_a_pair_sum_of_five() -> None:
     puzzle = Puzzle(
         board=BOARD,
         constraints=(_clue("v", ("R1C1", "R1C2")),),
@@ -89,7 +89,7 @@ def test_a_v_clue_is_sugar_for_a_pair_sum_of_five() -> None:
     assert result.witness["R1C2"] == 2  # V binds the pair to 5
 
 
-def test_an_x_clue_is_sugar_for_a_pair_sum_of_ten() -> None:
+def test_an_x_clue_is_an_alias_for_a_pair_sum_of_ten() -> None:
     puzzle = Puzzle(
         board=BOARD,
         constraints=(_clue("x", ("R1C1", "R1C2")),),
