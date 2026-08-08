@@ -5,7 +5,7 @@ solver a pure-satisfaction model — whichever is decidable first is what the
 single `solve` call returns (spec #4, decisions 15, 15a, 32).
 
 The input is the structured `Puzzle` + `WorkingState` (spec #45, issue #48):
-the puzzle's variant records resolve to layers (issue #47), its board supplies
+the puzzle's constraints resolve to layers (issue #47), its board supplies
 the grid, and givens/places/candidates pin the model. Each call rebuilds the
 engine from scratch — the build is ~1% of a solve, and no caller races many
 working states over one puzzle, so no build-once/race-many API is offered
@@ -20,7 +20,7 @@ from typing import Literal, cast
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
-from gridfind.layers import LAYER_REGISTRY, expand_records, resolve_records
+from gridfind.layers import LAYER_REGISTRY, expand_constraints, resolve_constraints
 from gridfind.puzzle import EMPTY, Candidate, Given, Place, Puzzle, WorkingState
 from gridfind.strategy import PURE_SATISFACTION, Strategy
 
@@ -61,13 +61,14 @@ def verdict(
     num_workers: int = DEFAULT_NUM_WORKERS,
     strategy: Strategy = PURE_SATISFACTION,
 ) -> Verdict:
-    # board is not a variant record — the puzzle's board supplies the grid.
-    # Expand sugar once: the engine carries the canonical records so a layer's
-    # records_of(name) matches the canonical types the resolver dispatched on —
-    # an `x`/`v` clue reaches its `pair-sum` layer as a sum-10/5 record.
-    records = tuple(expand_records(puzzle.variants))
-    layers = [LAYER_REGISTRY["board"], *resolve_records(puzzle.variants)]
-    engine = build_engine(layers, records, board=puzzle.board)
+    # board is not a constraint — the puzzle's board supplies the grid.
+    # Expand sugar once: the engine carries the canonical constraints so a
+    # layer's constraints_of(name) matches the canonical types the resolver
+    # dispatched on — an `x`/`v` clue reaches its `pair-sum` layer as a
+    # sum-10/5 constraint.
+    constraints = tuple(expand_constraints(puzzle.constraints))
+    layers = [LAYER_REGISTRY["board"], *resolve_constraints(puzzle.constraints)]
+    engine = build_engine(layers, constraints, board=puzzle.board)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
     strategy.configure(engine.model)
 

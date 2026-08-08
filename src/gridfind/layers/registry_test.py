@@ -5,14 +5,14 @@ from gridfind.layers.distinct import DistinctOverGroups
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
     # Issue #25 / #24: gridfind.layers is internal-only, so its committed public
-    # surface is these names — the record dispatch API (#47). Registries and
+    # surface is these names — the constraint dispatch API (#47). Registries and
     # layer classes are internal. #48 deleted the old string stack API
     # (expand_stack, resolve, the preset registry).
     assert gridfind.layers.__all__ == [
         "UnknownLayerError",
         "canonical_identity",
-        "expand_records",
-        "resolve_records",
+        "expand_constraints",
+        "resolve_constraints",
     ]
 
 

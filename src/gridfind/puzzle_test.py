@@ -8,10 +8,10 @@ from gridfind.puzzle import (
     EMPTY,
     Board,
     Candidate,
+    Constraint,
     Given,
     Place,
     Puzzle,
-    Variant,
     WorkingState,
 )
 
@@ -48,8 +48,8 @@ BOARDS = st.builds(Board, size=st.integers(1, 25)) | st.builds(
     Board, size=st.integers(1, 25), values=BOARD_VALUES
 )
 
-VARIANTS = st.builds(
-    Variant,
+CONSTRAINTS = st.builds(
+    Constraint,
     type=st.text(min_size=1),
     params=st.dictionaries(PARAM_KEYS, PARAM_VALUES, max_size=4),
 )
@@ -63,7 +63,7 @@ CANDIDATES = st.builds(
 PUZZLES = st.builds(
     Puzzle,
     board=BOARDS,
-    variants=st.lists(VARIANTS, max_size=4).map(tuple),
+    constraints=st.lists(CONSTRAINTS, max_size=4).map(tuple),
     givens=st.lists(GIVENS, max_size=4).map(tuple),
 )
 WORKING_STATES = st.builds(
@@ -93,7 +93,7 @@ def test_from_json_refuses_a_board_whose_serialized_values_are_empty() -> None:
             json.dumps(
                 {
                     "board": {"size": 9, "values": [5, 5, 1]},
-                    "variants": [],
+                    "constraints": [],
                     "givens": [],
                 }
             )
@@ -116,11 +116,17 @@ def test_a_board_with_derived_values_serializes_without_a_values_key() -> None:
 def test_puzzle_round_trips_through_json() -> None:
     puzzle = Puzzle(
         board=Board(size=9),
-        variants=(Variant(type="rows-distinct"),),
+        constraints=(Constraint(type="rows-distinct"),),
         givens=(Given(address="R1C1", digit=5),),
     )
 
     assert Puzzle.from_json(puzzle.to_json()) == puzzle
+
+
+def test_puzzle_serializes_its_constraints_under_the_constraints_key() -> None:
+    puzzle = Puzzle(board=Board(size=9), constraints=(Constraint(type="sudoku"),))
+
+    assert json.loads(puzzle.to_json())["constraints"] == [{"type": "sudoku"}]
 
 
 def test_working_state_round_trips_through_json() -> None:
@@ -138,14 +144,14 @@ def test_empty_is_the_working_state_default() -> None:
     assert EMPTY.candidates == ()
 
 
-def test_variant_with_arbitrary_params_round_trips() -> None:
-    killer = Variant(type="killer", params={"cells": ["R1C1", "R1C2"], "sum": 5})
-    puzzle = Puzzle(board=Board(size=9), variants=(killer,))
+def test_constraint_with_arbitrary_params_round_trips() -> None:
+    killer = Constraint(type="killer", params={"cells": ["R1C1", "R1C2"], "sum": 5})
+    puzzle = Puzzle(board=Board(size=9), constraints=(killer,))
 
     restored = Puzzle.from_json(puzzle.to_json())
 
     assert restored == puzzle
-    assert restored.variants[0].params == {"cells": ["R1C1", "R1C2"], "sum": 5}
+    assert restored.constraints[0].params == {"cells": ["R1C1", "R1C2"], "sum": 5}
 
 
 @given(puzzle=PUZZLES)

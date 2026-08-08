@@ -15,10 +15,10 @@ from lzstring import LZString
 from gridfind.puzzle import (
     Board,
     Candidate,
+    Constraint,
     Given,
     Place,
     Puzzle,
-    Variant,
     WorkingState,
 )
 from gridfind.sudokumaker import decode_link
@@ -38,11 +38,11 @@ CLASSIC_LINK = (
     "aKrVXLNUrtSq1XqtXLldr1Wq-hYzRYgA"
 )
 
-# All three variants, in the order the decoder emits them.
-_CLASSIC_VARIANTS = (
-    Variant("rows-distinct"),
-    Variant("cols-distinct"),
-    Variant("regions-distinct"),
+# All three constraints, in the order the decoder emits them.
+_CLASSIC_CONSTRAINTS = (
+    Constraint("rows-distinct"),
+    Constraint("cols-distinct"),
+    Constraint("regions-distinct"),
 )
 
 
@@ -51,7 +51,7 @@ def test_classic_link_decodes_to_expected_puzzle_and_state() -> None:
 
     assert puzzle == Puzzle(
         board=Board(size=9),
-        variants=_CLASSIC_VARIANTS,
+        constraints=_CLASSIC_CONSTRAINTS,
         givens=(
             Given("R1C6", 4),
             Given("R4C3", 5),
@@ -81,7 +81,10 @@ def test_singleton_center_mark_is_a_candidate_not_a_place() -> None:
 # region map: region = (row // 3) * 3 + (col // 3), row-major.
 _STANDARD_REGIONS = [(i // 9 // 3) * 3 + (i % 9 // 3) for i in range(81)]
 _EMPTY_CELLS = [{} for _ in range(81)]
-_CLASSIC_CONSTRAINTS = [{"type": 0}, {"type": 1, "regions": _STANDARD_REGIONS}]
+# SudokuMaker's own constraint blocks — its wire vocabulary, not gridfind's
+# `Constraint`; a classic link carries the implicit type 0 and a type 1
+# whose regions are the standard boxes.
+_WIRE_CONSTRAINTS = [{"type": 0}, {"type": 1, "regions": _STANDARD_REGIONS}]
 
 
 def _encode(puzzle: dict[str, object]) -> str:
@@ -96,7 +99,7 @@ def test_colors_and_corner_marks_leave_the_state_empty() -> None:
     cells = [{} for _ in range(81)]
     cells[0] = {"colors": [1]}
     cells[1] = {"cornerPencilMarks": 8}
-    payload = _encode({"cells": cells, "constraints": _CLASSIC_CONSTRAINTS})
+    payload = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
 
     _, state = decode_link(payload)
 
@@ -110,11 +113,11 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
     ("puzzle", "match"),
     [
         (
-            {"cells": _EMPTY_CELLS, "minDigit": 0, "constraints": _CLASSIC_CONSTRAINTS},
+            {"cells": _EMPTY_CELLS, "minDigit": 0, "constraints": _WIRE_CONSTRAINTS},
             "minDigit",
         ),
         (
-            {"cells": [{} for _ in range(80)], "constraints": _CLASSIC_CONSTRAINTS},
+            {"cells": [{} for _ in range(80)], "constraints": _WIRE_CONSTRAINTS},
             "81 cells",
         ),
         (
@@ -132,6 +135,6 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
     ids=["minDigit", "wrong-cell-count", "unknown-type", "jigsaw-regions"],
 )
 def test_non_classic_link_is_rejected(puzzle: dict[str, object], match: str) -> None:
-    # Each variant fails for *its own* reason, not an incidental ValueError.
+    # Each case fails for *its own* reason, not an incidental ValueError.
     with pytest.raises(ValueError, match=match):
         decode_link(_encode(puzzle))

@@ -1,7 +1,7 @@
 """The structured puzzle input: `Puzzle` + `WorkingState`, JSON round-tripping.
 
 gridfind's one user-facing input is a `Puzzle` (the setter's definition: a
-board, a list of typed variant records, and the givens) paired with a
+board, a list of typed constraints, and the givens) paired with a
 `WorkingState` (the solver's evolving places and candidates). Both are frozen
 dataclasses that serialize to JSON and read back to an *equal* object — JSON is
 the one durable on-disk form (spec #45, issue #46).
@@ -14,8 +14,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-# A JSON scalar/array/object value — the genuine open boundary a variant
-# record's params live at (a killer sum is an int, a thermo path is a list).
+# A JSON scalar/array/object value — the genuine open boundary a constraint's
+# params live at (a killer sum is an int, a thermo path is a list).
 JsonValue = object
 
 # "no values given, derive them from size" — matched by identity, so it is
@@ -85,31 +85,33 @@ class Candidate:
 
 
 @dataclass(frozen=True)
-class Variant:
-    """A typed rule record — a bare `{type}`, or a type carrying its own params
-    (a killer cage's cells and sum, a thermo path). The record shape is open so
-    a future data-bearing variant adds no new grammar.
+class Constraint:
+    """One typed statement a setter makes — a bare `{type}`, or a type carrying
+    its own params (a killer cage's cells and sum, a thermo path). Many
+    constraints per variant: two X clues are two constraints of one variant.
+    The shape is open so a future data-bearing variant adds no new grammar.
     """
 
     type: str
-    # ponytail: dict makes Variant unhashable; #47 needs canonical identity and
-    # will freeze params then. #46 only compares equality, which dicts do fine.
+    # ponytail: dict makes Constraint unhashable; #47 needs canonical identity
+    # and will freeze params then. #46 only compares equality, which dicts do
+    # fine.
     params: dict[str, JsonValue] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class Puzzle:
-    """The setter's definition: a board, typed variant records, and givens."""
+    """The setter's definition: a board, typed constraints, and givens."""
 
     board: Board
-    variants: tuple[Variant, ...] = ()
+    constraints: tuple[Constraint, ...] = ()
     givens: tuple[Given, ...] = ()
 
     def to_json(self) -> str:
         return json.dumps(
             {
                 "board": _board_to_dict(self.board),
-                "variants": [{"type": v.type, **v.params} for v in self.variants],
+                "constraints": [{"type": c.type, **c.params} for c in self.constraints],
                 "givens": [
                     {"address": g.address, "digit": g.digit} for g in self.givens
                 ],
@@ -121,7 +123,7 @@ class Puzzle:
         data = json.loads(text)
         return cls(
             board=_board_from_dict(data["board"]),
-            variants=tuple(_variant_from_dict(v) for v in data["variants"]),
+            constraints=tuple(_constraint_from_dict(c) for c in data["constraints"]),
             givens=tuple(
                 Given(address=g["address"], digit=g["digit"]) for g in data["givens"]
             ),
@@ -190,10 +192,10 @@ def _board_from_dict(data: dict[str, JsonValue]) -> Board:
     return Board(size=size, values=range(start, stop, step))
 
 
-def _variant_from_dict(data: dict[str, JsonValue]) -> Variant:
+def _constraint_from_dict(data: dict[str, JsonValue]) -> Constraint:
     kind = data["type"]
     if not isinstance(kind, str):
-        msg = f"variant record 'type' must be a string, got {kind!r}"
+        msg = f"constraint 'type' must be a string, got {kind!r}"
         raise ValueError(msg)
     params = {key: value for key, value in data.items() if key != "type"}
-    return Variant(type=kind, params=params)
+    return Constraint(type=kind, params=params)

@@ -2,8 +2,8 @@
 
 Two channels reach a layer, and who produced the fact is the line between
 them (ADR-0003). The structure registry carries facts one layer derives for
-another. The engine's carried fields — `records`, and the `board` shape it
-reads size and digit values from — carry the setter's input flowing in, which
+another. The engine's carried fields — `constraints`, and the `board` shape
+it reads size and digit values from — carry the setter's input flowing in, which
 exists before any layer runs. The engine knows those only through read-only
 protocol views, never the concrete `Puzzle` types behind them (decision 31).
 """
@@ -44,20 +44,22 @@ class Cell:
     content: list[cp_model.IntVar]
 
 
-class Record(Protocol):
-    """One variant's data, riding on the engine for a layer to turn into rules.
+class Constraint(Protocol):
+    """One constraint's data, riding on the engine for a layer to turn into
+    rules.
 
-    A record pairs a `type` — the layer that handles it — with `params`, that
-    variant's own settings: a killer cage's cells and target sum, a thermo's
-    path. A layer pulls every record of its type with `records_of` and loops
-    them, so one stateless layer serves a puzzle's many cages (issue #65).
+    A constraint pairs a `type` — the layer that handles it — with `params`,
+    that constraint's own settings: a killer cage's cells and target sum, a
+    thermo's path. A layer pulls every constraint of its type with
+    `constraints_of` and loops them, so one stateless layer serves a puzzle's
+    many cages (issue #65).
 
     `params` is the open JSON boundary (spec #45), so its values are `object` —
     a layer narrows each to the shape it expects.
 
     The engine stays puzzle-agnostic (spec #4, decision 31): it knows this
-    read-only view — `type` and `params` — never the `Variant` a record is. A
-    layer reads a record; it never writes one back.
+    read-only view — `type` and `params` — never the `Constraint` dataclass
+    behind it. A layer reads a constraint; it never writes one back.
     """
 
     @property
@@ -69,9 +71,9 @@ class Record(Protocol):
 
 class BoardShape(Protocol):
     """A puzzle's board shape facts, riding on the engine opaquely beside
-    `records` (issue #77) — size and digit values, the same read-only
-    decoupling `Record` gives `Variant`: the engine knows this view, never
-    the concrete `Board` it is."""
+    `constraints` (issue #77) — size and digit values, the same read-only
+    decoupling `Constraint` gives the puzzle's own: the engine knows this
+    view, never the concrete `Board` it is."""
 
     @property
     def size(self) -> int: ...
@@ -100,13 +102,14 @@ class Engine:
     model: cp_model.CpModel = field(default_factory=cp_model.CpModel)
     cells: dict[str, Cell] = field(default_factory=dict)
     structures: dict[str, object] = field(default_factory=dict)
-    records: tuple[Record, ...] = ()
+    constraints: tuple[Constraint, ...] = ()
     board: BoardShape | None = None
 
-    def records_of(self, kind: str) -> list[Record]:
-        """A data-bearing layer pulls its own records by type — the accessor
-        beside the `cells` and `structures` a layer already reaches into."""
-        return [record for record in self.records if record.type == kind]
+    def constraints_of(self, kind: str) -> list[Constraint]:
+        """A data-bearing layer pulls its own constraints by type — the
+        accessor beside the `cells` and `structures` a layer already reaches
+        into."""
+        return [c for c in self.constraints if c.type == kind]
 
     def add_cell(self, name: str, *, low: int, high: int, width: int = 1) -> Cell:
         content = [
@@ -150,7 +153,7 @@ class Engine:
 
 def build_engine(
     layers: list[Layer],
-    records: tuple[Record, ...] = (),
+    constraints: tuple[Constraint, ...] = (),
     board: BoardShape | None = None,
 ) -> Engine:
     """The two-phase build (spec #4, decision 10): order-insensitive.
@@ -158,11 +161,11 @@ def build_engine(
     Phase 1 — every layer registers its cells and structures.
     Phase 2 — every layer emits its rules against the now-final structures.
 
-    The puzzle's `records` ride on the engine so both phases can query them by
-    type (issue #65) — available before phase 1, which is what lets a future
-    Schrödinger-style layer widen named cells at register time. `board` rides
-    beside them (issue #77): the `board` layer reads its size and values to
-    size the grid and bound cells, rather than a fixed constant.
+    The puzzle's `constraints` ride on the engine so both phases can query
+    them by type (issue #65) — available before phase 1, which is what lets a
+    future Schrödinger-style layer widen named cells at register time. `board`
+    rides beside them (issue #77): the `board` layer reads its size and values
+    to size the grid and bound cells, rather than a fixed constant.
 
     A layer's declared dependency is a validity check, not a build-order
     crutch: missing dependency refuses the build before either phase runs.
@@ -174,7 +177,7 @@ def build_engine(
                 msg = f"layer {layer.name!r} requires {dep!r}, not in stack"
                 raise MissingDependencyError(msg)
 
-    engine = Engine(records=records, board=board)
+    engine = Engine(constraints=constraints, board=board)
     for layer in layers:
         layer.register(engine)
     for layer in layers:
