@@ -66,9 +66,8 @@ def test_build_is_order_insensitive() -> None:
 
 @dataclass
 class _Constraint:
-    """A test-only puzzle constraint: the open `Constraint` shape without the
-    coupling
-    (the engine knows no puzzle concepts, spec #4 decision 31)."""
+    """A test-only puzzle constraint: the open `Constraint` shape without
+    the coupling (the engine knows no puzzle concepts, spec #4 decision 31)."""
 
     type: str
     params: dict[str, object] = field(default_factory=dict)
@@ -76,14 +75,14 @@ class _Constraint:
 
 @dataclass
 class _CageLayer:
-    """A test-only data-bearing layer (issue #65): one stateless instance pulls
-    every constraint of its type and emits a sum-rule per one, proving a layer's
-    `params` reach the code that turns them into rules.
+    """A test-only data-bearing layer (issue #65): one stateless instance
+    pulls every constraint of its type and emits a sum-rule per constraint,
+    proving a layer's `params` reach the code that turns them into rules.
 
-    Scaffolding — delete it (and `_Constraint` above) once a production data-bearing
-    layer (a killer or thermo) lands. Its own test then exercises this mechanism
-    against a real constraint, and this stand-in has nothing left to prove.
-    """
+    Scaffolding — delete it (and `_Constraint` above) once a production
+    data-bearing layer (a killer or thermo) lands. Its own test then exercises
+    this mechanism against a real constraint, and this stand-in has nothing
+    left to prove."""
 
     name: str = "cage"
     depends_on: tuple[str, ...] = ()
@@ -112,7 +111,7 @@ def test_constraints_of_returns_only_the_matching_type() -> None:
     assert engine.constraints_of("cage") == [_Constraint("cage")]
 
 
-def test_a_layer_binds_from_its_constraints_and_a_satisfiable_cage_solves() -> None:
+def test_a_layer_binds_from_its_constraints_and_a_cage_solves() -> None:
     constraints = (_Constraint("cage", {"cells": ["a", "b"], "sum": 5}),)
 
     engine = build_engine([_CageLayer()], constraints)
@@ -120,7 +119,7 @@ def test_a_layer_binds_from_its_constraints_and_a_satisfiable_cage_solves() -> N
     assert _solves(engine)
 
 
-def test_a_layer_binds_from_its_constraints_and_an_impossible_cage_breaks() -> None:
+def test_a_layer_binds_and_an_impossible_cage_is_infeasible() -> None:
     # Two cells over a 1-9 domain can't sum to 1 — the params reach the rule.
     constraints = (_Constraint("cage", {"cells": ["a", "b"], "sum": 1}),)
 

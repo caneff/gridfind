@@ -14,7 +14,7 @@
 > no new API.
 
 The code does not honor that: every `verdict(puzzle, working_state)` call
-re-resolves the puzzle's records, rebuilds the engine, and re-emits every rule
+re-resolves the puzzle's constraints, rebuilds the engine, and re-emits every rule
 before applying the working state. The promise invites a future reader to build
 a `build(puzzle) -> BuiltPuzzle` / `built.verdict(state)` surface so the
 expensive build happens once.
@@ -33,7 +33,7 @@ not implemented anywhere today.
 
 | step | cost |
 | --- | --- |
-| `build_engine` (resolve records + emit rules) | 0.36 ms |
+| `build_engine` (resolve constraints + emit rules) | 0.36 ms |
 | full `verdict` (build + solve, empty board → found) | 34.8 ms |
 | `CpModel.clone()` | 0.11 ms |
 
