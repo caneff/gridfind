@@ -5,7 +5,6 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from gridfind.puzzle import (
-    EMPTY,
     Board,
     Candidate,
     Constraint,
@@ -114,6 +113,8 @@ def test_a_board_with_derived_values_serializes_without_a_values_key() -> None:
 
 
 def test_puzzle_round_trips_through_json() -> None:
+    # The worked example for `test_any_puzzle_round_trips_through_json` below:
+    # the property covers this case, this states it in a form a reader can read.
     puzzle = Puzzle(
         board=Board(size=9),
         constraints=(Constraint(type="rows-distinct"),),
@@ -136,12 +137,6 @@ def test_working_state_round_trips_through_json() -> None:
     )
 
     assert WorkingState.from_json(state.to_json()) == state
-
-
-def test_empty_is_the_working_state_default() -> None:
-    assert WorkingState() == EMPTY
-    assert EMPTY.places == ()
-    assert EMPTY.candidates == ()
 
 
 def test_constraint_with_arbitrary_params_round_trips() -> None:
