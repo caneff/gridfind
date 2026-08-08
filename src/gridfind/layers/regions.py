@@ -11,6 +11,9 @@ a 6x6 tiles as six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3 — never a
 partition produced). `box_region_map` generalizes `classic_region_map` to
 any of these; `classic_region_map` stays as the 9x9-only convenience the
 SudokuMaker decoder (classic-only, #59) reads.
+
+`region_map_for` is the one door onto all of it (issue #79 ruling): the
+setter's own map when given, the box tiling by convention when not.
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ BOX_SHAPE: dict[int, tuple[int, int]] = {4: (2, 2), 6: (2, 3), 9: (3, 3)}
 
 def classic_region_map(
     board_size: int = 9, region_size: int = REGION_SIZE
-) -> list[list[tuple[int, int]]]:
+) -> RegionMap:
     """The classic 3x3-box partition of a 9x9 board (spec #4, decision 7):
     row/col bands of `region_size` cells, read left-to-right, top-to-bottom.
     """
@@ -46,9 +49,7 @@ def classic_region_map(
     ]
 
 
-def box_region_map(
-    size: int, box_rows: int, box_cols: int
-) -> list[list[tuple[int, int]]]:
+def box_region_map(size: int, box_rows: int, box_cols: int) -> RegionMap:
     """The box partition of a `size`x`size` board tiled by `box_rows` x
     `box_cols` boxes (issue #77): row/col bands read left-to-right,
     top-to-bottom. `box_region_map(9, 3, 3)` reproduces `classic_region_map`
