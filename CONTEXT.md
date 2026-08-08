@@ -96,13 +96,21 @@ handled by one **layer**.
   `RxCy` addressing for a rectangular grid, a different board layer for hex or
   graph. `board` registers cells and emits no rules of its own.
 
-- **structure registry** — the only channel through which layers talk (map #1,
-  decision 9). Layers reference each other's named **structures**, never each
-  other directly. A cell exposes its content as a named structure; a
+- **structure registry** — the channel through which layers talk to each other
+  (map #1, decision 9). Layers reference each other's named **structures**, never
+  each other directly. A cell exposes its content as a named structure; a
   variable-width window falls out of concatenating cells' content, blind to
   whether any cell is an S-cell. Registry wiring is build-time only, so
   composition costs nothing at solve time — a composed plain sudoku emits the
   identical CP-SAT model a hand-written solver would.
+
+- **carried field** — setter input riding on the engine for layers to read
+  (`records`, and `board` after #78; two-channel rule in
+  [ADR-0003](docs/adr/0003-two-channels-registry-and-engine.md)). The line between
+  the two channels is _who produced the fact_: the registry carries what a layer
+  derived, a carried field carries what the setter supplied. Setter input needs
+  its own channel because `verdict` and `emit_distinct_count` consume it and
+  neither is a layer.
 
 - **two-phase build** — the build protocol that makes composition
   order-insensitive (map #1, decision 10; engine↔layer contract frozen in
