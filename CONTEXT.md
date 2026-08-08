@@ -78,10 +78,10 @@ handled by one **layer**.
 
 - **rule** — one atomic relation a layer emits over cell content (an AllDifferent,
   a sum, an equality). Many rules per constraint. _Constraint_ is retired at
-  **this** level and stays retired (map #1, decision 6): CP-SAT's internal
+  **this** level and stays retired (map #1, decision 6): the solver's internal
   constraint hides behind _rule_. The word is spoken only one level up, where
-  nothing can collide with it — a killer cage is not a solver constraint, it
-  becomes several.
+  nothing can collide with it — a killer cage is not one rule, it becomes
+  several.
 
 - **layer** — a composable, parameterized rule-family module (map #1, decisions
   5, 7). Layers are granular, not monolithic puzzle types: `board`,
@@ -90,6 +90,13 @@ handled by one **layer**.
   `board + rows-distinct + cols-distinct + regions-distinct(3×3)`; drop the
   regions layer and it is a Latin square. A layer contributes cells and rules and
   knows no puzzle concepts beyond its own.
+
+- **solver constraint** — one constraint handed to the solver, a level below
+  _rule_ and named only where that distance matters (issue #82). A rule is not
+  one solver constraint: `emit_distinct_count` spends O(cells × digits) of them
+  on a single counting rule, over 160 for a 9-cell row. The term names no
+  vendor, which is what decision 13 protects — say _solver constraint_, never
+  "CP-SAT constraint".
 
 - **board** — the layer that registers grid cells and arranges them (map #1,
   decisions 7, 14). The core holds zero geometry; a `board` layer supplies it —
