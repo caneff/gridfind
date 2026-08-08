@@ -6,6 +6,7 @@ such as `board` supplies both.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -99,6 +100,39 @@ class Engine:
 
     def register_structure(self, name: str, value: object) -> None:
         self.structures[name] = value
+
+    def value(self, solver: cp_model.CpSolver, name: str) -> int:
+        """A cell's placed value after a solve — the one home for reading
+        cell-content width (issue #72). Relocates today's width-1 behaviour
+        unchanged; a width-2 (S-cell) read is `schrodinger`'s to design, so
+        this raises rather than silently taking `content[0]`."""
+        content = self._cell(name).content
+        if len(content) != 1:
+            msg = f"cell {name!r} has width {len(content)}, expected 1"
+            raise ValueError(msg)
+        return solver.value(content[0])
+
+    def restrict(self, name: str, digits: Iterable[int]) -> None:
+        """Pin a cell to a set of digits — a given/place is a singleton set,
+        a candidate a subset, both one operation (issue #72). Each digit is
+        checked against the cell's own declared domain by membership, not a
+        min/max range — a range would admit holes in a non-contiguous domain
+        like {1, 3, 5} — and an unknown address raises."""
+        var = self._cell(name).content[0]
+        domain = cp_model.Domain.from_flat_intervals(var.proto.domain)
+        allowed = sorted(set(digits))
+        for digit in allowed:
+            if not domain.contains(digit):
+                msg = f"digit {digit} out of range {domain} for cell {name!r}"
+                raise ValueError(msg)
+        self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
+
+    def _cell(self, name: str) -> Cell:
+        cell = self.cells.get(name)
+        if cell is None:
+            msg = f"address {name!r} is off the board"
+            raise ValueError(msg)
+        return cell
 
 
 def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engine:

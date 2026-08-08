@@ -29,3 +29,20 @@ def classic_region_map(
         for band_row in range(bands)
         for band_col in range(bands)
     ]
+
+
+def render_grid(grid: list[list[str]], values: dict[str, int]) -> str:
+    """A solved grid as text, box-banded by `REGION_SIZE` (issue #72): a
+    double space between region columns, a blank line between region rows.
+    The box banding lives here — the module that owns regions — so a caller
+    (the CLI, or any future consumer) prints what `board`/`regions` render
+    rather than re-deriving the geometry itself.
+    """
+    lines: list[str] = []
+    for i, row in enumerate(grid):
+        cells = [str(values[name]) for name in row]
+        groups = [cells[c : c + REGION_SIZE] for c in range(0, len(cells), REGION_SIZE)]
+        lines.append("  ".join(" ".join(group) for group in groups))
+        if (i + 1) % REGION_SIZE == 0 and i + 1 < len(grid):
+            lines.append("")
+    return "\n".join(lines)

@@ -5,7 +5,7 @@ import pytest
 from ortools.sat.python import cp_model
 
 import gridfind.engine
-from gridfind.engine import Engine, MissingDependencyError, build_engine
+from gridfind.engine import Cell, Engine, MissingDependencyError, build_engine
 
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
@@ -126,3 +126,86 @@ def test_a_layer_binds_from_its_records_and_an_impossible_cage_is_infeasible() -
     engine = build_engine([_CageLayer()], records)
 
     assert not _solves(engine)
+
+
+def test_value_reads_a_cells_placed_value_after_a_solve() -> None:
+    engine = build_engine([])
+    cell = engine.add_cell("x", low=1, high=9)
+    engine.model.add(cell.content[0] == 7)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.value(solver, "x") == 7
+
+
+def test_value_on_an_off_board_address_raises() -> None:
+    engine = build_engine([])
+    solver = cp_model.CpSolver()
+
+    with pytest.raises(ValueError, match="off the board"):
+        engine.value(solver, "nope")
+
+
+def test_value_on_a_width_2_cell_raises() -> None:
+    # A width-2 (S-cell) read is schrodinger's to design (issue #73) — value
+    # must raise loudly rather than silently taking content[0].
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=9, width=2)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    with pytest.raises(ValueError, match="width"):
+        engine.value(solver, "x")
+
+
+def test_restrict_pins_a_cell_to_a_singleton_digit() -> None:
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=9)
+
+    engine.restrict("x", {7})
+
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+    assert engine.value(solver, "x") == 7
+
+
+def test_restrict_pins_a_cell_to_a_digit_subset() -> None:
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=9)
+
+    engine.restrict("x", {1, 2})
+
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+    assert engine.value(solver, "x") in (1, 2)
+
+
+def test_restrict_on_an_off_board_address_raises() -> None:
+    engine = build_engine([])
+
+    with pytest.raises(ValueError, match="off the board"):
+        engine.restrict("nope", {1})
+
+
+def test_restrict_checks_a_digit_against_the_cells_own_domain() -> None:
+    # A cell declared over a narrower domain than the global 1-9 range rejects
+    # a digit outside *its own* bounds, not a borrowed global constant.
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=5)
+
+    with pytest.raises(ValueError, match="out of range"):
+        engine.restrict("x", {9})
+
+
+def test_restrict_checks_domain_membership_not_a_min_max_range() -> None:
+    # A cell with a hole in its domain ({1, 3, 5}) must reject a digit that
+    # falls inside the [1, 5] range but not in the domain itself (4) — a
+    # min/max range check would wrongly admit it.
+    engine = build_engine([])
+    var = engine.model.new_int_var_from_domain(
+        cp_model.Domain.from_values([1, 3, 5]), "x.0"
+    )
+    engine.cells["x"] = Cell(name="x", content=[var])
+
+    with pytest.raises(ValueError, match="out of range"):
+        engine.restrict("x", {4})
