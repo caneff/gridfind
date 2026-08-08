@@ -18,7 +18,7 @@ from typing import Literal
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
-from gridfind.layers import LAYER_REGISTRY, resolve_records
+from gridfind.layers import LAYER_REGISTRY, expand_records, resolve_records
 from gridfind.layers._base import MAX_DIGIT, MIN_DIGIT
 from gridfind.puzzle import EMPTY, Candidate, Given, Place, Puzzle, WorkingState
 from gridfind.strategy import PURE_SATISFACTION, Strategy
@@ -51,8 +51,12 @@ def verdict(
     # ponytail: the board layer is a fixed 9x9 (board.py BOARD_SIZE); puzzle's
     # board.size isn't wired yet, so a non-9 board still solves as 9x9. Wire it
     # through when a second board size lands.
+    # Expand sugar once: the engine carries the canonical records so a layer's
+    # records_of(name) matches the canonical types the resolver dispatched on —
+    # an `x`/`v` clue reaches its `pair-sum` layer as a sum-10/5 record.
+    records = tuple(expand_records(puzzle.variants))
     layers = [LAYER_REGISTRY["board"], *resolve_records(puzzle.variants)]
-    engine = build_engine(layers, puzzle.variants)
+    engine = build_engine(layers, records)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
     strategy.configure(engine.model)
 
