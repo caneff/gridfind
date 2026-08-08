@@ -50,6 +50,15 @@ against a witness-find, never an objective solve.
   word — kept out of the spoken vocabulary. Domains are plain integer only; a
   layer may add a one-hot channel locally for one rule if it wants.
 
+- **pair** — two cells named together as one clue's subject. Nothing more: the
+  two cells need not be adjacent, aligned, or even on the grid. The smallest
+  grouping a two-cell rule addresses.
+
+- **domino** — a pair whose two cells are orthogonally adjacent. Every domino is
+  a pair; a pair is a domino only when its cells touch. gridfind enforces
+  adjacency for no rule yet (issue #43) — until then a rule that wants a domino
+  is handed an explicit **pair** and trusts the setter that it is one.
+
 ---
 
 ## Composition model
@@ -123,6 +132,22 @@ directives on top; a header line declares the active layer stack.
 - **placement** — asserting a digit sits at a cell (`RxCy`) as part of the
   hand-solve. The core-level place directive; layers may refine what a placement
   means for their own cells (see the Schrödinger layer's **bare placement**).
+
+---
+
+## `pair-sum` layer
+
+The first real data-bearing variant (issue #66), and the pattern later variants
+copy. A clue names a **pair** and a target; the layer sums the pair's content to
+it, one rule per clue. Explicit-pair and positive-only — it sums the named pair
+without asking whether it is a **domino**, and constrains only marked pairs (the
+negative rule against *unmarked* adjacent pairs is out of scope).
+
+- **pair-sum** — the rule and its record: `{type: pair-sum, cells: [a, b], sum}`.
+  The canonical form every XV clue expands to.
+- **XV** — the setter-facing variant, two sugar spellings of a pair-sum whose
+  target is named rather than written: an **X clue** is a pair-sum of 10, a
+  **V clue** a pair-sum of 5.
 
 ---
 

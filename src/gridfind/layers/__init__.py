@@ -22,7 +22,8 @@ from gridfind.engine import GridfindError, Layer
 from gridfind.layers.board import Board
 from gridfind.layers.distinct import DistinctOverGroups, boxes, cols, rows
 from gridfind.layers.line_count import LineCountDistinct
-from gridfind.puzzle import Variant
+from gridfind.layers.pair_sum import PairSum
+from gridfind.puzzle import JsonValue, Variant
 
 __all__ = [
     "UnknownLayerError",
@@ -42,6 +43,7 @@ LAYER_REGISTRY = {
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
     "regions-distinct": DistinctOverGroups("regions-distinct", boxes),
     "line-count-distinct": LineCountDistinct(),
+    "pair-sum": PairSum(),
 }
 
 # Sugar record types expand at load into their canonical constraint records
@@ -51,17 +53,29 @@ SUGAR_REGISTRY: dict[str, list[str]] = {
     "sudoku": ["rows-distinct", "cols-distinct", "regions-distinct"],
 }
 
+# Param sugar: a record that renames to a canonical type and fixes one param,
+# carrying its own params through. X and V are pair-sum clues whose target is
+# spelled in the name — an X pair sums to 10, a V to 5 (issue #66).
+PARAM_SUGAR: dict[str, tuple[str, dict[str, JsonValue]]] = {
+    "x": ("pair-sum", {"sum": 10}),
+    "v": ("pair-sum", {"sum": 5}),
+}
+
 
 def expand_records(records: tuple[Variant, ...]) -> list[Variant]:
     """Expand sugar records into their canonical constraint records — a
     load-time pass that runs before dispatch. A `{type: "sudoku"}` record
-    becomes the three bare distinct records; every other record passes through
-    unchanged.
+    becomes the three bare distinct records; an `{type: "x", cells}` record
+    becomes a `pair-sum` carrying its cells and `sum: 10`; every other record
+    passes through unchanged.
     """
     expanded: list[Variant] = []
     for record in records:
         if record.type in SUGAR_REGISTRY:
             expanded.extend(Variant(type=name) for name in SUGAR_REGISTRY[record.type])
+        elif record.type in PARAM_SUGAR:
+            canonical, fixed = PARAM_SUGAR[record.type]
+            expanded.append(Variant(type=canonical, params={**record.params, **fixed}))
         else:
             expanded.append(record)
     return expanded
