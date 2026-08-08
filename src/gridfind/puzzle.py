@@ -18,22 +18,37 @@ from dataclasses import dataclass, field
 # record's params live at (a killer sum is an int, a thermo path is a list).
 JsonValue = object
 
+# "no values given, derive them from size". An empty range is the sentinel
+# because a board whose cells may hold nothing is not a board — so no setter
+# means it — and it keeps `Board.values` a plain `range` for every reader,
+# rather than a `range | None` each one has to narrow (issue #91).
+UNSET_VALUES = range(0)
+
+# A serialized non-default `values` is [start, stop, step].
+_RANGE_PARTS = 3
+
 
 @dataclass(frozen=True)
 class Board:
-    """The grid the puzzle is played on: its size, and the digit domain that
-    size implies (issue #77). `domain` is a `range` so one object serves
-    every consumer — bounds via its ends, the digit set via iteration,
-    membership via `in`. A domain decoupled from size (an offset, a non-1
-    start) would be a matter of setting a different range; the plumbing to
-    pass one in isn't built yet, so `domain` always derives from `size`.
+    """The grid the puzzle is played on: its size, and the digit values a cell
+    may hold (issue #77). `values` is a `range` so one object serves every
+    consumer — bounds via its ends, the digit set via iteration, membership
+    via `in`. It is a real field, not a derived one: a setter may hand in
+    values decoupled from size (an offset, a non-1 start), and only an unset
+    (empty) range falls back to `range(1, size + 1)`.
+
+    On the wire, values that differ from that default serialize as the
+    `[start, stop, step]` triple `range(*...)` reads back — so a board is
+    equal to itself across a round-trip whatever its values, while a board
+    that took the default writes no `values` key at all.
     """
 
     size: int
-    domain: range = field(init=False)
+    values: range = UNSET_VALUES
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "domain", range(1, self.size + 1))
+        if not self.values:
+            object.__setattr__(self, "values", range(1, self.size + 1))
 
 
 @dataclass(frozen=True)
@@ -84,7 +99,7 @@ class Puzzle:
     def to_json(self) -> str:
         return json.dumps(
             {
-                "board": {"size": self.board.size},
+                "board": _board_to_dict(self.board),
                 "variants": [{"type": v.type, **v.params} for v in self.variants],
                 "givens": [
                     {"address": g.address, "digit": g.digit} for g in self.givens
@@ -96,7 +111,7 @@ class Puzzle:
     def from_json(cls, text: str) -> Puzzle:
         data = json.loads(text)
         return cls(
-            board=Board(size=data["board"]["size"]),
+            board=_board_from_dict(data["board"]),
             variants=tuple(_variant_from_dict(v) for v in data["variants"]),
             givens=tuple(
                 Given(address=g["address"], digit=g["digit"]) for g in data["givens"]
@@ -139,6 +154,31 @@ class WorkingState:
 
 
 EMPTY = WorkingState()
+
+
+def _board_to_dict(board: Board) -> dict[str, JsonValue]:
+    if board.values == range(1, board.size + 1):
+        return {"size": board.size}
+    values = [board.values.start, board.values.stop, board.values.step]
+    return {"size": board.size, "values": values}
+
+
+def _board_from_dict(data: dict[str, JsonValue]) -> Board:
+    size = data["size"]
+    if not isinstance(size, int):
+        msg = f"board 'size' must be an int, got {size!r}"
+        raise ValueError(msg)
+    if "values" not in data:
+        return Board(size=size)
+    values = data["values"]
+    if not isinstance(values, list) or len(values) != _RANGE_PARTS:
+        msg = f"board 'values' must be a [start, stop, step] list, got {values!r}"
+        raise ValueError(msg)
+    start, stop, step = values
+    if not (isinstance(start, int) and isinstance(stop, int) and isinstance(step, int)):
+        msg = f"board 'values' must be three ints, got {values!r}"
+        raise ValueError(msg)
+    return Board(size=size, values=range(start, stop, step))
 
 
 def _variant_from_dict(data: dict[str, JsonValue]) -> Variant:

@@ -18,12 +18,22 @@ def test_board_registers_every_grid_cell_with_rxcy_addressing(size: int) -> None
 
 
 @pytest.mark.parametrize("size", [4, 6, 9])
-def test_board_bounds_every_cell_to_the_boards_own_domain(size: int) -> None:
+def test_board_bounds_every_cell_to_the_boards_own_values(size: int) -> None:
     engine = build_engine([LAYER_REGISTRY["board"]], board=Board(size=size))
 
     for cell in engine.cells.values():
         domain = list(cell.content[0].proto.domain)
         assert (domain[0], domain[-1]) == (1, size)
+
+
+def test_board_bounds_cells_to_values_a_setter_chose_over_the_size_default() -> None:
+    board = Board(size=4, values=range(4))
+
+    engine = build_engine([LAYER_REGISTRY["board"]], board=board)
+
+    for cell in engine.cells.values():
+        domain = list(cell.content[0].proto.domain)
+        assert (domain[0], domain[-1]) == (0, 3)
 
 
 def test_board_emits_no_rules() -> None:

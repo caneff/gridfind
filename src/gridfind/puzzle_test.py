@@ -1,8 +1,11 @@
+import json
+
 from hypothesis import given
 from hypothesis import strategies as st
 
 from gridfind.puzzle import (
     EMPTY,
+    UNSET_VALUES,
     Board,
     Candidate,
     Given,
@@ -31,6 +34,12 @@ PARAM_VALUES = st.recursive(
     max_leaves=6,
 )
 
+# Either unset (values derive from size, and no `values` key is written) or a
+# range that differs from the default, which must survive the round-trip.
+BOARD_VALUES = st.just(UNSET_VALUES) | st.builds(
+    range, st.integers(-5, 5), st.integers(-5, 20), st.integers(1, 3)
+)
+
 VARIANTS = st.builds(
     Variant,
     type=st.text(min_size=1),
@@ -45,7 +54,7 @@ CANDIDATES = st.builds(
 )
 PUZZLES = st.builds(
     Puzzle,
-    board=st.builds(Board, size=st.integers(1, 25)),
+    board=st.builds(Board, size=st.integers(1, 25), values=BOARD_VALUES),
     variants=st.lists(VARIANTS, max_size=4).map(tuple),
     givens=st.lists(GIVENS, max_size=4).map(tuple),
 )
@@ -54,6 +63,28 @@ WORKING_STATES = st.builds(
     places=st.lists(PLACES, max_size=4).map(tuple),
     candidates=st.lists(CANDIDATES, max_size=4).map(tuple),
 )
+
+
+def test_board_derives_its_values_from_size() -> None:
+    assert Board(size=9).values == range(1, 10)
+    assert Board(size=4).values == range(1, 5)
+
+
+def test_board_keeps_the_values_a_caller_hands_it() -> None:
+    assert Board(size=9, values=range(9)).values == range(9)
+
+
+def test_a_board_with_non_default_values_round_trips_through_json() -> None:
+    puzzle = Puzzle(board=Board(size=9, values=range(9)))
+
+    assert Puzzle.from_json(puzzle.to_json()).board.values == range(9)
+    assert Puzzle.from_json(puzzle.to_json()) == puzzle
+
+
+def test_a_board_with_derived_values_serializes_without_a_values_key() -> None:
+    puzzle = Puzzle(board=Board(size=6))
+
+    assert json.loads(puzzle.to_json())["board"] == {"size": 6}
 
 
 def test_puzzle_round_trips_through_json() -> None:

@@ -1,7 +1,11 @@
 """The engine spine: cells, the structure registry, and the two-phase build.
 
-Knows no puzzle concepts and no geometry (spec #4, decision 31) — a layer
-such as `board` supplies both.
+Two channels reach a layer, and who produced the fact is the line between
+them (ADR-0003). The structure registry carries facts one layer derives for
+another. The engine's carried fields — `records`, and the `board` shape it
+reads size and digit values from — carry the setter's input flowing in, which
+exists before any layer runs. The engine knows those only through read-only
+protocol views, never the concrete `Puzzle` types behind them (decision 31).
 """
 
 from __future__ import annotations
@@ -65,7 +69,7 @@ class Record(Protocol):
 
 class BoardShape(Protocol):
     """A puzzle's board shape facts, riding on the engine opaquely beside
-    `records` (issue #77) — size and digit domain, the same read-only
+    `records` (issue #77) — size and digit values, the same read-only
     decoupling `Record` gives `Variant`: the engine knows this view, never
     the concrete `Board` it is."""
 
@@ -73,7 +77,7 @@ class BoardShape(Protocol):
     def size(self) -> int: ...
 
     @property
-    def domain(self) -> range: ...
+    def values(self) -> range: ...
 
 
 class Layer(Protocol):
@@ -157,7 +161,7 @@ def build_engine(
     The puzzle's `records` ride on the engine so both phases can query them by
     type (issue #65) — available before phase 1, which is what lets a future
     Schrödinger-style layer widen named cells at register time. `board` rides
-    beside them (issue #77): the `board` layer reads its size and domain to
+    beside them (issue #77): the `board` layer reads its size and values to
     size the grid and bound cells, rather than a fixed constant.
 
     A layer's declared dependency is a validity check, not a build-order
