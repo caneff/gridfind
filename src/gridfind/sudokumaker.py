@@ -18,7 +18,7 @@ from typing import Any
 
 from lzstring import LZString
 
-from gridfind.layers.board import BOARD_SIZE, cell_name
+from gridfind.layers.board import cell_name
 from gridfind.layers.regions import classic_region_map
 from gridfind.puzzle import (
     Board,
@@ -30,6 +30,9 @@ from gridfind.puzzle import (
     WorkingState,
 )
 
+# The decoder is classic-9x9-only (issue #77 leaves it untouched) — its own
+# constant, not the board layer's (which now derives size from the puzzle).
+BOARD_SIZE = 9
 CELL_COUNT = BOARD_SIZE * BOARD_SIZE
 # The digit domain of a classic (1-9). Bit 0 of a candidates/corner mask is only
 # meaningful for a `minDigit:0` variant, which the guard rejects (§4a).

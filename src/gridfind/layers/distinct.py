@@ -20,9 +20,9 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, GridfindError
 from gridfind.layers._base import grid_vars
-from gridfind.layers.regions import classic_region_map
+from gridfind.layers.regions import BOX_SHAPE, box_region_map
 
 Cell = TypeVar("Cell")
 Grid = list[list[Cell]]
@@ -38,14 +38,21 @@ def cols(grid: Grid) -> Iterable[tuple[Cell, ...]]:
 
 
 def boxes(grid: Grid) -> Iterable[list[Cell]]:
-    """The classic 3x3 boxes, cut from whatever grid is handed in — the region
-    partition reused as cell groups. `classic_region_map` gives the boxes as
-    1-indexed (row, col) addresses for the actual board size; map each onto the
-    live grid so `regions-distinct` stays size-agnostic like rows/cols.
+    """The classic boxes, cut from whatever grid is handed in — the region
+    partition reused as cell groups. `BOX_SHAPE` gives the box shape for the
+    live grid's size (issue #77: a 6x6 tiles as 2x3, a 4x4 as 2x2, a 9x9 as
+    3x3 — never four 3x3 mini-grids on a 6x6); a size the table doesn't cover
+    has no classic box convention, so building `regions-distinct` at that size
+    refuses here, at emit time, rather than tiling something wrong.
     """
+    size = len(grid)
+    if size not in BOX_SHAPE:
+        msg = f"no classic box convention for a {size}x{size} board"
+        raise GridfindError(msg)
+    box_rows, box_cols = BOX_SHAPE[size]
     return [
         [grid[row - 1][col - 1] for row, col in region]
-        for region in classic_region_map(len(grid))
+        for region in box_region_map(size, box_rows, box_cols)
     ]
 
 

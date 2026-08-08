@@ -6,6 +6,7 @@ such as `board` supplies both.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -62,6 +63,19 @@ class Record(Protocol):
     def params(self) -> dict[str, object]: ...
 
 
+class BoardShape(Protocol):
+    """A puzzle's board shape facts, riding on the engine opaquely beside
+    `records` (issue #77) — size and digit domain, the same read-only
+    decoupling `Record` gives `Variant`: the engine knows this view, never
+    the concrete `Board` it is."""
+
+    @property
+    def size(self) -> int: ...
+
+    @property
+    def domain(self) -> range: ...
+
+
 class Layer(Protocol):
     """A composable, parameterized rule-family module."""
 
@@ -83,6 +97,7 @@ class Engine:
     cells: dict[str, Cell] = field(default_factory=dict)
     structures: dict[str, object] = field(default_factory=dict)
     records: tuple[Record, ...] = ()
+    board: BoardShape | None = None
 
     def records_of(self, kind: str) -> list[Record]:
         """A data-bearing layer pulls its own records by type — the accessor
@@ -100,8 +115,40 @@ class Engine:
     def register_structure(self, name: str, value: object) -> None:
         self.structures[name] = value
 
+    def value(self, solver: cp_model.CpSolver, name: str) -> int:
+        """A cell's placed value after a solve — the one home for reading
+        cell-content width (issue #72). Relocates today's width-1 behaviour
+        unchanged; a width-2 (S-cell) read is `schrodinger`'s to design."""
+        return solver.value(self._cell(name).content[0])
 
-def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engine:
+    def restrict(self, name: str, digits: Iterable[int]) -> None:
+        """Pin a cell to a set of digits — a given/place is a singleton set,
+        a candidate a subset, both one operation (issue #72). Each digit is
+        checked against the cell's own declared domain, not a borrowed
+        global constant, and an unknown address raises."""
+        var = self._cell(name).content[0]
+        domain = list(var.proto.domain)
+        low, high = domain[0], domain[-1]
+        allowed = sorted(set(digits))
+        for digit in allowed:
+            if not low <= digit <= high:
+                msg = f"digit {digit} out of range [{low}, {high}] for cell {name!r}"
+                raise ValueError(msg)
+        self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
+
+    def _cell(self, name: str) -> Cell:
+        cell = self.cells.get(name)
+        if cell is None:
+            msg = f"address {name!r} is off the board"
+            raise ValueError(msg)
+        return cell
+
+
+def build_engine(
+    layers: list[Layer],
+    records: tuple[Record, ...] = (),
+    board: BoardShape | None = None,
+) -> Engine:
     """The two-phase build (spec #4, decision 10): order-insensitive.
 
     Phase 1 — every layer registers its cells and structures.
@@ -109,7 +156,9 @@ def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engin
 
     The puzzle's `records` ride on the engine so both phases can query them by
     type (issue #65) — available before phase 1, which is what lets a future
-    Schrödinger-style layer widen named cells at register time.
+    Schrödinger-style layer widen named cells at register time. `board` rides
+    beside them (issue #77): the `board` layer reads its size and domain to
+    size the grid and bound cells, rather than a fixed constant.
 
     A layer's declared dependency is a validity check, not a build-order
     crutch: missing dependency refuses the build before either phase runs.
@@ -121,7 +170,7 @@ def build_engine(layers: list[Layer], records: tuple[Record, ...] = ()) -> Engin
                 msg = f"layer {layer.name!r} requires {dep!r}, not in stack"
                 raise MissingDependencyError(msg)
 
-    engine = Engine(records=records)
+    engine = Engine(records=records, board=board)
     for layer in layers:
         layer.register(engine)
     for layer in layers:

@@ -12,15 +12,16 @@ from collections.abc import Callable
 import pytest
 
 from gridfind.engine import Engine
-from gridfind.layers.board import BOARD_SIZE
+
+_BOARD_SIZE = 9  # the board these shared tests build against
 
 
 @pytest.fixture
 def assert_one_all_different_rule_per_group() -> Callable[[Engine], None]:
     def _assert(engine: Engine) -> None:
-        assert len(engine.model.proto.constraints) == BOARD_SIZE
+        assert len(engine.model.proto.constraints) == _BOARD_SIZE
         for constraint in engine.model.proto.constraints:
             assert constraint.has_all_diff()
-            assert len(constraint.all_diff.exprs) == BOARD_SIZE
+            assert len(constraint.all_diff.exprs) == _BOARD_SIZE
 
     return _assert
