@@ -146,6 +146,18 @@ def test_value_on_an_off_board_address_raises() -> None:
         engine.value(solver, "nope")
 
 
+def test_value_on_a_width_2_cell_raises() -> None:
+    # A width-2 (S-cell) read is schrodinger's to design (issue #73) — value
+    # must raise loudly rather than silently taking content[0].
+    engine = build_engine([])
+    engine.add_cell("x", low=1, high=9, width=2)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    with pytest.raises(ValueError, match="width"):
+        engine.value(solver, "x")
+
+
 def test_restrict_pins_a_cell_to_a_singleton_digit() -> None:
     engine = build_engine([])
     engine.add_cell("x", low=1, high=9)

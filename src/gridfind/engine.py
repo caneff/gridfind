@@ -104,8 +104,13 @@ class Engine:
     def value(self, solver: cp_model.CpSolver, name: str) -> int:
         """A cell's placed value after a solve — the one home for reading
         cell-content width (issue #72). Relocates today's width-1 behaviour
-        unchanged; a width-2 (S-cell) read is `schrodinger`'s to design."""
-        return solver.value(self._cell(name).content[0])
+        unchanged; a width-2 (S-cell) read is `schrodinger`'s to design, so
+        this raises rather than silently taking `content[0]`."""
+        content = self._cell(name).content
+        if len(content) != 1:
+            msg = f"cell {name!r} has width {len(content)}, expected 1"
+            raise ValueError(msg)
+        return solver.value(content[0])
 
     def restrict(self, name: str, digits: Iterable[int]) -> None:
         """Pin a cell to a set of digits — a given/place is a singleton set,
