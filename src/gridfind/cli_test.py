@@ -57,10 +57,19 @@ def test_found_prints_verdict_then_witness_grid(
     assert grid[3] == ""  # blank row after the first box-row
 
 
-def test_found_on_a_6x6_prints_six_rows_with_2x3_box_spacing(
+@pytest.mark.parametrize(
+    ("doc", "size", "box_rows", "box_cols"),
+    [(FOUND_6X6_DOC, 6, 2, 3), (FOUND_4X4_DOC, 4, 2, 2)],
+    ids=["6x6", "4x4"],
+)
+def test_found_prints_rows_with_box_aware_spacing(
     capsys: pytest.CaptureFixture[str],
+    doc: Path,
+    size: int,
+    box_rows: int,
+    box_cols: int,
 ) -> None:
-    code = cli.main([str(FOUND_6X6_DOC)], io.StringIO())
+    code = cli.main([str(doc)], io.StringIO())
 
     out = capsys.readouterr().out
     lines = out.rstrip("\n").split("\n")
@@ -68,39 +77,21 @@ def test_found_on_a_6x6_prints_six_rows_with_2x3_box_spacing(
     assert lines[0] == "found"
 
     grid = lines[1:]
-    # Six rows of six digits: a column gap every 3 cells, a blank line every
-    # 2 rows (BOX_SHAPE[6] = (2, 3), issue #77).
-    assert len(grid) == 8  # 6 rows + 2 blank separators
+    # size rows of size digits: a column gap every box_cols cells, a blank
+    # line every box_rows rows (BOX_SHAPE[size] = (box_rows, box_cols),
+    # issue #77).
     row_lines = [line for line in grid if line]
-    assert len(row_lines) == 6
+    assert len(row_lines) == size
     for line in row_lines:
         left, right = line.split("  ")
-        assert len(left.split(" ")) == 3
-        assert len(right.split(" ")) == 3
-        assert all(1 <= int(d) <= 6 for d in line.split())
-    assert grid[2] == ""
-    assert grid[5] == ""
+        assert len(left.split(" ")) == box_cols
+        assert len(right.split(" ")) == size - box_cols
+        assert all(1 <= int(d) <= size for d in line.split())
 
-
-def test_found_on_a_4x4_prints_four_rows_with_2x2_box_spacing(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    code = cli.main([str(FOUND_4X4_DOC)], io.StringIO())
-
-    out = capsys.readouterr().out
-    lines = out.rstrip("\n").split("\n")
-    assert code == 0
-    assert lines[0] == "found"
-
-    grid = lines[1:]
-    row_lines = [line for line in grid if line]
-    assert len(row_lines) == 4
-    for line in row_lines:
-        left, right = line.split("  ")
-        assert len(left.split(" ")) == 2
-        assert len(right.split(" ")) == 2
-        assert all(1 <= int(d) <= 4 for d in line.split())
-    assert grid[2] == ""
+    blank_rows = list(range(box_rows, size, box_rows + 1))
+    assert len(grid) == size + len(blank_rows)
+    for index in blank_rows:
+        assert grid[index] == ""
 
 
 def test_sudokumaker_link_argument_prints_found_and_grid(
