@@ -33,6 +33,11 @@ against a witness-find, never an objective solve.
 - **witness** — a concrete full grid satisfying every rule in the stack. The
   proof object returned by **found** — a usable grid, not just a yes.
 
+- **result** — what asking for a verdict hands back: the verdict itself, plus
+  the **witness** when the verdict is **found**. The verdict is the word; the
+  result is the thing carrying it. Two terms because one object holds both — a
+  result is not a fourth verdict.
+
 ---
 
 ## Cells and content
@@ -90,6 +95,13 @@ handled by one **layer**.
   `board + rows-distinct + cols-distinct + regions-distinct(3×3)`; drop the
   regions layer and it is a Latin square. A layer contributes cells and rules and
   knows no puzzle concepts beyond its own.
+
+- **layer kind** — a parameterized layer before its parameter is supplied. One
+  kind serves several layers: fix a partition on the distinct-over-groups kind
+  and you get `rows-distinct`, `cols-distinct`, `regions-distinct`. A layer
+  answers to a registered name; a kind answers to none, and is named for the
+  rule shape it emits. Most layers are their own kind — the word is only needed
+  where one kind serves many.
 
 - **solver constraint** — one constraint handed to the solver, a level below
   _rule_ and named only where that distance matters (issue #82). A rule is not
