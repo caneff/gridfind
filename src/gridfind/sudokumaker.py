@@ -18,7 +18,7 @@ from typing import Any
 
 from lzstring import LZString
 
-from gridfind.layers.board import cell_name
+from gridfind.layers.board import cell_address
 from gridfind.layers.regions import classic_boxes
 from gridfind.puzzle import (
     Board,
@@ -69,7 +69,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     places: list[Placement] = []
     candidates: list[Candidate] = []
     for i, cell in enumerate(cells):
-        address = cell_name(i // BOARD_SIZE + 1, i % BOARD_SIZE + 1)
+        address = cell_address(i // BOARD_SIZE + 1, i % BOARD_SIZE + 1)
         if "value" in cell:
             if cell.get("given"):
                 givens.append(Given(address, cell["value"]))

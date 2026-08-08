@@ -102,7 +102,7 @@ def render_grid(grid: list[list[str]], assignment: dict[str, int]) -> str:
     box_rows, box_cols = BOX_SHAPE.get(size, (size, size))
     lines: list[str] = []
     for i, row in enumerate(grid):
-        cells = [str(assignment[name]) for name in row]
+        cells = [str(assignment[address]) for address in row]
         groups = [cells[c : c + box_cols] for c in range(0, len(cells), box_cols)]
         lines.append("  ".join(" ".join(group) for group in groups))
         if (i + 1) % box_rows == 0 and i + 1 < len(grid):

@@ -29,14 +29,14 @@ def grid_content(engine: Engine) -> list[list[cp_model.IntVar]]:
     for the CP-SAT variables it happens to return — "variable" is an
     implementation word kept out of the spoken vocabulary (CONTEXT.md).
 
-    `board` stores the grid as cell *names*, not
-    variables, on purpose: a Schrödinger layer can widen a cell's content to
-    length 2 in phase 1, so name-to-variable resolution must wait until here.
-    The one cast lives in this helper — `structures` stays generic so every
-    layer shares one channel; only this consumer needs the concrete type.
+    `board` stores the grid as cell *addresses*, not content, on purpose: a
+    Schrödinger layer can widen a cell's content to length 2 in phase 1, so
+    resolving an address to its content must wait until here. The one cast
+    lives in this helper — `structures` stays generic so every layer shares
+    one channel; only this consumer needs the concrete type.
     """
     grid = cast("list[list[str]]", engine.structures["grid"])
-    return [[engine.cells[name].content[0] for name in row] for row in grid]
+    return [[engine.cells[address].content[0] for address in row] for row in grid]
 
 
 def emit_distinct_count(

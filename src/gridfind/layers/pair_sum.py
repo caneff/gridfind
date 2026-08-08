@@ -34,8 +34,8 @@ class PairSum:
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object) — narrow to this clue's
-            # shape: a pair of cell names and its target sum.
-            names = cast("list[str]", clue.params["cells"])
+            # shape: a pair of cell addresses and its target sum.
+            addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
-            pair = [engine.cells[name].content[0] for name in names]
+            pair = [engine.cells[address].content[0] for address in addresses]
             engine.model.add(sum(pair) == total)

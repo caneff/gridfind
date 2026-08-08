@@ -40,7 +40,7 @@ class MissingDependencyError(GridfindError):
 class Cell:
     """The atom. `content` is its ordered sequence of integer variables."""
 
-    name: str
+    address: str
     content: list[cp_model.IntVar]
 
 
@@ -111,42 +111,42 @@ class Engine:
         into."""
         return [c for c in self.constraints if c.type == kind]
 
-    def add_cell(self, name: str, *, low: int, high: int, width: int = 1) -> Cell:
+    def add_cell(self, address: str, *, low: int, high: int, width: int = 1) -> Cell:
         content = [
-            self.model.new_int_var(low, high, f"{name}.{i}") for i in range(width)
+            self.model.new_int_var(low, high, f"{address}.{i}") for i in range(width)
         ]
-        cell = Cell(name=name, content=content)
-        self.cells[name] = cell
+        cell = Cell(address=address, content=content)
+        self.cells[address] = cell
         return cell
 
     def register_structure(self, name: str, value: object) -> None:
         self.structures[name] = value
 
-    def value(self, solver: cp_model.CpSolver, name: str) -> int:
+    def value(self, solver: cp_model.CpSolver, address: str) -> int:
         """A cell's placed value after a solve — the one home for reading
         cell-content width (issue #72). Relocates today's width-1 behaviour
         unchanged; a width-2 (S-cell) read is `schrodinger`'s to design."""
-        return solver.value(self._cell(name).content[0])
+        return solver.value(self._cell(address).content[0])
 
-    def restrict(self, name: str, digits: Iterable[int]) -> None:
+    def restrict(self, address: str, digits: Iterable[int]) -> None:
         """Pin a cell to a set of digits — a given/place is a singleton set,
         a candidate a subset, both one operation (issue #72). Each digit is
         checked against the cell's own declared domain, not a borrowed
         global constant, and an unknown address raises."""
-        var = self._cell(name).content[0]
+        var = self._cell(address).content[0]
         domain = list(var.proto.domain)
         low, high = domain[0], domain[-1]
         allowed = sorted(set(digits))
         for digit in allowed:
             if not low <= digit <= high:
-                msg = f"digit {digit} out of range [{low}, {high}] for cell {name!r}"
+                msg = f"digit {digit} out of range [{low}, {high}] for cell {address!r}"
                 raise ValueError(msg)
         self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
 
-    def _cell(self, name: str) -> Cell:
-        cell = self.cells.get(name)
+    def _cell(self, address: str) -> Cell:
+        cell = self.cells.get(address)
         if cell is None:
-            msg = f"address {name!r} is off the board"
+            msg = f"address {address!r} is off the board"
             raise ValueError(msg)
         return cell
 

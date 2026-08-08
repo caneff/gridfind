@@ -3,7 +3,7 @@
 `board` supplies the only geometry the engine knows about: a rectangular
 grid of cells addressed `RxCy`, holding a single digit each. It registers
 cells and emits no rules of its own (spec #4, decisions 7, 14). The core
-holds zero geometry — `cell_name` travels with the layer that supplies it,
+holds zero geometry — `cell_address` travels with the layer that supplies it,
 so a future hex board stays clean (issue #17). Size and the digit values
 come from `engine.board`, the puzzle's own board shape (issue #77) — no
 module constant, so a 4x4 or 6x6 puzzle sizes its grid and cell bounds
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from gridfind.engine import Engine, GridfindError
 
 
-def cell_name(row: int, col: int) -> str:
+def cell_address(row: int, col: int) -> str:
     return f"R{row}C{col}"
 
 
@@ -36,12 +36,12 @@ class GridCells:
             msg = "the board layer requires build_engine(..., board=...)"
             raise GridfindError(msg)
         grid = [
-            [cell_name(row, col) for col in range(1, board.size + 1)]
+            [cell_address(row, col) for col in range(1, board.size + 1)]
             for row in range(1, board.size + 1)
         ]
         for row in grid:
-            for name in row:
-                engine.add_cell(name, low=board.values.start, high=board.values[-1])
+            for address in row:
+                engine.add_cell(address, low=board.values.start, high=board.values[-1])
         engine.register_structure("grid", grid)
 
     def emit(self, engine: Engine) -> None:

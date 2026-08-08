@@ -82,7 +82,9 @@ def verdict(
     status = solver.solve(engine.model)
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        assignment = {name: engine.value(solver, name) for name in engine.cells}
+        assignment = {
+            address: engine.value(solver, address) for address in engine.cells
+        }
         grid = cast("list[list[str]]", engine.structures["grid"])
         return Verdict(kind="found", witness=Witness(grid=grid, assignment=assignment))
     if status == cp_model.INFEASIBLE:
