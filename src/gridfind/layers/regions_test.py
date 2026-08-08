@@ -1,4 +1,12 @@
-from gridfind.layers.regions import box_region_map, classic_region_map, render_grid
+import pytest
+
+from gridfind.engine import GridfindError
+from gridfind.layers.regions import (
+    box_region_map,
+    classic_region_map,
+    region_map_for,
+    render_grid,
+)
 
 BOARD_SIZE = 9
 
@@ -28,28 +36,50 @@ def test_box_region_map_at_9_3_3_reproduces_classic_region_map() -> None:
     assert box_region_map(9, 3, 3) == classic_region_map()
 
 
-def test_box_region_map_tiles_a_6x6_into_six_2x3_boxes() -> None:
-    # A genuine 6x6 tiles as six 2x3 boxes, never as four 3x3 quattro quadri.
-    region_map = box_region_map(6, 2, 3)
+@pytest.mark.parametrize(
+    ("size", "box_rows", "box_cols"),
+    [
+        pytest.param(4, 2, 2, id="4x4-tiles-2x2"),
+        pytest.param(6, 2, 3, id="6x6-tiles-2x3"),
+        pytest.param(9, 3, 3, id="9x9-tiles-3x3"),
+    ],
+)
+def test_box_region_map_tiles_the_board_and_covers_every_cell_once(
+    size: int, box_rows: int, box_cols: int
+) -> None:
+    # Every size tiles into `size` regions of `size` cells that partition the
+    # board — a 6x6 as six 2x3 boxes, never as four 3x3 quattro quadri. The
+    # coverage half is what a count-only assertion misses: a partition that
+    # duplicated one cell and dropped another would still count right.
+    region_map = box_region_map(size, box_rows, box_cols)
+    every_cell = [
+        (row, col) for row in range(1, size + 1) for col in range(1, size + 1)
+    ]
 
-    assert len(region_map) == 6
+    assert len(region_map) == size
     for region in region_map:
-        assert len(region) == 6
+        assert len(region) == size
+    assert sorted(cell for region in region_map for cell in region) == every_cell
 
 
-def test_box_region_map_tiles_a_4x4_into_four_2x2_boxes() -> None:
-    region_map = box_region_map(4, 2, 2)
-
-    assert len(region_map) == 4
-    for region in region_map:
-        assert len(region) == 4
+def test_region_map_for_falls_back_to_the_boards_box_tiling() -> None:
+    # With no setter-supplied map, the box convention is the default source.
+    assert region_map_for(6) == box_region_map(6, 2, 3)
 
 
-def test_box_region_map_covers_every_cell_exactly_once_at_6x6() -> None:
-    cells = [cell for region in box_region_map(6, 2, 3) for cell in region]
-    every_cell = {(row, col) for row in range(1, 7) for col in range(1, 7)}
+def test_region_map_for_prefers_a_supplied_region_map() -> None:
+    # A supplied map is the same region map from a different source, so it
+    # passes through untouched — even at a size with no box convention.
+    supplied = [[(1, 1), (1, 2)], [(2, 1), (2, 2)]]
 
-    assert sorted(cells) == sorted(every_cell)
+    assert region_map_for(5, supplied) == supplied
+
+
+def test_region_map_for_refuses_a_size_with_no_box_convention() -> None:
+    # The refusal lives on the fallback: only a board asking to be tiled by
+    # convention needs a convention to exist.
+    with pytest.raises(GridfindError):
+        region_map_for(5)
 
 
 def test_render_grid_bands_columns_and_rows_by_the_boards_box_shape() -> None:
