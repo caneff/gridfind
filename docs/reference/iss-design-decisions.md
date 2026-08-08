@@ -73,12 +73,12 @@ without dragging in the solver, and lets a spec expand into several handlers.
 **gridfind stance: OPEN → this is [#44].** Today a gridfind `Layer` fuses all
 three: it *is* the spec (its name/params), the builder (it decides what rules to
 emit), and the handler (`emit` pokes CP-SAT). That fusion is fine at 6 in-tree
-layers. #41's `Puzzle` object forces the split into the open: a variant becomes a
-typed data record (the spec), and something maps `record.type` to a layer that
-emits (the builder + handler). **#44 is exactly "where does that dispatch live."**
+layers. #41's `Puzzle` object forces the split into the open: a variant is stated as
+typed constraints (the spec), and something maps `constraint.type` to a layer
+that emits (the builder + handler). **#44 is exactly "where does that dispatch live."**
 ISS's answer — a spec object holding zero logic, a single builder chokepoint — is
-the proven shape. The discipline to steal: **keep solving logic out of the spec
-record.** SudokuMaker is the cautionary opposite (logic lives in authored,
+the proven shape. The discipline to steal: **keep solving logic out of the
+constraint.** SudokuMaker is the cautionary opposite (logic lives in authored,
 order-dependent code).
 
 ## 1.2 Builder is a single dispatch chokepoint; one spec → many handlers
@@ -383,8 +383,8 @@ puzzles expanding to the same constraints are the same puzzle" **is** ISS's
 uniqueness-key idea one level up. ISS validates the approach: **normalize/expand
 first, then key on the expansion** (its `SudokuParser` normalizes before build;
 gridfind's `expand_stack` / #41 load-time expansion plays the same role). Keep
-expansion and dispatch as separate passes so keying sees canonical records ([#44]
-fork 3).
+expansion and dispatch as separate passes so keying sees canonical constraints
+([#44] fork 3).
 
 ---
 
