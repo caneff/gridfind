@@ -102,9 +102,12 @@ def test_verdict_defaults_to_the_empty_working_state() -> None:
     assert verdict(puzzle).kind == "found"
 
 
-def test_verdict_found_on_a_6x6_board_keeps_every_witness_digit_in_1_to_6() -> None:
+@pytest.mark.parametrize("size", [6, 4], ids=["6x6", "4x4"])
+def test_verdict_found_on_a_board_keeps_every_witness_digit_in_1_to_n(
+    size: int,
+) -> None:
     puzzle = Puzzle(
-        board=Board(size=6),
+        board=Board(size=size),
         variants=(Variant(type="rows-distinct"), Variant(type="cols-distinct")),
         givens=(Given(address="R1C1", digit=1),),
     )
@@ -113,23 +116,8 @@ def test_verdict_found_on_a_6x6_board_keeps_every_witness_digit_in_1_to_6() -> N
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert len(result.witness) == 36
-    assert all(1 <= value <= 6 for value in result.witness.values.values())
-
-
-def test_verdict_found_on_a_4x4_board_keeps_every_witness_digit_in_1_to_4() -> None:
-    puzzle = Puzzle(
-        board=Board(size=4),
-        variants=(Variant(type="rows-distinct"), Variant(type="cols-distinct")),
-        givens=(Given(address="R1C1", digit=1),),
-    )
-
-    result = verdict(puzzle)
-
-    assert result.kind == "found"
-    assert result.witness is not None
-    assert len(result.witness) == 16
-    assert all(1 <= value <= 4 for value in result.witness.values.values())
+    assert len(result.witness) == size * size
+    assert all(1 <= value <= size for value in result.witness.values.values())
 
 
 def test_sudoku_on_a_6x6_breaks_a_digit_repeat_within_one_2x3_box() -> None:
