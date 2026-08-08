@@ -1,9 +1,9 @@
 """The `line-count-distinct` layer's own dependency contract.
 
 The rule itself — row *n* holds exactly *n* distinct digits — is tested through
-`verdict` in `verdict_test.py`, not against the CP-SAT model shape here.
-`test_line_count_distinct_found_when_row_counts_are_satisfiable` asserts row 1
-holds exactly one distinct digit, which an AllDifferent could never satisfy.
+`verdict` in `verdict_test.py`, against the returned completion rather than
+against the CP-SAT model shape here. A satisfiable 9x9 puts exactly one distinct
+digit in row 1, which an AllDifferent could never satisfy.
 """
 
 import pytest

@@ -12,7 +12,6 @@ import json
 import pytest
 from lzstring import LZString
 
-from gridfind._test_fixtures import CLASSIC_LINK
 from gridfind.puzzle import (
     Board,
     Candidate,
@@ -32,8 +31,8 @@ _CLASSIC_CONSTRAINTS = (
 )
 
 
-def test_classic_link_decodes_to_expected_puzzle_and_state() -> None:
-    puzzle, state = decode_link(CLASSIC_LINK)
+def test_classic_link_decodes_to_expected_puzzle_and_state(classic_link: str) -> None:
+    puzzle, state = decode_link(classic_link)
 
     assert puzzle == Puzzle(
         board=Board(size=9),
@@ -54,10 +53,10 @@ def test_classic_link_decodes_to_expected_puzzle_and_state() -> None:
     )
 
 
-def test_singleton_center_mark_is_a_candidate_not_a_place() -> None:
+def test_singleton_center_mark_is_a_candidate_not_a_place(classic_link: str) -> None:
     # `candidates 4 = 2^2` at R6C8 is a one-digit *narrowing*, not a committed
     # digit — it must never be mistaken for a placement.
-    _, state = decode_link(CLASSIC_LINK)
+    _, state = decode_link(classic_link)
 
     assert Candidate("R6C8", frozenset({2})) in state.candidates
     assert all(place.address != "R6C8" for place in state.places)

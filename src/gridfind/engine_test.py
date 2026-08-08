@@ -48,19 +48,19 @@ def test_build_refuses_a_stack_with_an_unmet_dependency() -> None:
         build_engine([needs_board])
 
 
-@pytest.mark.parametrize("dependent_first", [False, True], ids=["in-order", "reversed"])
-def test_build_accepts_a_stack_whose_dependency_is_present(
+@pytest.mark.parametrize(
+    "dependent_first",
+    [False, True],
+    ids=["dependency-first", "dependent-first"],
+)
+def test_build_satisfies_a_dependency_regardless_of_stack_order(
     dependent_first: bool,
 ) -> None:
-    # A dependency is satisfied by being in the stack, not by coming first —
-    # the two orders must build the same engine.
     board = _FakeLayer(name="board")
     needs_board = _FakeLayer(name="needs-board", depends_on=("board",))
-    # Annotated because `list` is invariant: a bare `list[_FakeLayer]` would
-    # not satisfy `build_engine`'s `list[Layer]` parameter.
-    stack: list[Layer] = (
-        [needs_board, board] if dependent_first else [board, needs_board]
-    )
+    stack: list[Layer] = [board, needs_board]
+    if dependent_first:
+        stack.reverse()
 
     build_engine(stack)
 
