@@ -16,9 +16,9 @@ says "CP-SAT variable" or "CP-SAT constraint" where a domain word will do.
 
 ## Verdicts
 
-The whole point of gridfind: classify a working state as one of three (map #1,
-decision 15). The core runs **pure-satisfaction** search — it races a broke-proof
-against a witness-find, never an objective solve.
+The whole point of gridfind: classify a **well-formed** working state as one of
+three (map #1, decision 15). The core runs **pure-satisfaction** search — it
+races a broke-proof against a witness-find, never an objective solve.
 
 - **found** — a **witness** exists; here it is. The first solution CP-SAT
   returns, with no enumeration and no uniqueness claim.
@@ -29,6 +29,16 @@ against a witness-find, never an objective solve.
 - **unknown** — neither decided within the search budget. Carries **no**
   near-miss and no rank-error (both dropped with the objective solve; map #1, out
   of scope).
+
+- **malformed** — an input gridfind refuses *before* it classifies: a given,
+  placement, or candidate naming a digit the board never declared, or an alias
+  fixing a parameter the constraint also states. Raised as `MalformedPuzzleError`,
+  never returned — a malformed puzzle never reaches a verdict. Not a fourth
+  answer: **broke** is a consistency claim ("no completion exists"), and "you
+  wrote it wrong" is not that
+  ([#101](https://github.com/caneff/gridfind/issues/101),
+  [#102](https://github.com/caneff/gridfind/issues/102),
+  [#107](https://github.com/caneff/gridfind/issues/107)).
 
 - **witness** — a concrete full grid satisfying every rule in the stack. The
   proof object returned by **found** — a usable grid, not just a yes.
