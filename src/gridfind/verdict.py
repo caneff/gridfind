@@ -21,13 +21,45 @@ from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
-from gridfind.layers.regions import BOX_SHAPE
-from gridfind.puzzle import EMPTY, Candidate, Given, Placement, Puzzle, WorkingState
+from gridfind.layers.regions import (
+    BOX_SHAPE,
+    RegionMap,
+    box_regions,
+    region_map_from_labels,
+)
+from gridfind.puzzle import (
+    EMPTY,
+    Candidate,
+    Constraint,
+    Given,
+    Placement,
+    Puzzle,
+    WorkingState,
+)
 
 VerdictKind = Literal["found", "broke", "unknown"]
 
 DEFAULT_TIME_LIMIT_S = 10.0
 DEFAULT_NUM_WORKERS = 8
+
+# A box-drawing glyph for a grid junction, keyed by which arms (up, down,
+# left, right) meet there. An arm is present where the region changes across
+# it or at the outer edge (issue #124), so the glyph shows exactly the lines
+# that meet — never a floating stub.
+_JUNCTIONS = {
+    (False, False, False, False): " ",
+    (False, False, True, True): "─",
+    (True, True, False, False): "│",
+    (False, True, False, True): "┌",
+    (False, True, True, False): "┐",
+    (True, False, False, True): "└",
+    (True, False, True, False): "┘",
+    (True, True, False, True): "├",
+    (True, True, True, False): "┤",
+    (False, True, True, True): "┬",
+    (True, False, True, True): "┴",
+    (True, True, True, True): "┼",
+}
 
 
 @dataclass(frozen=True)
@@ -41,13 +73,14 @@ class Witness:
     cell may hold, and one word for both the offer and the choice reads badly
     three lines apart.
 
-    `box_shape` is `None` for a board size with no classic box convention
-    (issue #77) — `render` then prints one ungrouped block rather than
-    guessing a banding."""
+    `region_map` is the partition `render` borders against (issue #124) —
+    always populated, never `None`: a board with no regions-distinct rule of
+    its own still gets one region covering the whole board, so there is
+    nothing to guess at render time."""
 
     grid: list[list[str]]
     assignment: dict[str, int]
-    box_shape: tuple[int, int] | None = None
+    region_map: RegionMap
 
     def __getitem__(self, address: str) -> int:
         return self.assignment[address]
@@ -56,18 +89,50 @@ class Witness:
         return len(self.assignment)
 
     def render(self) -> str:
-        """The witness as text, box-banded by its own `box_shape` (issue
-        #105): a double space between box columns, a blank line between box
-        rows. With no box shape, one ungrouped block — a region rule (and so
-        a box shape) isn't required to reach a witness."""
-        box_rows, box_cols = self.box_shape or (len(self.grid), len(self.grid))
+        """The witness as text, bordered wherever two adjacent cells fall in
+        different regions (issue #124): junctions are resolved from the four
+        lines meeting at each grid node, so a classic box partition draws the
+        familiar 3x3 boxes and a jigsaw partition draws its own region
+        borders through the same path."""
+        n = len(self.grid)
+        region_id = {
+            cell: index for index, group in enumerate(self.region_map) for cell in group
+        }
+
+        def region_at(row: int, col: int) -> int:
+            return region_id[(row + 1, col + 1)]
+
+        def wall(row: int, col: int) -> bool:
+            return (
+                col == 0 or col == n or region_at(row, col - 1) != region_at(row, col)
+            )
+
+        def seg(row: int, col: int) -> bool:
+            return (
+                row == 0 or row == n or region_at(row - 1, col) != region_at(row, col)
+            )
+
         lines: list[str] = []
-        for i, row in enumerate(self.grid):
-            cells = [str(self.assignment[address]) for address in row]
-            groups = [cells[c : c + box_cols] for c in range(0, len(cells), box_cols)]
-            lines.append("  ".join(" ".join(group) for group in groups))
-            if (i + 1) % box_rows == 0 and i + 1 < len(self.grid):
-                lines.append("")
+        for b in range(n + 1):
+            border = ""
+            for c in range(n + 1):
+                arms = (
+                    b > 0 and wall(b - 1, c),
+                    b < n and wall(b, c),
+                    c > 0 and seg(b, c - 1),
+                    c < n and seg(b, c),
+                )
+                border += _JUNCTIONS[arms]
+                if c < n:
+                    border += "───" if seg(b, c) else "   "
+            lines.append(border)
+            if b < n:
+                cells = "".join(
+                    ("│" if wall(b, c) else " ")
+                    + f" {self.assignment[self.grid[b][c]]} "
+                    for c in range(n)
+                )
+                lines.append(cells + ("│" if wall(b, n) else " "))
         return "\n".join(lines)
 
 
@@ -104,12 +169,27 @@ def verdict(
             address: engine.value(solver, address) for address in engine.cells
         }
         grid = cast("list[list[str]]", engine.structures["grid"])
-        box_shape = BOX_SHAPE.get(puzzle.board.size)
-        witness = Witness(grid=grid, assignment=assignment, box_shape=box_shape)
+        region_map = _resolve_region_map(canonical, puzzle.board.size)
+        witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
         return Verdict(kind="found", witness=witness)
     if status == cp_model.INFEASIBLE:
         return Verdict(kind="broke")
     return Verdict(kind="unknown")
+
+
+def _resolve_region_map(canonical: list[Constraint], size: int) -> RegionMap:
+    """The region map the witness renders against: a setter-supplied jigsaw
+    partition (issue #123's `params["regions"]`) when the puzzle's
+    regions-distinct constraint carries one, the board's box tiling by
+    convention otherwise, and — for a size with no box convention — one
+    whole-board region, since no regions-distinct rule is being enforced for
+    render to fail on."""
+    for constraint in canonical:
+        if constraint.type == "regions-distinct" and "regions" in constraint.params:
+            return region_map_from_labels(size, constraint.params["regions"])
+    if size in BOX_SHAPE:
+        return box_regions(size, *BOX_SHAPE[size])
+    return [[(row, col) for row in range(1, size + 1) for col in range(1, size + 1)]]
 
 
 def _apply(
