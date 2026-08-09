@@ -82,4 +82,4 @@ class DistinctOverGroups:
 
     def emit(self, engine: Engine) -> None:
         for group in self.partition(grid_content(engine)):
-            engine.model.add_all_different(group)
+            engine.model.add_all_different([contents[0] for contents in group])

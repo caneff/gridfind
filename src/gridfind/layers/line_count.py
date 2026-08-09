@@ -24,4 +24,6 @@ class LineCountDistinct:
 
     def emit(self, engine: Engine) -> None:
         for row_index, row in enumerate(grid_content(engine), start=1):
-            emit_distinct_count(engine, row, target=row_index, label=f"row{row_index}")
+            cells = [contents[0] for contents in row]
+            label = f"row{row_index}"
+            emit_distinct_count(engine, cells, target=row_index, label=label)

@@ -173,7 +173,7 @@ def verdict(
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         assignment = {
-            address: engine.value(solver, address) for address in engine.cells
+            address: engine.values(solver, address)[0] for address in engine.cells
         }
         grid = cast("list[list[str]]", engine.structures["grid"])
         region_map = _resolve_region_map(canonical, puzzle.board.size)

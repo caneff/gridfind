@@ -24,20 +24,23 @@ from ortools.sat.python import cp_model
 from gridfind.engine import Engine
 
 
-def grid_content(engine: Engine) -> list[list[cp_model.IntVar]]:
-    """The grid's cells as their primary content, resolved at call time in
-    phase 2 (issue #19). Named for *content*, the decided word, rather than
-    for the CP-SAT variables it happens to return — "variable" is an
+def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
+    """The grid's cells as their raw content sequences, resolved at call time
+    in phase 2 (issue #19). Named for *content*, the decided word, rather
+    than for the CP-SAT variables it happens to return — "variable" is an
     implementation word kept out of the spoken vocabulary (CONTEXT.md).
 
     `board` stores the grid as cell *addresses*, not content, on purpose: a
     Schrödinger layer can widen a cell's content to length 2 in phase 1, so
-    resolving an address to its content must wait until here. The one cast
-    lives in this helper — `structures` stays generic so every layer shares
-    one channel; only this consumer needs the concrete type.
+    resolving an address to its content must wait until here. Hands back
+    each cell's raw sequence, never a folded scalar (issue #140) — a
+    width-1 cell's sequence has length 1, so a caller that wants one
+    variable per cell folds it itself. The one cast lives in this helper —
+    `structures` stays generic so every layer shares one channel; only this
+    consumer needs the concrete type.
     """
     grid = cast("list[list[str]]", engine.structures["grid"])
-    return [[engine.content(address) for address in row] for row in grid]
+    return [[engine.contents(address) for address in row] for row in grid]
 
 
 def emit_distinct_count(
