@@ -144,10 +144,13 @@ handled by one **layer**.
 - **cell geometry** — the descriptor of the puzzle's cell space: the board size,
   the digit values, the box tiling, and the grid of `RxCy` addresses
   ([ADR-0004](docs/adr/0004-binding-not-provenance.md)). Metadata only — it holds
-  no **content** and no solver state. Built from the setter's board before any
-  layer runs, so anyone may read it: layers off the engine, `sudokumaker` from
+  no **content** and no solver state. It is built from the setter's board before
+  any layer runs, so anyone may read it: layers off the engine, `sudokumaker` from
   the board directly. Adjacency joins it when the first adjacency variant lands.
-  Named for the cell space it describes, not for any one **cell**.
+  Named for the cell space it describes, not for any one **cell**. _Decided in
+  ADR-0004 but not yet built — today `board` still owns the geometry and registers
+  the `grid` addresses through the structure registry; this entry names the target,
+  not the current code._
 
 - **two-phase build** — the build protocol that makes composition
   order-insensitive (map #1, decision 10; engine↔layer contract frozen in

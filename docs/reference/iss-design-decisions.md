@@ -301,13 +301,17 @@ declaration of geometry).
 owned by nobody in particular. Centralizing it keeps every handler size-agnostic
 and keeps adjacency queries out of individual constraints.
 
-**gridfind stance: MIRROR, decided in [ADR-0004](../adr/0004-binding-not-provenance.md) (#43).**
-- Geometry-lives-in-a-layer: **reversed.** It used to be mirrored the other way —
-  `board` owned all geometry and published the address grid to the **structure
-  registry**, so `verdict` had to cast its way in. ADR-0004 adopts ISS's split:
-  a `CellGeometry` descriptor built from the setter's board before any layer
-  runs, holding the size, the digit values, the box tiling, and the `RxCy`
-  addresses, readable by anyone.
+**gridfind stance: MIRROR, decided in [ADR-0004](../adr/0004-binding-not-provenance.md) (#43) — not yet built.**
+- Geometry-lives-in-a-layer: **to be reversed.** Today it is still mirrored the
+  other way — `board` owns all geometry and publishes the address grid to the
+  **structure registry** (`board.py:43`), so `verdict` and `grid_content` cast
+  their way in (`verdict.py`, `_base.py`). ADR-0004 decides ISS's split: a
+  `CellGeometry` descriptor, built from the setter's board before any layer runs,
+  holding the size, the digit values, the box tiling, and the `RxCy` addresses,
+  readable by anyone. That descriptor is **accepted but unbuilt** — no ticket
+  tracks it yet (#104 explicitly scoped it out), so the reversal is a decision on
+  paper, not code. Until it lands, read the `board`-owns-geometry arrangement
+  above as the current one.
 - Adjacency queries (knight-move pairs, orthogonal neighbours, along-a-line):
   **a slot in `CellGeometry`, unbuilt.** ISS centralizes these in `CellGraph`;
   gridfind will too when the first adjacency variant lands. The earlier lean —
