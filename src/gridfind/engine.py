@@ -1,11 +1,21 @@
 """The engine spine: cells, the structure registry, and the two-phase build.
 
-Two channels reach a layer, and who produced the fact is the line between
-them (ADR-0003). The structure registry carries facts one layer derives for
-another. The engine's carried fields — `constraints`, and the `board` shape
-it reads size and digit values from — carry the setter's input flowing in, which
-exists before any layer runs. The engine knows those only through read-only
-protocol views, never the concrete `Puzzle` types behind them (decision 31).
+Two channels reach a layer, and the line between them is whether the producer
+and the consumer must stay apart (ADR-0004). The structure registry is the
+channel for facts needing that late binding — a layer asks for a name and never
+meets the layer that wrote it. The engine's carried fields — `constraints`, and
+the `board` shape it reads size and digit values from — carry the setter's
+input, fixed before any layer runs and wanted typed by every reader. The engine
+knows those only through read-only protocol views, never the concrete `Puzzle`
+types behind them (decision 31).
+
+Who produced the fact used to be the test (ADR-0003); it is now only the
+explanation for why the two usually coincide. Read the registry's current
+contents against that rule rather than from it: the sole entry is the `"grid"`
+of addresses `board` registers, which it builds from `board.size` alone and
+which both readers cast. ADR-0004 decisions 2 and 4 move it to a `CellGeometry`
+descriptor. Until that lands, the one fact in the registry is one the binding
+test would not have put there.
 """
 
 from __future__ import annotations
