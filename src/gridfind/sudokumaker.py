@@ -3,9 +3,13 @@
 One pure function, `decode_link`, mirroring `puzzle.py`'s schema-only role: it
 strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 `formatVersion 1.5.0` JSON to the model per the confirmed field-by-field map in
-`docs/research/sudoku-link-formats.md` §4a (issue #54). Classic 9x9 only — a
-non-classic link (a variant domain, jigsaw regions, an unknown ruleset) is
-rejected with `ValueError` rather than mis-decoded into a confident wrong verdict.
+`docs/research/sudoku-link-formats.md` §4a (issue #54). Classic 9x9 domain
+only — a non-classic link (a variant `minDigit`/`maxDigit` domain, an unknown
+ruleset, a non-81 grid) is rejected with `ValueError` rather than mis-decoded
+into a confident wrong verdict. A `type 1` jigsaw regions matrix decodes
+instead of being refused (issue #125): it rides straight onto the
+`regions-distinct` constraint's `params["regions"]`, unvalidated — a malformed
+matrix surfaces as `MalformedPuzzleError` from `verdict`, never from here.
 
 Deliberately kept as `ValueError`, not folded into `MalformedPuzzleError`
 (issue #107): every rejection here fires before a `Puzzle` exists at all — it
@@ -48,16 +52,13 @@ CELL_COUNT = BOARD_SIZE * BOARD_SIZE
 # meaningful for a `minDigit:0` variant, which the guard rejects (§4a).
 _DIGITS = range(1, BOARD_SIZE + 1)
 
-# SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all three
-# explicit. Emitted in this order.
-_CLASSIC_CONSTRAINTS = (
-    Constraint("rows-distinct"),
-    Constraint("cols-distinct"),
-    Constraint("regions-distinct"),
-)
+# SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all
+# three explicit — rows/cols are always bare, and regions per _regions_constraint.
 
 # The standard 3x3 box partition as SudokuMaker's flat 81-array of region ids,
-# row-major — a `type 1` `regions` matrix that differs is jigsaw, out of scope.
+# row-major — a `type 1` `regions` matrix equal to this is the classic box
+# tiling (no params needed); anything else is a jigsaw partition to carry
+# through verbatim (issue #125).
 _CLASSIC_REGIONS = [0] * CELL_COUNT
 for _region_id, _box in enumerate(region_map_for(BOARD_SIZE)):
     for _row, _col in _box:
@@ -92,16 +93,38 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
 
     puzzle = Puzzle(
         board=Board(size=BOARD_SIZE),
-        constraints=_CLASSIC_CONSTRAINTS,
+        constraints=(
+            Constraint("rows-distinct"),
+            Constraint("cols-distinct"),
+            _regions_constraint(puzzle_data),
+        ),
         givens=tuple(givens),
     )
     return puzzle, WorkingState(places=tuple(places), candidates=tuple(candidates))
 
 
+def _regions_constraint(puzzle_data: dict[str, object]) -> Constraint:
+    """The `regions-distinct` constraint: bare for the standard 3x3 partition
+    (today's classic shape, unchanged) or when `type 1` is absent, carrying
+    the setter's own `params["regions"]` matrix verbatim for a jigsaw
+    partition otherwise (issue #125). Never validated here — a malformed
+    matrix surfaces from `verdict`, not decode."""
+    constraints = puzzle_data.get("constraints", [])
+    if isinstance(constraints, list):
+        for constraint in constraints:
+            if isinstance(constraint, dict) and constraint.get("type") == 1:
+                regions = constraint.get("regions")
+                if regions != _CLASSIC_REGIONS:
+                    return Constraint("regions-distinct", params={"regions": regions})
+    return Constraint("regions-distinct")
+
+
 def _reject_non_classic(puzzle_data: dict[str, object]) -> None:
     """Guard the classic 9x9 boundary: refuse a variant domain, a non-81 grid,
-    an unknown ruleset, or jigsaw regions (§4a). Narrows the untyped JSON as it
-    checks — a shape that isn't a classic's is exactly what it rejects."""
+    or an unknown ruleset (§4a). Narrows the untyped JSON as it checks — a
+    shape that isn't a classic's is exactly what it rejects. A jigsaw `type 1`
+    regions matrix is not rejected here (issue #125) — see
+    `_regions_constraint`."""
     if _has_key(puzzle_data, ("minDigit", "maxDigit")):
         msg = "non-classic link: a minDigit/maxDigit domain is a variant"
         raise ValueError(msg)
@@ -118,9 +141,6 @@ def _reject_non_classic(puzzle_data: dict[str, object]) -> None:
         kind = constraint.get("type")
         if kind not in (0, 1):
             msg = f"non-classic link: unknown constraint type {kind!r}"
-            raise ValueError(msg)
-        if kind == 1 and constraint.get("regions") != _CLASSIC_REGIONS:
-            msg = "non-classic link: regions are not the standard 3x3 partition"
             raise ValueError(msg)
 
 

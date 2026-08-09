@@ -109,17 +109,29 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
             {"cells": _EMPTY_CELLS, "constraints": [{"type": 5}]},
             "unknown constraint type",
         ),
-        (
-            {
-                "cells": _EMPTY_CELLS,
-                "constraints": [{"type": 0}, {"type": 1, "regions": _JIGSAW_REGIONS}],
-            },
-            "standard 3x3 partition",
-        ),
     ],
-    ids=["minDigit", "wrong-cell-count", "unknown-type", "jigsaw-regions"],
+    ids=["minDigit", "wrong-cell-count", "unknown-type"],
 )
 def test_non_classic_link_is_rejected(puzzle: dict[str, object], match: str) -> None:
     # Each case fails for *its own* reason, not an incidental ValueError.
     with pytest.raises(ValueError, match=match):
         decode_link(_encode(puzzle))
+
+
+def test_jigsaw_regions_decode_into_constraint_params() -> None:
+    # A type 1 link whose regions differ from the standard 3x3 partition is no
+    # longer refused (issue #125): it decodes with the setter's own matrix
+    # carried on the regions-distinct constraint's params.
+    payload = _encode(
+        {
+            "cells": _EMPTY_CELLS,
+            "constraints": [{"type": 0}, {"type": 1, "regions": _JIGSAW_REGIONS}],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    regions_constraint = next(
+        c for c in puzzle.constraints if c.type == "regions-distinct"
+    )
+    assert regions_constraint.params == {"regions": _JIGSAW_REGIONS}
