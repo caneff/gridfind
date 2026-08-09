@@ -8,10 +8,13 @@ from gridfind.layers.board import cell_address
 from gridfind.layers.regions import box_regions
 from gridfind.puzzle import (
     EMPTY,
+    BareSCell,
+    BareSingleton,
     Board,
     Candidate,
     Constraint,
     Given,
+    HalfSCell,
     Placement,
     Puzzle,
     SCellPin,
@@ -965,3 +968,92 @@ def test_verdict_runs_a_first_light_singleton_and_s_cell_pin_end_to_end() -> Non
     assert result.witness is not None
     assert result.witness["R1C1"] == (0,)
     assert result.witness["R2C2"] == (0, 4)
+
+
+@pytest.mark.parametrize(
+    ("directives", "expected"),
+    [
+        pytest.param(
+            (BareSingleton(address="R1C1"),),
+            "found",
+            id="bare-singleton-honored",
+        ),
+        pytest.param(
+            (*_FORCE_R1C1_S, BareSingleton(address="R1C1")),
+            "broke",
+            id="bare-singleton-broke-when-forced-s",
+        ),
+        pytest.param(
+            (BareSCell(address="R1C1"),),
+            "found",
+            id="bare-s-cell-honored",
+        ),
+        pytest.param(
+            (BareSCell(address="R1C1"), BareSCell(address="R1C2")),
+            "broke",
+            id="bare-s-cell-broke-when-two-in-one-house",
+        ),
+        pytest.param(
+            (HalfSCell(address="R1C1", digit=0),),
+            "found",
+            id="half-s-cell-honored",
+        ),
+        pytest.param(
+            (*_FORCE_R1C1_S, HalfSCell(address="R1C1", digit=1)),
+            "broke",
+            id="half-s-cell-broke-when-digit-cant-fit",
+        ),
+    ],
+)
+def test_verdict_applies_a_bare_or_half_directive(
+    directives: tuple[SDirective, ...], expected: str
+) -> None:
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(s_directives=directives)
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == expected
+
+
+def test_verdict_half_s_cell_witness_is_an_s_cell_holding_the_digit() -> None:
+    # A half S-cell honored means the cell resolves to an S-cell (a 2-tuple)
+    # whose pair contains the named digit — proving the membership constraint
+    # bit, not just that the puzzle happened to solve.
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(s_directives=(HalfSCell(address="R1C1", digit=0),))
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    content = result.witness["R1C1"]
+    assert len(content) == 2
+    assert 0 in content
+
+
+def test_verdict_half_s_cell_honors_a_digit_in_the_upper_slot() -> None:
+    # Membership is "digit in EITHER slot", not just d0: force R1C1 to be the
+    # S-cell holding {0, 4} (so d0=0, d1=4), then a half S-cell naming 4 — the
+    # *upper* digit — is honored, proving the OR reaches d1.
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=(*_FORCE_R1C1_S, HalfSCell(address="R1C1", digit=4))
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C1"] == (0, 4)
+
+
+def test_verdict_rejects_a_half_s_cell_digit_outside_the_boards_values() -> None:
+    # A half S-cell names a digit, so it inherits the out-of-domain guard —
+    # asserted on a board that has the schrodinger layer so only that guard
+    # can fire (9 is outside 0-4).
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(s_directives=(HalfSCell(address="R1C1", digit=9),))
+
+    with pytest.raises(MalformedPuzzleError, match="9"):
+        verdict(puzzle, state)

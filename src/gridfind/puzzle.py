@@ -128,25 +128,53 @@ class SCellPin:
             raise MalformedPuzzleError(msg)
 
 
+@dataclass(frozen=True)
+class BareSingleton:
+    """A Schrödinger directive: this cell **is a singleton** (not an S-cell),
+    digit unstated (CONTEXT.md `schrodinger`). A singleton pin minus its
+    digit — it fixes S-cell-ness, leaves the digit free."""
+
+    address: str
+    kind: ClassVar[str] = "bare-singleton"
+
+
+@dataclass(frozen=True)
+class BareSCell:
+    """A Schrödinger directive: this cell **is an S-cell**, both digits unstated
+    (CONTEXT.md `schrodinger`). An S-cell pin minus its pair."""
+
+    address: str
+    kind: ClassVar[str] = "bare-s-cell"
+
+
+@dataclass(frozen=True)
+class HalfSCell:
+    """A Schrödinger directive: this cell **is an S-cell** and `digit` is one of
+    its two digits, partner unstated (CONTEXT.md `schrodinger`) — a reified
+    "digit appears among the two slots" claim, between an S-cell pin and a bare
+    S-cell."""
+
+    address: str
+    digit: int
+    kind: ClassVar[str] = "half-s-cell"
+
+
 # The Schrödinger working-state directives, hard-coded not registered
 # (ADR-0006). A closed union: a second directive-bearing layer is #26's seam.
-SDirective = SingletonPin | SCellPin
+SDirective = SingletonPin | SCellPin | BareSingleton | BareSCell | HalfSCell
 
 
 def _s_directive_to_dict(directive: SDirective) -> dict[str, JsonValue]:
-    """One directive as a `{kind, address, …}` wire object. A pair serializes
-    as a sorted two-element list, mirroring `Candidate.digits`."""
-    if isinstance(directive, SingletonPin):
-        return {
-            "kind": directive.kind,
-            "address": directive.address,
-            "digit": directive.digit,
-        }
-    return {
-        "kind": directive.kind,
-        "address": directive.address,
-        "pair": sorted(directive.pair),
-    }
+    """One directive as a `{kind, address, …}` wire object. Every directive
+    carries `kind` and `address`; a digit-bearing one adds `digit`, and an
+    S-cell pin adds its `pair` as a sorted two-element list (mirroring
+    `Candidate.digits`). The bare directives carry nothing more."""
+    out: dict[str, JsonValue] = {"kind": directive.kind, "address": directive.address}
+    if isinstance(directive, SingletonPin | HalfSCell):
+        out["digit"] = directive.digit
+    elif isinstance(directive, SCellPin):
+        out["pair"] = sorted(directive.pair)
+    return out
 
 
 # from_json dispatches on the directive's kind tag (ADR-0006). Reading an
@@ -157,6 +185,9 @@ def _s_directive_to_dict(directive: SDirective) -> dict[str, JsonValue]:
 _S_DIRECTIVE_READERS = {
     SingletonPin.kind: lambda d: SingletonPin(address=d["address"], digit=d["digit"]),
     SCellPin.kind: lambda d: SCellPin(address=d["address"], pair=frozenset(d["pair"])),
+    BareSingleton.kind: lambda d: BareSingleton(address=d["address"]),
+    BareSCell.kind: lambda d: BareSCell(address=d["address"]),
+    HalfSCell.kind: lambda d: HalfSCell(address=d["address"], digit=d["digit"]),
 }
 
 

@@ -221,6 +221,25 @@ class Engine:
                 raise MalformedPuzzleError(msg)
         self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
 
+    def reify_holds(
+        self, slots: list[cp_model.IntVar], digit: int, label: str
+    ) -> list[cp_model.IntVar]:
+        """For each slot, a reified bool tracking whether it holds `digit` — the
+        "does this slot hold this digit" idiom. It lives on the engine, the spine
+        both the layers package and `verdict` legitimately depend on, because
+        both need it: the layer emit-helpers (`emit_distinct_count`,
+        `emit_house`) fold it into house rules, and `verdict` ORs it across a
+        cell's slots for a half-S-cell's "digit appears among the two slots"
+        membership (issue #154). `layers._base` is layers-internal, so a shared
+        helper cannot live there."""
+        holds_digit = []
+        for i, slot in enumerate(slots):
+            indicator = self.model.new_bool_var(f"{label}.holds{digit}.{i}")
+            self.model.add(slot == digit).only_enforce_if(indicator)
+            self.model.add(slot != digit).only_enforce_if(indicator.negated())
+            holds_digit.append(indicator)
+        return holds_digit
+
     def _cell(self, address: str) -> Cell:
         cell = self.cells.get(address)
         if cell is None:
