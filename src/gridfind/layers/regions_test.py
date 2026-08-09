@@ -1,7 +1,9 @@
 import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
-from gridfind.engine import GridfindError
-from gridfind.layers.regions import box_regions, region_map_for
+from gridfind.engine import GridfindError, MalformedPuzzleError
+from gridfind.layers.regions import box_regions, region_map_for, region_map_from_labels
 
 BOARD_SIZE = 9
 
@@ -57,3 +59,54 @@ def test_region_map_for_refuses_a_size_with_no_box_convention() -> None:
     # convention needs a convention to exist.
     with pytest.raises(GridfindError):
         region_map_for(5)
+
+
+def test_region_map_from_labels_groups_arbitrary_noncontiguous_labels() -> None:
+    # A 2x2 board split by label 7 (top row) and label 2 (bottom row) — ids
+    # need not be contiguous or start at 0, and sizes need not match.
+    labels = [7, 7, 2, 2]
+
+    region_map = region_map_from_labels(2, labels)
+
+    assert sorted(region_map) == [[(1, 1), (1, 2)], [(2, 1), (2, 2)]]
+
+
+def test_region_map_from_labels_groups_a_noncontiguous_regions_cells() -> None:
+    # One label's cells need not be adjacent — a region is whatever shares an
+    # id, wherever it sits on the board.
+    labels = [0, 1, 1, 0]  # R1C1+R2C2 share label 0; R1C2+R2C1 share label 1
+
+    region_map = region_map_from_labels(2, labels)
+
+    assert sorted(region_map) == [[(1, 1), (2, 2)], [(1, 2), (2, 1)]]
+
+
+def test_region_map_from_labels_accepts_unequal_region_sizes() -> None:
+    labels = [0, 0, 0, 1]
+
+    region_map = region_map_from_labels(2, labels)
+
+    assert sorted(len(region) for region in region_map) == [1, 3]
+
+
+def test_region_map_from_labels_refuses_the_wrong_length() -> None:
+    with pytest.raises(MalformedPuzzleError):
+        region_map_from_labels(2, [0, 0, 0])
+
+
+def test_region_map_from_labels_refuses_a_non_list() -> None:
+    with pytest.raises(MalformedPuzzleError):
+        region_map_from_labels(2, "0001")
+
+
+def test_region_map_from_labels_refuses_a_non_integer_entry() -> None:
+    with pytest.raises(MalformedPuzzleError):
+        region_map_from_labels(2, [0, 0, 0, "a"])
+
+
+@given(labels=st.lists(st.integers(), min_size=0, max_size=30))
+def test_region_map_from_labels_refuses_any_wrong_length(labels: list[int]) -> None:
+    size = 4
+    assume(len(labels) != size * size)
+    with pytest.raises(MalformedPuzzleError):
+        region_map_from_labels(size, labels)

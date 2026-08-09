@@ -49,7 +49,7 @@ def test_pair_sum_emits_one_rule_per_clue(
     """One stateless layer, one rule per clue — including a clue that arrived
     as an alias, whose total the expansion fixed."""
     puzzle = Puzzle(board=BOARD, constraints=constraints)
-    canonical, layers = build_stack(puzzle.constraints)
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
     engine = build_engine(layers, tuple(canonical), board=BOARD)
 
     assert pair_sum_rules(engine) == expected

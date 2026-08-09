@@ -3,7 +3,13 @@ import pytest
 from gridfind.engine import GridfindError, MissingDependencyError, build_engine
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
-from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
+from gridfind.layers.distinct import (
+    DistinctOverGroups,
+    cols,
+    regions,
+    regions_from,
+    rows,
+)
 from gridfind.puzzle import Board
 
 _PARTITIONS = {
@@ -61,6 +67,17 @@ def test_regions_first_region_is_the_top_left_3x3_box() -> None:
         "r2c1",
         "r2c2",
     }
+
+
+def test_regions_from_cuts_the_grid_by_the_supplied_map() -> None:
+    # A partition function built from a setter-supplied map, not the box
+    # convention (issue #123) — a jigsaw region here spans two rows.
+    grid = _grid(2)
+    supplied = [[(1, 1), (2, 2)], [(1, 2), (2, 1)]]
+
+    groups = [sorted(g) for g in regions_from(supplied)(grid)]
+
+    assert sorted(groups) == [["r0c0", "r1c1"], ["r0c1", "r1c0"]]
 
 
 @pytest.mark.parametrize("name", ["rows-distinct", "cols-distinct", "regions-distinct"])
