@@ -60,7 +60,7 @@ def test_a_satisfiable_pair_resolves_found() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert abs(result.witness["R1C1"] - result.witness["R1C2"]) == 3
+    assert abs(result.witness["R1C1"][0] - result.witness["R1C2"][0]) == 3
 
 
 def test_a_pair_that_cannot_meet_its_difference_resolves_broke() -> None:
@@ -92,8 +92,8 @@ def test_two_clues_each_constrain_their_own_pair_independently() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert abs(result.witness["R1C1"] - result.witness["R1C2"]) == 3
-    assert abs(result.witness["R3C3"] - result.witness["R3C4"]) == 5
+    assert abs(result.witness["R1C1"][0] - result.witness["R1C2"][0]) == 3
+    assert abs(result.witness["R3C3"][0] - result.witness["R3C4"][0]) == 5
 
 
 def test_a_broken_second_clue_breaks_the_whole_puzzle() -> None:
@@ -125,7 +125,7 @@ def test_the_relation_is_absolute_either_cell_may_hold_the_larger_value() -> Non
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"] == 5
+    assert result.witness["R1C2"][0] == 5
 
 
 def test_a_puzzle_mixing_pair_sum_and_pair_difference_resolves_correctly() -> None:
@@ -142,5 +142,5 @@ def test_a_puzzle_mixing_pair_sum_and_pair_difference_resolves_correctly() -> No
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"] == 4  # 1 + 4 == 5
-    assert abs(result.witness["R3C3"] - result.witness["R3C4"]) == 2
+    assert result.witness["R1C2"][0] == 4  # 1 + 4 == 5
+    assert abs(result.witness["R3C3"][0] - result.witness["R3C4"][0]) == 2

@@ -10,6 +10,7 @@ from gridfind.layers.distinct import (
     regions_from,
     rows,
 )
+from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board
 
 _PARTITIONS = {
@@ -113,3 +114,15 @@ def test_distinct_layer_emits_one_all_different_rule_per_group(
     assert len(groups) == 9
     assert all(len(group) == 9 for group in groups)
     assert sorted(groups[0]) == sorted(first_group)
+
+
+def test_distinct_layer_skips_all_different_when_schrodinger_widens_the_cells() -> None:
+    # With `schrodinger` in the stack, DistinctOverGroups routes through the
+    # is_S-gated counting rule (issue #141) instead — no add_all_different at
+    # all, so a non-schrodinger puzzle's model stays untouched (no-regression).
+    engine = build_engine(
+        [GridCells(), Schrodinger(), DistinctOverGroups("rows-distinct", rows)],
+        board=Board(size=4, values=range(5)),
+    )
+
+    assert all_different_groups(engine) == []

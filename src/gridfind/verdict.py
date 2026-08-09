@@ -64,14 +64,19 @@ _JUNCTIONS = {
 
 @dataclass(frozen=True)
 class Witness:
-    """A found solve's digit per cell, paired with the board shape that read
-    them (issue #72) — self-describing, so a consumer lays the grid out
-    without re-deriving addressing. `assignment` stays reachable directly for
-    a caller that wants one cell, not a render.
+    """A found solve's content sequence per cell, paired with the board shape
+    that read them (issue #72, pluralized #141) — self-describing, so a
+    consumer lays the grid out without re-deriving addressing. `assignment`
+    stays reachable directly for a caller that wants one cell, not a render.
 
     It is an *assignment*, not `values`: `Board.values` is the digit domain a
     cell may hold, and one word for both the offer and the choice reads badly
     three lines apart.
+
+    A cell's tuple is a 1-tuple for a singleton, a 2-tuple `(a, b)`, `a < b`,
+    for a Schrödinger S-cell (issue #141, spec #139's `schrodinger` layer,
+    #133's content seam) — never the sentinel `contents()`/`values()` may
+    also carry for an unsolved S-cell slot.
 
     `region_map` is the partition `render` borders against (issue #124) —
     always populated, never `None`: a board with no regions-distinct rule of
@@ -79,10 +84,10 @@ class Witness:
     nothing to guess at render time."""
 
     grid: list[list[str]]
-    assignment: dict[str, int]
+    assignment: dict[str, tuple[int, ...]]
     region_map: RegionMap
 
-    def __getitem__(self, address: str) -> int:
+    def __getitem__(self, address: str) -> tuple[int, ...]:
         return self.assignment[address]
 
     def __len__(self) -> int:
@@ -93,7 +98,15 @@ class Witness:
         different regions (issue #124): junctions are resolved from the four
         lines meeting at each grid node, so a classic box partition draws the
         familiar 3x3 boxes and a jigsaw partition draws its own region
-        borders through the same path."""
+        borders through the same path.
+
+        A singleton cell prints its bare digit; an S-cell prints its
+        unordered pair `{a b}` (issue #141, decision #135). Every cell is
+        right-padded to the widest cell in the witness so columns stay
+        aligned and the box banding survives whatever width an S-cell adds —
+        for an ordinary witness (every cell a singleton) the widest cell is
+        one character, so this is the same output as before.
+        """
         n = len(self.grid)
         region_id = {
             cell: index for index, group in enumerate(self.region_map) for cell in group
@@ -112,6 +125,17 @@ class Witness:
                 row == 0 or row == n or region_at(row - 1, col) != region_at(row, col)
             )
 
+        def fmt(content: tuple[int, ...]) -> str:
+            if len(content) == 1:
+                return str(content[0])
+            a, b = content
+            return f"{{{a} {b}}}"
+
+        formatted = [
+            [fmt(self.assignment[address]) for address in row] for row in self.grid
+        ]
+        width = max(len(cell) for row in formatted for cell in row)
+
         lines: list[str] = []
         for b in range(n + 1):
             border = ""
@@ -124,12 +148,11 @@ class Witness:
                 )
                 border += _JUNCTIONS[arms]
                 if c < n:
-                    border += "───" if seg(b, c) else "   "
+                    border += ("─" if seg(b, c) else " ") * (width + 2)
             lines.append(border)
             if b < n:
                 cells = "".join(
-                    ("│" if wall(b, c) else " ")
-                    + f" {self.assignment[self.grid[b][c]]} "
+                    ("│" if wall(b, c) else " ") + f" {formatted[b][c].rjust(width)} "
                     for c in range(n)
                 )
                 lines.append(cells + ("│" if wall(b, n) else " "))
@@ -172,9 +195,12 @@ def verdict(
     status = solver.solve(engine.model)
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        assignment = {
-            address: engine.values(solver, address)[0] for address in engine.cells
-        }
+        is_s = cast("dict[str, cp_model.IntVar] | None", engine.structures.get("is_s"))
+        assignment: dict[str, tuple[int, ...]] = {}
+        for address in engine.cells:
+            content = engine.values(solver, address)
+            is_this_s = is_s is not None and bool(solver.value(is_s[address]))
+            assignment[address] = content if is_this_s else content[:1]
         grid = cast("list[list[str]]", engine.structures["grid"])
         region_map = _resolve_region_map(canonical, puzzle.board.size)
         witness = Witness(grid=grid, assignment=assignment, region_map=region_map)

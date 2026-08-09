@@ -60,5 +60,5 @@ class PairDifference:
             # clue's shape: a pair of cell addresses and its target diff.
             addresses = cast("list[str]", clue.params["cells"])
             target = cast("int", clue.params["diff"])
-            a, b = (engine.contents(address)[0] for address in addresses)
+            a, b = (engine.content(address) for address in addresses)
             emit_over_pairs(engine, [(a, b)], _differs_by(target))

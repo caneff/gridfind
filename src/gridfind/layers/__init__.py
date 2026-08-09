@@ -31,6 +31,7 @@ from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_difference import PairDifference
 from gridfind.layers.pair_sum import PairSum
 from gridfind.layers.regions import region_map_from_labels
+from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Constraint, JsonValue
 
 __all__ = [
@@ -52,6 +53,7 @@ LAYER_REGISTRY = {
     "line-count-distinct": LineCountDistinct(),
     "pair-sum": PairSum(),
     "pair-difference": PairDifference(),
+    "schrodinger": Schrodinger(),
 }
 
 # Two mechanisms expand a constraint at load (spec #45, issue #47), and they

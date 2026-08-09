@@ -24,8 +24,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from gridfind.engine import Engine
-from gridfind.layers._base import grid_content
+from gridfind.engine import Engine, sole
+from gridfind.layers._base import emit_house, grid_content
 from gridfind.layers.regions import RegionMap, region_map_for
 
 Cell = TypeVar("Cell")
@@ -71,6 +71,14 @@ class DistinctOverGroups:
     """Each group in the partition holds all-different digits. The rule shared
     by rows/cols/regions-distinct (issue #37); the partition is what differs.
     Rides on `board`'s `grid` structure — registers nothing, emits in phase 2.
+
+    With no `schrodinger` layer in the stack, every cell's content stays
+    width 1 and each group gets a plain `add_all_different` — the identical
+    model this layer has always emitted (issue #141 no-regression). With
+    `schrodinger` present, `is_s` rides on the structure registry (never a
+    direct reference to that layer) and each group instead gets the is_S-
+    gated counting rule `emit_house` builds, over content already widened to
+    length 2 by the time this runs in phase 2.
     """
 
     name: str
@@ -81,5 +89,10 @@ class DistinctOverGroups:
         pass
 
     def emit(self, engine: Engine) -> None:
-        for group in self.partition(grid_content(engine)):
-            engine.model.add_all_different([contents[0] for contents in group])
+        is_s = engine.structures.get("is_s")
+        for index, group in enumerate(self.partition(grid_content(engine))):
+            cells = list(group)
+            if is_s is None:
+                engine.model.add_all_different([sole(content) for content in cells])
+            else:
+                emit_house(engine, cells, label=f"{self.name}.{index}")

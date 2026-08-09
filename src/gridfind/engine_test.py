@@ -12,6 +12,7 @@ from gridfind.engine import (
     MalformedPuzzleError,
     MissingDependencyError,
     build_engine,
+    sole,
 )
 from gridfind.puzzle import Board
 
@@ -41,6 +42,7 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
         "MalformedPuzzleError",
         "MissingDependencyError",
         "build_engine",
+        "sole",
     ]
 
 
@@ -236,3 +238,62 @@ def test_restrict_checks_a_digit_against_the_boards_declared_values() -> None:
 
     with pytest.raises(MalformedPuzzleError, match=r"9.*'x'"):
         engine.restrict("x", {9})
+
+
+def test_sole_returns_the_one_element_of_a_width_1_read() -> None:
+    assert sole(("7",)) == "7"
+    assert sole([42]) == 42
+
+
+def test_sole_raises_on_a_widened_s_cell_read() -> None:
+    # A rule that folds with `sole` isn't Schrödinger-ready: handed a
+    # width-2 S-cell read it must refuse loudly, not silently keep the first
+    # slot and drop the second.
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        sole((3, 5))
+
+
+def test_content_returns_the_one_variable_of_a_width_1_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+
+    assert engine.content("x") is cell.content[0]
+
+
+def test_content_raises_on_a_widened_s_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("s", low=1, high=9, width=2)
+
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        engine.content("s")
+
+
+def test_value_reads_the_one_placed_digit_of_a_width_1_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+    engine.model.add(cell.content[0] == 4)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.value(solver, "x") == 4
+
+
+def test_value_raises_on_a_widened_s_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("s", low=1, high=9, width=2)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        engine.value(solver, "s")
+
+
+def test_d0_returns_the_first_slot_and_never_raises_on_a_widened_cell() -> None:
+    # d0 is the always-real first slot: defined for a plain cell and an S-cell
+    # alike, so unlike `content` it must not refuse a width-2 read.
+    engine = build_engine([], board=BOARD)
+    plain = engine.add_cell("x", low=1, high=9)
+    s_cell = engine.add_cell("s", low=1, high=9, width=2)
+
+    assert engine.d0("x") is plain.content[0]
+    assert engine.d0("s") is s_cell.content[0]

@@ -20,7 +20,7 @@ test would not have put there.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -36,6 +36,7 @@ __all__ = [
     "MalformedPuzzleError",
     "MissingDependencyError",
     "build_engine",
+    "sole",
 ]
 
 
@@ -162,6 +163,28 @@ class Engine:
         `content`. A width-1 cell hands back a length-1 sequence."""
         return self._cell(address).content
 
+    def value(self, solver: cp_model.CpSolver, address: str) -> int:
+        """A not-yet-widened cell's one placed digit after a solve — the
+        singular read for a rule that doesn't handle Schrödinger cells.
+        Raises on a widened S-cell (issue #141); an S-aware reader takes the
+        whole sequence through `values`."""
+        return sole(self.values(solver, address))
+
+    def content(self, address: str) -> cp_model.IntVar:
+        """A not-yet-widened cell's one content variable, for a rule building
+        an expression over a single digit. Raises on a widened S-cell like
+        `value` does; an S-aware reader takes the whole sequence through
+        `contents`."""
+        return sole(self.contents(address))
+
+    def d0(self, address: str) -> cp_model.IntVar:
+        """A cell's first content variable — d0, which `schrodinger` keeps
+        always a real digit (issue #141). Unlike `content` it never raises on
+        a widened S-cell: d0 is well-defined for both, so a read that wants
+        the cell's real digit and nothing about its S-cell axis takes d0
+        whatever the width. A width-1 cell's d0 is its only slot."""
+        return self._cell(address).content[0]
+
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
         solver domain rather than from the two ends of it (issue #104).
@@ -172,7 +195,7 @@ class Engine:
         exercised; issue #102, which holds a cell to a stepped digit set, is
         what will exercise it.
         """
-        domain = list(self._cell(address).content[0].proto.domain)
+        domain = list(self.d0(address).proto.domain)
         return [
             digit
             for low, high in zip(domain[::2], domain[1::2], strict=True)
@@ -185,7 +208,7 @@ class Engine:
         Each digit is checked against the board's own declared values, the
         one authority on what a cell may hold, not a domain re-derived from
         the solver variable — an unknown address raises separately."""
-        var = self._cell(address).content[0]
+        var = self.d0(address)
         allowed = sorted(set(digits))
         for digit in allowed:
             if digit not in self.board.values:
@@ -200,6 +223,22 @@ class Engine:
             msg = f"address {address!r} is off the board"
             raise MalformedPuzzleError(msg)
         return cell
+
+
+def sole[Read](reads: Sequence[Read]) -> Read:
+    """The one element of a not-yet-widened cell's content or value sequence
+    (issue #140's plural seam). Raises when the cell was widened to an S-cell:
+    a rule that folds with `sole` has not been taught Schrödinger cells yet
+    (issue #141), and silently taking the first slot would drop the second.
+    Where a rule *does* handle S-cells it reads the sequence whole, never
+    through `sole`."""
+    if len(reads) != 1:
+        msg = (
+            f"expected a width-1 cell, got a length-{len(reads)} content — "
+            "this rule is not Schrödinger-ready yet"
+        )
+        raise GridfindError(msg)
+    return reads[0]
 
 
 def build_engine(
