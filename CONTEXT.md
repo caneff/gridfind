@@ -191,14 +191,22 @@ directives on top; a header line declares the active layer stack.
   "have I broken it yet?"
 
 - **given** — a grid cell the setter has placed to a single digit. Content pinned
-  to one value.
+  to one value. Stays literal under the Schrödinger layer: it fixes the cell's
+  base slot, so the given digit is the cell's value, or the lower digit if the
+  cell turns out to be an **S-cell**. It never becomes a **bare placement** —
+  that refinement is the hand-solve **placement**'s alone (see below).
 
 - **candidate / pencilmark** — a cell narrowed to a subset of digits (e.g.
   `{2,5,7}`) without being placed. Weaker information than a given.
 
 - **placement** — asserting a digit sits at a cell (`RxCy`) as part of the
   hand-solve. The core-level place directive; layers may refine what a placement
-  means for their own cells (see the Schrödinger layer's **bare placement**).
+  means for their own cells. Under the Schrödinger layer it refines to a
+  **bare placement**: the digit sits in the cell's content, in *either* slot, so
+  placing a digit that a solve later reveals as an **S-cell**'s upper half does
+  not break. That is where placement and **given** deliberately diverge — a
+  given stays literal to the base slot, a placement loosens to the whole content
+  (map #1, decision 12; #142).
 
 ---
 
@@ -267,6 +275,14 @@ directives name a point on each:
 - **half S-cell** — asserts a cell **is an S-cell** and that digit `d` is one of
   its two digits, partner unknown. Between an S-cell pin and a bare S-cell;
   equivalently a bare placement whose S-cell-ness is pinned true.
+
+Two ways a Schrödinger directive is **malformed** (refused before classify, never
+a verdict; #142): a digit-bearing directive naming a digit outside the board's
+values — the same rule that already governs a **given** or **candidate** — and
+*any* of these directives riding a layer stack that has no `schrodinger` layer,
+since no S-axis exists to honor. A directive whose digits are all legal but whose
+claim no completion can satisfy is not malformed — it is **broke**, the ordinary
+infeasibility the solver reports.
 
 ---
 
