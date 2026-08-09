@@ -70,16 +70,21 @@ generator, solver — and each wants a different projection. Keeping the declara
 description separate from the enforcement code lets each audience read the spec
 without dragging in the solver, and lets a spec expand into several handlers.
 
-**gridfind stance: OPEN → this is [#44].** Today a gridfind `Layer` fuses all
-three: it *is* the spec (its name/params), the builder (it decides what rules to
-emit), and the handler (`emit` pokes CP-SAT). That fusion is fine at 6 in-tree
-layers. #41's `Puzzle` object forces the split into the open: a variant is stated as
-typed constraints (the spec), and something maps `constraint.type` to a layer
-that emits (the builder + handler). **#44 is exactly "where does that dispatch live."**
-ISS's answer — a spec object holding zero logic, a single builder chokepoint — is
-the proven shape. The discipline to steal: **keep solving logic out of the
-constraint.** SudokuMaker is the cautionary opposite (logic lives in authored,
-order-dependent code).
+**gridfind stance: MIRROR the split, DEVIATE on multiplicity — decided (#41, #44).**
+All three layers now exist. The **spec** is `Puzzle`'s typed `Constraint`
+(`puzzle.py`, #41 — the old text grammar is gone). The **builder** is
+`resolve_constraints` reading `LAYER_REGISTRY` (`layers/__init__.py`, #44). The
+**handler** is the layer's `emit`. ISS's shape held up: a spec object with zero
+solving logic, and a single dispatch chokepoint. SudokuMaker is the cautionary
+opposite (logic lives in authored, order-dependent code).
+
+Where gridfind deviates: **many constraints of one type resolve to one stateless
+layer, not to one handler each** (#65). ISS's builder instantiates a handler per
+spec; `resolve_constraints` dedups by `type`, and the layer pulls its own clues
+back out via `engine.constraints_of(name)` and loops them in `emit`
+(`pair_sum.py`). ISS needs per-instance handlers because each one owns
+propagation state across the search; a gridfind layer owns none, so one instance
+serves every clue of its type.
 
 ## 1.2 Builder is a single dispatch chokepoint; one spec → many handlers
 
@@ -93,13 +98,18 @@ order-dependent code).
 **Why.** One place to read the entire vocabulary; specs stay small and declarative
 while the messy expansion lives in the builder.
 
-**gridfind stance: MIRROR the chokepoint, DEVIATE on mechanism ([#44] fork 2).**
+**gridfind stance: MIRROR the chokepoint, DEVIATE on mechanism — built (#44).**
 gridfind already has one-to-many inside a layer (`regions-distinct` loops regions;
-`line-count-distinct` loops rows) — good. For the dispatch mechanism, prefer
-**extending the existing `LAYER_REGISTRY` dict** (`type → Layer`) over a literal
-`switch`. ISS uses a switch partly because JS lacks a clean class registry;
-Python's dict-of-instances *is* that registry and it already exists. Same
-chokepoint idea, lazier mechanism.
+`line-count-distinct` loops rows). The dispatch mechanism is the
+**`LAYER_REGISTRY` dict** (`type → Layer`), read by `resolve_constraints` — not a
+literal `switch`. ISS uses a switch partly because JS lacks a clean class registry;
+Python's dict-of-instances *is* that registry. Same chokepoint idea, lazier
+mechanism.
+
+One pass sits in front of dispatch: `expand_constraints` resolves **presets**
+(`sudoku` → the three bare distinct constraints) and **aliases** (`x` → `pair-sum`
+with `sum: 10`) before any type reaches the registry, so dispatch and identity
+(4.2) both see canonical constraints.
 
 ## 1.3 Declarative metadata on the spec drives UI, help, parser
 
@@ -118,8 +128,8 @@ constraint type lights them all up with no per-type UI code.
 definition instead of maintaining a parallel table.
 
 **gridfind stance: DEVIATE for now (no second surface yet), MIRROR the instinct.**
-gridfind has no UI, no help page, no drawing. The only "other surface" today is the
-working-state grammar, which #41 is *removing* in favor of the `Puzzle` object. So
+gridfind has no UI, no help page, no drawing. The only "other surface" was the
+working-state grammar, and #41 removed it in favor of the `Puzzle` object. So
 most of this metadata (`DISPLAY_CONFIG`, `ARGUMENT_CONFIG`) is YAGNI. But two
 fields have gridfind analogs worth keeping in mind: `CATEGORY` (see 1.4) and
 `UNIQUENESS_KEY_FIELD` (maps to gridfind's identity-keying, [#33] / 4.2). If a
@@ -164,8 +174,11 @@ lighter and clearer. So gridfind's version is a helper taking a per-pair OR-Tool
 expression (`lambda a, b, model: ...`), the sibling of the existing
 `_base.emit_distinct_count`. Only reach for a table/allowed-assignments encoding
 if a `Puzzle` ever carries a *setter-defined* relation as data (it doesn't today —
-`type` fixes the relation). Timing: build on the first pairwise variant, not
-speculatively. See [#42].
+`type` fixes the relation). Timing: the helper waits for the **second** two-cell
+variant, not the first. `pair-sum` (#66) shipped and deliberately emits its sum
+rule directly rather than inventing a shared helper for a single caller
+(`pair_sum.py`). **Still OPEN, and the only one with a filed issue** — 1.4, 1.6 and
+5.4 are also OPEN but deferred until gridfind meets the problem at all. See [#42].
 
 ## 1.6 Sequential / line constraints via NFA
 
@@ -362,8 +375,9 @@ jigsaw layouts into the same constraint objects.
 
 **Why.** URL-as-state gives free sharing, bookmarking, and undo/redo history.
 
-**gridfind stance: DEVIATE — JSON, not a string grammar.** #41 makes the durable
-form **JSON `Puzzle`/`WorkingState`** and *removes* the old text grammar. That's a
+**gridfind stance: DEVIATE — JSON, not a string grammar.** #41 made the durable
+form **JSON `Puzzle`/`WorkingState`** (`puzzle.py`) and removed the old text
+grammar; both round-trip to an *equal* object. That's a
 conscious divergence from ISS's string form, and the right one: gridfind's input is
 structured data consumed by code (corpus files, a screenshot reader), not a URL a
 human pastes. SudokuMaker's URL-blob approach (whole puzzle + custom-constraint code
@@ -380,14 +394,21 @@ constraint" for dedup (e.g. an outside clue keyed by `arrowId`, a region by
 **Why.** Adding the same clue twice, or two specs that reduce to the same handler,
 shouldn't double-constrain or bloat the model.
 
-**gridfind stance: MIRROR — this is gridfind [#33], re-expressed for #41.** #41's
-"a puzzle's canonical identity = its expanded, normalized constraint set; two
-puzzles expanding to the same constraints are the same puzzle" **is** ISS's
-uniqueness-key idea one level up. ISS validates the approach: **normalize/expand
-first, then key on the expansion** (its `SudokuParser` normalizes before build;
-gridfind's `expand_stack` / #41 load-time expansion plays the same role). Keep
-expansion and dispatch as separate passes so keying sees canonical constraints
-([#44] fork 3).
+**gridfind stance: MIRROR — decided and built (#33, #41).** `canonical_identity`
+keys a puzzle on its expanded constraint set, alphabetically sorted, so the preset
+spelling and the explicit spelling compare equal. That **is** ISS's uniqueness-key
+idea one level up, and ISS validates the ordering: **normalize/expand first, then
+key on the expansion** (its `SudokuParser` normalizes before build;
+`expand_constraints` plays the same role). Expansion and dispatch stayed separate
+passes, so keying sees canonical constraints.
+
+**Watch item.** `canonical_identity` keys on constraint `type` only, and its own
+`ponytail:` note says to fold params in "when data-bearing variants land." `pair-sum`
+(#66) has landed and carries `cells` + `sum`, so two pair-sum puzzles differing only
+by their clues share an identity. Harmless today — the sole caller is corpus
+grouping in `population_test.py`, where same-stack-same-bucket is the intent — but
+the stated trigger has fired, so re-read the note before identity gains a second
+consumer.
 
 ---
 
@@ -505,21 +526,21 @@ lemma is genuinely clarifying), not to reimplement its propagation.
 
 | # | ISS decision | gridfind stance |
 |---|---|---|
-| 1.1 | spec → builder → handler split | **OPEN [#44]** — forced by #41's Puzzle object |
-| 1.2 | single builder chokepoint, 1→many | **MIRROR** chokepoint, **DEVIATE** to a dict registry |
+| 1.1 | spec → builder → handler split | **MIRROR** — built (#41, #44); **DEVIATE**: one stateless layer per type, not a handler per clue |
+| 1.2 | single builder chokepoint, 1→many | **MIRROR** chokepoint, **DEVIATE** to a dict registry — built (#44) |
 | 1.3 | declarative metadata drives UI/help/parser | **DEVIATE** now (no 2nd surface), keep the instinct |
 | 1.4 | constraint taxonomy (`CATEGORY`) | **OPEN**, low priority; note global-vs-local axis |
-| 1.5 | relation-as-data pairwise primitive | **MIRROR** idea, **DEVIATE** encoding — **[#42]** |
+| 1.5 | relation-as-data pairwise primitive | **MIRROR** idea, **DEVIATE** encoding — **OPEN [#42]**, waits for the *second* two-cell variant |
 | 1.6 | sequential rules via NFA | **OPEN** — prefer CP-SAT `add_automaton` |
 | 1.7 | flat composition + `Or`/`And` w/ nesting rules | **MIRROR** implicit; explicit is **N/A — CP-SAT** |
 | 1.8 | grid cells vs. var (outside) cells | **MIRROR** — already in CONTEXT.md |
 | 2.1 | integer indices internal, cellId at boundary | **DEVIATE** (names→vars deferred), keep one chokepoint |
-| 2.2 | geometry descriptor `CellGeometry` | **MIRROR** ownership; adjacency helper is **[#43]** |
+| 2.2 | geometry descriptor `CellGeometry` | **MIRROR** ownership — settled in ADR-0004 (#43); adjacency is a declared slot, unbuilt |
 | 2.3 | 16-bit candidate bitmask + LookupTables | **N/A — CP-SAT**; one-hot channel locally if needed |
 | 3.1 | first-class vs. sandbox extension | **DEVIATE** — in-tree only (ADR-0001) |
 | 3.2 | sandbox reuses the real solver | **MIRROR** — one seam (`verdict`) |
-| 4.1 | string serialization, URL state | **DEVIATE** — JSON Puzzle (#41); avoid URL blob |
-| 4.2 | uniqueness key / dedup | **MIRROR** — is gridfind **[#33]** |
+| 4.1 | string serialization, URL state | **DEVIATE** — JSON Puzzle, built (#41); avoid URL blob |
+| 4.2 | uniqueness key / dedup | **MIRROR** — built as `canonical_identity` (#33); keys on `type` only, see watch item |
 | 5.1 | rich solver modes (count/uniqueness/…) | **DEVIATE**, decided — verdict tool, not solver |
 | 5.2 | search heuristics, propagation, backtracking | **N/A — CP-SAT** owns all |
 | 5.3 | optimizer derives redundant constraints | **N/A — CP-SAT** presolve; hand-add only on measured slow case |
@@ -528,3 +549,10 @@ lemma is genuinely clarifying), not to reimplement its propagation.
 
 _Pinned to ISS commit `2e386f8`. Update the clone and revisit when gridfind hits a
 new fork; record actual decisions in ADRs, not here._
+
+_Stances last reconciled against the repo 2026-08-09: #33, #41, #43 and #44 have
+closed since the first draft, so rows 1.1, 1.2, 2.2, 4.1 and 4.2 moved off OPEN.
+**[#42] (1.5) is now the only OPEN row with a filed issue**; 1.4, 1.6 and 5.4 stay
+OPEN as deferrals — gridfind has not met those problems yet, and no issue tracks
+them. When a stance here says OPEN and names an issue, check the issue is still
+open before trusting it._
