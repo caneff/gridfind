@@ -28,7 +28,8 @@ The seam a layer actually codes against today is wider than it first looks:
   - `engine.add_cell(address, *, low, high, width=1)` and
     `engine.register_structure(name, value)` — the phase-1 write side, called
     only by `board` today.
-- Supporting types: `Cell`, `GridfindError`, `MissingDependencyError`.
+- Supporting types: `Cell`, `GridfindError`, `MalformedPuzzleError`,
+  `MissingDependencyError`.
 
 Every consumer imports these directly from `gridfind.engine`; there is no
 re-export. There are **no external or plugin callers** — every layer lives
@@ -54,8 +55,9 @@ the sibling `gridfind.layers` surface, and it holds here too).
 
 4. **`gridfind.engine` will declare `__all__`** naming the seam's vocabulary —
    `Engine`, `Layer`, `Cell`, `build_engine`, `GridfindError`,
-   `MissingDependencyError` — mirroring how `gridfind.layers` records its
-   surface. Tracked as a follow-up implement ticket.
+   `MalformedPuzzleError`, `MissingDependencyError` — mirroring how
+   `gridfind.layers` records its surface. Tracked as a follow-up implement
+   ticket.
 
 ## When to revisit
 
