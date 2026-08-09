@@ -14,6 +14,9 @@ from gridfind.puzzle import (
     Given,
     Placement,
     Puzzle,
+    SCellPin,
+    SDirective,
+    SingletonPin,
     WorkingState,
 )
 from gridfind.verdict import Witness, verdict
@@ -802,3 +805,123 @@ def test_schrodinger_puzzle_with_no_schrodinger_constraint_keeps_singleton_cells
     assert result.kind == "found"
     assert result.witness is not None
     assert all(len(value) == 1 for value in result.witness.assignment.values())
+
+
+# A Schrödinger board small enough to solve fast: 5 digits (0-4) over a 4-cell
+# row forces exactly one S-cell per row (k = len(values) - size = 1), columns
+# left free. `rows-distinct` + `schrodinger` is the leanest stack that makes a
+# pin honored or broke by the S-cell axis.
+S_BOARD = Board(size=4, values=range(5))
+S_CONSTRAINTS = (Constraint(type="rows-distinct"), Constraint(type="schrodinger"))
+
+# Pinning R1C2..R1C4 as three distinct singletons forces R1C1 to be row 1's one
+# S-cell, holding the two digits left over ({0, 4}).
+_FORCE_R1C1_S = (
+    SingletonPin(address="R1C2", digit=1),
+    SingletonPin(address="R1C3", digit=2),
+    SingletonPin(address="R1C4", digit=3),
+)
+
+
+@pytest.mark.parametrize(
+    ("directives", "expected"),
+    [
+        pytest.param(
+            (SingletonPin(address="R1C1", digit=0),),
+            "found",
+            id="singleton-pin-honored",
+        ),
+        pytest.param(
+            (*_FORCE_R1C1_S, SingletonPin(address="R1C1", digit=0)),
+            "broke",
+            id="singleton-pin-broke-when-forced-s",
+        ),
+        pytest.param(
+            (SCellPin(address="R1C1", pair=frozenset({0, 4})),),
+            "found",
+            id="s-cell-pin-honored",
+        ),
+        pytest.param(
+            (*_FORCE_R1C1_S, SCellPin(address="R1C1", pair=frozenset({0, 1}))),
+            "broke",
+            id="s-cell-pin-broke-when-pair-cant-fit",
+        ),
+    ],
+)
+def test_verdict_applies_a_schrodinger_pin(
+    directives: tuple[SDirective, ...], expected: str
+) -> None:
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(s_directives=directives)
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == expected
+
+
+@pytest.mark.parametrize(
+    "directive",
+    [
+        pytest.param(SingletonPin(address="R1C1", digit=9), id="singleton"),
+        pytest.param(SCellPin(address="R1C1", pair=frozenset({0, 9})), id="s-cell"),
+    ],
+)
+def test_verdict_rejects_a_pin_digit_outside_the_boards_values(
+    directive: SDirective,
+) -> None:
+    # Asserted on a board that *has* the schrodinger layer, so only the
+    # out-of-domain guard can fire — 9 is outside 0-4.
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(s_directives=(directive,))
+
+    with pytest.raises(MalformedPuzzleError, match="9"):
+        verdict(puzzle, state)
+
+
+@pytest.mark.parametrize(
+    "directive",
+    [
+        pytest.param(SingletonPin(address="R1C1", digit=1), id="singleton"),
+        pytest.param(SCellPin(address="R1C1", pair=frozenset({1, 2})), id="s-cell"),
+    ],
+)
+def test_verdict_rejects_a_pin_with_no_schrodinger_layer(directive: SDirective) -> None:
+    # Uses an *in-domain* digit (1-2 on a 4x4's 1-4), so only the missing-layer
+    # guard can fire — and it runs before the digit check.
+    puzzle = Puzzle(
+        board=Board(size=4), constraints=(Constraint(type="rows-distinct"),)
+    )
+    state = WorkingState(s_directives=(directive,))
+
+    with pytest.raises(MalformedPuzzleError, match="schrodinger"):
+        verdict(puzzle, state)
+
+
+def test_verdict_ignores_empty_s_directives_on_a_non_schrodinger_puzzle() -> None:
+    # No-regression: an empty s_directives tuple is a no-op — the missing-layer
+    # guard fires only when a pin is actually present, so an ordinary puzzle
+    # verdicts exactly as before.
+    puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
+
+    result = verdict(puzzle, WorkingState(s_directives=()))
+
+    assert result.kind == "found"
+
+
+def test_verdict_runs_a_first_light_singleton_and_s_cell_pin_end_to_end() -> None:
+    # The tracer's headline (issue #153): a puzzle stating just a singleton pin
+    # and an S-cell pin runs the whole path to a verdict.
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=(
+            SingletonPin(address="R1C1", digit=0),
+            SCellPin(address="R2C2", pair=frozenset({0, 4})),
+        )
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C1"] == (0,)
+    assert result.witness["R2C2"] == (0, 4)

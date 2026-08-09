@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 from gridfind.engine import MalformedPuzzleError
 
@@ -90,6 +91,83 @@ class Candidate:
     digits: frozenset[int]
 
 
+# An S-cell holds a pair — one digit is no pair, three cannot be one.
+_S_CELL_PAIR_SIZE = 2
+
+
+@dataclass(frozen=True)
+class SingletonPin:
+    """A Schrödinger directive: this cell is a **singleton** holding `digit` —
+    not an S-cell (CONTEXT.md `schrodinger`). The analog of a `Given` carrying
+    the extra "not an S-cell" claim a bare placed digit lacks. `kind` is the
+    wire tag `to_json`/`from_json` dispatch on (ADR-0006)."""
+
+    address: str
+    digit: int
+    kind: ClassVar[str] = "singleton-pin"
+
+
+@dataclass(frozen=True)
+class SCellPin:
+    """A Schrödinger directive: this cell **is** an S-cell holding the pair
+    `{a, b}` (CONTEXT.md `schrodinger`). The pair mirrors `Candidate.digits` as
+    a `frozenset[int]`. Its shape is guarded here at construction so a malformed
+    S-cell pin can never exist in memory (ADR-0006): the pair must be exactly
+    two distinct digits, counted after the frozenset collapses duplicates."""
+
+    address: str
+    pair: frozenset[int]
+    kind: ClassVar[str] = "s-cell-pin"
+
+    def __post_init__(self) -> None:
+        if len(self.pair) != _S_CELL_PAIR_SIZE:
+            msg = (
+                f"an S-cell pin's pair must be two distinct digits, "
+                f"got {sorted(self.pair)}"
+            )
+            raise MalformedPuzzleError(msg)
+
+
+# The Schrödinger working-state directives, hard-coded not registered
+# (ADR-0006). A closed union: a second directive-bearing layer is #26's seam.
+SDirective = SingletonPin | SCellPin
+
+
+def _s_directive_to_dict(directive: SDirective) -> dict[str, JsonValue]:
+    """One directive as a `{kind, address, …}` wire object. A pair serializes
+    as a sorted two-element list, mirroring `Candidate.digits`."""
+    if isinstance(directive, SingletonPin):
+        return {
+            "kind": directive.kind,
+            "address": directive.address,
+            "digit": directive.digit,
+        }
+    return {
+        "kind": directive.kind,
+        "address": directive.address,
+        "pair": sorted(directive.pair),
+    }
+
+
+# from_json dispatches on the directive's kind tag (ADR-0006). Reading an
+# S-cell pin runs SCellPin.__post_init__, so a mis-sized pair in a save raises
+# MalformedPuzzleError here — a malformed pin never reaches memory. An unknown
+# kind is a structurally broken save, so the missing entry raises an ordinary
+# KeyError, not MalformedPuzzleError, which is reserved for bad content.
+_S_DIRECTIVE_READERS = {
+    SingletonPin.kind: lambda d: SingletonPin(address=d["address"], digit=d["digit"]),
+    SCellPin.kind: lambda d: SCellPin(address=d["address"], pair=frozenset(d["pair"])),
+}
+
+
+def _s_directive_from_dict(data: dict[str, JsonValue]) -> SDirective:
+    kind = data["kind"]
+    if not isinstance(kind, str):
+        msg = f"s_directive 'kind' must be a string, got {kind!r}"
+        raise TypeError(msg)
+    return _S_DIRECTIVE_READERS[kind](data)
+
+
 @dataclass(frozen=True)
 class Constraint:
     """One typed statement a setter makes — a bare `{type}`, or a type carrying
@@ -138,11 +216,14 @@ class Puzzle:
 
 @dataclass(frozen=True)
 class WorkingState:
-    """The solver's evolving marks: placements and candidates. Defaults to
-    EMPTY. The field keeps the wire key's spelling, `places`."""
+    """The solver's evolving marks: placements, candidates, and the Schrödinger
+    directives (ADR-0006). Defaults to EMPTY. `places` keeps the wire key's
+    spelling; `s_directives` is one tagged list, not a field per directive
+    kind."""
 
     places: tuple[Placement, ...] = ()
     candidates: tuple[Candidate, ...] = ()
+    s_directives: tuple[SDirective, ...] = ()
 
     def to_json(self) -> str:
         return json.dumps(
@@ -154,6 +235,7 @@ class WorkingState:
                     {"address": c.address, "digits": sorted(c.digits)}
                     for c in self.candidates
                 ],
+                "s_directives": [_s_directive_to_dict(d) for d in self.s_directives],
             }
         )
 
@@ -168,6 +250,11 @@ class WorkingState:
             candidates=tuple(
                 Candidate(address=c["address"], digits=frozenset(c["digits"]))
                 for c in data["candidates"]
+            ),
+            # A save with no s_directives key predates the grammar — read it as
+            # an empty tuple rather than refusing it (ADR-0006).
+            s_directives=tuple(
+                _s_directive_from_dict(d) for d in data.get("s_directives", [])
             ),
         )
 

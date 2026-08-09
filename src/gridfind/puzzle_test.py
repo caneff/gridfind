@@ -12,6 +12,8 @@ from gridfind.puzzle import (
     Given,
     Placement,
     Puzzle,
+    SCellPin,
+    SingletonPin,
     WorkingState,
 )
 
@@ -66,10 +68,18 @@ PUZZLES = st.builds(
     constraints=st.lists(CONSTRAINTS, max_size=4).map(tuple),
     givens=st.lists(GIVENS, max_size=4).map(tuple),
 )
+SINGLETON_PINS = st.builds(SingletonPin, address=ADDRESSES, digit=DIGITS)
+S_CELL_PINS = st.builds(
+    SCellPin,
+    address=ADDRESSES,
+    pair=st.sets(DIGITS, min_size=2, max_size=2).map(frozenset),
+)
+S_DIRECTIVES = st.one_of(SINGLETON_PINS, S_CELL_PINS)
 WORKING_STATES = st.builds(
     WorkingState,
     places=st.lists(PLACES, max_size=4).map(tuple),
     candidates=st.lists(CANDIDATES, max_size=4).map(tuple),
+    s_directives=st.lists(S_DIRECTIVES, max_size=4).map(tuple),
 )
 
 
@@ -170,6 +180,80 @@ def test_working_state_round_trips_through_json() -> None:
     )
 
     assert WorkingState.from_json(state.to_json()) == state
+
+
+@pytest.mark.parametrize(
+    "pair",
+    [
+        pytest.param(frozenset([5, 5]), id="dedup-to-one"),
+        pytest.param(frozenset({1, 2, 3}), id="size-three"),
+    ],
+)
+def test_s_cell_pin_refuses_a_pair_that_is_not_two_distinct_digits(
+    pair: frozenset[int],
+) -> None:
+    # The pair's shape is guarded at construction, so a malformed S-cell pin
+    # can never exist in memory (ADR-0006 grill note). Counted after the
+    # frozenset collapses duplicates: {5,5} is one digit, {1,2,3} is three.
+    with pytest.raises(MalformedPuzzleError, match="two distinct"):
+        SCellPin(address="R1C1", pair=pair)
+
+
+def test_s_cell_pin_accepts_two_distinct_digits() -> None:
+    assert SCellPin(address="R1C1", pair=frozenset({2, 7})).pair == frozenset({2, 7})
+
+
+def test_working_state_round_trips_its_s_directives() -> None:
+    state = WorkingState(
+        s_directives=(
+            SingletonPin(address="R1C1", digit=4),
+            SCellPin(address="R2C2", pair=frozenset({2, 7})),
+        )
+    )
+
+    assert WorkingState.from_json(state.to_json()) == state
+
+
+def test_from_json_refuses_an_s_cell_pin_with_a_mis_sized_pair() -> None:
+    # from_json reads pins through SCellPin.__post_init__, so a mis-sized pair
+    # in a save is refused there — a malformed pin never reaches memory.
+    text = json.dumps(
+        {
+            "places": [],
+            "candidates": [],
+            "s_directives": [
+                {"kind": "s-cell-pin", "address": "R1C1", "pair": [1, 2, 3]}
+            ],
+        }
+    )
+
+    with pytest.raises(MalformedPuzzleError, match="two distinct"):
+        WorkingState.from_json(text)
+
+
+def test_from_json_treats_an_unknown_directive_kind_as_broken_json() -> None:
+    # "Malformed" is content-only (ADR-0006, CONTEXT.md): a structurally broken
+    # save — an unknown directive kind — is ordinary broken JSON, a KeyError,
+    # never a MalformedPuzzleError. KeyError is not a MalformedPuzzleError, so
+    # this pins the line the prior attempt crossed by leaking a raw ValueError.
+    text = json.dumps(
+        {
+            "places": [],
+            "candidates": [],
+            "s_directives": [{"kind": "not-a-real-pin", "address": "R1C1"}],
+        }
+    )
+
+    with pytest.raises(KeyError):
+        WorkingState.from_json(text)
+
+
+def test_working_state_with_no_s_directives_key_reads_an_empty_tuple() -> None:
+    # Pre-grammar JSON (written before s_directives existed) still parses: the
+    # missing key defaults to an empty tuple (ADR-0006).
+    text = json.dumps({"places": [], "candidates": []})
+
+    assert WorkingState.from_json(text).s_directives == ()
 
 
 def test_constraint_with_arbitrary_params_round_trips() -> None:
