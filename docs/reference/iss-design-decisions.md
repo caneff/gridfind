@@ -180,6 +180,14 @@ rule directly rather than inventing a shared helper for a single caller
 (`pair_sum.py`). **Still OPEN, and the only one with a filed issue** — 1.4, 1.6 and
 5.4 are also OPEN but deferred until gridfind meets the problem at all. See [#42].
 
+**Deviation held.** The second two-cell variant, `pair-difference` (#129,
+spec #127), landed on exactly this shape: `emit_over_pairs(engine, pairs,
+rel)` (extracted at #128, with `pair-sum` retrofitted onto it) and a `rel`
+that calls CP-SAT's native `add_abs_equality` directly — no truth table, no
+allowed-assignments encoding. `pair_difference.py` is the callback-parameterized
+helper's second caller, confirming the DEVIATE call rather than merely
+proposing it.
+
 ## 1.6 Sequential / line constraints via NFA
 
 **ISS decision.** Ordered-sequence rules (palindrome, whisper line, renban,

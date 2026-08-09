@@ -219,6 +219,23 @@ negative rule against *unmarked* adjacent pairs is out of scope).
 
 ---
 
+## `pair-difference` layer
+
+The second explicit-pair variant (issue #129, spec #127), landing beside the
+`emit_over_pairs` extraction (#42 decision 5, #128) that lets it and `pair-sum`
+share one emit pattern. A clue names a **pair** and a target `k`; the layer
+constrains the pair's content to differ, in absolute value, by exactly `k`,
+one rule per clue. Explicit-pair, positive-only, and absolute — like pair-sum
+it never asks whether the pair is a **domino** and constrains only marked
+pairs, and either cell may hold the larger value (no directed `a - b = k`
+form). No setter-facing alias in this change; kropki-white / consecutive
+(`k = 1`) can alias later.
+
+- **pair-difference** — the constraint and the rule it emits:
+  `{type: pair-difference, cells: [a, b], diff: k}`.
+
+---
+
 ## `schrodinger` layer
 
 Terms carried over from quad-rank's Schrödinger variant, re-rooted onto the

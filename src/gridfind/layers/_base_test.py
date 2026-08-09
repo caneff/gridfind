@@ -11,7 +11,11 @@ from ortools.sat.python import cp_model
 from gridfind.engine import Engine, build_engine
 from gridfind.layers._base import emit_distinct_count, emit_over_pairs
 from gridfind.layers.board import GridCells
-from gridfind.layers.conftest import distinct_count_targets, pair_sum_rules
+from gridfind.layers.conftest import (
+    distinct_count_targets,
+    pair_difference_rules,
+    pair_sum_rules,
+)
 from gridfind.puzzle import Board
 
 
@@ -55,6 +59,28 @@ def test_a_counting_rule_and_a_sum_over_cells_are_told_apart() -> None:
 
     assert pair_sum_rules(engine) == [(["R1C1", "R1C2"], 5)]
     assert distinct_count_targets(engine) == {"pair": 2}
+
+
+def _differs_by_three(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:
+    d = engine.model.new_int_var(0, 3, f"{a.name}-{b.name}.diff")
+    engine.model.add_abs_equality(d, a - b)
+    engine.model.add(d == 3)
+
+
+def test_a_counting_rule_and_a_pair_difference_are_told_apart() -> None:
+    """A counting rule's `present` sum and a difference rule's `d == k` pin
+    are both a single-var linear equality over a non-content var —
+    structurally identical shapes read by two different functions. Neither
+    read side may pick up the other's rule (issue #129)."""
+    engine = _board_engine()
+    pair = (engine.cells["R1C1"].content[0], engine.cells["R1C2"].content[0])
+    trio = [engine.cells[address].content[0] for address in ("R2C1", "R2C2", "R2C3")]
+
+    emit_over_pairs(engine, [pair], _differs_by_three)
+    emit_distinct_count(engine, trio, target=2, label="trio")
+
+    assert pair_difference_rules(engine) == [(["R1C1", "R1C2"], 3)]
+    assert distinct_count_targets(engine) == {"trio": 2}
 
 
 def _sums_to_five(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:

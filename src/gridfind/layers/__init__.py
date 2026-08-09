@@ -28,6 +28,7 @@ from gridfind.layers.distinct import (
     rows,
 )
 from gridfind.layers.line_count import LineCountDistinct
+from gridfind.layers.pair_difference import PairDifference
 from gridfind.layers.pair_sum import PairSum
 from gridfind.layers.regions import region_map_from_labels
 from gridfind.puzzle import Constraint, JsonValue
@@ -50,6 +51,7 @@ LAYER_REGISTRY = {
     "regions-distinct": DistinctOverGroups("regions-distinct", regions),
     "line-count-distinct": LineCountDistinct(),
     "pair-sum": PairSum(),
+    "pair-difference": PairDifference(),
 }
 
 # Two mechanisms expand a constraint at load (spec #45, issue #47), and they

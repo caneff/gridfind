@@ -78,6 +78,48 @@ def all_different_groups(engine: Engine) -> list[list[str]]:
     ]
 
 
+def _abs_equality_targets(engine: Engine) -> dict[int, tuple[int, int]]:
+    """Every `add_abs_equality`'s target variable index, mapped to the two
+    operand variable indices its difference is over.
+
+    Read structurally off the `lin_max` proto both `add_abs_equality` and
+    `add_max_equality` compile to (`pair-difference`'s aux var and a counting
+    rule's per-digit `present` indicator, respectively) — the two uses are
+    told apart by shape, not by name: an abs equality's `lin_max` carries two
+    exprs, each holding *both* operand vars (one `a - b`, one `b - a`); a max
+    equality's carries one var per expr instead. Only the two-var shape is an
+    abs equality.
+    """
+    targets: dict[int, tuple[int, int]] = {}
+    for constraint in engine.model.proto.constraints:
+        if not constraint.has_lin_max():
+            continue
+        exprs = constraint.lin_max.exprs
+        if len(exprs) != 2 or any(len(expr.vars) != 2 for expr in exprs):
+            continue
+        target_var = constraint.lin_max.target.vars[0]
+        a_index, b_index = exprs[0].vars
+        targets[target_var] = (a_index, b_index)
+    return targets
+
+
+def pair_difference_rules(engine: Engine) -> list[tuple[list[str], int]]:
+    """Every pair-difference rule, as the pair's addresses and its target
+    `k`. Reads the `lin_max` `add_abs_equality` produces for its aux var `d`
+    structurally (`_abs_equality_targets`), then `d`'s pinning `d == k`
+    off the same single-var-sum seam `distinct_count_targets` reads its
+    counting totals from."""
+    address_of = _cell_addresses(engine)
+    pins = {
+        variables[0]: total for variables, total in _sums(engine) if len(variables) == 1
+    }
+    return [
+        ([address_of[a_index], address_of[b_index]], pins[target_var])
+        for target_var, (a_index, b_index) in _abs_equality_targets(engine).items()
+        if target_var in pins
+    ]
+
+
 def pair_sum_rules(engine: Engine) -> list[tuple[list[str], int]]:
     """Every sum-over-cells rule, as the addresses it adds up and the total
     they must reach. A sum over cell content is this rule; a counting rule
@@ -98,12 +140,20 @@ def distinct_count_targets(engine: Engine) -> dict[str, int]:
     states the count: the sum over its per-digit markers. The label is a naming
     convention (`<label>.present<digit>`), so it is the one thing here read off
     a variable's name.
+
+    A pair-difference clue's `d == k` pin is, structurally, the same shape as
+    this sum — a single-var linear equality over a non-content var — so its
+    target var is excluded by role (`_abs_equality_targets`) rather than by
+    name: a difference target is never a counting total.
     """
     address_of = _cell_addresses(engine)
+    abs_targets = set(_abs_equality_targets(engine))
     names = engine.model.proto.variables
     targets: dict[str, int] = {}
     for variables, total in _sums(engine):
         if any(variable in address_of for variable in variables):
+            continue
+        if any(variable in abs_targets for variable in variables):
             continue
         label = names[variables[0]].name.rsplit(".", 1)[0]
         # A label names a rule, so a repeat would silently drop one from the
