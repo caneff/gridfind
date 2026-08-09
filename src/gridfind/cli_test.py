@@ -49,11 +49,13 @@ def test_found_prints_verdict_then_witness_grid(
     assert lines[0] == "found"
 
     # The witness is solver-chosen, but the givens are pinned, so their cells
-    # render deterministically: R1C1=1, R1C4=2 sit in row 1. Box gaps are a
-    # double space; box row-groups are separated by a blank line.
+    # render deterministically: R1C1=1, R1C4=2 sit in row 1. Box borders are
+    # box-drawing lines, with a solid divider between box row-groups
+    # (issue #124).
     grid = lines[1:]
-    assert re.fullmatch(r"1 \d \d  2 \d \d  \d \d \d", grid[0])
-    assert grid[3] == ""  # blank row after the first box-row
+    assert grid[0] == "┌───────────┬───────────┬───────────┐"
+    assert re.fullmatch(r"│ 1   \d   \d │ 2   \d   \d │ \d   \d   \d │", grid[1])
+    assert grid[6] == "├───────────┼───────────┼───────────┤"
 
 
 @pytest.mark.parametrize(
@@ -76,21 +78,29 @@ def test_found_prints_rows_with_box_aware_spacing(
     assert lines[0] == "found"
 
     grid = lines[1:]
-    # size rows of size digits: a column gap every box_cols cells, a blank
-    # line every box_rows rows (BOX_SHAPE[size] = (box_rows, box_cols),
-    # issue #77).
-    row_lines = [line for line in grid if line]
-    assert len(row_lines) == size
-    for line in row_lines:
-        left, right = line.split("  ")
-        assert len(left.split(" ")) == box_cols
-        assert len(right.split(" ")) == size - box_cols
-        assert all(1 <= int(d) <= size for d in line.split())
+    # n+1 border rows interleave with n cell rows: a solid divider at every
+    # box_rows-th border, a bordered row of box_cols-grouped cells otherwise
+    # (BOX_SHAPE[size] = (box_rows, box_cols), issue #124).
+    assert len(grid) == 2 * size + 1
 
-    blank_rows = list(range(box_rows, size, box_rows + 1))
-    assert len(grid) == size + len(blank_rows)
-    for index in blank_rows:
-        assert grid[index] == ""
+    cell_rows = grid[1::2]
+    assert len(cell_rows) == size
+    for line in cell_rows:
+        parts = line.split("│")
+        assert parts[0] == ""
+        assert parts[-1] == ""
+        box_texts = parts[1:-1]
+        assert len(box_texts) == size // box_cols
+        for box_text in box_texts:
+            digits = box_text.split()
+            assert len(digits) == box_cols
+            assert all(1 <= int(d) <= size for d in digits)
+
+    border_rows = grid[0::2]
+    assert len(border_rows) == size + 1
+    for index, line in enumerate(border_rows):
+        is_box_boundary = index in (0, size) or index % box_rows == 0
+        assert ("─" in line) == is_box_boundary
 
 
 def test_sudokumaker_link_argument_prints_found_and_grid(
@@ -103,7 +113,8 @@ def test_sudokumaker_link_argument_prints_found_and_grid(
     assert code == 0
     assert lines[0] == "found"
     # R1C1=7 is a placement in the #54 link, so it renders deterministically.
-    assert re.fullmatch(r"7 \d \d  \d \d \d  \d \d \d", lines[1])
+    # lines[1] is the top border; lines[2] is the first cell row.
+    assert re.fullmatch(r"│ 7   \d   \d │ \d   \d   \d │ \d   \d   \d │", lines[2])
 
 
 def test_sudokumaker_link_on_stdin_matches_argument(
