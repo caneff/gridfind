@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from gridfind.engine import GridfindError, Layer, MalformedPuzzleError
 from gridfind.layers.board import GridCells
+from gridfind.layers.cage import Cage
 from gridfind.layers.distinct import (
     DistinctOverGroups,
     cols,
@@ -54,6 +55,7 @@ LAYER_REGISTRY = {
     "pair-sum": PairSum(),
     "pair-difference": PairDifference(),
     "schrodinger": Schrodinger(),
+    "cage": Cage(),
 }
 
 # Two mechanisms expand a constraint at load (spec #45, issue #47), and they
