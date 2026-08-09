@@ -274,15 +274,36 @@ def _apply(
     places: tuple[Placement, ...],
     candidates: tuple[Candidate, ...],
 ) -> None:
-    """Fix the model from the structured givens and marks. A given and a
-    placement both fix one digit; a candidate restricts a cell to a digit
-    subset — all three go through the engine's one `restrict` call (issue
-    #72). *Pin* is the Schrödinger layer's word, for the S-cell axis; a plain
-    digit fix borrows nothing from it."""
-    for fixed in (*givens, *places):
-        engine.restrict(fixed.address, {fixed.digit})
+    """Fix the model from the structured givens and marks. A given stays
+    literal to the cell's base slot (`d0 = d`) and a candidate restricts a
+    cell to a digit subset — both go through the engine's one `restrict` call
+    (issue #72). A placement diverges (issue #155): it refines to `d ∈
+    content`, so it survives a digit landing on a Schrödinger S-cell's upper
+    half — see `_apply_placement`."""
+    for given in givens:
+        engine.restrict(given.address, {given.digit})
+    for placement in places:
+        _apply_placement(engine, placement)
     for candidate in candidates:
         engine.restrict(candidate.address, candidate.digits)
+
+
+def _apply_placement(engine: Engine, placement: Placement) -> None:
+    """A placement fixes digit ∈ content — either slot — rather than `given`'s
+    literal d0 = d (issue #155, spec #142's bare-placement refinement). On an
+    ordinary board `content` is length 1, so this collapses to exactly the
+    same `d0 == d` a given states; on a Schrödinger board it also honors a
+    placement that a solve later reveals as an S-cell's upper half. Reuses
+    the same reified-holds OR idiom the half-S-cell directive uses (#154) —
+    `engine.reify_holds` over `engine.contents(address)` — rather than
+    hand-rolling the membership OR. No `is_s` gate needed: the schrodinger
+    layer's per-cell sentinel already makes `d1 == d` unsatisfiable for a
+    singleton, so the OR collapses on its own."""
+    address, digit = placement.address, placement.digit
+    content = engine.contents(address)  # off-board raises here
+    _require_in_domain(engine, address, (digit,))
+    holds = engine.reify_holds(content, digit, f"placement.{address}")
+    engine.model.add_bool_or(holds)
 
 
 def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> None:

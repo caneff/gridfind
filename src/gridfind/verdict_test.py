@@ -662,17 +662,24 @@ def test_jigsaw_regions_distinct_with_an_under_coverable_region_returns_broke() 
 
 
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
-    # A contradiction unrelated to region sizing (a given/placement conflict)
-    # must not get blamed on a region that is well within the cover band
-    # (#158 acceptance criteria: no false region-blame).
+    # A contradiction unrelated to region sizing (two conflicting givens on
+    # one cell) must not get blamed on a region that is well within the
+    # cover band (#158 acceptance criteria: no false region-blame). Two
+    # givens, not a given/placement pair: since #155 a placement refines to
+    # d ∈ content on a Schrödinger board, so a given=1/placement=2 pair here
+    # would resolve (2 lands on d1, R1C1 becomes the S-cell {1, 2}) rather
+    # than conflict — givens stay literal d0 = d, so two of them on one
+    # address are a genuine, schrodinger-independent contradiction.
     puzzle = Puzzle(
         board=Board(size=4, values=range(6)),
         constraints=(Constraint(type="sudoku"), Constraint(type="schrodinger")),
-        givens=(Given(address="R1C1", digit=1),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C1", digit=2),
+        ),
     )
-    state = WorkingState(places=(Placement(address="R1C1", digit=2),))
 
-    result = verdict(puzzle, state)
+    result = verdict(puzzle)
 
     assert result.kind == "broke"
     assert result.reason is None
@@ -1048,6 +1055,49 @@ def test_verdict_half_s_cell_honors_a_digit_in_the_upper_slot() -> None:
     assert result.witness["R1C1"] == (0, 4)
 
 
+def test_verdict_breaks_a_placement_absent_from_the_s_cells_content() -> None:
+    # The membership OR is real, not vacuous: force R1C1 to the S-cell {0, 4}
+    # and place a digit no completion can put there (1, already forced onto
+    # R1C2) — no slot can hold it, so the placement is broke.
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=_FORCE_R1C1_S, places=(Placement(address="R1C1", digit=1),)
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
+def test_verdict_given_vs_placement_diverge_on_an_s_cells_upper_digit() -> None:
+    # #155's headline divergence: on a Schrödinger board a placement refines
+    # to d ∈ content but a given stays literal d0 = d (CONTEXT.md's given /
+    # placement glossary entries). Force R1C1 to the S-cell {0, 4} (a=0 <
+    # b=4): a placement of b is honored (the upper-digit test above), a
+    # given of b is broke since it forces d0 == 4 against the forced d0 == 0.
+    puzzle = Puzzle(
+        board=S_BOARD,
+        constraints=S_CONSTRAINTS,
+        givens=(Given(address="R1C1", digit=4),),
+    )
+    state = WorkingState(s_directives=_FORCE_R1C1_S)
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
+def test_verdict_rejects_an_out_of_domain_placement_on_a_schrodinger_board() -> None:
+    # #155's malformed AC: the digit-range refusal must survive the rewrite
+    # to d ∈ content, on a board that actually has the schrodinger layer
+    # (9 is outside 0-4) — not just the pre-existing non-schrodinger case.
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(places=(Placement(address="R1C1", digit=9),))
+
+    with pytest.raises(MalformedPuzzleError, match=r"9.*R1C1"):
+        verdict(puzzle, state)
+
+
 def test_verdict_rejects_a_half_s_cell_digit_outside_the_boards_values() -> None:
     # A half S-cell names a digit, so it inherits the out-of-domain guard —
     # asserted on a board that has the schrodinger layer so only that guard
@@ -1057,3 +1107,21 @@ def test_verdict_rejects_a_half_s_cell_digit_outside_the_boards_values() -> None
 
     with pytest.raises(MalformedPuzzleError, match="9"):
         verdict(puzzle, state)
+
+
+def test_verdict_honors_a_placement_landing_on_an_s_cells_upper_digit() -> None:
+    # Issue #155: a placement refines to d ∈ content on a Schrödinger board,
+    # so it survives landing on the *upper* slot of a forced S-cell — not
+    # just d0. Force R1C1 to the S-cell {0, 4} (d0=0, d1=4), then place the
+    # upper digit 4: a literal d0 == 4 would break this, a bare placement
+    # honors it.
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=_FORCE_R1C1_S, places=(Placement(address="R1C1", digit=4),)
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C1"] == (0, 4)
