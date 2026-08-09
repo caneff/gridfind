@@ -11,11 +11,15 @@ types behind them (decision 31).
 
 Who produced the fact used to be the test (ADR-0003); it is now only the
 explanation for why the two usually coincide. Read the registry's current
-contents against that rule rather than from it: the sole entry is the `"grid"`
-of addresses `board` registers, which it builds from `board.size` alone and
-which both readers cast. ADR-0004 decisions 2 and 4 move it to a `CellGeometry`
-descriptor. Until that lands, the one fact in the registry is one the binding
-test would not have put there.
+contents against that rule rather than from it: `is_s`, registered by the
+schrödinger layer, is the first entry the binding test would have put there —
+`distinct` and `verdict` read it back through `.get`, tolerating its absence,
+so neither hard-depends on schrödinger being present. `"grid"`, the addresses
+`board` registers, is the standing anomaly: built from `board.size` alone, a
+fact no layer's work informs, and cast by both readers rather than read
+through `.get`. ADR-0004 decisions 2 and 4 move it to a `CellGeometry`
+descriptor; until that lands it is a fact the binding test would not have put
+there.
 """
 
 from __future__ import annotations
