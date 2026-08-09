@@ -636,6 +636,45 @@ def test_jigsaw_regions_distinct_with_an_over_large_region_returns_broke() -> No
     assert result.reason == "region 1 holds 8 cells, domain is 4"
 
 
+def test_jigsaw_regions_distinct_with_an_under_coverable_region_returns_broke() -> None:
+    # A region with too few cells to cover the domain even doubled by
+    # Schrodinger S-cells (domain > 2*cells) is unsolvable — broke,
+    # symmetric to the over-sized pigeonhole case (#158 acceptance criteria).
+    labels = [0, 0, 0, *([1] * 33)]
+    puzzle = Puzzle(
+        board=Board(size=6, values=range(10)),
+        constraints=(
+            Constraint(type="rows-distinct"),
+            Constraint(type="cols-distinct"),
+            Constraint(type="regions-distinct", params={"regions": labels}),
+            Constraint(type="schrodinger"),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+    assert result.reason == "region 1 holds 3 cells, domain is 10 — too few to cover"
+
+
+def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
+    # A contradiction unrelated to region sizing (a given/placement conflict)
+    # must not get blamed on a region that is well within the cover band
+    # (#158 acceptance criteria: no false region-blame).
+    puzzle = Puzzle(
+        board=Board(size=4, values=range(6)),
+        constraints=(Constraint(type="sudoku"), Constraint(type="schrodinger")),
+        givens=(Given(address="R1C1", digit=1),),
+    )
+    state = WorkingState(places=(Placement(address="R1C1", digit=2),))
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+    assert result.reason is None
+
+
 @given(length=st.integers(min_value=0, max_value=30).filter(lambda n: n != 16))
 def test_verdict_rejects_a_regions_matrix_of_the_wrong_length(length: int) -> None:
     constraint = Constraint(type="regions-distinct", params={"regions": [0] * length})
@@ -745,6 +784,7 @@ def _boxes(size: int, box_rows: int, box_cols: int) -> list[list[str]]:
     [
         pytest.param(9, range(10), (3, 3), 1, id="9x9-digits-0-9"),
         pytest.param(6, range(1, 10), (2, 3), 3, id="6x6-digits-1-9"),
+        pytest.param(4, range(8), (2, 2), 4, id="4x4-digits-0-7-domain-eq-2x-cells"),
     ],
 )
 def test_schrodinger_finds_the_forced_s_cell_count_per_house(
