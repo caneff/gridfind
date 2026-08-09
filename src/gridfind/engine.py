@@ -47,8 +47,10 @@ class MalformedPuzzleError(GridfindError):
     """The setter's input is not a well-formed puzzle, so no answer is owed.
 
     Covers input that contradicts itself (an alias fixing a parameter it also
-    states) and input that names what the board never offered (a digit outside
-    the board's values).
+    states) and input that names what the board never offered — a digit
+    outside the board's values, or an address the board doesn't have (a
+    given, placement, or candidate naming a cell that isn't on the grid;
+    issue #107).
 
     Raised, never returned. The answer vocabulary stays found / broke /
     unknown — a malformed puzzle simply never reaches an answer, because
@@ -195,7 +197,7 @@ class Engine:
         cell = self.cells.get(address)
         if cell is None:
             msg = f"address {address!r} is off the board"
-            raise ValueError(msg)
+            raise MalformedPuzzleError(msg)
         return cell
 
 

@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
 
+from gridfind.engine import GridfindError
 from gridfind.puzzle import Puzzle, WorkingState
 from gridfind.sudokumaker import decode_link
 from gridfind.verdict import Verdict, verdict
@@ -78,7 +79,13 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 
     try:
         result = _verdict_of(text)
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as err:
+    except (
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+        GridfindError,
+    ) as err:
         print(f"gridfind: invalid puzzle document: {err}", file=sys.stderr)
         return 2
 

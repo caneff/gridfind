@@ -204,6 +204,27 @@ def test_malformed_json_exits_nonzero_with_stderr(
     assert captured.err.startswith("gridfind:")
 
 
+def test_malformed_puzzle_exits_two_with_stderr(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    # Valid JSON, but a given naming a digit the board never offers —
+    # MalformedPuzzleError, not a json/schema-shape ValueError (issue #107).
+    # The CLI must catch it too, not just report/verdict callers.
+    doc = tmp_path / "malformed.json"
+    doc.write_text(
+        '{"puzzle": {"board": {"size": 4}, "constraints": [], '
+        '"givens": [{"address": "R1C1", "digit": 9}]}, '
+        '"working_state": {"places": [], "candidates": []}}'
+    )
+
+    code = cli.main([str(doc)], io.StringIO())
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert captured.out == ""
+    assert captured.err.startswith("gridfind:")
+
+
 def test_missing_file_exits_nonzero_with_stderr(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
