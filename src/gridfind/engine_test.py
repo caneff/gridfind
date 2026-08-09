@@ -167,6 +167,34 @@ def test_value_on_an_off_board_address_raises() -> None:
         engine.value(solver, "nope")
 
 
+def test_content_returns_a_cells_primary_content_variable() -> None:
+    engine = build_engine([])
+    cell = engine.add_cell("x", low=1, high=9)
+
+    assert engine.content("x") is cell.content[0]
+
+
+def test_content_on_an_off_board_address_raises() -> None:
+    engine = build_engine([])
+
+    with pytest.raises(ValueError, match="off the board"):
+        engine.content("nope")
+
+
+def test_domain_returns_a_cells_declared_digit_values_ascending() -> None:
+    engine = build_engine([])
+    engine.add_cell("x", low=3, high=7)
+
+    assert engine.domain("x") == [3, 4, 5, 6, 7]
+
+
+def test_domain_on_an_off_board_address_raises() -> None:
+    engine = build_engine([])
+
+    with pytest.raises(ValueError, match="off the board"):
+        engine.domain("nope")
+
+
 def test_restrict_pins_a_cell_to_a_singleton_digit() -> None:
     engine = build_engine([])
     engine.add_cell("x", low=1, high=9)

@@ -36,7 +36,7 @@ def grid_content(engine: Engine) -> list[list[cp_model.IntVar]]:
     one channel; only this consumer needs the concrete type.
     """
     grid = cast("list[list[str]]", engine.structures["grid"])
-    return [[engine.cells[address].content[0] for address in row] for row in grid]
+    return [[engine.content(address) for address in row] for row in grid]
 
 
 def emit_distinct_count(
