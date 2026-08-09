@@ -10,17 +10,30 @@ Deliberately narrow (issue #66): the constraint names both cells outright — a
 **pair**, not a **domino**. The layer sums the named pair and never asks whether
 its cells are adjacent (that geometry is #43). Positive-only: only named pairs
 are constrained; the negative rule forbidding *unmarked* adjacent pairs from
-summing to 5 or 10 needs board-wide adjacency and is out of scope. The rule is
-emitted directly, like the prototype's cage sum; a shared pairwise-relation
-helper (#42) waits for a second two-cell variant.
+summing to 5 or 10 needs board-wide adjacency and is out of scope. The rule
+emits through the shared `emit_over_pairs` helper (#42 decision 5), its target
+sum riding in via the `rel` closure.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
+from ortools.sat.python import cp_model
+
 from gridfind.engine import Engine
+from gridfind.layers._base import emit_over_pairs
+
+
+def _sums_to(total: int) -> Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None]:
+    """A `rel` closing over one clue's target sum."""
+
+    def rel(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:
+        engine.model.add(a + b == total)
+
+    return rel
 
 
 @dataclass
@@ -37,5 +50,5 @@ class PairSum:
             # shape: a pair of cell addresses and its target sum.
             addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
-            pair = [engine.content(address) for address in addresses]
-            engine.model.add(sum(pair) == total)
+            a, b = (engine.content(address) for address in addresses)
+            emit_over_pairs(engine, [(a, b)], _sums_to(total))
