@@ -41,6 +41,13 @@ surface with nothing behind it.
    CP-SAT's default search directly; there is no gridfind-side call that
    configures it, because there is nothing left to configure.
 
+   `strategy=` shipped under `py.typed`, but it was internal-only in
+   practice: three references in the whole tree, all inside gridfind
+   (`strategy.py`, `verdict.py:25`, `verdict.py:66`), and no external caller.
+   `py.typed` makes the removal type-visible to a downstream `ty`/`mypy` run,
+   but there is no external usage for it to break — so the removal needs no
+   changelog entry or version note.
+
 3. **Decisions 30 and 33 are reopened, not erased.** They were the right call
    when made — the seam existed to host a concrete, named second occupant.
    The occupant's reason to exist left with the objective solve; the seam
