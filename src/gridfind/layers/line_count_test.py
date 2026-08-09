@@ -10,14 +10,15 @@ row, including rows a satisfiable witness would have satisfied by accident.
 import pytest
 
 from gridfind.engine import MissingDependencyError, build_engine
-from gridfind.layers import LAYER_REGISTRY
+from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import distinct_count_targets
+from gridfind.layers.line_count import LineCountDistinct
 from gridfind.puzzle import Board
 
 
 def test_line_count_distinct_requires_board() -> None:
     with pytest.raises(MissingDependencyError):
-        build_engine([LAYER_REGISTRY["line-count-distinct"]])
+        build_engine([LineCountDistinct()])
 
 
 @pytest.mark.parametrize("size", [4, 9], ids=["4x4", "9x9"])
@@ -27,7 +28,7 @@ def test_line_count_distinct_asks_row_n_for_n_distinct_digits(
     """somedoku's rule, stated per row, and sized off the board rather than a
     fixed 9x9."""
     engine = build_engine(
-        [LAYER_REGISTRY["board"], LAYER_REGISTRY["line-count-distinct"]],
+        [GridCells(), LineCountDistinct()],
         board=Board(size=size),
     )
 

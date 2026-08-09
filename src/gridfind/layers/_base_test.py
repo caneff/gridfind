@@ -7,15 +7,15 @@ through `verdict`. These tests read the rule back instead.
 """
 
 from gridfind.engine import Engine, build_engine
-from gridfind.layers import LAYER_REGISTRY
 from gridfind.layers._base import emit_distinct_count
+from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import distinct_count_targets, pair_sum_rules
 from gridfind.puzzle import Board
 
 
 def _board_engine() -> Engine:
     """A 4x4 board and nothing else — cells to count over, no rules on them."""
-    return build_engine([LAYER_REGISTRY["board"]], board=Board(size=4))
+    return build_engine([GridCells()], board=Board(size=4))
 
 
 def test_emit_distinct_count_states_the_target_it_was_given() -> None:

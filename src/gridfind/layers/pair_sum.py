@@ -37,5 +37,5 @@ class PairSum:
             # shape: a pair of cell addresses and its target sum.
             addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
-            pair = [engine.cells[address].content[0] for address in addresses]
+            pair = [engine.content(address) for address in addresses]
             engine.model.add(sum(pair) == total)

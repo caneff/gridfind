@@ -153,6 +153,29 @@ class Engine:
         unchanged; a width-2 (S-cell) read is `schrodinger`'s to design."""
         return solver.value(self._cell(address).content[0])
 
+    def content(self, address: str) -> cp_model.IntVar:
+        """A cell's primary content variable, for a layer building an
+        expression over it — the same width-1 read `value` makes for a
+        solved digit (issue #104)."""
+        return self._cell(address).content[0]
+
+    def domain(self, address: str) -> list[int]:
+        """The digit values a cell may hold, ascending, decoded from its
+        solver domain rather than from the two ends of it (issue #104).
+
+        A solver variable states its domain as flat pairs of closed
+        intervals. Every board gridfind builds today gives a cell one
+        unbroken interval, so the multi-interval path is decoded but not yet
+        exercised; issue #102, which holds a cell to a stepped digit set, is
+        what will exercise it.
+        """
+        domain = list(self._cell(address).content[0].proto.domain)
+        return [
+            digit
+            for low, high in zip(domain[::2], domain[1::2], strict=True)
+            for digit in range(low, high + 1)
+        ]
+
     def restrict(self, address: str, digits: Iterable[int]) -> None:
         """Fix a cell to a set of digits — a given or placement is a
         singleton set, a candidate a subset, both one operation (issue #72).

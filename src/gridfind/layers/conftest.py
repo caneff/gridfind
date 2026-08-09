@@ -53,19 +53,10 @@ def _sums(engine: Engine) -> Iterator[tuple[list[int], int]]:
 
 def cell_values(engine: Engine, address: str) -> list[int]:
     """The digit values a cell may hold, ascending — `Board.values` as the
-    engine gave it to one cell, rather than the two ends of it.
-
-    A solver variable states its domain as flat pairs of closed intervals.
-    Every board gridfind builds today gives a cell one unbroken interval, so
-    the multi-interval path is decoded but not yet exercised; issue #102, which
-    holds a cell to a stepped digit set, is what will exercise it.
-    """
-    domain = list(engine.cells[address].content[0].proto.domain)
-    return [
-        digit
-        for low, high in zip(domain[::2], domain[1::2], strict=True)
-        for digit in range(low, high + 1)
-    ]
+    engine gave it to one cell, rather than the two ends of it. Reads through
+    `Engine.domain`, the one home for decoding a cell's solver domain (issue
+    #104)."""
+    return engine.domain(address)
 
 
 def all_different_groups(engine: Engine) -> list[list[str]]:
