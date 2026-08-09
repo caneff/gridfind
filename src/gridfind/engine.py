@@ -177,6 +177,14 @@ class Engine:
         `contents`."""
         return sole(self.contents(address))
 
+    def d0(self, address: str) -> cp_model.IntVar:
+        """A cell's first content variable — d0, which `schrodinger` keeps
+        always a real digit (issue #141). Unlike `content` it never raises on
+        a widened S-cell: d0 is well-defined for both, so a read that wants
+        the cell's real digit and nothing about its S-cell axis takes d0
+        whatever the width. A width-1 cell's d0 is its only slot."""
+        return self._cell(address).content[0]
+
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
         solver domain rather than from the two ends of it (issue #104).
@@ -187,7 +195,7 @@ class Engine:
         exercised; issue #102, which holds a cell to a stepped digit set, is
         what will exercise it.
         """
-        domain = list(self._cell(address).content[0].proto.domain)
+        domain = list(self.d0(address).proto.domain)
         return [
             digit
             for low, high in zip(domain[::2], domain[1::2], strict=True)
@@ -200,7 +208,7 @@ class Engine:
         Each digit is checked against the board's own declared values, the
         one authority on what a cell may hold, not a domain re-derived from
         the solver variable — an unknown address raises separately."""
-        var = self._cell(address).content[0]
+        var = self.d0(address)
         allowed = sorted(set(digits))
         for digit in allowed:
             if digit not in self.board.values:

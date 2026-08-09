@@ -286,3 +286,14 @@ def test_value_raises_on_a_widened_s_cell() -> None:
 
     with pytest.raises(GridfindError, match="not Schrödinger-ready"):
         engine.value(solver, "s")
+
+
+def test_d0_returns_the_first_slot_and_never_raises_on_a_widened_cell() -> None:
+    # d0 is the always-real first slot: defined for a plain cell and an S-cell
+    # alike, so unlike `content` it must not refuse a width-2 read.
+    engine = build_engine([], board=BOARD)
+    plain = engine.add_cell("x", low=1, high=9)
+    s_cell = engine.add_cell("s", low=1, high=9, width=2)
+
+    assert engine.d0("x") is plain.content[0]
+    assert engine.d0("s") is s_cell.content[0]
