@@ -276,13 +276,20 @@ directives name a point on each:
   its two digits, partner unknown. Between an S-cell pin and a bare S-cell;
   equivalently a bare placement whose S-cell-ness is pinned true.
 
-Two ways a Schrödinger directive is **malformed** (refused before classify, never
-a verdict; #142): a digit-bearing directive naming a digit outside the board's
-values — the same rule that already governs a **given** or **candidate** — and
-*any* of these directives riding a layer stack that has no `schrodinger` layer,
-since no S-axis exists to honor. A directive whose digits are all legal but whose
-claim no completion can satisfy is not malformed — it is **broke**, the ordinary
-infeasibility the solver reports.
+Three ways a Schrödinger directive is **malformed** (refused before classify,
+never a verdict; #142): a digit-bearing directive naming a digit outside the
+board's values — the same rule that already governs a **given** or
+**candidate**; an **S-cell pin** whose pair is not exactly two distinct digits,
+counted after the pair collapses duplicates, since one digit is no pair and
+three cannot be one; and *any* of these directives riding a layer stack that has
+no `schrodinger` layer, since no S-axis exists to honor. A directive whose digits
+are all legal but whose claim no completion can satisfy is not malformed — it is
+**broke**, the ordinary infeasibility the solver reports.
+
+The line holds only for *content* errors — a bad digit, a mis-sized pair, a
+missing layer. A structurally broken save (an unknown directive `kind`, a missing
+key) is ordinary broken JSON, not a `MalformedPuzzleError`: malformed is a claim
+about what the puzzle says, not about whether the file parses.
 
 ---
 
