@@ -51,3 +51,12 @@ this doc covers the parts a linter can't.
 - pathlib over `os.path` (ruff `PTH`). Don't shadow builtins (`A`).
 - Keep public API surface small and typed — downstream agents type-check
   against it via `py.typed`.
+- **Import the module, not its functions, when the prefix carries meaning.**
+  Write `json.loads`, `os.path.join`, `np.array` — the namespace tells the
+  reader where the name comes from, and reads the same at every call site.
+  Reach for `from module import name` only when the origin is obvious and the
+  prefix would be noise (`from dataclasses import dataclass`), or when one
+  module supplies many names used throughout the file. Never strip a
+  meaningful prefix just to shorten one line — a bare `loads` or `connect`
+  hides its source and collides with the next module that exports the same
+  name.
