@@ -24,7 +24,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, sole
 from gridfind.layers._base import emit_house, grid_content
 from gridfind.layers.regions import RegionMap, region_map_for
 
@@ -93,6 +93,6 @@ class DistinctOverGroups:
         for index, group in enumerate(self.partition(grid_content(engine))):
             cells = list(group)
             if is_s is None:
-                engine.model.add_all_different([contents[0] for contents in cells])
+                engine.model.add_all_different([sole(content) for content in cells])
             else:
                 emit_house(engine, cells, label=f"{self.name}.{index}")

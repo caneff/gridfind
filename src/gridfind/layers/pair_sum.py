@@ -23,7 +23,7 @@ from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, sole
 from gridfind.layers._base import emit_over_pairs
 
 
@@ -50,5 +50,5 @@ class PairSum:
             # shape: a pair of cell addresses and its target sum.
             addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
-            a, b = (engine.contents(address)[0] for address in addresses)
+            a, b = (sole(engine.contents(address)) for address in addresses)
             emit_over_pairs(engine, [(a, b)], _sums_to(total))

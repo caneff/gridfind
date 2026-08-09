@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, sole
 from gridfind.layers._base import emit_distinct_count, grid_content
 
 
@@ -24,6 +24,6 @@ class LineCountDistinct:
 
     def emit(self, engine: Engine) -> None:
         for row_index, row in enumerate(grid_content(engine), start=1):
-            cells = [contents[0] for contents in row]
+            cells = [sole(content) for content in row]
             label = f"row{row_index}"
             emit_distinct_count(engine, cells, target=row_index, label=label)

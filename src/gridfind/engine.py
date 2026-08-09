@@ -20,7 +20,7 @@ test would not have put there.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -36,6 +36,7 @@ __all__ = [
     "MalformedPuzzleError",
     "MissingDependencyError",
     "build_engine",
+    "sole",
 ]
 
 
@@ -200,6 +201,22 @@ class Engine:
             msg = f"address {address!r} is off the board"
             raise MalformedPuzzleError(msg)
         return cell
+
+
+def sole[Read](reads: Sequence[Read]) -> Read:
+    """The one element of a not-yet-widened cell's content or value sequence
+    (issue #140's plural seam). Raises when the cell was widened to an S-cell:
+    a rule that folds with `sole` has not been taught Schrödinger cells yet
+    (issue #141), and silently taking the first slot would drop the second.
+    Where a rule *does* handle S-cells it reads the sequence whole, never
+    through `sole`."""
+    if len(reads) != 1:
+        msg = (
+            f"expected a width-1 cell, got a length-{len(reads)} content — "
+            "this rule is not Schrödinger-ready yet"
+        )
+        raise GridfindError(msg)
+    return reads[0]
 
 
 def build_engine(

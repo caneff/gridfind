@@ -12,6 +12,7 @@ from gridfind.engine import (
     MalformedPuzzleError,
     MissingDependencyError,
     build_engine,
+    sole,
 )
 from gridfind.puzzle import Board
 
@@ -41,6 +42,7 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
         "MalformedPuzzleError",
         "MissingDependencyError",
         "build_engine",
+        "sole",
     ]
 
 
@@ -236,3 +238,16 @@ def test_restrict_checks_a_digit_against_the_boards_declared_values() -> None:
 
     with pytest.raises(MalformedPuzzleError, match=r"9.*'x'"):
         engine.restrict("x", {9})
+
+
+def test_sole_returns_the_one_element_of_a_width_1_read() -> None:
+    assert sole(("7",)) == "7"
+    assert sole([42]) == 42
+
+
+def test_sole_raises_on_a_widened_s_cell_read() -> None:
+    # A rule that folds with `sole` isn't Schrödinger-ready: handed a
+    # width-2 S-cell read it must refuse loudly, not silently keep the first
+    # slot and drop the second.
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        sole((3, 5))
