@@ -22,9 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import TypeVar, cast
-
-from ortools.sat.python import cp_model
+from typing import TypeVar
 
 from gridfind.engine import Engine
 from gridfind.layers._base import emit_house, grid_content
@@ -93,7 +91,7 @@ class DistinctOverGroups:
     def emit(self, engine: Engine) -> None:
         is_s = engine.structures.get("is_s")
         for index, group in enumerate(self.partition(grid_content(engine))):
-            cells = cast("list[list[cp_model.IntVar]]", list(group))
+            cells = list(group)
             if is_s is None:
                 engine.model.add_all_different([contents[0] for contents in cells])
             else:
