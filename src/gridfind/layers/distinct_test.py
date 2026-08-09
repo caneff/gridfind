@@ -1,10 +1,16 @@
 import pytest
 
 from gridfind.engine import GridfindError, MissingDependencyError, build_engine
-from gridfind.layers import LAYER_REGISTRY
+from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
-from gridfind.layers.distinct import cols, regions
+from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.puzzle import Board
+
+_PARTITIONS = {
+    "rows-distinct": rows,
+    "cols-distinct": cols,
+    "regions-distinct": regions,
+}
 
 
 def _grid(size: int) -> list[list[str]]:
@@ -60,7 +66,7 @@ def test_regions_first_region_is_the_top_left_3x3_box() -> None:
 @pytest.mark.parametrize("name", ["rows-distinct", "cols-distinct", "regions-distinct"])
 def test_distinct_layer_requires_board(name: str) -> None:
     with pytest.raises(MissingDependencyError):
-        build_engine([LAYER_REGISTRY[name]])
+        build_engine([DistinctOverGroups(name, _PARTITIONS[name])])
 
 
 @pytest.mark.parametrize(
@@ -82,7 +88,7 @@ def test_distinct_layer_emits_one_all_different_rule_per_group(
     """Which cells each group holds, not merely how many. The first group is
     the partition's own first cut — row 1, column 1, the top-left region."""
     engine = build_engine(
-        [LAYER_REGISTRY["board"], LAYER_REGISTRY[name]], board=Board(size=9)
+        [GridCells(), DistinctOverGroups(name, _PARTITIONS[name])], board=Board(size=9)
     )
 
     groups = all_different_groups(engine)

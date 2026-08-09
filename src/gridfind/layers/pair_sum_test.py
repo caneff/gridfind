@@ -11,8 +11,8 @@ satisfied by accident.
 
 import pytest
 
-from gridfind.engine import build_engine
-from gridfind.layers import LAYER_REGISTRY, expand_constraints
+from gridfind.engine import MalformedPuzzleError, build_engine
+from gridfind.layers import build_stack
 from gridfind.layers.conftest import pair_sum_rules
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
@@ -49,11 +49,8 @@ def test_pair_sum_emits_one_rule_per_clue(
     """One stateless layer, one rule per clue — including a clue that arrived
     as an alias, whose total the expansion fixed."""
     puzzle = Puzzle(board=BOARD, constraints=constraints)
-    engine = build_engine(
-        [LAYER_REGISTRY["board"], LAYER_REGISTRY["pair-sum"]],
-        tuple(expand_constraints(puzzle.constraints)),
-        board=BOARD,
-    )
+    canonical, layers = build_stack(puzzle.constraints)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
 
     assert pair_sum_rules(engine) == expected
 
@@ -140,3 +137,14 @@ def test_an_x_clue_is_an_alias_for_a_pair_sum_of_ten() -> None:
     assert result.kind == "found"
     assert result.witness is not None
     assert result.witness["R1C2"] == 7  # X binds the pair to 10
+
+
+@pytest.mark.parametrize("kind", ["x", "v"], ids=["x-alias", "v-alias"])
+def test_an_alias_clue_that_also_states_its_own_sum_is_refused(kind: str) -> None:
+    # The alias fixes the sum; a clue naming its own sum too is a
+    # contradiction, refused before it ever reaches a solve.
+    constraint = Constraint(type=kind, params={"cells": ["R1C1", "R1C2"], "sum": 99})
+    puzzle = Puzzle(board=BOARD, constraints=(constraint,))
+
+    with pytest.raises(MalformedPuzzleError, match=f"{kind!r}.*sum"):
+        verdict(puzzle)

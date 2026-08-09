@@ -20,7 +20,7 @@ from typing import Literal, cast
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
-from gridfind.layers import LAYER_REGISTRY, expand_constraints, resolve_constraints
+from gridfind.layers import build_stack
 from gridfind.puzzle import EMPTY, Candidate, Given, Placement, Puzzle, WorkingState
 from gridfind.strategy import PURE_SATISFACTION, Strategy
 
@@ -65,14 +65,14 @@ def verdict(
     num_workers: int = DEFAULT_NUM_WORKERS,
     strategy: Strategy = PURE_SATISFACTION,
 ) -> Verdict:
-    # board is not a constraint — the puzzle's board supplies the grid.
-    # Expand presets and aliases once: the engine carries the canonical
-    # constraints so a layer's constraints_of(name) matches the canonical
-    # types the resolver dispatched on — an `x`/`v` clue reaches its
-    # `pair-sum` layer as a sum-10/5 constraint.
-    constraints = tuple(expand_constraints(puzzle.constraints))
-    layers = [LAYER_REGISTRY["board"], *resolve_constraints(puzzle.constraints)]
-    engine = build_engine(layers, constraints, board=puzzle.board)
+    # board is not a constraint — the puzzle's board supplies the grid. The
+    # door expands presets and aliases exactly once and hands back both the
+    # canonical constraints (so a layer's constraints_of(name) matches the
+    # canonical types dispatch resolved on — an `x`/`v` clue reaches its
+    # `pair-sum` layer as a sum-10/5 constraint) and the stack, compulsory
+    # `board` layer already in it (issue #101).
+    canonical, layers = build_stack(puzzle.constraints)
+    engine = build_engine(layers, tuple(canonical), board=puzzle.board)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
     strategy.configure(engine.model)
 

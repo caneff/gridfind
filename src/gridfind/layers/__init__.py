@@ -1,9 +1,9 @@
 """Composition point for the layers package (issue #17).
 
 Assembles the layer registry from the per-layer modules as an explicit list —
-no decorator, no import-side-effect auto-discovery — and holds the constraint
-dispatch API (`resolve_constraints`, `canonical_identity`, `UnknownLayerError`)
-that `verdict.py` consumes.
+no decorator, no import-side-effect auto-discovery — and holds the one door
+from a puzzle's constraints to a layer stack (`build_stack`, `canonical_identity`,
+`UnknownLayerError`) that `verdict.py` consumes (issue #101).
 
 `gridfind.layers` is **internal-only** — no external or plugin callers (issues
 #18, #24). Its committed public surface is exactly `__all__` below: the constraint
@@ -18,7 +18,7 @@ The engine->layer contract a layer author codes against (`Layer`, `add_cell`,
 
 from __future__ import annotations
 
-from gridfind.engine import GridfindError, Layer
+from gridfind.engine import GridfindError, Layer, MalformedPuzzleError
 from gridfind.layers.board import GridCells
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.line_count import LineCountDistinct
@@ -27,9 +27,8 @@ from gridfind.puzzle import Constraint, JsonValue
 
 __all__ = [
     "UnknownLayerError",
+    "build_stack",
     "canonical_identity",
-    "expand_constraints",
-    "resolve_constraints",
 ]
 
 
@@ -73,6 +72,11 @@ def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
     `{type: "x", cells}` constraint is an alias and becomes a `pair-sum`
     carrying its cells and `sum: 10`; every other constraint passes through
     unchanged.
+
+    An alias refuses a constraint that also states a param the alias itself
+    fixes — an X clue naming its own sum is a contradiction, not a value to
+    silently overwrite. A param the alias does not fix (a clue's cells) passes
+    through untouched.
     """
     expanded: list[Constraint] = []
     for constraint in constraints:
@@ -82,6 +86,13 @@ def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
             )
         elif constraint.type in ALIAS_REGISTRY:
             canonical, fixed = ALIAS_REGISTRY[constraint.type]
+            conflicts = sorted(set(constraint.params) & set(fixed))
+            if conflicts:
+                msg = (
+                    f"{constraint.type!r} alias fixes {conflicts[0]!r}; "
+                    "the puzzle may not also state it"
+                )
+                raise MalformedPuzzleError(msg)
             expanded.append(
                 Constraint(type=canonical, params={**constraint.params, **fixed})
             )
@@ -90,20 +101,32 @@ def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
     return expanded
 
 
-def resolve_constraints(constraints: tuple[Constraint, ...]) -> list[Layer]:
-    """Resolve a puzzle's constraints to layer instances: expand presets and
-    aliases, then dispatch each distinct `type` through the registry. Two
-    constraints of one type resolve to a single layer that loops its own
-    constraints (issue #65) — the layer, not the layer twice. An unrecognized
-    `type` is rejected.
+def build_stack(
+    constraints: tuple[Constraint, ...],
+) -> tuple[list[Constraint], list[Layer]]:
+    """The one door from a puzzle's constraints to its layer stack (issue
+    #101): expand presets and aliases exactly once, then dispatch each
+    distinct canonical `type` through the registry, and return both the
+    canonical constraints and the resulting stack.
+
+    The compulsory `board` layer is seeded into the stack before dispatch, so
+    a puzzle that also names `board` as a constraint dedups onto that same
+    entry rather than registering the grid a second time — `board` is not a
+    constraint (its grid comes from the puzzle's own board field), but a
+    setter naming it anyway costs one layer, not two.
+
+    Two constraints of one type otherwise resolve to a single layer that loops
+    its own constraints (issue #65) — the layer, not the layer twice. An
+    unrecognized `type` is rejected.
     """
-    layers: dict[str, Layer] = {}
-    for constraint in expand_constraints(constraints):
+    canonical = expand_constraints(constraints)
+    layers: dict[str, Layer] = {"board": LAYER_REGISTRY["board"]}
+    for constraint in canonical:
         if constraint.type not in LAYER_REGISTRY:
             msg = f"unknown constraint type {constraint.type!r}"
             raise UnknownLayerError(msg)
         layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
-    return list(layers.values())
+    return canonical, list(layers.values())
 
 
 def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
