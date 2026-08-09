@@ -43,6 +43,22 @@ def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
     return [[engine.contents(address) for address in row] for row in grid]
 
 
+def _reify_holds(
+    engine: Engine, slots: list[cp_model.IntVar], digit: int, label: str
+) -> list[cp_model.IntVar]:
+    """For each slot, a reified bool tracking whether it holds `digit` — the
+    "does this slot hold this digit" idiom shared by `emit_distinct_count`
+    (a fold over cells) and `emit_house` (a fold over content slots).
+    """
+    holds_digit = []
+    for i, slot in enumerate(slots):
+        indicator = engine.model.new_bool_var(f"{label}.holds{digit}.{i}")
+        engine.model.add(slot == digit).only_enforce_if(indicator)
+        engine.model.add(slot != digit).only_enforce_if(indicator.negated())
+        holds_digit.append(indicator)
+    return holds_digit
+
+
 def emit_distinct_count(
     engine: Engine, cells: list[cp_model.IntVar], *, target: int, label: str
 ) -> None:
@@ -58,12 +74,7 @@ def emit_distinct_count(
     board = engine.board
     present_per_digit = []
     for digit in board.values:
-        holds_digit = []
-        for i, cell in enumerate(cells):
-            indicator = engine.model.new_bool_var(f"{label}.holds{digit}.{i}")
-            engine.model.add(cell == digit).only_enforce_if(indicator)
-            engine.model.add(cell != digit).only_enforce_if(indicator.negated())
-            holds_digit.append(indicator)
+        holds_digit = _reify_holds(engine, cells, digit, label)
         present = engine.model.new_bool_var(f"{label}.present{digit}")
         engine.model.add_max_equality(present, holds_digit)
         present_per_digit.append(present)
@@ -87,12 +98,7 @@ def emit_house(
     """
     slots = [slot for content in cells for slot in content]
     for digit in engine.board.values:
-        holds_digit = []
-        for i, slot in enumerate(slots):
-            indicator = engine.model.new_bool_var(f"{label}.holds{digit}.{i}")
-            engine.model.add(slot == digit).only_enforce_if(indicator)
-            engine.model.add(slot != digit).only_enforce_if(indicator.negated())
-            holds_digit.append(indicator)
+        holds_digit = _reify_holds(engine, slots, digit, label)
         engine.model.add(sum(holds_digit) == 1)
 
 
