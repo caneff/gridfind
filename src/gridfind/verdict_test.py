@@ -452,6 +452,118 @@ def test_regions_distinct_found_when_no_box_repeats() -> None:
     assert result.witness is not None
 
 
+# A connected tetromino partition of a 4x4 board — deliberately not the box
+# tiling (which would be four 2x2 quadrants), so a found verdict proves the
+# supplied jigsaw map drove the solve rather than a fallback.
+JIGSAW_TETROMINOES = [
+    0,
+    0,
+    0,
+    1,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    3,
+    3,
+    2,
+    2,
+    3,
+    3,
+]
+
+
+def _label_groups(size: int, labels: list[int]) -> dict[int, list[str]]:
+    groups: dict[int, list[str]] = {}
+    for index, label in enumerate(labels):
+        row, col = divmod(index, size)
+        groups.setdefault(label, []).append(f"R{row + 1}C{col + 1}")
+    return groups
+
+
+def test_jigsaw_regions_distinct_found_with_a_connected_tetromino_partition() -> None:
+    puzzle = Puzzle(
+        board=Board(size=4),
+        constraints=(
+            Constraint(type="rows-distinct"),
+            Constraint(type="cols-distinct"),
+            Constraint(type="regions-distinct", params={"regions": JIGSAW_TETROMINOES}),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    for addresses in _label_groups(4, JIGSAW_TETROMINOES).values():
+        digits = [result.witness[address] for address in addresses]
+        assert len(set(digits)) == len(digits)
+
+
+def test_jigsaw_regions_distinct_breaks_a_repeat_box_tiling_would_miss() -> None:
+    # R1C1 and R4C4 share no row, no column, and no classic 2x2 box — only a
+    # custom jigsaw region joining them catches the repeat (issue #123).
+    labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0]
+
+    assert_layer_newly_breaks(
+        (Constraint(type="rows-distinct"), Constraint(type="cols-distinct")),
+        (
+            Constraint(type="rows-distinct"),
+            Constraint(type="cols-distinct"),
+            Constraint(type="regions-distinct", params={"regions": labels}),
+        ),
+        (Given(address="R1C1", digit=1), Given(address="R4C4", digit=1)),
+        board=Board(size=4),
+    )
+
+
+def test_jigsaw_regions_distinct_with_an_over_large_region_returns_broke() -> None:
+    # A region larger than the digit domain is unsolvable by pigeonhole —
+    # broke, a satisfiability fact, never a validator's judgment (#123
+    # acceptance criteria).
+    labels = [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 3, 3, 2, 2, 3, 3]
+    puzzle = Puzzle(
+        board=Board(size=4),
+        constraints=(
+            Constraint(type="rows-distinct"),
+            Constraint(type="cols-distinct"),
+            Constraint(type="regions-distinct", params={"regions": labels}),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+@given(length=st.integers(min_value=0, max_value=30).filter(lambda n: n != 16))
+def test_verdict_rejects_a_regions_matrix_of_the_wrong_length(length: int) -> None:
+    constraint = Constraint(type="regions-distinct", params={"regions": [0] * length})
+    puzzle = Puzzle(board=Board(size=4), constraints=(constraint,))
+
+    with pytest.raises(MalformedPuzzleError):
+        verdict(puzzle)
+
+
+@given(
+    index=st.integers(min_value=0, max_value=15),
+    bad_value=st.one_of(st.text(), st.floats(allow_nan=False), st.none()),
+)
+def test_verdict_rejects_a_regions_matrix_with_a_non_integer_entry(
+    index: int, bad_value: object
+) -> None:
+    labels: list[object] = [0] * 16
+    labels[index] = bad_value
+    constraint = Constraint(type="regions-distinct", params={"regions": labels})
+    puzzle = Puzzle(board=Board(size=4), constraints=(constraint,))
+
+    with pytest.raises(MalformedPuzzleError):
+        verdict(puzzle)
+
+
 def test_sudoku_preset_matches_the_explicit_three_distinct_constraints() -> None:
     givens = (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5))
     explicit = (

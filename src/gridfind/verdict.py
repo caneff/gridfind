@@ -90,7 +90,7 @@ def verdict(
     # canonical types dispatch resolved on — an `x`/`v` clue reaches its
     # `pair-sum` layer as a sum-10/5 constraint) and the stack, compulsory
     # `board` layer already in it (issue #101).
-    canonical, layers = build_stack(puzzle.constraints)
+    canonical, layers = build_stack(puzzle.constraints, size=puzzle.board.size)
     engine = build_engine(layers, tuple(canonical), board=puzzle.board)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
 

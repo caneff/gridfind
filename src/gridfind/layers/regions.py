@@ -21,11 +21,20 @@ setter's own map when given, the box tiling by convention when not. The
 table itself, `BOX_SHAPE`, also feeds the witness's own render (issue #105) —
 the verdict reads it when it builds a witness, so the box shape travels with
 the grid rather than being re-derived by whoever prints it.
+
+`region_map_from_labels` (issue #123) reads the other supplied shape: a
+setter's `regions-distinct` constraint carries `params["regions"]` as a flat,
+row-major array of one integer label per cell — SudokuMaker's own jigsaw wire
+shape, not a `RegionMap`. It converts and validates in one step: the matrix
+shape makes a gap or overlap unexpressible, so there is nothing to check
+beyond length and entry type. An over-large region (more cells than the
+digit domain) is not this function's concern — that is a satisfiability fact
+the solver reports as broke, never a validator's judgment.
 """
 
 from __future__ import annotations
 
-from gridfind.engine import GridfindError
+from gridfind.engine import GridfindError, MalformedPuzzleError
 
 # A partition of a board into regions of cell addresses, whatever its source.
 RegionMap = list[list[tuple[int, int]]]
@@ -72,3 +81,23 @@ def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
         msg = f"no classic box convention for a {size}x{size} board"
         raise GridfindError(msg)
     return box_regions(size, *BOX_SHAPE[size])
+
+
+def region_map_from_labels(size: int, labels: object) -> RegionMap:
+    """Convert a setter's flat, row-major label array into a `RegionMap`,
+    grouping cells by label — ids need not be contiguous, and group sizes
+    need not be equal (issue #123). Anything other than exactly `size**2`
+    integer entries is not this shape at all, so it raises
+    `MalformedPuzzleError` (the #107 convergence) rather than being coerced.
+    """
+    if not isinstance(labels, list) or len(labels) != size * size:
+        msg = f"regions must be a list of {size * size} labels, got {labels!r}"
+        raise MalformedPuzzleError(msg)
+    groups: dict[int, list[tuple[int, int]]] = {}
+    for index, label in enumerate(labels):
+        if not isinstance(label, int):
+            msg = f"region label must be an int, got {label!r}"
+            raise MalformedPuzzleError(msg)
+        row, col = divmod(index, size)
+        groups.setdefault(label, []).append((row + 1, col + 1))
+    return list(groups.values())

@@ -26,7 +26,7 @@ from typing import TypeVar
 
 from gridfind.engine import Engine
 from gridfind.layers._base import grid_content
-from gridfind.layers.regions import region_map_for
+from gridfind.layers.regions import RegionMap, region_map_for
 
 Cell = TypeVar("Cell")
 Grid = list[list[Cell]]
@@ -41,6 +41,10 @@ def cols(grid: Grid) -> Iterable[tuple[Cell, ...]]:
     return zip(*grid, strict=True)
 
 
+def _cells_for(grid: Grid, region_map: RegionMap) -> list[list[Cell]]:
+    return [[grid[row - 1][col - 1] for row, col in region] for region in region_map]
+
+
 def regions(grid: Grid) -> Iterable[list[Cell]]:
     """The regions, cut from whatever grid is handed in — the region partition
     reused as cell groups. `region_map_for` resolves the partition for the live
@@ -49,11 +53,17 @@ def regions(grid: Grid) -> Iterable[list[Cell]]:
     box convention belongs to the resolver's fallback, not here (issue #79
     ruling), so it surfaces at emit time rather than tiling something wrong.
     """
-    size = len(grid)
-    return [
-        [grid[row - 1][col - 1] for row, col in region]
-        for region in region_map_for(size)
-    ]
+    return _cells_for(grid, region_map_for(len(grid)))
+
+
+def regions_from(region_map: RegionMap) -> Partition:
+    """A partition function closed over a setter-supplied region map — the
+    dispatch door's escape hatch for a jigsaw partition (issue #123). Built
+    fresh per puzzle at `build_stack`, never registered under a fixed name:
+    the layer it feeds stays a plain `(partition)` `DistinctOverGroups`,
+    never aware of where its groups came from.
+    """
+    return lambda grid: _cells_for(grid, region_map)
 
 
 @dataclass

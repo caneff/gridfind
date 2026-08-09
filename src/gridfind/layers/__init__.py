@@ -20,9 +20,16 @@ from __future__ import annotations
 
 from gridfind.engine import GridfindError, Layer, MalformedPuzzleError
 from gridfind.layers.board import GridCells
-from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
+from gridfind.layers.distinct import (
+    DistinctOverGroups,
+    cols,
+    regions,
+    regions_from,
+    rows,
+)
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_sum import PairSum
+from gridfind.layers.regions import region_map_from_labels
 from gridfind.puzzle import Constraint, JsonValue
 
 __all__ = [
@@ -103,6 +110,8 @@ def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
 
 def build_stack(
     constraints: tuple[Constraint, ...],
+    *,
+    size: int,
 ) -> tuple[list[Constraint], list[Layer]]:
     """The one door from a puzzle's constraints to its layer stack (issue
     #101): expand presets and aliases exactly once, then dispatch each
@@ -118,6 +127,14 @@ def build_stack(
     Two constraints of one type otherwise resolve to a single layer that loops
     its own constraints (issue #65) — the layer, not the layer twice. An
     unrecognized `type` is rejected.
+
+    A `regions-distinct` constraint carrying `params["regions"]` (issue #123)
+    is the one type-directed exception: the door reads the setter's flat
+    label matrix, validates and converts it to a `RegionMap` (`size` is why
+    this door takes one — the matrix shape check needs it), and builds a
+    fresh `DistinctOverGroups` closed over that partition instead of
+    dispatching to the registry's box-tiling default. The layer itself stays
+    param-agnostic; only the function it is built with differs.
     """
     canonical = expand_constraints(constraints)
     layers: dict[str, Layer] = {"board": LAYER_REGISTRY["board"]}
@@ -125,7 +142,13 @@ def build_stack(
         if constraint.type not in LAYER_REGISTRY:
             msg = f"unknown constraint type {constraint.type!r}"
             raise UnknownLayerError(msg)
-        layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
+        if constraint.type == "regions-distinct" and "regions" in constraint.params:
+            region_map = region_map_from_labels(size, constraint.params["regions"])
+            layers[constraint.type] = DistinctOverGroups(
+                constraint.type, regions_from(region_map)
+            )
+        else:
+            layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
     return canonical, list(layers.values())
 
 
