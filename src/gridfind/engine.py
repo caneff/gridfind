@@ -23,6 +23,7 @@ __all__ = [
     "Engine",
     "GridfindError",
     "Layer",
+    "MalformedPuzzleError",
     "MissingDependencyError",
     "build_engine",
 ]
@@ -30,6 +31,20 @@ __all__ = [
 
 class GridfindError(Exception):
     """Base for engine-refusal errors."""
+
+
+class MalformedPuzzleError(GridfindError):
+    """The setter's input is not a well-formed puzzle, so no answer is owed.
+
+    Covers input that contradicts itself (an alias fixing a parameter it also
+    states) and input that names what the board never offered (a digit outside
+    the board's values).
+
+    Raised, never returned. The answer vocabulary stays found / broke /
+    unknown — a malformed puzzle simply never reaches an answer, because
+    **broke** is a consistency claim and malformed input has not earned it
+    (issue #99, amendments).
+    """
 
 
 class MissingDependencyError(GridfindError):

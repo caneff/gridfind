@@ -5,7 +5,23 @@ import pytest
 from ortools.sat.python import cp_model
 
 import gridfind.engine
-from gridfind.engine import Engine, Layer, MissingDependencyError, build_engine
+from gridfind.engine import (
+    Engine,
+    GridfindError,
+    Layer,
+    MalformedPuzzleError,
+    MissingDependencyError,
+    build_engine,
+)
+
+
+def test_malformed_puzzle_refusals_answer_to_the_base_refusal_handler() -> None:
+    # A tripwire like the one below, not a behavior test: #101, #102 and #107
+    # all raise this error, and callers catch the whole family with one
+    # `except GridfindError`. Re-parenting it would silently stop those
+    # handlers firing, so the parent is pinned here. See the class docstring
+    # for why the error exists.
+    assert issubclass(MalformedPuzzleError, GridfindError)
 
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
@@ -19,6 +35,7 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
         "Engine",
         "GridfindError",
         "Layer",
+        "MalformedPuzzleError",
         "MissingDependencyError",
         "build_engine",
     ]
