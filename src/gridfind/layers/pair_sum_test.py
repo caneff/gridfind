@@ -62,7 +62,7 @@ def test_a_satisfiable_pair_resolves_found() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C1"] + result.witness["R1C2"] == 5
+    assert result.witness["R1C1"][0] + result.witness["R1C2"][0] == 5
 
 
 def test_a_pair_that_cannot_meet_its_sum_resolves_broke() -> None:
@@ -92,8 +92,8 @@ def test_two_clues_each_constrain_their_own_pair_independently() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"] == 4  # 1 + 4 == 5
-    assert result.witness["R3C4"] == 4  # 6 + 4 == 10
+    assert result.witness["R1C2"][0] == 4  # 1 + 4 == 5
+    assert result.witness["R3C4"][0] == 4  # 6 + 4 == 10
 
 
 def test_a_broken_second_clue_breaks_the_whole_puzzle() -> None:
@@ -122,7 +122,7 @@ def test_a_v_clue_is_an_alias_for_a_pair_sum_of_five() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"] == 2  # V binds the pair to 5
+    assert result.witness["R1C2"][0] == 2  # V binds the pair to 5
 
 
 def test_an_x_clue_is_an_alias_for_a_pair_sum_of_ten() -> None:
@@ -136,7 +136,7 @@ def test_an_x_clue_is_an_alias_for_a_pair_sum_of_ten() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"] == 7  # X binds the pair to 10
+    assert result.witness["R1C2"][0] == 7  # X binds the pair to 10
 
 
 @pytest.mark.parametrize("kind", ["x", "v"], ids=["x-alias", "v-alias"])

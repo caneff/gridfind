@@ -4,6 +4,7 @@ from hypothesis import strategies as st
 
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.layers import UnknownLayerError
+from gridfind.layers.board import cell_address
 from gridfind.layers.regions import box_regions
 from gridfind.puzzle import (
     EMPTY,
@@ -54,7 +55,7 @@ def test_verdict_found_returns_a_witness_consistent_with_the_given() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C1"] == 5
+    assert result.witness["R1C1"] == (5,)
     assert len(result.witness) == 81
 
 
@@ -151,7 +152,12 @@ def test_witness_render_draws_jigsaw_borders_between_regions() -> None:
     # full height, no horizontal divider — junctions resolved from whichever
     # arms actually meet (issue #124).
     grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
-    assignment = {"R1C1": 1, "R1C2": 2, "R2C1": 3, "R2C2": 4}
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (1,),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (4,),
+    }
     region_map = [[(1, 1), (2, 1)], [(1, 2), (2, 2)]]
     witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
 
@@ -163,7 +169,9 @@ def test_witness_render_draws_classic_box_borders_for_a_box_partition() -> None:
     # style boxes — here a 4x4's 2x2 boxes — so box_shape's old banding is
     # subsumed, not regressed (issue #124).
     grid = [[f"R{r}C{c}" for c in range(1, 5)] for r in range(1, 5)]
-    assignment = {address: i % 9 + 1 for i, row in enumerate(grid) for address in row}
+    assignment: dict[str, tuple[int, ...]] = {
+        address: (i % 9 + 1,) for i, row in enumerate(grid) for address in row
+    }
     witness = Witness(grid=grid, assignment=assignment, region_map=box_regions(4, 2, 2))
 
     assert witness.render() == (
@@ -183,7 +191,9 @@ def test_witness_render_draws_singleton_and_unequal_regions_correctly() -> None:
     # A singleton region beside an 8-cell region on a 3x3 board — no
     # nine-of-nine assumption (issue #124).
     grid = [[f"R{r}C{c}" for c in range(1, 4)] for r in range(1, 4)]
-    assignment = {address: i % 9 + 1 for i, row in enumerate(grid) for address in row}
+    assignment: dict[str, tuple[int, ...]] = {
+        address: (i % 9 + 1,) for i, row in enumerate(grid) for address in row
+    }
     region_map = [
         [(1, 1)],
         [(1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3)],
@@ -198,6 +208,29 @@ def test_witness_render_draws_singleton_and_unequal_regions_correctly() -> None:
         "│           │\n"
         "│ 3   3   3 │\n"
         "└───────────┘"
+    )
+
+
+def test_witness_render_draws_an_s_cell_as_a_curly_brace_pair() -> None:
+    # An S-cell's pair (issue #141, decision #135) widens the whole witness —
+    # every cell, singleton or not, right-pads to the widest so columns stay
+    # aligned and the box banding (still a two-region jigsaw here) survives.
+    grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (0, 5),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (1,),
+    }
+    region_map = [[(1, 1), (2, 1)], [(1, 2), (2, 2)]]
+    witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
+
+    assert witness.render() == (
+        "┌───────┬───────┐\n"
+        "│ {0 5} │     2 │\n"
+        "│       │       │\n"
+        "│     3 │     1 │\n"
+        "└───────┴───────┘"
     )
 
 
@@ -256,7 +289,7 @@ def test_verdict_found_on_a_board_keeps_every_witness_digit_in_1_to_n(
     assert result.kind == "found"
     assert result.witness is not None
     assert len(result.witness) == size * size
-    assert all(1 <= value <= size for value in result.witness.assignment.values())
+    assert all(1 <= value[0] <= size for value in result.witness.assignment.values())
 
 
 @pytest.mark.parametrize(
@@ -292,7 +325,7 @@ def test_sudoku_found_on_a_legal_board(size: int) -> None:
     assert result.kind == "found"
     assert result.witness is not None
     assert len(result.witness) == size * size
-    assert all(1 <= value <= size for value in result.witness.assignment.values())
+    assert all(1 <= value[0] <= size for value in result.witness.assignment.values())
 
 
 def test_regions_distinct_on_a_5x5_board_refuses_with_a_gridfind_error() -> None:
@@ -682,4 +715,90 @@ def test_verdict_found_witness_only_holds_a_boards_declared_digits(
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert set(result.witness.assignment.values()) <= set(board.values)
+    assert {value[0] for value in result.witness.assignment.values()} <= set(
+        board.values
+    )
+
+
+def _rows(size: int) -> list[list[str]]:
+    return [
+        [cell_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
+    ]
+
+
+def _cols(size: int) -> list[list[str]]:
+    return [list(col) for col in zip(*_rows(size), strict=True)]
+
+
+def _boxes(size: int, box_rows: int, box_cols: int) -> list[list[str]]:
+    return [
+        [cell_address(row, col) for row, col in group]
+        for group in box_regions(size, box_rows, box_cols)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("size", "values", "box_shape", "expected_s_cells"),
+    [
+        pytest.param(9, range(10), (3, 3), 1, id="9x9-digits-0-9"),
+        pytest.param(6, range(1, 10), (2, 3), 3, id="6x6-digits-1-9"),
+    ],
+)
+def test_schrodinger_finds_the_forced_s_cell_count_per_house(
+    size: int, values: range, box_shape: tuple[int, int], expected_s_cells: int
+) -> None:
+    # S-cell-ness discovered from givens alone — none stated here — per #139's
+    # story 4/5: k = len(values) - size S-cells per row, column, and box.
+    puzzle = Puzzle(
+        board=Board(size=size, values=values),
+        constraints=(Constraint(type="sudoku"), Constraint(type="schrodinger")),
+    )
+
+    result = verdict(puzzle, time_limit_s=30.0)
+
+    assert result.kind == "found"
+    witness = result.witness
+    assert witness is not None
+    for group in (*_rows(size), *_cols(size), *_boxes(size, *box_shape)):
+        s_cells = sum(1 for address in group if len(witness[address]) == 2)
+        assert s_cells == expected_s_cells
+
+
+def test_schrodinger_with_values_not_exceeding_size_is_malformed() -> None:
+    # len(values) == size forces no S-cell at all — refused before classify
+    # (#139 story 6), not silently accepted as a degenerate classic sudoku.
+    puzzle = Puzzle(
+        board=Board(size=9),  # default values 1-9, len == size
+        constraints=(Constraint(type="schrodinger"),),
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        verdict(puzzle)
+
+
+def test_schrodinger_with_values_more_than_twice_size_is_broke() -> None:
+    # Over 2*size digits can't fit even every cell doubled up — a genuine
+    # infeasibility, not a special refusal (#139 story 7).
+    puzzle = Puzzle(
+        board=Board(size=4, values=range(10)),  # 10 values, 2*size == 8
+        constraints=(Constraint(type="schrodinger"), Constraint(type="rows-distinct")),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_schrodinger_puzzle_with_no_schrodinger_constraint_keeps_singleton_cells() -> (
+    None
+):
+    # No-regression (#139 story 23): an ordinary puzzle's witness stays every
+    # cell a 1-tuple, exactly as before the layer existed.
+    puzzle = Puzzle(board=Board(size=4), constraints=(Constraint(type="sudoku"),))
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert all(len(value) == 1 for value in result.witness.assignment.values())

@@ -70,6 +70,32 @@ def emit_distinct_count(
     engine.model.add(sum(present_per_digit) == target)
 
 
+def emit_house(
+    engine: Engine, cells: list[list[cp_model.IntVar]], *, label: str
+) -> None:
+    """Rule: every digit in the board's domain occupies exactly one content
+    slot across `cells` — `d0` always, `d1` too where it holds a real digit
+    (an S-cell's second digit). No separate is_S gate is needed: a
+    non-S-cell's `d1` sits on its own sentinel, always above every real
+    digit, so it can never equal one (issue #141, spec #139).
+
+    No-repeats and cover collapse into this one rule: a house of `len(cells)`
+    cells offers `sum(len(content) for content in cells)` real-or-sentinel
+    slots, and binding each of the board's digits to exactly one of them
+    forces exactly `len(values) - len(cells)` cells to their second slot —
+    the S-cell count per house EMERGES, nothing here states it.
+    """
+    slots = [slot for content in cells for slot in content]
+    for digit in engine.board.values:
+        holds_digit = []
+        for i, slot in enumerate(slots):
+            indicator = engine.model.new_bool_var(f"{label}.holds{digit}.{i}")
+            engine.model.add(slot == digit).only_enforce_if(indicator)
+            engine.model.add(slot != digit).only_enforce_if(indicator.negated())
+            holds_digit.append(indicator)
+        engine.model.add(sum(holds_digit) == 1)
+
+
 def emit_over_pairs(
     engine: Engine,
     pairs: list[tuple[cp_model.IntVar, cp_model.IntVar]],

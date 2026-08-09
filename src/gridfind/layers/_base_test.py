@@ -9,7 +9,7 @@ through `verdict`. These tests read the rule back instead.
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
-from gridfind.layers._base import emit_distinct_count, emit_over_pairs
+from gridfind.layers._base import emit_distinct_count, emit_house, emit_over_pairs
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import (
     distinct_count_targets,
@@ -109,3 +109,40 @@ def test_emit_over_pairs_does_nothing_for_no_pairs() -> None:
     emit_over_pairs(engine, [], _sums_to_five)
 
     assert pair_sum_rules(engine) == []
+
+
+def test_emit_house_forces_the_extra_digit_into_the_width_two_cells_second_slot() -> (
+    None
+):
+    """Three cells — two width-1, one width-2 — over a 4-digit board: the
+    fourth digit has nowhere to live but the width-2 cell's second slot, and
+    no-repeats + cover (schrodinger's is_S-gated counting, issue #141) is one
+    rule, not stated as a count."""
+    engine = _board_engine()
+    a = engine.model.new_int_var(1, 4, "a")
+    b = engine.model.new_int_var(1, 4, "b")
+    c0 = engine.model.new_int_var(1, 4, "c0")
+    c1 = engine.model.new_int_var(1, 4, "c1")
+
+    emit_house(engine, [[a], [b], [c0, c1]], label="house")
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assigned = [solver.value(v) for v in (a, b, c0, c1)]
+    assert sorted(assigned) == [1, 2, 3, 4]
+
+
+def test_emit_house_is_infeasible_when_the_slots_cant_cover_the_domain() -> None:
+    """Two width-1 cells alone can't cover a 4-digit domain — cover, not just
+    no-repeats, is part of the one rule."""
+    engine = _board_engine()
+    a = engine.model.new_int_var(1, 4, "a")
+    b = engine.model.new_int_var(1, 4, "b")
+
+    emit_house(engine, [[a], [b]], label="house")
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
