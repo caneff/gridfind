@@ -19,7 +19,7 @@ from typing import Literal, cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, build_engine
+from gridfind.engine import Engine, MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.regions import (
     BOX_SHAPE,
@@ -34,6 +34,8 @@ from gridfind.puzzle import (
     Given,
     Placement,
     Puzzle,
+    SDirective,
+    SingletonPin,
     WorkingState,
 )
 
@@ -188,6 +190,7 @@ def verdict(
     canonical, layers = build_stack(puzzle.constraints, size=puzzle.board.size)
     engine = build_engine(layers, tuple(canonical), board=puzzle.board)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
+    _apply_s_directives(engine, working_state.s_directives)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit_s
@@ -258,3 +261,46 @@ def _apply(
         engine.restrict(fixed.address, {fixed.digit})
     for candidate in candidates:
         engine.restrict(candidate.address, candidate.digits)
+
+
+def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> None:
+    """Apply the Schrödinger pins by restricting the already-built model along
+    the two axes `engine.restrict` can't reach: S-cell-ness (`is_s`) and the
+    second content slot (`d1`). A singleton pin fixes d0 and forces is_s false;
+    an S-cell pin fixes both slots to the sorted pair and forces is_s true. A
+    consistent pin narrows the model and is honored; a contradictory one makes
+    it infeasible, which the solver reports as broke.
+
+    Two content errors are malformed, refused here before the solve (#142):
+    a pin naming a digit off the board, and *any* pin on a stack with no
+    schrodinger layer to honor it. The missing-layer check runs first, so a
+    pin with a legal digit still refuses when the layer is absent."""
+    if not directives:
+        return
+    is_s = cast("dict[str, cp_model.IntVar] | None", engine.structures.get("is_s"))
+    if is_s is None:
+        msg = "a Schrödinger pin needs a schrodinger layer, but the stack has none"
+        raise MalformedPuzzleError(msg)
+    for directive in directives:
+        content = engine.contents(directive.address)  # off-board raises here
+        if isinstance(directive, SingletonPin):
+            _require_in_domain(engine, directive.address, (directive.digit,))
+            engine.model.add(content[0] == directive.digit)
+            engine.model.add(is_s[directive.address] == 0)
+        else:
+            low, high = sorted(directive.pair)
+            _require_in_domain(engine, directive.address, (low, high))
+            engine.model.add(content[0] == low)
+            engine.model.add(content[1] == high)
+            engine.model.add(is_s[directive.address] == 1)
+
+
+def _require_in_domain(engine: Engine, address: str, digits: tuple[int, ...]) -> None:
+    """Refuse a pin naming a digit the board never offered — the same content
+    rule that governs a given or candidate (`engine.restrict`), but reaching
+    both pair slots, which `restrict` (d0 only) cannot."""
+    for digit in digits:
+        if digit not in engine.board.values:
+            values = list(engine.board.values)
+            msg = f"digit {digit} is not among {values} for cell {address!r}"
+            raise MalformedPuzzleError(msg)
