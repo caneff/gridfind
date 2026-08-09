@@ -251,3 +251,38 @@ def test_sole_raises_on_a_widened_s_cell_read() -> None:
     # slot and drop the second.
     with pytest.raises(GridfindError, match="not Schrödinger-ready"):
         sole((3, 5))
+
+
+def test_content_returns_the_one_variable_of_a_width_1_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+
+    assert engine.content("x") is cell.content[0]
+
+
+def test_content_raises_on_a_widened_s_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("s", low=1, high=9, width=2)
+
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        engine.content("s")
+
+
+def test_value_reads_the_one_placed_digit_of_a_width_1_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+    engine.model.add(cell.content[0] == 4)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.value(solver, "x") == 4
+
+
+def test_value_raises_on_a_widened_s_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("s", low=1, high=9, width=2)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        engine.value(solver, "s")

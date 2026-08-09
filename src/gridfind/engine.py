@@ -163,6 +163,20 @@ class Engine:
         `content`. A width-1 cell hands back a length-1 sequence."""
         return self._cell(address).content
 
+    def value(self, solver: cp_model.CpSolver, address: str) -> int:
+        """A not-yet-widened cell's one placed digit after a solve — the
+        singular read for a rule that doesn't handle Schrödinger cells.
+        Raises on a widened S-cell (issue #141); an S-aware reader takes the
+        whole sequence through `values`."""
+        return sole(self.values(solver, address))
+
+    def content(self, address: str) -> cp_model.IntVar:
+        """A not-yet-widened cell's one content variable, for a rule building
+        an expression over a single digit. Raises on a widened S-cell like
+        `value` does; an S-aware reader takes the whole sequence through
+        `contents`."""
+        return sole(self.contents(address))
+
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
         solver domain rather than from the two ends of it (issue #104).
