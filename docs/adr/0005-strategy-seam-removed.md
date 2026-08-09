@@ -1,4 +1,4 @@
-# ADR-0004: the witness-search strategy seam is removed
+# ADR-0005: the witness-search strategy seam is removed
 
 - **Status:** Accepted
 - **Date:** 2026-08-09
@@ -42,8 +42,10 @@ surface with nothing behind it.
    configures it, because there is nothing left to configure.
 
    `strategy=` shipped under `py.typed`, but it was internal-only in
-   practice: three references in the whole tree, all inside gridfind
-   (`strategy.py`, `verdict.py:25`, `verdict.py:66`), and no external caller.
+   practice: four sites in the whole tree, all inside gridfind — the
+   `strategy.py` module itself, and three uses in `verdict.py`: the import
+   (`verdict.py:26`), the parameter default (`verdict.py:87`), and the
+   `.configure()` call (`verdict.py:98`). No external caller referenced it.
    `py.typed` makes the removal type-visible to a downstream `ty`/`mypy` run,
    but there is no external usage for it to break — so the removal needs no
    changelog entry or version note.
