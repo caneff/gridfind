@@ -1,6 +1,8 @@
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
-from gridfind.engine import GridfindError
+from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.layers import UnknownLayerError
 from gridfind.puzzle import (
     EMPTY,
@@ -204,13 +206,21 @@ def test_verdict_rejects_a_given_digit_outside_the_boards_values(
     size: int, digit: int
 ) -> None:
     # Each board refuses against *its own* range, not a borrowed 1-9: 7 is a
-    # legal digit at 9x9 and out of range at 6x6.
+    # legal digit at 9x9 and out of range at 6x6. A malformed puzzle raises
+    # rather than answering broke — it has not earned that consistency claim.
     puzzle = Puzzle(
         board=Board(size=size), givens=(Given(address="R1C1", digit=digit),)
     )
 
-    with pytest.raises(ValueError, match="out of range"):
+    with pytest.raises(MalformedPuzzleError, match=f"{digit}.*R1C1"):
         verdict(puzzle)
+
+
+def test_verdict_rejects_a_placement_digit_outside_the_boards_values() -> None:
+    state = WorkingState(places=(Placement(address="R1C1", digit=42),))
+
+    with pytest.raises(MalformedPuzzleError, match=r"42.*R1C1"):
+        verdict(Puzzle(board=BOARD), state)
 
 
 def test_verdict_rejects_an_out_of_range_candidate_digit() -> None:
@@ -218,7 +228,7 @@ def test_verdict_rejects_an_out_of_range_candidate_digit() -> None:
         candidates=(Candidate(address="R1C1", digits=frozenset({1, 42})),)
     )
 
-    with pytest.raises(ValueError, match="out of range"):
+    with pytest.raises(MalformedPuzzleError, match=r"42.*R1C1"):
         verdict(Puzzle(board=BOARD), state)
 
 
@@ -404,3 +414,27 @@ def test_verdict_rejects_an_unknown_constraint_type() -> None:
 
     with pytest.raises(UnknownLayerError):
         verdict(puzzle)
+
+
+# A stepped range (step >= 2) so the board's values genuinely have gaps
+# between them — the regression's shape, generalized over start/count/step
+# rather than fixed at 2, 4, 6, 8.
+STEPPED_VALUES = st.builds(
+    lambda start, count, step: range(start, start + count * step, step),
+    st.integers(1, 5),
+    st.integers(2, 6),
+    st.integers(2, 3),
+)
+STEPPED_BOARDS = st.builds(Board, size=st.sampled_from([4, 6]), values=STEPPED_VALUES)
+
+
+@given(board=STEPPED_BOARDS)
+@settings(max_examples=50)
+def test_verdict_found_witness_only_holds_a_boards_declared_digits(
+    board: Board,
+) -> None:
+    result = verdict(Puzzle(board=board))
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert set(result.witness.assignment.values()) <= set(board.values)

@@ -66,7 +66,7 @@ def test_regions_first_region_is_the_top_left_3x3_box() -> None:
 @pytest.mark.parametrize("name", ["rows-distinct", "cols-distinct", "regions-distinct"])
 def test_distinct_layer_requires_board(name: str) -> None:
     with pytest.raises(MissingDependencyError):
-        build_engine([DistinctOverGroups(name, _PARTITIONS[name])])
+        build_engine([DistinctOverGroups(name, _PARTITIONS[name])], board=Board(size=9))
 
 
 @pytest.mark.parametrize(

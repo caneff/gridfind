@@ -13,6 +13,9 @@ from gridfind.engine import (
     MissingDependencyError,
     build_engine,
 )
+from gridfind.puzzle import Board
+
+BOARD = Board(size=9)
 
 
 def test_malformed_puzzle_refusals_answer_to_the_base_refusal_handler() -> None:
@@ -62,7 +65,7 @@ def test_build_refuses_a_stack_with_an_unmet_dependency() -> None:
     needs_board = _FakeLayer(name="needs-board", depends_on=("board",))
 
     with pytest.raises(MissingDependencyError):
-        build_engine([needs_board])
+        build_engine([needs_board], board=BOARD)
 
 
 @pytest.mark.parametrize(
@@ -79,7 +82,7 @@ def test_build_satisfies_a_dependency_regardless_of_stack_order(
     if dependent_first:
         stack.reverse()
 
-    build_engine(stack)
+    build_engine(stack, board=BOARD)
 
     assert needs_board.registered
     assert needs_board.emitted
@@ -127,7 +130,7 @@ def _solves(engine: Engine) -> bool:
 
 
 def test_constraints_of_returns_only_the_matching_type() -> None:
-    engine = build_engine([], (_Constraint("cage"), _Constraint("other")))
+    engine = build_engine([], (_Constraint("cage"), _Constraint("other")), board=BOARD)
 
     assert engine.constraints_of("cage") == [_Constraint("cage")]
 
@@ -135,7 +138,7 @@ def test_constraints_of_returns_only_the_matching_type() -> None:
 def test_a_layer_binds_from_its_constraints_and_a_cage_solves() -> None:
     constraints = (_Constraint("cage", {"cells": ["a", "b"], "sum": 5}),)
 
-    engine = build_engine([_CageLayer()], constraints)
+    engine = build_engine([_CageLayer()], constraints, board=BOARD)
 
     assert _solves(engine)
 
@@ -144,13 +147,13 @@ def test_a_layer_binds_and_an_impossible_cage_is_infeasible() -> None:
     # Two cells over a 1-9 domain can't sum to 1 — the params reach the rule.
     constraints = (_Constraint("cage", {"cells": ["a", "b"], "sum": 1}),)
 
-    engine = build_engine([_CageLayer()], constraints)
+    engine = build_engine([_CageLayer()], constraints, board=BOARD)
 
     assert not _solves(engine)
 
 
 def test_value_reads_a_cells_placed_value_after_a_solve() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=BOARD)
     cell = engine.add_cell("x", low=1, high=9)
     engine.model.add(cell.content[0] == 7)
     solver = cp_model.CpSolver()
@@ -160,7 +163,7 @@ def test_value_reads_a_cells_placed_value_after_a_solve() -> None:
 
 
 def test_value_on_an_off_board_address_raises() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=BOARD)
     solver = cp_model.CpSolver()
 
     with pytest.raises(ValueError, match="off the board"):
@@ -168,35 +171,35 @@ def test_value_on_an_off_board_address_raises() -> None:
 
 
 def test_content_returns_a_cells_primary_content_variable() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=Board(size=9))
     cell = engine.add_cell("x", low=1, high=9)
 
     assert engine.content("x") is cell.content[0]
 
 
 def test_content_on_an_off_board_address_raises() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=Board(size=9))
 
     with pytest.raises(ValueError, match="off the board"):
         engine.content("nope")
 
 
 def test_domain_returns_a_cells_declared_digit_values_ascending() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=Board(size=9))
     engine.add_cell("x", low=3, high=7)
 
     assert engine.domain("x") == [3, 4, 5, 6, 7]
 
 
 def test_domain_on_an_off_board_address_raises() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=Board(size=9))
 
     with pytest.raises(ValueError, match="off the board"):
         engine.domain("nope")
 
 
 def test_restrict_pins_a_cell_to_a_singleton_digit() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=BOARD)
     engine.add_cell("x", low=1, high=9)
 
     engine.restrict("x", {7})
@@ -207,7 +210,7 @@ def test_restrict_pins_a_cell_to_a_singleton_digit() -> None:
 
 
 def test_restrict_pins_a_cell_to_a_digit_subset() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=BOARD)
     engine.add_cell("x", low=1, high=9)
 
     engine.restrict("x", {1, 2})
@@ -218,17 +221,18 @@ def test_restrict_pins_a_cell_to_a_digit_subset() -> None:
 
 
 def test_restrict_on_an_off_board_address_raises() -> None:
-    engine = build_engine([])
+    engine = build_engine([], board=BOARD)
 
     with pytest.raises(ValueError, match="off the board"):
         engine.restrict("nope", {1})
 
 
-def test_restrict_checks_a_digit_against_the_cells_own_domain() -> None:
-    # A cell declared over a narrower domain than the global 1-9 range rejects
-    # a digit outside *its own* bounds, not a borrowed global constant.
-    engine = build_engine([])
-    engine.add_cell("x", low=1, high=5)
+def test_restrict_checks_a_digit_against_the_boards_declared_values() -> None:
+    # The cell's own bounds are wider than the board's values — restrict
+    # rejects on the board's declared set, not a domain re-derived from the
+    # solver variable's own bounds.
+    engine = build_engine([], board=Board(size=5))
+    engine.add_cell("x", low=1, high=9)
 
-    with pytest.raises(ValueError, match="out of range"):
+    with pytest.raises(MalformedPuzzleError, match=r"9.*'x'"):
         engine.restrict("x", {9})

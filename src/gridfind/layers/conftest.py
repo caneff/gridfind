@@ -52,10 +52,15 @@ def _sums(engine: Engine) -> Iterator[tuple[list[int], int]]:
 
 
 def cell_values(engine: Engine, address: str) -> list[int]:
-    """The digit values a cell may hold, ascending — `Board.values` as the
-    engine gave it to one cell, rather than the two ends of it. Reads through
-    `Engine.domain`, the one home for decoding a cell's solver domain (issue
-    #104)."""
+    """A cell's own bounds, ascending, read through `Engine.domain` — the one
+    home for decoding a cell's solver domain (issue #104).
+
+    Not the declared value set itself: a stepped `Board.values` (issue #102)
+    is made authoritative by `restrict`'s AllowedAssignments table, a
+    constraint alongside the variable rather than a rewrite of its domain, so
+    a cell's bounds stay the two ends even when the values between them are
+    excluded. Read the table back to see the excluded gaps.
+    """
     return engine.domain(address)
 
 

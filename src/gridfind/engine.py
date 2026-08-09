@@ -124,11 +124,11 @@ class Layer(Protocol):
 class Engine:
     """Holds the CP-SAT model, cell content, and the structure registry."""
 
+    board: BoardShape
     model: cp_model.CpModel = field(default_factory=cp_model.CpModel)
     cells: dict[str, Cell] = field(default_factory=dict)
     structures: dict[str, object] = field(default_factory=dict)
     constraints: tuple[Constraint, ...] = ()
-    board: BoardShape | None = None
 
     def constraints_of(self, kind: str) -> list[Constraint]:
         """A data-bearing layer pulls its own constraints by type — the
@@ -179,17 +179,16 @@ class Engine:
     def restrict(self, address: str, digits: Iterable[int]) -> None:
         """Fix a cell to a set of digits — a given or placement is a
         singleton set, a candidate a subset, both one operation (issue #72).
-        Each digit is
-        checked against the cell's own declared domain, not a borrowed
-        global constant, and an unknown address raises."""
+        Each digit is checked against the board's own declared values, the
+        one authority on what a cell may hold, not a domain re-derived from
+        the solver variable — an unknown address raises separately."""
         var = self._cell(address).content[0]
-        domain = list(var.proto.domain)
-        low, high = domain[0], domain[-1]
         allowed = sorted(set(digits))
         for digit in allowed:
-            if not low <= digit <= high:
-                msg = f"digit {digit} out of range [{low}, {high}] for cell {address!r}"
-                raise ValueError(msg)
+            if digit not in self.board.values:
+                values = list(self.board.values)
+                msg = f"digit {digit} is not among {values} for cell {address!r}"
+                raise MalformedPuzzleError(msg)
         self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
 
     def _cell(self, address: str) -> Cell:
@@ -203,7 +202,8 @@ class Engine:
 def build_engine(
     layers: list[Layer],
     constraints: tuple[Constraint, ...] = (),
-    board: BoardShape | None = None,
+    *,
+    board: BoardShape,
 ) -> Engine:
     """The two-phase build (spec #4, decision 10): order-insensitive.
 

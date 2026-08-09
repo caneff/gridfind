@@ -18,7 +18,7 @@ from gridfind.puzzle import Board
 
 def test_line_count_distinct_requires_board() -> None:
     with pytest.raises(MissingDependencyError):
-        build_engine([LineCountDistinct()])
+        build_engine([LineCountDistinct()], board=Board(size=9))
 
 
 @pytest.mark.parametrize("size", [4, 9], ids=["4x4", "9x9"])

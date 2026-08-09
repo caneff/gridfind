@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from gridfind.engine import Engine, GridfindError
+from gridfind.engine import Engine
 
 
 def cell_address(row: int, col: int) -> str:
@@ -32,9 +32,6 @@ class GridCells:
 
     def register(self, engine: Engine) -> None:
         board = engine.board
-        if board is None:
-            msg = "the board layer requires build_engine(..., board=...)"
-            raise GridfindError(msg)
         grid = [
             [cell_address(row, col) for col in range(1, board.size + 1)]
             for row in range(1, board.size + 1)
@@ -42,6 +39,7 @@ class GridCells:
         for row in grid:
             for address in row:
                 engine.add_cell(address, low=board.values.start, high=board.values[-1])
+                engine.restrict(address, board.values)
         engine.register_structure("grid", grid)
 
     def emit(self, engine: Engine) -> None:
