@@ -16,6 +16,7 @@ layer file, because more than one layer needs them (issue #17).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 
 from ortools.sat.python import cp_model
@@ -64,3 +65,26 @@ def emit_distinct_count(
         engine.model.add_max_equality(present, holds_digit)
         present_per_digit.append(present)
     engine.model.add(sum(present_per_digit) == target)
+
+
+def emit_over_pairs(
+    engine: Engine,
+    pairs: list[tuple[cp_model.IntVar, cp_model.IntVar]],
+    rel: Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None],
+) -> None:
+    """Rule: `rel(engine, a, b)` holds for every pair in `pairs` — the shared
+    walk behind every explicit-pair variant (pair-sum today, a second variant
+    at #42 decision 5).
+
+    A callback rather than a relation-as-data table: the relation a pair-sum
+    or pair-difference clue wants (a sum, an absolute difference) is native
+    CP-SAT — `add`, `add_abs_equality` — so encoding it as an
+    AllowedAssignments table would trade a direct primitive for indirection
+    with nothing gained (ADR-0001 keeps the engine seam raw OR-Tools). `rel`
+    closes over whatever per-clue data it needs (a target sum, a target
+    difference); this helper never learns clue or path structure, so a future
+    path-shaped variant can decompose its own path into consecutive pairs
+    before calling it.
+    """
+    for a, b in pairs:
+        rel(engine, a, b)

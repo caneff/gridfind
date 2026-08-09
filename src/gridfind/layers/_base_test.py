@@ -6,8 +6,10 @@ existed it had no direct test at all: the only way to see it was a full solve
 through `verdict`. These tests read the rule back instead.
 """
 
+from ortools.sat.python import cp_model
+
 from gridfind.engine import Engine, build_engine
-from gridfind.layers._base import emit_distinct_count
+from gridfind.layers._base import emit_distinct_count, emit_over_pairs
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import distinct_count_targets, pair_sum_rules
 from gridfind.puzzle import Board
@@ -53,3 +55,31 @@ def test_a_counting_rule_and_a_sum_over_cells_are_told_apart() -> None:
 
     assert pair_sum_rules(engine) == [(["R1C1", "R1C2"], 5)]
     assert distinct_count_targets(engine) == {"pair": 2}
+
+
+def _sums_to_five(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:
+    engine.model.add(a + b == 5)
+
+
+def test_emit_over_pairs_applies_rel_to_each_pair() -> None:
+    """`rel` runs once per pair, each pair independent of the others — proof
+    via a `rel` that states a sum, read back through the same seam a direct
+    `model.add(sum(pair) == total)` call would produce."""
+    engine = _board_engine()
+    first = (engine.cells["R1C1"].content[0], engine.cells["R1C2"].content[0])
+    second = (engine.cells["R2C1"].content[0], engine.cells["R2C2"].content[0])
+
+    emit_over_pairs(engine, [first, second], _sums_to_five)
+
+    assert pair_sum_rules(engine) == [
+        (["R1C1", "R1C2"], 5),
+        (["R2C1", "R2C2"], 5),
+    ]
+
+
+def test_emit_over_pairs_does_nothing_for_no_pairs() -> None:
+    engine = _board_engine()
+
+    emit_over_pairs(engine, [], _sums_to_five)
+
+    assert pair_sum_rules(engine) == []
