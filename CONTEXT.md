@@ -293,6 +293,23 @@ about what the puzzle says, not about whether the file parses.
 
 ---
 
+## `cage` layer
+
+The no-repeats-only sibling of a region (issue #157, spec #156 decision
+#150): a clue names a set of cells and the layer forbids a digit repeat among
+them, adding no cover pressure. Structured like `pair-sum` (a clue-looping
+layer pulling every `cage` constraint via the dispatch), not like the
+partition-driven `regions-distinct` — no shared base with it. Unlike a
+region, a cage need not use every domain digit: a 7-cell cage on a 9-digit
+board is legal. On a Schrödinger-widened board the no-repeats rule reaches
+both of an S-cell's digits, but states no target digit count, so a cage never
+forces a cell to become an S-cell.
+
+- **cage** — the constraint and the rule it emits: `{type: cage, cells:
+  [...], name?}`. `name` is reserved for future killer keying, unused today.
+
+---
+
 ## `quad-rank` layer
 
 Terms carried over from the quad-rank effort, re-rooted onto the layer model. A
