@@ -149,17 +149,18 @@ class Engine:
     def register_structure(self, name: str, value: object) -> None:
         self.structures[name] = value
 
-    def value(self, solver: cp_model.CpSolver, address: str) -> int:
-        """A cell's placed value after a solve — the one home for reading
-        cell-content width (issue #72). Relocates today's width-1 behaviour
-        unchanged; a width-2 (S-cell) read is `schrodinger`'s to design."""
-        return solver.value(self._cell(address).content[0])
+    def values(self, solver: cp_model.CpSolver, address: str) -> tuple[int, ...]:
+        """A cell's placed content sequence after a solve — the plural read
+        (issue #140), replacing the scalar `value`. A width-1 cell hands back
+        a length-1 sequence, so a caller that wants a single digit folds it
+        itself; a width-2 (S-cell) read is `schrodinger`'s to fold."""
+        return tuple(solver.value(v) for v in self._cell(address).content)
 
-    def content(self, address: str) -> cp_model.IntVar:
-        """A cell's primary content variable, for a layer building an
-        expression over it — the same width-1 read `value` makes for a
-        solved digit (issue #104)."""
-        return self._cell(address).content[0]
+    def contents(self, address: str) -> list[cp_model.IntVar]:
+        """A cell's raw content sequence, for a layer building an expression
+        over it — the plural read (issue #140), replacing the scalar
+        `content`. A width-1 cell hands back a length-1 sequence."""
+        return self._cell(address).content
 
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
