@@ -446,9 +446,9 @@ via a state allocator (with bit-packing); a strict "no allocations in
 **gridfind stance: N/A — CP-SAT owns all of it.** Variable/value selection,
 propagation, backtracking, restarts, and its portfolio of workers are OR-Tools'
 job (`verdict.py` sets `num_workers`, `max_time_in_seconds`). gridfind should
-**never** hand-roll any of this. The only gridfind-side analog is `strategy.py`
-(`PURE_SATISFACTION`) tuning CP-SAT's *own* search — that's configuring the black
-box, not replacing it.
+**never** hand-roll any of this. `verdict.py` runs CP-SAT's default
+pure-satisfaction search directly — no gridfind-side seam configures it
+(ADR-0004).
 
 ## 5.3 The optimizer: derive redundant constraints for speed
 
