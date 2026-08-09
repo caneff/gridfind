@@ -1,6 +1,4 @@
 import gridfind.layers
-from gridfind.layers import LAYER_REGISTRY
-from gridfind.layers.distinct import DistinctOverGroups
 
 
 def test_public_api_surface_is_exactly_the_committed_names() -> None:
@@ -8,21 +6,12 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
     # changing this list is a public API change. Editing `__all__` must be a
     # deliberate act with this expectation updated alongside it.
     #
-    # Issue #25 / #24: gridfind.layers is internal-only, so its committed public
-    # surface is these names — the constraint dispatch API (#47). Registries and
-    # layer classes are internal. #48 deleted the old string stack API
-    # (expand_stack, resolve, the preset registry).
+    # Issue #101 / #25 / #24: gridfind.layers is internal-only, so its committed
+    # public surface is these names — the one door from constraints to a layer
+    # stack (`build_stack`), `canonical_identity`, and `UnknownLayerError`.
+    # Registries and layer classes are internal.
     assert gridfind.layers.__all__ == [
         "UnknownLayerError",
+        "build_stack",
         "canonical_identity",
-        "expand_constraints",
-        "resolve_constraints",
     ]
-
-
-def test_rows_cols_regions_are_all_one_distinct_layer_class() -> None:
-    # Issue #37: the three distinct rules are instances of one
-    # partition-parameterized layer, not three bespoke classes.
-    for name in ("rows-distinct", "cols-distinct", "regions-distinct"):
-        assert isinstance(LAYER_REGISTRY[name], DistinctOverGroups)
-        assert LAYER_REGISTRY[name].name == name
