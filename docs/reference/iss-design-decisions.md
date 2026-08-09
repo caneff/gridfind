@@ -448,7 +448,7 @@ propagation, backtracking, restarts, and its portfolio of workers are OR-Tools'
 job (`verdict.py` sets `num_workers`, `max_time_in_seconds`). gridfind should
 **never** hand-roll any of this. `verdict.py` runs CP-SAT's default
 pure-satisfaction search directly — no gridfind-side seam configures it
-(ADR-0004).
+(ADR-0005).
 
 ## 5.3 The optimizer: derive redundant constraints for speed
 
