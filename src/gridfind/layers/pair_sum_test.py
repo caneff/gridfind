@@ -9,12 +9,11 @@ claim a solve cannot make: that a clue emitted its *own* rule rather than being
 satisfied by accident.
 """
 
-from collections.abc import Callable
-
 import pytest
 
-from gridfind.engine import Engine, build_engine
+from gridfind.engine import build_engine
 from gridfind.layers import LAYER_REGISTRY, expand_constraints
+from gridfind.layers.conftest import pair_sum_rules
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
 
@@ -46,7 +45,6 @@ def _clue(kind: str, cells: tuple[str, str]) -> Constraint:
 def test_pair_sum_emits_one_rule_per_clue(
     constraints: tuple[Constraint, ...],
     expected: list[tuple[list[str], int]],
-    pair_sum_rules: Callable[[Engine], list[tuple[list[str], int]]],
 ) -> None:
     """One stateless layer, one rule per clue — including a clue that arrived
     as an alias, whose total the expansion fixed."""

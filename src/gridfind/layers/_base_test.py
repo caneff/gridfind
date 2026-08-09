@@ -6,11 +6,10 @@ existed it had no direct test at all: the only way to see it was a full solve
 through `verdict`. These tests read the rule back instead.
 """
 
-from collections.abc import Callable
-
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import LAYER_REGISTRY
 from gridfind.layers._base import emit_distinct_count
+from gridfind.layers.conftest import distinct_count_targets, pair_sum_rules
 from gridfind.puzzle import Board
 
 
@@ -19,9 +18,7 @@ def _board_engine() -> Engine:
     return build_engine([LAYER_REGISTRY["board"]], board=Board(size=4))
 
 
-def test_emit_distinct_count_states_the_target_it_was_given(
-    distinct_count_targets: Callable[[Engine], dict[str, int]],
-) -> None:
+def test_emit_distinct_count_states_the_target_it_was_given() -> None:
     engine = _board_engine()
     cells = [engine.cells[address].content[0] for address in ("R1C1", "R1C2", "R1C3")]
 
@@ -30,9 +27,7 @@ def test_emit_distinct_count_states_the_target_it_was_given(
     assert distinct_count_targets(engine) == {"trio": 2}
 
 
-def test_emit_distinct_count_keeps_each_labelled_rule_separate(
-    distinct_count_targets: Callable[[Engine], dict[str, int]],
-) -> None:
+def test_emit_distinct_count_keeps_each_labelled_rule_separate() -> None:
     """Two counting rules on one engine stay two rules with their own targets —
     the label is what tells them apart."""
     engine = _board_engine()
@@ -43,3 +38,18 @@ def test_emit_distinct_count_keeps_each_labelled_rule_separate(
     emit_distinct_count(engine, second, target=3, label="trio")
 
     assert distinct_count_targets(engine) == {"pair": 1, "trio": 3}
+
+
+def test_a_counting_rule_and_a_sum_over_cells_are_told_apart() -> None:
+    """Both rules state themselves as a sum fixed to one value. What they add
+    up is the difference: a counting rule sums per-digit markers, a pair-sum
+    sums cell content. Neither read side may pick up the other's rule.
+    """
+    engine = _board_engine()
+    pair = [engine.cells[address].content[0] for address in ("R1C1", "R1C2")]
+
+    engine.model.add(sum(pair) == 5)
+    emit_distinct_count(engine, pair, target=2, label="pair")
+
+    assert pair_sum_rules(engine) == [(["R1C1", "R1C2"], 5)]
+    assert distinct_count_targets(engine) == {"pair": 2}

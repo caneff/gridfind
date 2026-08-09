@@ -7,12 +7,11 @@ different claims. This one says the layer states the right target for every
 row, including rows a satisfiable witness would have satisfied by accident.
 """
 
-from collections.abc import Callable
-
 import pytest
 
-from gridfind.engine import Engine, MissingDependencyError, build_engine
+from gridfind.engine import MissingDependencyError, build_engine
 from gridfind.layers import LAYER_REGISTRY
+from gridfind.layers.conftest import distinct_count_targets
 from gridfind.puzzle import Board
 
 
@@ -24,7 +23,6 @@ def test_line_count_distinct_requires_board() -> None:
 @pytest.mark.parametrize("size", [4, 9], ids=["4x4", "9x9"])
 def test_line_count_distinct_asks_row_n_for_n_distinct_digits(
     size: int,
-    distinct_count_targets: Callable[[Engine], dict[str, int]],
 ) -> None:
     """somedoku's rule, stated per row, and sized off the board rather than a
     fixed 9x9."""

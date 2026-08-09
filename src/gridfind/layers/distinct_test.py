@@ -1,9 +1,8 @@
-from collections.abc import Callable
-
 import pytest
 
-from gridfind.engine import Engine, GridfindError, MissingDependencyError, build_engine
+from gridfind.engine import GridfindError, MissingDependencyError, build_engine
 from gridfind.layers import LAYER_REGISTRY
+from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import cols, regions
 from gridfind.puzzle import Board
 
@@ -79,7 +78,6 @@ def test_distinct_layer_requires_board(name: str) -> None:
 def test_distinct_layer_emits_one_all_different_rule_per_group(
     name: str,
     first_group: list[str],
-    all_different_groups: Callable[[Engine], list[list[str]]],
 ) -> None:
     """Which cells each group holds, not merely how many. The first group is
     the partition's own first cut — row 1, column 1, the top-left region."""
