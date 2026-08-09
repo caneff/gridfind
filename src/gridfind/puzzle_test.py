@@ -4,6 +4,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from gridfind.engine import MalformedPuzzleError
 from gridfind.puzzle import (
     Board,
     Candidate,
@@ -82,17 +83,49 @@ def test_board_keeps_the_values_a_caller_hands_it() -> None:
 
 
 def test_board_refuses_an_empty_range_of_values() -> None:
-    with pytest.raises(ValueError, match="non-empty range"):
+    with pytest.raises(MalformedPuzzleError, match="non-empty range"):
         Board(size=9, values=range(5, 5))
 
 
 def test_from_json_refuses_a_board_whose_serialized_values_are_empty() -> None:
-    with pytest.raises(ValueError, match="non-empty range"):
+    with pytest.raises(MalformedPuzzleError, match="non-empty range"):
         Puzzle.from_json(
             json.dumps(
                 {
                     "board": {"size": 9, "values": [5, 5, 1]},
                     "constraints": [],
+                    "givens": [],
+                }
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("board", "match"),
+    [
+        pytest.param({"size": "9"}, "size", id="size-not-an-int"),
+        pytest.param(
+            {"size": 9, "values": [1, 10]}, "values", id="values-not-a-triple"
+        ),
+        pytest.param(
+            {"size": 9, "values": [1, "10", 1]}, "values", id="values-not-all-ints"
+        ),
+    ],
+)
+def test_from_json_refuses_a_malformed_board(
+    board: dict[str, object], match: str
+) -> None:
+    with pytest.raises(MalformedPuzzleError, match=match):
+        Puzzle.from_json(json.dumps({"board": board, "constraints": [], "givens": []}))
+
+
+def test_from_json_refuses_a_constraint_whose_type_is_not_a_string() -> None:
+    with pytest.raises(MalformedPuzzleError, match="type"):
+        Puzzle.from_json(
+            json.dumps(
+                {
+                    "board": {"size": 9},
+                    "constraints": [{"type": 7}],
                     "givens": [],
                 }
             )

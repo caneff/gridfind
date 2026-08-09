@@ -266,7 +266,7 @@ def test_rows_and_cols_distinct_on_a_5x5_board_builds_and_solves() -> None:
 def test_verdict_rejects_an_off_board_address() -> None:
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R10C1", digit=5),))
 
-    with pytest.raises(ValueError, match="off the board"):
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
         verdict(puzzle)
 
 

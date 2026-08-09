@@ -6,13 +6,19 @@ board, a list of typed constraints, and the givens) paired with a
 frozen dataclasses that serialize to JSON and read back to an *equal* object — JSON is
 the one durable on-disk form (spec #45, issue #46).
 
-This module is schema only: nothing here calls `verdict` or touches the engine.
+This module is schema only: nothing here calls `verdict` or builds a model.
+The one thing it reaches into `gridfind.engine` for is `MalformedPuzzleError`
+itself — the shared refusal for a document that is not a well-formed puzzle
+(issue #107), so a caller catches one class regardless of which module
+noticed.
 """
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+
+from gridfind.engine import MalformedPuzzleError
 
 # A JSON scalar/array/object value — the genuine open boundary a constraint's
 # params live at (a killer sum is an int, a thermo path is a list).
@@ -57,7 +63,7 @@ class Board:
             object.__setattr__(self, "values", _values_from_size(self.size))
         elif not self.values:
             msg = f"a board's values must be a non-empty range, got {self.values!r}"
-            raise ValueError(msg)
+            raise MalformedPuzzleError(msg)
 
 
 @dataclass(frozen=True)
@@ -180,17 +186,17 @@ def _board_from_dict(data: dict[str, JsonValue]) -> Board:
     size = data["size"]
     if not isinstance(size, int):
         msg = f"board 'size' must be an int, got {size!r}"
-        raise ValueError(msg)
+        raise MalformedPuzzleError(msg)
     if "values" not in data:
         return Board(size=size)
     values = data["values"]
     if not isinstance(values, list) or len(values) != _RANGE_PARTS:
         msg = f"board 'values' must be a [start, stop, step] list, got {values!r}"
-        raise ValueError(msg)
+        raise MalformedPuzzleError(msg)
     start, stop, step = values
     if not (isinstance(start, int) and isinstance(stop, int) and isinstance(step, int)):
         msg = f"board 'values' must be three ints, got {values!r}"
-        raise ValueError(msg)
+        raise MalformedPuzzleError(msg)
     return Board(size=size, values=range(start, stop, step))
 
 
@@ -198,6 +204,6 @@ def _constraint_from_dict(data: dict[str, JsonValue]) -> Constraint:
     kind = data["type"]
     if not isinstance(kind, str):
         msg = f"constraint 'type' must be a string, got {kind!r}"
-        raise ValueError(msg)
+        raise MalformedPuzzleError(msg)
     params = {key: value for key, value in data.items() if key != "type"}
     return Constraint(type=kind, params=params)

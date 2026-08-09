@@ -7,6 +7,16 @@ strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 non-classic link (a variant domain, jigsaw regions, an unknown ruleset) is
 rejected with `ValueError` rather than mis-decoded into a confident wrong verdict.
 
+Deliberately kept as `ValueError`, not folded into `MalformedPuzzleError`
+(issue #107): every rejection here fires before a `Puzzle` exists at all — it
+is this decoder finding a link it does not support, not gridfind finding a
+puzzle it cannot answer. A `Puzzle` `decode_link` does produce is never itself
+malformed; a `MalformedPuzzleError` from a *decoded* one would still surface
+from `verdict`, same as it would for a hand-built `Puzzle`. Conflating the two
+would cost a caller the ability to tell "this share link doesn't decode" from
+"this puzzle doesn't hold together" — a distinction worth keeping since only
+one of them means the *link* is bad.
+
 No engine, no `verdict` call. Schema in, model out.
 """
 

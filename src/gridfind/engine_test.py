@@ -166,7 +166,7 @@ def test_value_on_an_off_board_address_raises() -> None:
     engine = build_engine([], board=BOARD)
     solver = cp_model.CpSolver()
 
-    with pytest.raises(ValueError, match="off the board"):
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
         engine.value(solver, "nope")
 
 
@@ -180,7 +180,7 @@ def test_content_returns_a_cells_primary_content_variable() -> None:
 def test_content_on_an_off_board_address_raises() -> None:
     engine = build_engine([], board=Board(size=9))
 
-    with pytest.raises(ValueError, match="off the board"):
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
         engine.content("nope")
 
 
@@ -194,7 +194,7 @@ def test_domain_returns_a_cells_declared_digit_values_ascending() -> None:
 def test_domain_on_an_off_board_address_raises() -> None:
     engine = build_engine([], board=Board(size=9))
 
-    with pytest.raises(ValueError, match="off the board"):
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
         engine.domain("nope")
 
 
@@ -223,7 +223,7 @@ def test_restrict_pins_a_cell_to_a_digit_subset() -> None:
 def test_restrict_on_an_off_board_address_raises() -> None:
     engine = build_engine([], board=BOARD)
 
-    with pytest.raises(ValueError, match="off the board"):
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
         engine.restrict("nope", {1})
 
 
