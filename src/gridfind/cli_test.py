@@ -7,10 +7,12 @@ same by-construction corpus documents `population_test.py` uses.
 """
 
 import io
+import json
 import re
 from pathlib import Path
 
 import pytest
+from lzstring import LZString
 
 from gridfind import cli
 from gridfind.verdict import Verdict
@@ -124,6 +126,46 @@ def test_sudokumaker_link_on_stdin_matches_argument(
 
     assert code == 0
     assert capsys.readouterr().out.split("\n")[0] == "found"
+
+
+def _solvable_jigsaw_link() -> str:
+    """A synthesised, fully-given `type 1` link whose regions are a broken
+    diagonal partition, not the classic 3x3 boxes (issue #125). The grid
+    val(r, c) = (r + c) % 9 + 1 is a Latin square where rows, columns, *and*
+    every r - c ≡ k (mod 9) diagonal each hold all nine digits, so filling
+    every cell as a given makes the puzzle trivially solvable against this
+    jigsaw partition."""
+    cells = []
+    regions = []
+    for i in range(81):
+        row, col = divmod(i, 9)
+        cells.append({"value": (row + col) % 9 + 1, "given": True})
+        regions.append((row - col) % 9)
+    puzzle = {
+        "cells": cells,
+        "constraints": [{"type": 0}, {"type": 1, "regions": regions}],
+    }
+    doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
+    payload = LZString.compressToEncodedURIComponent(json.dumps(doc))
+    return f"https://sudokumaker.app/?puzzle={payload}"
+
+
+def test_solvable_jigsaw_link_prints_found_and_region_bordered_witness(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = cli.main([_solvable_jigsaw_link()], io.StringIO())
+
+    out = capsys.readouterr().out
+    lines = out.split("\n")
+    assert code == 0
+    assert lines[0] == "found"
+    # Every cell is given, so the digits render deterministically: row 0 is
+    # 1..9 in order. The jigsaw borders don't line up with 3x3 boxes — no
+    # vertical border sits at a multiple-of-3 column throughout the row.
+    grid = lines[1:]
+    cell_row = grid[1]
+    assert [int(d) for d in re.findall(r"\d", cell_row)] == list(range(1, 10))
+    assert grid[0] != "┌───────────┬───────────┬───────────┐"
 
 
 def test_non_classic_link_exits_two_with_stderr(
