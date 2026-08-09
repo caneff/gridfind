@@ -166,19 +166,24 @@ that compiles a user's `(a,b) => boolean` into such a table.
 **Why.** Writing one propagator and expressing each relation as data collapses a
 whole variant family to configuration.
 
-**gridfind stance: MIRROR the idea, DEVIATE on the encoding — this is [#42].**
-Adopt "one parameterized pairwise helper" instead of a layer class per pairwise
-variant. But **do not** copy the truth-table encoding: ISS needs a table because
-it hand-propagates; CP-SAT lets us write `model.add(a < b)` directly, which is
-lighter and clearer. So gridfind's version is a helper taking a per-pair OR-Tools
-expression (`lambda a, b, model: ...`), the sibling of the existing
-`_base.emit_distinct_count`. Only reach for a table/allowed-assignments encoding
-if a `Puzzle` ever carries a *setter-defined* relation as data (it doesn't today —
-`type` fixes the relation). Timing: the helper waits for the **second** two-cell
-variant, not the first. `pair-sum` (#66) shipped and deliberately emits its sum
-rule directly rather than inventing a shared helper for a single caller
-(`pair_sum.py`). **Still OPEN, and the only one with a filed issue** — 1.4, 1.6 and
-5.4 are also OPEN but deferred until gridfind meets the problem at all. See [#42].
+**gridfind stance: MIRROR the idea, DEVIATE on the encoding — decided and built
+(#42 decision 5).** Adopt "one parameterized pairwise helper" instead of a layer
+class per pairwise variant. But **do not** copy the truth-table encoding: ISS
+needs a table because it hand-propagates; CP-SAT lets us write `model.add(a < b)`
+directly, which is lighter and clearer. So gridfind's version is a helper taking a
+per-pair OR-Tools expression (`lambda a, b, model: ...`), the sibling of the
+existing `_base.emit_distinct_count`. Only reach for a table/allowed-assignments
+encoding if a `Puzzle` ever carries a *setter-defined* relation as data (it
+doesn't today — `type` fixes the relation).
+
+Timing held to the rule: the helper waited for the **second** two-cell variant,
+not the first. `pair-sum` (#66) shipped alone and deliberately emitted its sum
+rule directly rather than invent a shared helper for a single caller; when
+`pair-difference` arrived the helper was extracted and `pair-sum` retrofitted onto
+it (see below). The tracker issue [#42] is still open pending a formal close, but
+the fork itself is resolved — the deviation is built, not merely proposed. Of the
+remaining OPEN rows, 1.4, 1.6 and 5.4 are deferrals with no filed issue, waiting
+until gridfind meets the problem at all.
 
 **Deviation held.** The second two-cell variant, `pair-difference` (#129,
 spec #127), landed on exactly this shape: `emit_over_pairs(engine, pairs,
@@ -538,7 +543,7 @@ lemma is genuinely clarifying), not to reimplement its propagation.
 | 1.2 | single builder chokepoint, 1→many | **MIRROR** chokepoint, **DEVIATE** to a dict registry — built (#44) |
 | 1.3 | declarative metadata drives UI/help/parser | **DEVIATE** now (no 2nd surface), keep the instinct |
 | 1.4 | constraint taxonomy (`CATEGORY`) | **OPEN**, low priority; note global-vs-local axis |
-| 1.5 | relation-as-data pairwise primitive | **MIRROR** idea, **DEVIATE** encoding — **OPEN [#42]**, waits for the *second* two-cell variant |
+| 1.5 | relation-as-data pairwise primitive | **MIRROR** idea, **DEVIATE** encoding — **built** (#42 decision 5): `emit_over_pairs`, 2nd caller `pair-difference` |
 | 1.6 | sequential rules via NFA | **OPEN** — prefer CP-SAT `add_automaton` |
 | 1.7 | flat composition + `Or`/`And` w/ nesting rules | **MIRROR** implicit; explicit is **N/A — CP-SAT** |
 | 1.8 | grid cells vs. var (outside) cells | **MIRROR** — already in CONTEXT.md |
@@ -559,8 +564,10 @@ _Pinned to ISS commit `2e386f8`. Update the clone and revisit when gridfind hits
 new fork; record actual decisions in ADRs, not here._
 
 _Stances last reconciled against the repo 2026-08-09: #33, #41, #43 and #44 have
-closed since the first draft, so rows 1.1, 1.2, 2.2, 4.1 and 4.2 moved off OPEN.
-**[#42] (1.5) is now the only OPEN row with a filed issue**; 1.4, 1.6 and 5.4 stay
-OPEN as deferrals — gridfind has not met those problems yet, and no issue tracks
-them. When a stance here says OPEN and names an issue, check the issue is still
-open before trusting it._
+closed since the first draft, and #42 (1.5) is now decided and built — the
+`emit_over_pairs` helper landed with `pair-difference` as its second caller — so
+rows 1.1, 1.2, 1.5, 2.2, 4.1 and 4.2 all moved off OPEN. The three OPEN rows left
+— 1.4, 1.6 and 5.4 — are deferrals with no filed issue, waiting until gridfind
+meets the problem at all. When a stance here names an issue, check its state
+against the repo before trusting it: #42's tracker issue is still open pending a
+formal close, though the fork it names is resolved._
