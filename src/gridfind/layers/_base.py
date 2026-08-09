@@ -20,7 +20,7 @@ from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, GridfindError
+from gridfind.engine import Engine
 
 
 def grid_content(engine: Engine) -> list[list[cp_model.IntVar]]:
@@ -52,9 +52,6 @@ def emit_distinct_count(
     rather than a sign of many rules.
     """
     board = engine.board
-    if board is None:
-        msg = f"{label} requires build_engine(..., board=...)"
-        raise GridfindError(msg)
     present_per_digit = []
     for digit in board.values:
         holds_digit = []
