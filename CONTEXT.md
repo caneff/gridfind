@@ -125,11 +125,19 @@ handled by one **layer**.
 
 - **carried field** — setter input riding on the engine for layers to read
   (`constraints` and `board`; two-channel rule in
-  [ADR-0003](docs/adr/0003-two-channels-registry-and-engine.md)). The line between
-  the two channels is _who produced the fact_: the registry carries what a layer
-  derived, a carried field carries what the setter supplied. Setter input needs
-  its own channel because `verdict` and `emit_distinct_count` consume it and
-  neither is a layer.
+  [ADR-0004](docs/adr/0004-binding-not-provenance.md)). The line between the two
+  channels is _must the producer and the consumer stay apart_: the registry
+  carries facts that need late binding, a carried field carries what is fixed
+  before any layer runs. Setter input needs its own channel because `verdict`
+  and `emit_distinct_count` consume it and neither is a layer.
+
+- **cell geometry** — the descriptor of the puzzle's cell space: the board size,
+  the digit values, the box tiling, and the grid of `RxCy` addresses
+  ([ADR-0004](docs/adr/0004-binding-not-provenance.md)). Metadata only — it holds
+  no **content** and no solver state. Built from the setter's board before any
+  layer runs, so anyone may read it: layers off the engine, `sudokumaker` from
+  the board directly. Adjacency joins it when the first adjacency variant lands.
+  Named for the cell space it describes, not for any one **cell**.
 
 - **two-phase build** — the build protocol that makes composition
   order-insensitive (map #1, decision 10; engine↔layer contract frozen in

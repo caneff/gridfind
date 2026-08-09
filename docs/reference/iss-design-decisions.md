@@ -275,15 +275,18 @@ declaration of geometry).
 owned by nobody in particular. Centralizing it keeps every handler size-agnostic
 and keeps adjacency queries out of individual constraints.
 
-**gridfind stance: partly MIRROR (already), partly OPEN → [#43].**
-- Geometry-lives-in-a-layer: **already mirrored** — gridfind's `board` owns all
-  geometry, the engine holds none (`CONTEXT.md` decision 31; `board.py`).
-- Adjacency queries (knight-move pairs, orthogonal neighbours, along-a-line): **[#43]**.
-  ISS centralizes these in `CellGraph`. gridfind's leaning is a `_geometry` helper
-  module that derives adjacency on demand from the `grid` structure (like
-  `grid_content`), rather than publishing precomputed adjacency structures — adjacency
-  is a pure function of `grid`, not shared state. Same "one owner for geometry"
-  spirit, lazier delivery.
+**gridfind stance: MIRROR, decided in [ADR-0004](../adr/0004-binding-not-provenance.md) (#43).**
+- Geometry-lives-in-a-layer: **reversed.** It used to be mirrored the other way —
+  `board` owned all geometry and published the address grid to the **structure
+  registry**, so `verdict` had to cast its way in. ADR-0004 adopts ISS's split:
+  a `CellGeometry` descriptor built from the setter's board before any layer
+  runs, holding the size, the digit values, the box tiling, and the `RxCy`
+  addresses, readable by anyone.
+- Adjacency queries (knight-move pairs, orthogonal neighbours, along-a-line):
+  **a slot in `CellGeometry`, unbuilt.** ISS centralizes these in `CellGraph`;
+  gridfind will too when the first adjacency variant lands. The earlier lean —
+  a `_geometry` helper deriving adjacency from the `grid` structure — survives
+  only as the free function that builds the descriptor.
 - Size/shape as data not syntax: **already aligned** — #41 makes board size/box a
   `Puzzle` field, mirroring ISS's `Shape`. Hex is out of scope for gridfind (a
   different board family), where ISS supports non-square; don't over-build for it.

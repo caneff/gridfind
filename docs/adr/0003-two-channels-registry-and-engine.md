@@ -1,6 +1,8 @@
 # ADR-0003: two channels — the registry carries derived facts, the engine carries setter input
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0004](0004-binding-not-provenance.md) — the
+  revisit condition below fired (issue #109), and the fix replaced this ADR's
+  provenance test with a binding test rather than adding a read handle.
 - **Date:** 2026-08-08
 - **Decides:** whether every fact a layer reads must arrive through the structure
   registry (raised while speccing #78, which puts the setter's `board` on the
