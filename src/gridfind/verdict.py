@@ -138,8 +138,15 @@ class Witness:
 
 @dataclass(frozen=True)
 class Verdict:
+    """`reason` is the broke witness's one explanation (issue #126): set only
+    when a region in the resolved partition outgrows the digit domain — a
+    pigeonhole fact that alone proves no completion exists. `None` on every
+    other broke (an ordinary contradiction has no region to blame) and on
+    found/unknown alike."""
+
     kind: VerdictKind
     witness: Witness | None = None
+    reason: str | None = None
 
 
 def verdict(
@@ -173,7 +180,7 @@ def verdict(
         witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
         return Verdict(kind="found", witness=witness)
     if status == cp_model.INFEASIBLE:
-        return Verdict(kind="broke")
+        return Verdict(kind="broke", reason=_overlarge_region_reason(canonical, puzzle))
     return Verdict(kind="unknown")
 
 
@@ -190,6 +197,24 @@ def _resolve_region_map(canonical: list[Constraint], size: int) -> RegionMap:
     if size in BOX_SHAPE:
         return box_regions(size, *BOX_SHAPE[size])
     return [[(row, col) for row in range(1, size + 1) for col in range(1, size + 1)]]
+
+
+def _overlarge_region_reason(canonical: list[Constraint], puzzle: Puzzle) -> str | None:
+    """The one broke witness this issue adds (#126): the first region in the
+    resolved partition that outgrows the digit domain, named by its 1-based
+    position and cell count against the domain size — a pigeonhole violation
+    that alone proves no completion exists. Only checked when a
+    regions-distinct constraint is actually in play, so a puzzle with no such
+    rule (or an ordinary contradiction with every region in bounds) carries
+    no message."""
+    if not any(constraint.type == "regions-distinct" for constraint in canonical):
+        return None
+    region_map = _resolve_region_map(canonical, puzzle.board.size)
+    domain_size = len(puzzle.board.values)
+    for index, region in enumerate(region_map, start=1):
+        if len(region) > domain_size:
+            return f"region {index} holds {len(region)} cells, domain is {domain_size}"
+    return None
 
 
 def _apply(

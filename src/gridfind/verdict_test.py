@@ -44,6 +44,7 @@ def assert_layer_newly_breaks(
     )
     assert strict.kind == "broke"
     assert strict.witness is None
+    assert strict.reason is None
 
 
 def test_verdict_found_returns_a_witness_consistent_with_the_given() -> None:
@@ -596,6 +597,7 @@ def test_jigsaw_regions_distinct_with_an_over_large_region_returns_broke() -> No
 
     assert result.kind == "broke"
     assert result.witness is None
+    assert result.reason == "region 1 holds 8 cells, domain is 4"
 
 
 @given(length=st.integers(min_value=0, max_value=30).filter(lambda n: n != 16))
