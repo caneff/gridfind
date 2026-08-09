@@ -29,9 +29,12 @@ from gridfind.layers.regions import (
 )
 from gridfind.puzzle import (
     EMPTY,
+    BareSCell,
+    BareSingleton,
     Candidate,
     Constraint,
     Given,
+    HalfSCell,
     Placement,
     Puzzle,
     SDirective,
@@ -283,17 +286,26 @@ def _apply(
 
 
 def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> None:
-    """Apply the Schrödinger pins by restricting the already-built model along
-    the two axes `engine.restrict` can't reach: S-cell-ness (`is_s`) and the
-    second content slot (`d1`). A singleton pin fixes d0 and forces is_s false;
-    an S-cell pin fixes both slots to the sorted pair and forces is_s true. A
-    consistent pin narrows the model and is honored; a contradictory one makes
-    it infeasible, which the solver reports as broke.
+    """Apply the Schrödinger directives by restricting the already-built model
+    along the two axes `engine.restrict` can't reach: S-cell-ness (`is_s`) and
+    the second content slot (`d1`). Each names a point on those axes (#142):
+
+    - singleton pin  — fix d0 to the digit, force is_s false.
+    - S-cell pin     — fix both slots to the sorted pair, force is_s true.
+    - bare singleton — force is_s false, digit free.
+    - bare S-cell    — force is_s true, digits free.
+    - half S-cell    — force is_s true and the digit into *either* slot, its
+                       partner free (`digit in content`, an OR over the slots'
+                       reified holds, which `engine.reify_holds` builds).
+
+    A consistent directive narrows the model and is honored; a contradictory
+    one makes it infeasible, which the solver reports as broke.
 
     Two content errors are malformed, refused here before the solve (#142):
-    a pin naming a digit off the board, and *any* pin on a stack with no
-    schrodinger layer to honor it. The missing-layer check runs first, so a
-    pin with a legal digit still refuses when the layer is absent."""
+    a directive naming a digit off the board (singleton/half/S-cell pin), and
+    *any* directive on a stack with no schrodinger layer to honor it. The
+    missing-layer check runs first, so a directive with a legal digit still
+    refuses when the layer is absent."""
     if not directives:
         return
     is_s = cast("dict[str, cp_model.IntVar] | None", engine.structures.get("is_s"))
@@ -301,17 +313,27 @@ def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> N
         msg = "a Schrödinger pin needs a schrodinger layer, but the stack has none"
         raise MalformedPuzzleError(msg)
     for directive in directives:
-        content = engine.contents(directive.address)  # off-board raises here
+        address = directive.address
+        content = engine.contents(address)  # off-board raises here
         if isinstance(directive, SingletonPin):
-            _require_in_domain(engine, directive.address, (directive.digit,))
+            _require_in_domain(engine, address, (directive.digit,))
             engine.model.add(content[0] == directive.digit)
-            engine.model.add(is_s[directive.address] == 0)
+            engine.model.add(is_s[address] == 0)
+        elif isinstance(directive, BareSingleton):
+            engine.model.add(is_s[address] == 0)
+        elif isinstance(directive, BareSCell):
+            engine.model.add(is_s[address] == 1)
+        elif isinstance(directive, HalfSCell):
+            _require_in_domain(engine, address, (directive.digit,))
+            holds = engine.reify_holds(content, directive.digit, f"half.{address}")
+            engine.model.add_bool_or(holds)
+            engine.model.add(is_s[address] == 1)
         else:
             low, high = sorted(directive.pair)
-            _require_in_domain(engine, directive.address, (low, high))
+            _require_in_domain(engine, address, (low, high))
             engine.model.add(content[0] == low)
             engine.model.add(content[1] == high)
-            engine.model.add(is_s[directive.address] == 1)
+            engine.model.add(is_s[address] == 1)
 
 
 def _require_in_domain(engine: Engine, address: str, digits: tuple[int, ...]) -> None:

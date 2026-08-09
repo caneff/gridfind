@@ -6,10 +6,13 @@ from hypothesis import strategies as st
 
 from gridfind.engine import MalformedPuzzleError
 from gridfind.puzzle import (
+    BareSCell,
+    BareSingleton,
     Board,
     Candidate,
     Constraint,
     Given,
+    HalfSCell,
     Placement,
     Puzzle,
     SCellPin,
@@ -74,7 +77,12 @@ S_CELL_PINS = st.builds(
     address=ADDRESSES,
     pair=st.sets(DIGITS, min_size=2, max_size=2).map(frozenset),
 )
-S_DIRECTIVES = st.one_of(SINGLETON_PINS, S_CELL_PINS)
+BARE_SINGLETONS = st.builds(BareSingleton, address=ADDRESSES)
+BARE_S_CELLS = st.builds(BareSCell, address=ADDRESSES)
+HALF_S_CELLS = st.builds(HalfSCell, address=ADDRESSES, digit=DIGITS)
+S_DIRECTIVES = st.one_of(
+    SINGLETON_PINS, S_CELL_PINS, BARE_SINGLETONS, BARE_S_CELLS, HALF_S_CELLS
+)
 WORKING_STATES = st.builds(
     WorkingState,
     places=st.lists(PLACES, max_size=4).map(tuple),
@@ -208,6 +216,18 @@ def test_working_state_round_trips_its_s_directives() -> None:
         s_directives=(
             SingletonPin(address="R1C1", digit=4),
             SCellPin(address="R2C2", pair=frozenset({2, 7})),
+        )
+    )
+
+    assert WorkingState.from_json(state.to_json()) == state
+
+
+def test_working_state_round_trips_the_bare_and_half_directives() -> None:
+    state = WorkingState(
+        s_directives=(
+            BareSingleton(address="R1C1"),
+            BareSCell(address="R2C2"),
+            HalfSCell(address="R3C3", digit=6),
         )
     )
 
