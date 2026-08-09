@@ -8,17 +8,22 @@ not app fidelity.
 """
 
 import json
+from typing import Any
 
 import pytest
 from lzstring import LZString
 
 from gridfind.puzzle import (
+    BareSCell,
     Board,
     Candidate,
     Constraint,
     Given,
+    HalfSCell,
     Placement,
     Puzzle,
+    SCellPin,
+    SingletonPin,
     WorkingState,
 )
 from gridfind.sudokumaker import decode_link
@@ -135,3 +140,139 @@ def test_jigsaw_regions_decode_into_constraint_params() -> None:
         c for c in puzzle.constraints if c.type == "regions-distinct"
     )
     assert regions_constraint.params == {"regions": _JIGSAW_REGIONS}
+
+
+# --- --schrodinger ingest (issue #143) ---------------------------------
+
+# A schrodinger link's own cosmetic vocabulary: unknown types the decoder
+# must ignore (not reject) under --schrodinger, plus a disabled duplicate of
+# the classic type-1 regions matrix, which must lose to the enabled one.
+_SCHRODINGER_WIRE_CONSTRAINTS = [
+    {"type": 0},
+    {"type": 1, "regions": _STANDARD_REGIONS},
+    {"type": 1, "regions": _JIGSAW_REGIONS, "disabled": True},
+    {"type": 2003},
+    {"type": 303, "disabled": True},
+]
+
+
+def _schrodinger_link(cells: list[dict[str, object]], *, min_digit: int = 0) -> str:
+    """A synthesised Schrödinger-flavored link: `minDigit`, the cosmetic
+    constraint mix a real link carries, and a caller-supplied `cells` array."""
+    return _encode(
+        {
+            "cells": cells,
+            "minDigit": min_digit,
+            "constraints": _SCHRODINGER_WIRE_CONSTRAINTS,
+        }
+    )
+
+
+def test_schrodinger_link_reads_domain_and_synthesizes_constraint() -> None:
+    payload = _schrodinger_link(_EMPTY_CELLS, min_digit=0)
+
+    puzzle, _ = decode_link(payload, schrodinger=True, reading="classic")
+
+    assert puzzle.board == Board(size=9, values=range(10))
+    assert Constraint("schrodinger") in puzzle.constraints
+
+
+def test_schrodinger_link_ignores_cosmetic_and_disabled_constraints() -> None:
+    # The real link's 13 constraints include cosmetic types the classic-only
+    # guard would otherwise reject outright, plus a disabled duplicate of the
+    # regions matrix — both ignored under --schrodinger.
+    payload = _schrodinger_link(_EMPTY_CELLS)
+
+    puzzle, _ = decode_link(payload, schrodinger=True)
+
+    regions_constraint = next(
+        c for c in puzzle.constraints if c.type == "regions-distinct"
+    )
+    assert regions_constraint == Constraint("regions-distinct")
+
+
+def test_schrodinger_min_digit_defaults_to_one_when_absent() -> None:
+    payload = _encode(
+        {"cells": _EMPTY_CELLS, "constraints": _SCHRODINGER_WIRE_CONSTRAINTS}
+    )
+
+    puzzle, _ = decode_link(payload, schrodinger=True)
+
+    assert puzzle.board.values == range(1, 11)
+
+
+def test_unsupported_reading_is_refused() -> None:
+    payload = _schrodinger_link(_EMPTY_CELLS)
+
+    with pytest.raises(ValueError, match="reading"):
+        decode_link(payload, schrodinger=True, reading="sum-valued")
+
+
+def _mask(digits: set[int]) -> int:
+    total = 0
+    for d in digits:
+        total |= 1 << d
+    return total
+
+
+@pytest.mark.parametrize(
+    ("cell", "expected_s_directive", "expected_candidate"),
+    [
+        ({"given": True, "value": 4}, None, None),
+        ({"value": 3}, SingletonPin("R1C1", 3), None),
+        (
+            {"colors": 50, "candidates": _mask({2, 7})},  # red plus decoration
+            SCellPin("R1C1", frozenset({2, 7})),
+            None,
+        ),
+        (
+            {"colors": 2, "candidates": _mask({4})},
+            HalfSCell("R1C1", 4),
+            None,
+        ),
+        ({"colors": 2}, BareSCell("R1C1"), None),
+        (
+            {"colors": 2, "candidates": _mask({1, 2, 3})},
+            BareSCell("R1C1"),
+            Candidate("R1C1", frozenset({1, 2, 3})),
+        ),
+    ],
+    ids=[
+        "given",
+        "singleton-pin",
+        "s-cell-pin",
+        "half-s-cell",
+        "bare-s-cell",
+        "bare-s-cell-marks",
+    ],
+)
+def test_schrodinger_cell_encoding_table(
+    cell: dict[str, Any],
+    expected_s_directive: object,
+    expected_candidate: Candidate | None,
+) -> None:
+    cells = list(_EMPTY_CELLS)
+    cells[0] = cell
+    payload = _schrodinger_link(cells)
+
+    puzzle, state = decode_link(payload, schrodinger=True)
+
+    if cell.get("given"):
+        assert Given("R1C1", cell["value"]) in puzzle.givens
+    if expected_s_directive is not None:
+        assert expected_s_directive in state.s_directives
+    else:
+        assert all(d.address != "R1C1" for d in state.s_directives)
+    if expected_candidate is not None:
+        assert expected_candidate in state.candidates
+    else:
+        assert all(c.address != "R1C1" for c in state.candidates)
+
+
+def test_red_cell_with_a_value_is_rejected() -> None:
+    cells = list(_EMPTY_CELLS)
+    cells[0] = {"colors": 2, "value": 9}
+    payload = _schrodinger_link(cells)
+
+    with pytest.raises(ValueError, match="R1C1"):
+        decode_link(payload, schrodinger=True)

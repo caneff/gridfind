@@ -168,6 +168,90 @@ def test_solvable_jigsaw_link_prints_found_and_region_bordered_witness(
     assert grid[0] != "┌───────────┬───────────┬───────────┐"
 
 
+def _classic_schrodinger_solution_link() -> str:
+    """A synthesised, fully-given/pinned classic Schrödinger link (issue
+    #143): a valid completed 1-9 Latin square (the well-known
+    `(r*3 + r//3 + c) % 9 + 1` sudoku-by-formula construction, same shape as
+    `_solvable_jigsaw_link`) with one cell per row/column/box promoted to an
+    S-cell pinned red with center marks `{0, base}` — 0 is the domain's tenth
+    digit and never appears among the ordinary givens, so every
+    row/column/box ends up holding exactly the ten digits 0-9 once each. The
+    S-cell positions are picked by `stack = (band + k) % 3` (band = row // 3,
+    k = row % 3), a transversal that lands one S-cell in every row, column,
+    and box. Fully constrained (every cell a given or an exact S-cell pin),
+    so the default solve decides `found` instantly rather than searching."""
+    s_cells = {}
+    for band in range(3):
+        for k in range(3):
+            row = band * 3 + k
+            stack = (band + k) % 3
+            s_cells[(row, stack * 3 + band)] = True
+
+    cells = []
+    for row in range(9):
+        for col in range(9):
+            base = (row * 3 + row // 3 + col) % 9 + 1
+            if (row, col) in s_cells:
+                cells.append({"colors": 2, "candidates": 1 | (1 << base)})
+            else:
+                cells.append({"given": True, "value": base})
+
+    puzzle = {"cells": cells, "minDigit": 0, "constraints": [{"type": 0}]}
+    doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
+    payload = LZString.compressToEncodedURIComponent(json.dumps(doc))
+    return f"https://sudokumaker.app/?puzzle={payload}"
+
+
+def test_schrodinger_link_with_flags_prints_found_and_s_cell_witness(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = _classic_schrodinger_solution_link()
+
+    code = cli.main(["--schrodinger", "--reading", "classic", link], io.StringIO())
+
+    out = capsys.readouterr().out
+    lines = out.split("\n")
+    assert code == 0
+    assert lines[0] == "found"
+    # R1C1 is the (0, 0) S-cell pinned to {0, 1} — renders deterministically.
+    assert "{0 1}" in out
+
+
+def test_schrodinger_flag_without_reading_defaults_to_classic(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = _classic_schrodinger_solution_link()
+
+    code = cli.main(["--schrodinger", link], io.StringIO())
+
+    assert code == 0
+    assert capsys.readouterr().out.split("\n")[0] == "found"
+
+
+def test_unsupported_reading_exits_two_with_stderr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = _classic_schrodinger_solution_link()
+
+    code = cli.main(["--schrodinger", "--reading", "sum-valued", link], io.StringIO())
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert captured.out == ""
+    assert captured.err.startswith("gridfind:")
+
+
+def test_non_schrodinger_link_without_flag_is_unaffected(
+    capsys: pytest.CaptureFixture[str], classic_link: str
+) -> None:
+    # No regression (#143): the classic link decodes exactly as before when
+    # --schrodinger is not given.
+    code = cli.main([classic_link], io.StringIO())
+
+    assert code == 0
+    assert capsys.readouterr().out.split("\n")[0] == "found"
+
+
 def test_non_classic_link_exits_two_with_stderr(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
