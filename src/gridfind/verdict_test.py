@@ -14,7 +14,7 @@ from gridfind.puzzle import (
     Puzzle,
     WorkingState,
 )
-from gridfind.verdict import verdict
+from gridfind.verdict import Witness, verdict
 
 BOARD = Board(size=9)
 
@@ -67,6 +67,78 @@ def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
     assert len(result.witness.grid) == 9
     assert all(len(row) == 9 for row in result.witness.grid)
     assert result.witness.grid[0][0] == "R1C1"
+
+
+def test_verdict_found_witness_carries_the_boards_box_shape() -> None:
+    # The verdict fills box_shape in when it builds the witness (issue #105):
+    # a 9x9 board's classic convention is 3x3 boxes.
+    puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
+
+    result = verdict(puzzle)
+
+    assert result.witness is not None
+    assert result.witness.box_shape == (3, 3)
+
+
+def test_verdict_found_witness_has_no_box_shape_on_a_size_with_no_convention() -> None:
+    # A 5x5 board has no classic box convention (BOX_SHAPE), so the witness
+    # carries none either — render falls back to one ungrouped block.
+    puzzle = Puzzle(
+        board=Board(size=5),
+        constraints=(
+            Constraint(type="rows-distinct"),
+            Constraint(type="cols-distinct"),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.witness is not None
+    assert result.witness.box_shape is None
+
+
+def test_witness_render_bands_columns_and_rows_by_its_box_shape() -> None:
+    # A 6x6 tiles as 2x3 boxes: a column gap every 3 cells, a blank separator
+    # row every 2 rows.
+    grid = [[f"R{r}C{c}" for c in range(1, 7)] for r in range(1, 7)]
+    assignment = {address: i % 9 + 1 for i, row in enumerate(grid) for address in row}
+    witness = Witness(grid=grid, assignment=assignment, box_shape=(2, 3))
+
+    lines = witness.render().split("\n")
+
+    assert len(lines) == 8  # 6 rows plus two blank separator rows
+    assert lines[2] == ""
+    assert lines[5] == ""
+    for line in lines:
+        if line == "":
+            continue
+        left, right = line.split("  ")
+        assert len(left.split(" ")) == 3
+        assert len(right.split(" ")) == 3
+
+
+def test_witness_render_with_no_box_shape_is_one_ungrouped_block() -> None:
+    # No box_shape (a size with no classic box convention) renders as one
+    # ungrouped block per row — this only probes the address-to-value swap.
+    grid = [
+        ["R1C1", "R1C2", "R1C3"],
+        ["R2C1", "R2C2", "R2C3"],
+        ["R3C1", "R3C2", "R3C3"],
+    ]
+    assignment = {
+        "R1C1": 4,
+        "R1C2": 7,
+        "R1C3": 9,
+        "R2C1": 1,
+        "R2C2": 2,
+        "R2C3": 3,
+        "R3C1": 5,
+        "R3C2": 6,
+        "R3C3": 8,
+    }
+    witness = Witness(grid=grid, assignment=assignment)
+
+    assert witness.render() == "4 7 9\n1 2 3\n5 6 8"
 
 
 def test_verdict_broke_on_a_given_place_conflict() -> None:

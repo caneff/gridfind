@@ -24,7 +24,6 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
 
-from gridfind.layers.regions import render_grid
 from gridfind.puzzle import Puzzle, WorkingState
 from gridfind.sudokumaker import decode_link
 from gridfind.verdict import Verdict, verdict
@@ -85,7 +84,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 
     print(result.kind)
     if result.kind == "found" and result.witness is not None:
-        print(render_grid(result.witness.grid, result.witness.assignment))
+        print(result.witness.render())
     return 0 if result.kind == "found" else 1
 
 

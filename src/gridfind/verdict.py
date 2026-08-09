@@ -21,6 +21,7 @@ from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
+from gridfind.layers.regions import BOX_SHAPE
 from gridfind.puzzle import EMPTY, Candidate, Given, Placement, Puzzle, WorkingState
 from gridfind.strategy import PURE_SATISFACTION, Strategy
 
@@ -39,16 +40,36 @@ class Witness:
 
     It is an *assignment*, not `values`: `Board.values` is the digit domain a
     cell may hold, and one word for both the offer and the choice reads badly
-    three lines apart."""
+    three lines apart.
+
+    `box_shape` is `None` for a board size with no classic box convention
+    (issue #77) — `render` then prints one ungrouped block rather than
+    guessing a banding."""
 
     grid: list[list[str]]
     assignment: dict[str, int]
+    box_shape: tuple[int, int] | None = None
 
     def __getitem__(self, address: str) -> int:
         return self.assignment[address]
 
     def __len__(self) -> int:
         return len(self.assignment)
+
+    def render(self) -> str:
+        """The witness as text, box-banded by its own `box_shape` (issue
+        #105): a double space between box columns, a blank line between box
+        rows. With no box shape, one ungrouped block — a region rule (and so
+        a box shape) isn't required to reach a witness."""
+        box_rows, box_cols = self.box_shape or (len(self.grid), len(self.grid))
+        lines: list[str] = []
+        for i, row in enumerate(self.grid):
+            cells = [str(self.assignment[address]) for address in row]
+            groups = [cells[c : c + box_cols] for c in range(0, len(cells), box_cols)]
+            lines.append("  ".join(" ".join(group) for group in groups))
+            if (i + 1) % box_rows == 0 and i + 1 < len(self.grid):
+                lines.append("")
+        return "\n".join(lines)
 
 
 @dataclass(frozen=True)
@@ -86,7 +107,9 @@ def verdict(
             address: engine.value(solver, address) for address in engine.cells
         }
         grid = cast("list[list[str]]", engine.structures["grid"])
-        return Verdict(kind="found", witness=Witness(grid=grid, assignment=assignment))
+        box_shape = BOX_SHAPE.get(puzzle.board.size)
+        witness = Witness(grid=grid, assignment=assignment, box_shape=box_shape)
+        return Verdict(kind="found", witness=witness)
     if status == cp_model.INFEASIBLE:
         return Verdict(kind="broke")
     return Verdict(kind="unknown")
