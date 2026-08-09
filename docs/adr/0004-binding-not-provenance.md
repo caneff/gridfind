@@ -22,8 +22,10 @@ sorted every fact by **who produced it** — the setter, or a **layer**. The
 address grid answers neither. `board.py` builds it from `board.size` alone:
 
 ```python
-grid = [[cell_address(row, col) for col in range(1, board.size + 1)]
-        for row in range(1, board.size + 1)]
+grid = [
+    [cell_address(row, col) for col in range(1, board.size + 1)]
+    for row in range(1, board.size + 1)
+]
 ```
 
 No layer's work informs it. Any code holding the board could compute the
