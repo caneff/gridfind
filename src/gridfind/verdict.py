@@ -23,7 +23,6 @@ from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.regions import BOX_SHAPE
 from gridfind.puzzle import EMPTY, Candidate, Given, Placement, Puzzle, WorkingState
-from gridfind.strategy import PURE_SATISFACTION, Strategy
 
 VerdictKind = Literal["found", "broke", "unknown"]
 
@@ -84,7 +83,6 @@ def verdict(
     *,
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
     num_workers: int = DEFAULT_NUM_WORKERS,
-    strategy: Strategy = PURE_SATISFACTION,
 ) -> Verdict:
     # board is not a constraint — the puzzle's board supplies the grid. The
     # door expands presets and aliases exactly once and hands back both the
@@ -95,7 +93,6 @@ def verdict(
     canonical, layers = build_stack(puzzle.constraints)
     engine = build_engine(layers, tuple(canonical), board=puzzle.board)
     _apply(engine, puzzle.givens, working_state.places, working_state.candidates)
-    strategy.configure(engine.model)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit_s
