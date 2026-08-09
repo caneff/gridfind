@@ -1,27 +1,117 @@
-"""Shared test fixtures for the layers package.
+"""The read side of `emit`, shared by the layers package's tests (issue #100).
 
-`assert_one_all_different_rule_per_group` is the common shape of the
-distinct-layer emit tests: one AllDifferent rule per group, each over a full
-line's worth of cells. It lives here as a fixture so `distinct_test` and any
-other layer test share the assertion body without copying it (issue #20's
-dedup, carried through the issue #37 unification).
+A layer emits **rules**, and one rule may cost many **solver constraints**
+(`_base` documents the three levels). Nothing read those rules back, so a layer
+test had to assert against the solver's protocol buffer or pay for a whole
+solve. These functions are that read side: each returns one rule shape in
+gridfind's own vocabulary — addresses, groups, totals, targets.
+
+They live in `conftest.py` because more than one test module needs them and the
+wheel already excludes this shape (`pyproject.toml` `source-exclude`). They are
+plain functions, not fixtures: a fixture whose whole body is `return _f` buys
+nothing over an import.
+
+This is a test seam, not engine surface. `emit` still writes straight to
+`engine.model`, so the engine->layer contract (ADR-0001) does not move.
 """
 
-from collections.abc import Callable
-
-import pytest
+from collections.abc import Iterator
 
 from gridfind.engine import Engine
 
-_BOARD_SIZE = 9  # the board these shared tests build against
+
+def _cell_addresses(engine: Engine) -> dict[int, str]:
+    """Which cell each solver variable belongs to, by variable index.
+
+    Built from `engine.cells` rather than by parsing variable names, so what
+    counts as cell content is a structural fact. Renaming a variable cannot
+    make one kind of rule read back as another.
+    """
+    return {
+        variable.index: address
+        for address, cell in engine.cells.items()
+        for variable in cell.content
+    }
 
 
-@pytest.fixture
-def assert_one_all_different_rule_per_group() -> Callable[[Engine], None]:
-    def _assert(engine: Engine) -> None:
-        assert len(engine.model.proto.constraints) == _BOARD_SIZE
-        for constraint in engine.model.proto.constraints:
-            assert constraint.has_all_diff()
-            assert len(constraint.all_diff.exprs) == _BOARD_SIZE
+def _sums(engine: Engine) -> Iterator[tuple[list[int], int]]:
+    """Every plain sum the engine holds, as the variable indices it adds up
+    and the total they must reach.
 
-    return _assert
+    Enforced sums are skipped: those are the reified per-cell equalities a
+    counting rule computes with, not a rule a layer stated.
+    """
+    for solver_constraint in engine.model.proto.constraints:
+        if not solver_constraint.has_linear():
+            continue
+        if list(solver_constraint.enforcement_literal):
+            continue
+        variables = list(solver_constraint.linear.vars)
+        if variables:
+            yield variables, solver_constraint.linear.domain[0]
+
+
+def cell_values(engine: Engine, address: str) -> list[int]:
+    """The digit values a cell may hold, ascending — `Board.values` as the
+    engine gave it to one cell, rather than the two ends of it.
+
+    A solver variable states its domain as flat pairs of closed intervals.
+    Every board gridfind builds today gives a cell one unbroken interval, so
+    the multi-interval path is decoded but not yet exercised; issue #102, which
+    holds a cell to a stepped digit set, is what will exercise it.
+    """
+    domain = list(engine.cells[address].content[0].proto.domain)
+    return [
+        digit
+        for low, high in zip(domain[::2], domain[1::2], strict=True)
+        for digit in range(low, high + 1)
+    ]
+
+
+def all_different_groups(engine: Engine) -> list[list[str]]:
+    """Every all-different rule, as the cell addresses in its group.
+
+    Reads the first variable of each expression: gridfind emits
+    `add_all_different` over plain cell content, so one expression is one cell.
+    """
+    address_of = _cell_addresses(engine)
+    return [
+        [address_of[expr.vars[0]] for expr in rule.all_diff.exprs]
+        for rule in engine.model.proto.constraints
+        if rule.has_all_diff()
+    ]
+
+
+def pair_sum_rules(engine: Engine) -> list[tuple[list[str], int]]:
+    """Every sum-over-cells rule, as the addresses it adds up and the total
+    they must reach. A sum over cell content is this rule; a counting rule
+    sums per-digit markers instead."""
+    address_of = _cell_addresses(engine)
+    return [
+        ([address_of[variable] for variable in variables], total)
+        for variables, total in _sums(engine)
+        if all(variable in address_of for variable in variables)
+    ]
+
+
+def distinct_count_targets(engine: Engine) -> dict[str, int]:
+    """Every counting rule, as its label mapped to the number of distinct
+    digits it demands.
+
+    One counting rule costs O(cells x digits) solver constraints, and only one
+    states the count: the sum over its per-digit markers. The label is a naming
+    convention (`<label>.present<digit>`), so it is the one thing here read off
+    a variable's name.
+    """
+    address_of = _cell_addresses(engine)
+    names = engine.model.proto.variables
+    targets: dict[str, int] = {}
+    for variables, total in _sums(engine):
+        if any(variable in address_of for variable in variables):
+            continue
+        label = names[variables[0]].name.rsplit(".", 1)[0]
+        # A label names a rule, so a repeat would silently drop one from the
+        # answer. Say so instead.
+        assert label not in targets, f"two counting rules are labelled {label!r}"
+        targets[label] = total
+    return targets

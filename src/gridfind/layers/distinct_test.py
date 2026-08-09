@@ -1,9 +1,8 @@
-from collections.abc import Callable
-
 import pytest
 
-from gridfind.engine import Engine, GridfindError, MissingDependencyError, build_engine
+from gridfind.engine import GridfindError, MissingDependencyError, build_engine
 from gridfind.layers import LAYER_REGISTRY
+from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import cols, regions
 from gridfind.puzzle import Board
 
@@ -64,13 +63,30 @@ def test_distinct_layer_requires_board(name: str) -> None:
         build_engine([LAYER_REGISTRY[name]])
 
 
-@pytest.mark.parametrize("name", ["rows-distinct", "cols-distinct", "regions-distinct"])
+@pytest.mark.parametrize(
+    ("name", "first_group"),
+    [
+        ("rows-distinct", [f"R1C{col}" for col in range(1, 10)]),
+        ("cols-distinct", [f"R{row}C1" for row in range(1, 10)]),
+        (
+            "regions-distinct",
+            [f"R{row}C{col}" for row in (1, 2, 3) for col in (1, 2, 3)],
+        ),
+    ],
+    ids=["rows", "cols", "regions"],
+)
 def test_distinct_layer_emits_one_all_different_rule_per_group(
     name: str,
-    assert_one_all_different_rule_per_group: Callable[[Engine], None],
+    first_group: list[str],
 ) -> None:
+    """Which cells each group holds, not merely how many. The first group is
+    the partition's own first cut — row 1, column 1, the top-left region."""
     engine = build_engine(
         [LAYER_REGISTRY["board"], LAYER_REGISTRY[name]], board=Board(size=9)
     )
 
-    assert_one_all_different_rule_per_group(engine)
+    groups = all_different_groups(engine)
+
+    assert len(groups) == 9
+    assert all(len(group) == 9 for group in groups)
+    assert sorted(groups[0]) == sorted(first_group)
