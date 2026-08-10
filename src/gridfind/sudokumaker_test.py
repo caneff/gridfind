@@ -713,3 +713,79 @@ def test_empty_xv_block_decodes_cleanly(capsys: pytest.CaptureFixture[str]) -> N
 
     assert all(c.type not in ("x", "v", "pair-sum") for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
+
+
+# --- type 301 killer-cage decode (design #192, issue #199) ---------------
+
+
+def _cage_link(constraint: dict[str, object]) -> str:
+    return _encode(
+        {"cells": _EMPTY_CELLS, "constraints": [*_WIRE_CONSTRAINTS, constraint]}
+    )
+
+
+def test_cage_decodes_to_region_only_cage_constraint(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A no-sum cage (value 0) is honored silently as a plain region-only cage,
+    # its raw indices mapped row-major to addresses ([18, 19] -> R3C1, R3C2).
+    payload = _cage_link({"type": 301, "cages": [{"cells": [18, 19], "value": 0}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
+    assert capsys.readouterr().err == ""
+
+
+def test_cage_with_a_sum_decodes_cells_only_and_warns(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A summed cage (value > 0) decodes to the same cells-only cage — the layer
+    # reads no sum (backlog #196) — and warns to stderr that the sum was dropped.
+    payload = _cage_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert "sum" in capsys.readouterr().err
+
+
+def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
+    payload = _cage_link(
+        {
+            "type": 301,
+            "cages": [
+                {"cells": [0, 1], "value": 0},
+                {"cells": [18, 19], "value": 0},
+            ],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
+
+
+def test_disabled_cage_block_is_skipped_without_decoding(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _cage_link(
+        {"type": 301, "cages": [{"cells": [0, 1], "value": 7}], "disabled": True}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "cage" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
+def test_empty_cage_block_decodes_cleanly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _cage_link({"type": 301, "cages": []})
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "cage" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
