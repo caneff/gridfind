@@ -715,6 +715,123 @@ def test_empty_xv_block_decodes_cleanly(capsys: pytest.CaptureFixture[str]) -> N
     assert capsys.readouterr().err == ""
 
 
+# --- type 200 white-kropki decode (design #191, issue #200) --------------
+
+
+def _kropki_link(constraint: dict[str, object]) -> str:
+    return _encode(
+        {"cells": _EMPTY_CELLS, "constraints": [*_WIRE_CONSTRAINTS, constraint]}
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "edge", "cells"),
+    [
+        (1, 75, ["R5C3", "R5C4"]),
+        (1, 132, ["R8C6", "R8C7"]),
+        (1, 70, ["R4C8", "R5C8"]),
+    ],
+    ids=["white-horizontal-75", "white-horizontal-132", "white-vertical-70"],
+)
+def test_kropki_clue_decodes_to_pair_difference(
+    value: int, edge: int, cells: list[str]
+) -> None:
+    payload = _kropki_link({"type": 200, "clues": [{"value": value, "edge": edge}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("pair-difference", params={"cells": cells, "diff": value})
+        in puzzle.constraints
+    )
+
+
+def test_kropki_honors_a_labelled_non_one_value() -> None:
+    # A white dot labelled with a difference other than 1 is honored verbatim —
+    # never silently treated as the consecutive (diff 1) default.
+    payload = _kropki_link({"type": 200, "clues": [{"value": 3, "edge": 75}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("pair-difference", params={"cells": ["R5C3", "R5C4"], "diff": 3})
+        in puzzle.constraints
+    )
+
+
+def test_multiple_kropki_clues_each_decode_to_their_own_constraint() -> None:
+    payload = _kropki_link(
+        {
+            "type": 200,
+            "clues": [{"value": 1, "edge": 75}, {"value": 1, "edge": 132}],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("pair-difference", params={"cells": ["R5C3", "R5C4"], "diff": 1})
+        in puzzle.constraints
+    )
+    assert (
+        Constraint("pair-difference", params={"cells": ["R8C6", "R8C7"], "diff": 1})
+        in puzzle.constraints
+    )
+
+
+def test_kropki_negative_list_warns_but_keeps_positive_clues(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _kropki_link(
+        {"type": 200, "clues": [{"value": 1, "edge": 75}], "negative": [1, 2]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("pair-difference", params={"cells": ["R5C3", "R5C4"], "diff": 1})
+        in puzzle.constraints
+    )
+    assert "negative" in capsys.readouterr().err
+
+
+def test_black_kropki_type_201_is_not_decoded_and_warns(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # type 201 (black/ratio) has no ratio layer (backlog #195): it stays on the
+    # generic warn-and-drop path, emitting no pair-difference constraint.
+    payload = _kropki_link({"type": 201, "clues": [{"value": 2, "edge": 75}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "pair-difference" for c in puzzle.constraints)
+    assert "201" in capsys.readouterr().err
+
+
+def test_disabled_kropki_block_is_skipped_without_decoding(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _kropki_link(
+        {"type": 200, "clues": [{"value": 1, "edge": 75}], "disabled": True}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "pair-difference" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
+def test_empty_kropki_block_decodes_cleanly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _kropki_link({"type": 200, "clues": [], "negative": []})
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "pair-difference" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
 # --- type 301 killer-cage decode (design #192, issue #199) ---------------
 
 
