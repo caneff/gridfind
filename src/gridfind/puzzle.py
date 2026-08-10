@@ -7,10 +7,13 @@ frozen dataclasses that serialize to JSON and read back to an *equal* object —
 the one durable on-disk form (spec #45, issue #46).
 
 This module is schema only: nothing here calls `verdict` or builds a model.
-The one thing it reaches into `gridfind.engine` for is `MalformedPuzzleError`
-itself — the shared refusal for a document that is not a well-formed puzzle
-(issue #107), so a caller catches one class regardless of which module
-noticed.
+It reaches into `gridfind.engine` for `MalformedPuzzleError` itself — the
+shared refusal for a document that is not a well-formed puzzle (issue #107),
+so a caller catches one class regardless of which module noticed — and into
+`gridfind.s_directives` for the Schrödinger directive codec and pair guard
+(issue #211): the five directive dataclasses below are bare schema, but
+reading/writing them and validating an S-cell pin's pair is real logic named
+in its own module, not hidden here among the plain structs.
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+from gridfind import s_directives
 from gridfind.engine import MalformedPuzzleError
 
 # A JSON scalar/array/object value — the genuine open boundary a constraint's
@@ -91,10 +95,6 @@ class Candidate:
     digits: frozenset[int]
 
 
-# An S-cell holds a pair — one digit is no pair, three cannot be one.
-_S_CELL_PAIR_SIZE = 2
-
-
 @dataclass(frozen=True)
 class SingletonPin:
     """A Schrödinger directive: this cell is a **singleton** holding `digit` —
@@ -120,12 +120,7 @@ class SCellPin:
     kind: ClassVar[str] = "s-cell-pin"
 
     def __post_init__(self) -> None:
-        if len(self.pair) != _S_CELL_PAIR_SIZE:
-            msg = (
-                f"an S-cell pin's pair must be two distinct digits, "
-                f"got {sorted(self.pair)}"
-            )
-            raise MalformedPuzzleError(msg)
+        s_directives.validate_s_cell_pair(self.pair)
 
 
 @dataclass(frozen=True)
@@ -162,41 +157,6 @@ class HalfSCell:
 # The Schrödinger working-state directives, hard-coded not registered
 # (ADR-0006). A closed union: a second directive-bearing layer is #26's seam.
 SDirective = SingletonPin | SCellPin | BareSingleton | BareSCell | HalfSCell
-
-
-def _s_directive_to_dict(directive: SDirective) -> dict[str, JsonValue]:
-    """One directive as a `{kind, address, …}` wire object. Every directive
-    carries `kind` and `address`; a digit-bearing one adds `digit`, and an
-    S-cell pin adds its `pair` as a sorted two-element list (mirroring
-    `Candidate.digits`). The bare directives carry nothing more."""
-    out: dict[str, JsonValue] = {"kind": directive.kind, "address": directive.address}
-    if isinstance(directive, SingletonPin | HalfSCell):
-        out["digit"] = directive.digit
-    elif isinstance(directive, SCellPin):
-        out["pair"] = sorted(directive.pair)
-    return out
-
-
-# from_json dispatches on the directive's kind tag (ADR-0006). Reading an
-# S-cell pin runs SCellPin.__post_init__, so a mis-sized pair in a save raises
-# MalformedPuzzleError here — a malformed pin never reaches memory. An unknown
-# kind is a structurally broken save, so the missing entry raises an ordinary
-# KeyError, not MalformedPuzzleError, which is reserved for bad content.
-_S_DIRECTIVE_READERS = {
-    SingletonPin.kind: lambda d: SingletonPin(address=d["address"], digit=d["digit"]),
-    SCellPin.kind: lambda d: SCellPin(address=d["address"], pair=frozenset(d["pair"])),
-    BareSingleton.kind: lambda d: BareSingleton(address=d["address"]),
-    BareSCell.kind: lambda d: BareSCell(address=d["address"]),
-    HalfSCell.kind: lambda d: HalfSCell(address=d["address"], digit=d["digit"]),
-}
-
-
-def _s_directive_from_dict(data: dict[str, JsonValue]) -> SDirective:
-    kind = data["kind"]
-    if not isinstance(kind, str):
-        msg = f"s_directive 'kind' must be a string, got {kind!r}"
-        raise TypeError(msg)
-    return _S_DIRECTIVE_READERS[kind](data)
 
 
 @dataclass(frozen=True)
@@ -273,7 +233,9 @@ class WorkingState:
                     {"address": c.address, "digits": sorted(c.digits)}
                     for c in self.candidates
                 ],
-                "s_directives": [_s_directive_to_dict(d) for d in self.s_directives],
+                "s_directives": [
+                    s_directives.s_directive_to_dict(d) for d in self.s_directives
+                ],
             }
         )
 
@@ -297,7 +259,8 @@ class WorkingState:
             # A save with no s_directives key predates the grammar — read it as
             # an empty tuple rather than refusing it (ADR-0006).
             s_directives=tuple(
-                _s_directive_from_dict(d) for d in doc.get("s_directives", [])
+                s_directives.s_directive_from_dict(d)
+                for d in doc.get("s_directives", [])
             ),
         )
 
