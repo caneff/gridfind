@@ -193,49 +193,61 @@ hard "this cell is one of this subset" domain restriction that `candidates` carr
 Corner marks are a looser box-placement annotation with no gridfind equivalent, so
 they map nowhere, the same as `colors`. Only `candidates` becomes a `Candidate`.
 
-### 4b. Size & domain on the wire — where they actually live (confirmed 2026-08-09, issue #172)
+### 4b. Size & domain on the wire — the omit-when-default rule (confirmed 2026-08-09, issue #172)
 
-Decoded two more real `formatVersion "1.5.0"` links to settle decisions #2/#3 of
+Decoded three real `formatVersion "1.5.0"` links to settle decisions #2/#3 of
 [map #171](https://github.com/caneff/gridfind/issues/171): the §4a classic 9×9
-(issue #54 fixture) and a real 6×6 variant ("2 Same 2 Differences", ChinStrap,
-constraint types `0,1,2000,1000,405,201`). The map's decisions assumed
-`width`/`height` (size source) and `minDigit`/`maxDigit` (domain source) fields.
-**Neither field exists in the observed wire.** What's actually there:
+(issue #54 fixture), a square 6×6 variant ("2 Same 2 Differences", ChinStrap),
+and a non-square **6×9 custom** blank grid (ChinStrap). They disagree on which
+header fields are present, and the pattern is the point:
 
-| Fact | Real 9×9 (§4a) | Real 6×6 |
-|---|---|---|
-| top-level `puzzle` keys | `author, cells, constraints, name` | `author, cells, comment, constraints, name, size, type` |
-| `width` / `height` | absent | absent |
-| `size` | **absent** | **`6`** (integer) |
-| `minDigit` / `maxDigit` / `digitCount` | absent | absent |
-| `type` (string, e.g. `"sudoku"`) | absent | present |
+| Field | classic 9×9 | 6×6 variant | 6×9 custom |
+|---|---|---|---|
+| `size` (int) | absent | **`6`** | absent |
+| `width` (int) | absent | absent | **`6`** |
+| `height` (int) | absent | absent | absent (derive: `54/6 = 9`) |
+| `minDigit` / `maxDigit` | absent | absent | **`0` / `6`** |
+| `type` (string) | absent | `"sudoku"` | `"custom"` |
+| cell count | 81 | 36 | 54 |
 
-- **No `width`/`height` anywhere — the size field is `puzzle.size` (a single
-  integer), and it is *omitted on the 9×9*.** So the trustworthy size source is
-  **`puzzle.size` when present, else `isqrt(len(cells))`** — not `width`/`height`,
-  which never appear. Cross-check square against the cell count, as decision #2
-  already says.
-- **No `minDigit`/`maxDigit`/`maxDigit` on either link.** A real classic 9×9 does
-  **not** carry a domain on the wire (confirming §4a), and neither does a real
-  non-Schrödinger 6×6. The domain is implicit `1..size`. `minDigit` shows up only
-  when deliberately shifted (the `minDigit:0` Schrödinger sample). There is **no
-  `maxDigit` on the wire at all**, so decision #3's `maxDigit − minDigit + 1 == N`
-  validation has nothing to read — the domain span comes from `size`, offset by an
-  optional `minDigit` (default 1).
+**SudokuMaker omits a header field when it equals the classic default and emits
+it only on deviation.** A default square 9×9 with a 1–9 domain carries none of
+these; a non-9 *square* carries `size`; a *non-square* carries `width` (and, when
+it deviates, `height` — though the 6×9 sample omitted `height`, leaving it to be
+derived); a *shifted domain* carries `minDigit`/`maxDigit`. So the fields
+decisions #2/#3 name **do** exist on the wire — they are just invisible on a
+classic link because a classic link is all-defaults.
+
+**Robust size (rows × cols), most specific first:**
+
+1. `width` present → `cols = width`; `rows = height` if present, else
+   `len(cells) // width` (the 6×9 case: `54 // 6 = 9`).
+2. else `size` present → square `size × size` (the 6×6 case).
+3. else → square `isqrt(len(cells))` (the classic case).
+
+Cross-check `rows * cols == len(cells)`. **A link can be genuinely non-square**
+(the 6×9 above) — `width` + cell count is what tells you the shape, exactly as a
+non-square grid must. Note this puts non-square grids *outside* map #171's
+square-N destination (decision #2 requires square); the 6×9 is a field-model
+witness, not an in-scope target.
+
+**Robust domain:** `minDigit`/`maxDigit` present → digits `minDigit..maxDigit`
+(the 6×9: `0..6`, seven digits); else implicit `1..size`. `maxDigit` **does**
+appear (falsifying an earlier draft of this section that claimed it never does);
+it is simply omitted on a default 1–9 domain.
 
 **Consequences for map #171's locked decisions:**
 
-- Reading `minDigit`/`maxDigit` *when present* is a safe superset: the default
-  (`minDigit = 1`, span from `size`) reproduces today's behavior byte-for-byte,
-  because real classic links carry no domain fields to change it.
-- Today's `minDigit`/`maxDigit` reject-guard is **not** firing on real classic 9×9
-  links (they don't carry those keys) — so relaxing it enables variants
-  (Schrödinger, future domain-shifted), it is **not** a correctness fix for
+- Reading `minDigit`/`maxDigit` *when present* is a safe superset: on a real
+  classic link they are absent, so the default (`1..size`) reproduces today's
+  decode byte-for-byte.
+- Today's `minDigit`/`maxDigit` reject-guard does **not** fire on real classic 9×9
+  links (they omit those keys) — relaxing it enables the deviating variants
+  (Schrödinger, domain-shifted, non-9), it is **not** a correctness fix for
   existing 9×9 links.
-- Decision #2 ("size from `width`/`height`") and decision #3 ("read
-  `minDigit`/`maxDigit`") should be reworded before `/to-spec`: **size from
-  `puzzle.size` (isqrt fallback)**; **domain from `size`, reading an optional
-  `minDigit` (no `maxDigit` on the wire)**.
+- Decisions #2/#3 hold in substance but should name the real fields before
+  `/to-spec`: **size from `width`(+derived/explicit `height`) or `size`, isqrt
+  fallback**; **domain from `minDigit`/`maxDigit` when present, else `1..size`**.
 
 ## 5. Python decode difficulty
 
