@@ -79,15 +79,39 @@ def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
 
 
 def test_verdict_found_witness_carries_the_boards_box_region_map() -> None:
-    # The verdict resolves box_regions in when it builds the witness (issue
-    # #124): a 9x9 board's classic convention is nine 3x3 boxes, absent any
-    # regions-distinct constraint of its own.
-    puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
+    # A regions-distinct constraint with no matrix of its own resolves to the
+    # board's box convention (issue #124): a 9x9 draws nine 3x3 boxes.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="regions-distinct"),),
+        givens=(Given(address="R1C1", digit=5),),
+    )
 
     result = verdict(puzzle)
 
     assert result.witness is not None
     assert result.witness.region_map == box_regions(9, 3, 3)
+
+
+def test_verdict_found_witness_draws_no_boxes_without_a_regions_constraint() -> None:
+    # A boxed-size board that carries no regions-distinct rule is a Latin
+    # square, not a sudoku — the witness must not draw box grid-lines the
+    # solver never enforced. One whole-board region, so render draws only the
+    # outer edge.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="rows-distinct"),
+            Constraint(type="cols-distinct"),
+        ),
+        givens=(Given(address="R1C1", digit=5),),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.witness is not None
+    assert len(result.witness.region_map) == 1
+    assert len(result.witness.region_map[0]) == 81
 
 
 def test_verdict_found_witness_falls_back_to_one_region_with_no_convention() -> None:
