@@ -12,11 +12,13 @@ output) but never calls `verdict()` and never touches `Witness` or its
 `render()` — so a defect in the solver or the renderer can't hide behind a
 witness that merely *looks* right to the same code that produced it.
 
-Regions come straight off the puzzle's own `regions-distinct` constraint —
-bare (the board's box tiling, via `region_map_for`) or jigsaw
-(`params["regions"]`, via `region_map_from_labels`) — the same two shapes
-`decode_link` itself ever emits, so this stays in lockstep with the decoder
-without importing anything from the verdict/render path.
+Regions come straight off the puzzle's own `regions-distinct` constraint, via
+`region_map_for_constraints` (issue #207's one door: bare resolves to the
+board's box tiling, jigsaw to `params["regions"]`) — the same shapes
+`decode_link` itself ever emits, so this stays in lockstep with the decoder.
+That resolver is the same one the witness render path crosses, so a
+render → validate round-trip proves both sides agree on one partition
+instead of each re-deriving it.
 
 A cell parses as a 1-tuple for an ordinary digit or a 2-tuple for a
 Schrödinger S-cell's rendered pair `{a b}` (`Witness.render()`'s `fmt`). The
@@ -33,7 +35,7 @@ from __future__ import annotations
 
 import re
 
-from gridfind.layers.regions import RegionMap, region_map_for, region_map_from_labels
+from gridfind.layers.regions import region_map_for_constraints
 from gridfind.puzzle import Puzzle
 
 _CELL_RE = re.compile(r"\{(\d+) (\d+)\}|(\d+)")
@@ -104,19 +106,15 @@ def _parse_grid(rendered: str, size: int) -> list[list[Cell]] | None:
 
 
 def _regions(puzzle: Puzzle, size: int, grid: list[list[Cell]]) -> list[list[Cell]]:
-    region_map = _region_map(puzzle, size)
-    if region_map is None:
+    """No `regions-distinct` constraint means no permutation groups to check
+    beyond rows/columns — the resolver's own no-regions fallback (one region
+    covering the whole board) is a render-only convenience the solver never
+    enforced, not a real group to validate."""
+    has_regions = any(c.type == "regions-distinct" for c in puzzle.constraints)
+    if not has_regions:
         return []
+    region_map = region_map_for_constraints(puzzle.constraints, size)
     return [[grid[row - 1][col - 1] for row, col in group] for group in region_map]
-
-
-def _region_map(puzzle: Puzzle, size: int) -> RegionMap | None:
-    for constraint in puzzle.constraints:
-        if constraint.type == "regions-distinct":
-            if "regions" in constraint.params:
-                return region_map_from_labels(size, constraint.params["regions"])
-            return region_map_for(size)
-    return None
 
 
 def _parse_address(address: str) -> tuple[int, int]:
