@@ -121,10 +121,9 @@ _XV_ALIASES: dict[int, str] = {
 # is not decoded (no ratio layer, backlog #195); it stays warn-and-dropped.
 _KROPKI_WHITE_TYPE = 200
 
-# type 301 is a killer-cage block (design #192): `cages: [{cells, value}]`. The
-# `cage` layer is region-only (no-repeats, no sum), so `value` is dropped — 0 is
-# SudokuMaker's own no-sum cage (silent), a positive sum is honored as cells-only
-# with a loud warning (sum support is backlog #196).
+# type 301 is a killer-cage block (design #192): `cages: [{cells, value}]`. A
+# positive `value` is the killer sum, honored by the `cage` layer (issue #196)
+# — 0 is SudokuMaker's own no-sum cage, region-only exactly as `value` absent.
 _CAGE_TYPE = 301
 
 
@@ -467,25 +466,24 @@ def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
 
 
 def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
-    """The `type 301` killer cages as region-only `cage` `Constraint`s (design
-    #192): each cage's raw `cells` indices map row-major to addresses — the same
-    `i // N`, `i % N` scheme givens use — so `[18, 19]` on a 9-board is
-    R3C1/R3C2. The `cage` layer reads no sum, so `value` is not passed: a `0`
-    (SudokuMaker's no-sum cage) is honored silently, a positive sum decodes
-    cells-only and warns to stderr that the sum was dropped (backlog #196). A
-    `disabled` block is skipped entirely; an empty `cages` list adds nothing."""
+    """The `type 301` killer cages as `cage` `Constraint`s (design #192,
+    killer sum issue #196): each cage's raw `cells` indices map row-major to
+    addresses — the same `i // N`, `i % N` scheme givens use — so `[18, 19]`
+    on a 9-board is R3C1/R3C2. A positive `value` rides through as the `cage`
+    layer's `value` param, which enforces it as the killer sum; `0`
+    (SudokuMaker's own no-sum cage) decodes cells-only, region-only exactly
+    as an absent `value`. A `disabled` block is skipped entirely; an empty
+    `cages` list adds nothing."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         for cage in cages:
             cells = [cell_address(i // size + 1, i % size + 1) for i in cage["cells"]]
-            decoded.append(Constraint("cage", params={"cells": cells}))
-            if cage.get("value", 0) > 0:
-                print(
-                    f"warning: ignoring {DECODER_REGISTRY[_CAGE_TYPE].name} sum "
-                    "— verdict computed without it",
-                    file=sys.stderr,
-                )
+            params: dict[str, object] = {"cells": cells}
+            value = cage.get("value", 0)
+            if value > 0:
+                params["value"] = value
+            decoded.append(Constraint("cage", params=params))
     return decoded
 
 
@@ -549,11 +547,11 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     live clue/negative list or a populated group) and dropped loudly, named by
     its `definition.name` when the link carries one. Honoring a specific
     variant rather than dropping it is the opt-in variant-decoder path (map
-    #180) — `202` graduated first (issue #198), `301` next (issue #199), `200`
-    after (issue #200); each still warns on the part it can't model (a
-    kropki/XV `negative` list, a cage's sum), fired from its own decoder
-    instead. `201` (black/ratio) is deliberately *not* graduated — no ratio
-    layer (backlog #195), so it stays here.
+    #180) — `202` graduated first (issue #198), `301` next (issue #199, its
+    killer sum honored per issue #196), `200` after (issue #200); each still
+    warns on the part it can't model (a kropki/XV `negative` list), fired from
+    its own decoder instead. `201` (black/ratio) is deliberately *not*
+    graduated — no ratio layer (backlog #195), so it stays here.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both

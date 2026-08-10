@@ -19,11 +19,15 @@ from typing import cast
 import pytest
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, build_engine
+from gridfind.engine import Engine, GridfindError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
-from gridfind.layers.conftest import all_different_groups, distinct_count_targets
+from gridfind.layers.conftest import (
+    all_different_groups,
+    distinct_count_targets,
+    pair_sum_rules,
+)
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
@@ -31,10 +35,14 @@ from gridfind.verdict import verdict
 BOARD = Board(size=9)
 
 
-def _cage(cells: tuple[str, ...], name: str | None = None) -> Constraint:
+def _cage(
+    cells: tuple[str, ...], name: str | None = None, value: int | None = None
+) -> Constraint:
     params: dict[str, object] = {"cells": list(cells)}
     if name is not None:
         params["name"] = name
+    if value is not None:
+        params["value"] = value
     return Constraint(type="cage", params=params)
 
 
@@ -226,3 +234,75 @@ def test_a_cage_holding_a_proper_subset_of_the_domain_is_found() -> None:
     assert result.witness is not None
     digits = [result.witness[address][0] for address in cells]
     assert len(set(digits)) == len(digits)
+
+
+# --- killer sum (issue #196) -----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(5, [(["R1C1", "R1C2"], 5)]), (0, []), (None, [])],
+    ids=[
+        "positive value emits a sum rule",
+        "zero is region-only",
+        "absent is region-only",
+    ],
+)
+def test_a_cage_sum_rule_is_emitted_only_for_a_positive_value(
+    value: int | None, expected: list[tuple[list[str], int]]
+) -> None:
+    puzzle = Puzzle(board=BOARD, constraints=(_cage(("R1C1", "R1C2"), value=value),))
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+
+    assert pair_sum_rules(engine) == expected
+
+
+def test_a_cage_sum_still_emits_its_no_repeats_rule() -> None:
+    # The sum is additional, not a replacement — the cage's cells must still
+    # be pairwise distinct.
+    puzzle = Puzzle(board=BOARD, constraints=(_cage(("R1C1", "R1C2"), value=5),))
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+
+    assert all_different_groups(engine) == [["R1C1", "R1C2"]]
+
+
+def test_a_cage_sum_forces_the_witness_to_match_it() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_cage(("R1C1", "R1C2"), value=3),),
+        givens=(Given(address="R1C1", digit=1),),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C2"] == (2,)
+
+
+def test_a_cage_sum_that_cannot_be_met_resolves_broke() -> None:
+    # 1 + 5 already sums to 6, wanting 3 — no completion can satisfy it.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_cage(("R1C1", "R1C2"), value=3),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=5)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_cage_sum_over_a_widened_cell_raises_not_schrodinger_ready() -> None:
+    # The sum reads through singular `content()` (`sole`), which raises the
+    # moment an S-cell is possible — one story with `pair-sum`: distinctness
+    # is Schrödinger-aware, sums are not.
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        build_engine(
+            [GridCells(), Schrodinger(), Cage()],
+            (_cage(("R1C1", "R1C2"), value=3),),
+            board=Board(size=4, values=range(5)),
+        )
