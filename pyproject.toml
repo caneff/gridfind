@@ -65,8 +65,11 @@ deprecated = "ignore"
 
 # --- pytest (hardened) ---
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config -m \"not e2e\""
 xfail_strict = true
+markers = [
+  "e2e: drives real SudokuMaker links through the CLI front door (slow CP-SAT solves); deselected by default, run via `just e2e`.",
+]
 
 # --- coverage (soft) ---
 [tool.coverage.run]
