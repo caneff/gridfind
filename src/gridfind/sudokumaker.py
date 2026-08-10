@@ -101,6 +101,12 @@ _SCELL_PIN_MARKS = 2
 _XV_TYPE = 202
 _XV_ALIASES: dict[int, str] = {10: "x", 5: "v"}
 
+# type 301 is a killer-cage block (design #192): `cages: [{cells, value}]`. The
+# `cage` layer is region-only (no-repeats, no sum), so `value` is dropped — 0 is
+# SudokuMaker's own no-sum cage (silent), a positive sum is honored as cells-only
+# with a loud warning (sum support is backlog #196).
+_CAGE_TYPE = 301
+
 
 def decode_link(
     link: str, *, schrodinger: bool = False, reading: str = _CLASSIC_READING
@@ -160,6 +166,7 @@ def decode_link(
     if regions is not None:
         constraints.append(regions)
     constraints.extend(_xv_constraints(puzzle_data, size))
+    constraints.extend(_cage_constraints(puzzle_data, size))
     board = Board(size=size, values=domain)
     if schrodinger:
         constraints.append(Constraint("schrodinger"))
@@ -401,21 +408,51 @@ def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constrain
     return decoded
 
 
+def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+    """The `type 301` killer cages as region-only `cage` `Constraint`s (design
+    #192): each cage's raw `cells` indices map row-major to addresses — the same
+    `i // N`, `i % N` scheme givens use — so `[18, 19]` on a 9-board is
+    R3C1/R3C2. The `cage` layer reads no sum, so `value` is not passed: a `0`
+    (SudokuMaker's no-sum cage) is honored silently, a positive sum decodes
+    cells-only and warns to stderr that the sum was dropped (backlog #196). A
+    `disabled` block is skipped entirely; an empty `cages` list adds nothing."""
+    blocks = puzzle_data.get("constraints", [])
+    if not isinstance(blocks, list):
+        return []
+    decoded: list[Constraint] = []
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != _CAGE_TYPE:
+            continue
+        if block.get("disabled") is True:
+            continue
+        cages = cast("list[dict[str, Any]]", block.get("cages", []))
+        for cage in cages:
+            cells = [cell_address(i // size + 1, i % size + 1) for i in cage["cells"]]
+            decoded.append(Constraint("cage", params={"cells": cells}))
+            if cage.get("value", 0) > 0:
+                print(
+                    "warning: ignoring killer-cage sum — verdict computed without it",
+                    file=sys.stderr,
+                )
+    return decoded
+
+
 def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     """Ignore every constraint gridfind doesn't model (issue #181), warning to
     stderr for any that carries live data — so a verdict is never silently
     computed under a smaller ruleset than the link states.
 
-    Known types (0 givens / 1 regions / 202 XV) are modeled elsewhere and pass
-    through. A `disabled` constraint is skipped first with no warning: the
-    setter switched it off, so it is not part of the puzzle even for a type
-    gridfind knows how to decode. A remaining enabled unmodeled constraint is
-    inert (empty or cosmetic-only payload) and dropped quietly, or active (a
-    live clue/negative list or a populated group) and dropped loudly, named by
-    its `definition.name` when the link carries one. Honoring a specific
-    variant rather than dropping it is the opt-in variant-decoder path (map
-    #180) — `202` is the first to graduate out of this path (issue #198); its
-    own `negative` list still warns, fired from `_xv_constraints` instead.
+    Known types (0 givens / 1 regions / 202 XV / 301 killer-cage) are modeled
+    elsewhere and pass through. A `disabled` constraint is skipped first with no
+    warning: the setter switched it off, so it is not part of the puzzle even
+    for a type gridfind knows how to decode. A remaining enabled unmodeled
+    constraint is inert (empty or cosmetic-only payload) and dropped quietly, or
+    active (a live clue/negative list or a populated group) and dropped loudly,
+    named by its `definition.name` when the link carries one. Honoring a
+    specific variant rather than dropping it is the opt-in variant-decoder path
+    (map #180) — `202` graduated first (issue #198), `301` next (issue #199);
+    each still warns on the part it can't model (XV's `negative` list, a cage's
+    sum), fired from its own decoder instead.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both
@@ -430,7 +467,7 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         if constraint.get("disabled") is True:
             continue
         kind = constraint.get("type")
-        if kind in (0, 1, _XV_TYPE):
+        if kind in (0, 1, _XV_TYPE, _CAGE_TYPE):
             continue
         if has_live_data(constraint):
             name = constraint_name(constraint)
@@ -448,9 +485,11 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     real cells under `input.groups`. Empty payloads and cosmetic-only `lines`
     are inert.
 
-    `cages` is a killer-cage block's (`type 301`) payload — not yet decoded
-    (issue #199), but a populated one is real setter data, so it must warn
-    loudly rather than vanish (design #192's `has_live_data` gap).
+    `cages` is a killer-cage block's (`type 301`) payload. It is decoded now
+    (issue #199), so `_warn_on_dropped_constraints` skips it — this entry marks
+    a populated cage block `active` for `scripts/inspect_link.py`, exactly as
+    the `clues` entry does for decoded XV (`type 202`): a decoded variant still
+    carries a live rule the dev tool must not report as inert.
 
     Public so `scripts/inspect_link.py` classifies constraints against the same
     predicate the decoder drops by (issue #184). `Any` keeps the decoded-JSON

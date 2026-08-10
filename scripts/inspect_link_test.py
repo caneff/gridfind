@@ -34,6 +34,11 @@ from inspect_link import _display_size, _fmt_bucket, classify_constraint
             "active",
             id="populated-groups-active",
         ),
+        pytest.param(
+            {"type": 301, "cages": [{"cells": [0, 1], "value": 0}]},
+            "active",
+            id="populated-cage-active",
+        ),
     ],
 )
 def test_classify_constraint(constraint: dict[str, object], expected: str) -> None:
