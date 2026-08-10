@@ -1,13 +1,14 @@
-"""Unit coverage for `validate_witness`'s own boundary (issue #186): a
-known-good rendered grid passes, and the same grid with a duplicate digit
-punched into its first row fails — proving the validator actually checks
-rather than just parsing."""
+"""Unit coverage for `validate_witness`'s own boundary (issue #186, extended
+#187): a known-good rendered grid passes, and the same grid with a duplicate
+digit punched into its first row fails — proving the validator actually
+checks rather than just parsing. Extended to a Schrödinger board (#187) to
+pin the S-cell pair `{a b}` branch of the permutation check the same way."""
 
 import json
 import re
 from pathlib import Path
 
-from gridfind.puzzle import Puzzle, WorkingState
+from gridfind.puzzle import Board, Constraint, Puzzle, WorkingState
 from gridfind.verdict import verdict
 from gridfind.witness_validator import validate_witness
 
@@ -16,6 +17,19 @@ FOUND_4X4_DOC = (
     POPULATIONS_DIR
     / "board-rows-distinct-cols-distinct-regions-distinct"
     / "found-legal-4x4-sudoku-partial.json"
+)
+
+# A 4x4 board with a 5-digit domain forces exactly one S-cell per row, column,
+# and region (k = len(values) - size = 1) — small enough to solve fast while
+# still exercising every group the permutation check walks.
+SCHRODINGER_PUZZLE = Puzzle(
+    board=Board(size=4, values=range(1, 6)),
+    constraints=(
+        Constraint(type="rows-distinct"),
+        Constraint(type="cols-distinct"),
+        Constraint(type="regions-distinct"),
+        Constraint(type="schrodinger"),
+    ),
 )
 
 
@@ -55,3 +69,22 @@ def test_validate_witness_rejects_a_row_with_a_duplicate_digit() -> None:
     broken = _duplicate_first_two_cells_in_first_row(result.witness.render())
 
     assert validate_witness(broken, puzzle) is False
+
+
+def test_validate_witness_accepts_a_known_good_schrodinger_grid() -> None:
+    result = verdict(SCHRODINGER_PUZZLE, time_limit_s=30.0)
+    assert result.kind == "found"
+    assert result.witness is not None
+
+    assert validate_witness(result.witness.render(), SCHRODINGER_PUZZLE) is True
+
+
+def test_validate_witness_rejects_a_schrodinger_grid_that_violates_the_reading() -> (
+    None
+):
+    result = verdict(SCHRODINGER_PUZZLE, time_limit_s=30.0)
+    assert result.witness is not None
+
+    broken = _duplicate_first_two_cells_in_first_row(result.witness.render())
+
+    assert validate_witness(broken, SCHRODINGER_PUZZLE) is False
