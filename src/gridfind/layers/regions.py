@@ -30,11 +30,23 @@ shape makes a gap or overlap unexpressible, so there is nothing to check
 beyond length and entry type. An over-large region (more cells than the
 digit domain) is not this function's concern — that is a satisfiability fact
 the solver reports as broke, never a validator's judgment.
+
+`region_map_for_constraints` (issue #207) is the one door onto a whole
+constraint list rather than a single already-found constraint: it scans for
+`regions-distinct` and picks jigsaw vs. box tiling exactly as `region_map_for`
+would, but also owns the third case neither of the above two decide alone —
+no `regions-distinct` constraint at all, which resolves to one region
+covering the whole board. The witness render path and `witness_validator`
+both cross this one seam instead of each re-deriving the same three-way
+branch, which is what let them quietly resolve different partitions.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from gridfind.engine import GridfindError, MalformedPuzzleError
+from gridfind.puzzle import Constraint
 
 # A partition of a board into regions of cell addresses, whatever its source.
 RegionMap = list[list[tuple[int, int]]]
@@ -101,3 +113,22 @@ def region_map_from_labels(size: int, labels: object) -> RegionMap:
         row, col = divmod(index, size)
         groups.setdefault(label, []).append((row + 1, col + 1))
     return list(groups.values())
+
+
+def region_map_for_constraints(
+    constraints: Iterable[Constraint], size: int
+) -> RegionMap:
+    """The region map a `size`x`size` board's own constraints imply (issue
+    #207): the setter's jigsaw matrix when the `regions-distinct` constraint
+    carries `params["regions"]`, the board's box tiling by convention when
+    it's bare, or one region covering the whole board when no
+    `regions-distinct` constraint is present — a Latin square draws no
+    interior lines the solver never enforced. The one door callers cross
+    instead of each re-deriving this same three-way branch.
+    """
+    for constraint in constraints:
+        if constraint.type == "regions-distinct":
+            if "regions" in constraint.params:
+                return region_map_from_labels(size, constraint.params["regions"])
+            return region_map_for(size)
+    return [[(row, col) for row in range(1, size + 1) for col in range(1, size + 1)]]
