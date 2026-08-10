@@ -14,6 +14,7 @@ Grid-puzzle constraint solving and validation: given a partly-built grid puzzle,
 - Coding + testing standards → [`CODING_STANDARDS.md`](CODING_STANDARDS.md)
 - Domain / context → `CONTEXT.md` (see `docs/agents/` for consumer rules)
 - Source: `src/gridfind/`; tests are interleaved as `*_test.py` next to the code
+- **Debugging a SudokuMaker link** (why it rejects, what constraints it carries) → `uv run python scripts/inspect_link.py '<link>' ...` — decodes and classifies each constraint (known/disabled/active/inert) and prints the verdict, one line per link. Reach for this instead of hand-rolling a decode probe.
 
 ## Conventions (summary — full rules in CODING_STANDARDS.md)
 
