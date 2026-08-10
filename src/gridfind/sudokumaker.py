@@ -26,9 +26,10 @@ The `schrodinger`/`reading` keywords (issue #143, spec #139) declare a
 SudokuMaker-Schrödinger link explicitly rather than sniffing one: they relax
 the `minDigit` guard to read the widened domain, decode each cell's red
 `colors` bit and center marks into a Schrödinger working-state directive
-(CONTEXT.md `schrodinger` layer), and ignore rather than reject the cosmetic
-constraint types and `disabled` blocks a real link carries. Without the flag
-every link decodes exactly as before.
+(CONTEXT.md `schrodinger` layer). Every link — Schrödinger or not — ignores
+the unmodeled constraint types and `disabled` blocks a real link carries,
+warning to stderr only when a dropped one carried live data (issue #181).
+Without the flag every link decodes exactly as before.
 
 Deliberately kept as `ValueError`, not folded into `MalformedPuzzleError`
 (issue #107): every rejection here fires before a `Puzzle` exists at all — it
@@ -46,6 +47,7 @@ No engine, no `verdict` call. Schema in, model out.
 from __future__ import annotations
 
 import json
+import sys
 import urllib.parse
 from math import isqrt
 from typing import Any
@@ -103,8 +105,7 @@ def decode_link(
     issue #143) — it is never inferred from the link. It reads the link's
     `minDigit` into `Board.values` under the classic reading (`k = 1` extra
     digit: `range(minDigit, minDigit + size + 1)`), relaxes the classic-only
-    guard so cosmetic and disabled constraints are ignored rather than
-    rejected, synthesizes a bare `{type: schrodinger}` constraint, and decodes
+    guard, synthesizes a bare `{type: schrodinger}` constraint, and decodes
     each cell's red bit + center marks into a Schrödinger working-state
     directive instead of a plain placement/candidate. `reading` names the
     S-cell interpretation; only `"classic"` is built, so any other value is
@@ -118,7 +119,7 @@ def decode_link(
     # (CODING_STANDARDS: reach for Any only at genuine boundaries).
     puzzle_data: Any = json.loads(raw)["puzzle"]
     size = _board_size(puzzle_data)
-    _reject_unknown_constraints(puzzle_data, schrodinger=schrodinger)
+    _warn_on_dropped_constraints(puzzle_data)
     regions = _regions_constraint(puzzle_data, size)
 
     cells = puzzle_data["cells"]
@@ -322,25 +323,72 @@ def _classic_regions_for(size: int) -> list[int]:
     return labels
 
 
-def _reject_unknown_constraints(
-    puzzle_data: dict[str, object], *, schrodinger: bool = False
-) -> None:
-    """Guard the ruleset: refuse an unknown constraint type (§4a). A jigsaw
-    `type 1` regions matrix is not rejected (issue #125) — see
-    `_regions_constraint`.
+def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
+    """Ignore every constraint gridfind doesn't model (issue #181), warning to
+    stderr for any that carries live data — so a verdict is never silently
+    computed under a smaller ruleset than the link states.
 
-    Under `--schrodinger` (issue #143) the whitelist is skipped: a real
-    Schrödinger link is full of cosmetic constraint types and disabled
-    duplicates that must be ignored, not rejected."""
-    if schrodinger:
-        return
+    Known types (0 givens / 1 regions) are modeled elsewhere and pass through.
+    A `disabled` constraint is skipped first with no warning: the setter
+    switched it off, so it is not part of the puzzle even for a type gridfind
+    knows how to decode. A remaining enabled unmodeled constraint is inert
+    (empty or cosmetic-only payload) and dropped quietly, or active (a live
+    clue/negative list or a populated group) and dropped loudly, named by its
+    `definition.name` when the link carries one. Honoring a specific variant
+    rather than dropping it is the opt-in variant-decoder path (map #180).
+
+    The active/inert split mirrors `scripts/inspect_link.py`'s
+    `classify_constraint` (issue #182) so the dev tool's report and this
+    runtime policy can never disagree — the shared predicate wants a single
+    home once both have landed."""
     constraints = puzzle_data.get("constraints", [])
     if not isinstance(constraints, list):
         return
     for constraint in constraints:
         if not isinstance(constraint, dict):
             continue
+        if constraint.get("disabled") is True:
+            continue
         kind = constraint.get("type")
-        if kind not in (0, 1):
-            msg = f"non-classic link: unknown constraint type {kind!r}"
-            raise ValueError(msg)
+        if kind in (0, 1):
+            continue
+        if _has_live_data(constraint):
+            name = _constraint_name(constraint)
+            named = f" {name!r}" if name is not None else ""
+            msg = (
+                f"warning: ignoring unmodeled constraint{named} (type {kind!r}) "
+                "— verdict computed without it"
+            )
+            print(msg, file=sys.stderr)
+
+
+def _has_live_data(constraint: dict[Any, Any]) -> bool:
+    """True when an enabled, unmodeled constraint carries data that would emit
+    a rule: a non-empty `clues`/`negative` list, or a group holding real cells
+    under `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
+    `Any` keeps the decoded-JSON boundary type (a dict narrowed from the
+    untyped payload), as `decode_link` does for `puzzle_data`."""
+    for key in ("clues", "negative"):
+        value = constraint.get(key)
+        if isinstance(value, list) and any(value):
+            return True
+    payload = constraint.get("input")
+    if isinstance(payload, dict):
+        groups = payload.get("groups")
+        if isinstance(groups, list) and any(
+            isinstance(group, dict) and group.get("cells") for group in groups
+        ):
+            return True
+    return False
+
+
+def _constraint_name(constraint: dict[Any, Any]) -> str | None:
+    """A custom constraint's display name (e.g. "Same Difference Lines"), read
+    from `definition.name` — the field SudokuMaker stores it under (issue
+    #182). `None` when the link carries no name for the type."""
+    definition = constraint.get("definition")
+    if isinstance(definition, dict):
+        name = definition.get("name")
+        if isinstance(name, str):
+            return name
+    return None

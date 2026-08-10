@@ -108,10 +108,6 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
             {"cells": [{} for _ in range(80)], "constraints": _WIRE_CONSTRAINTS},
             "do not match size",
         ),
-        (
-            {"cells": _EMPTY_CELLS, "constraints": [{"type": 5}]},
-            "unknown constraint type",
-        ),
         # A non-square shape: width 6 over 54 cells derives 9 rows (§4b's 6x9).
         (
             {
@@ -139,7 +135,6 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
     ],
     ids=[
         "wrong-cell-count",
-        "unknown-type",
         "non-square",
         "size-mismatch",
         "bad-domain-span",
@@ -149,6 +144,109 @@ def test_non_classic_link_is_rejected(puzzle: dict[str, object], match: str) -> 
     # Each case fails for *its own* reason, not an incidental ValueError.
     with pytest.raises(ValueError, match=match):
         decode_link(_encode(puzzle))
+
+
+def test_inert_unmodeled_constraints_decode_quietly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A real link routinely carries cosmetic or empty extras (issue #181): an
+    # empty pair-difference, cosmetic pen-lines, an empty group. None emits a
+    # rule, so the puzzle is identical to one without them and nothing warns.
+    with_extras = _encode(
+        {
+            "cells": _EMPTY_CELLS,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {"type": 201, "clues": []},  # empty pair-difference
+                {"type": 2000, "lines": [[0, 1]]},  # cosmetic pen-lines
+                {"type": 303, "input": {"groups": [{"cells": []}]}},  # empty group
+            ],
+        }
+    )
+    plain = _encode({"cells": _EMPTY_CELLS, "constraints": _WIRE_CONSTRAINTS})
+
+    puzzle_extras, state_extras = decode_link(with_extras)
+    puzzle_plain, state_plain = decode_link(plain)
+
+    assert puzzle_extras == puzzle_plain
+    assert state_extras == state_plain
+    assert capsys.readouterr().err == ""
+
+
+def test_active_unmodeled_constraint_decodes_with_named_stderr_warning(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A constraint carrying live data is dropped, not rejected: the verdict is
+    # the reduced-ruleset answer, stderr names the dropped constraint (its
+    # `definition.name` and type) so the drop is never silent, and stdout (the
+    # verdict channel) is untouched.
+    payload = _encode(
+        {
+            "cells": _EMPTY_CELLS,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {
+                    "type": 1000,
+                    "clues": [{"cell": 0}],
+                    "definition": {"name": "Same Difference Lines"},
+                },
+            ],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    captured = capsys.readouterr()
+    assert puzzle.constraints == _CLASSIC_CONSTRAINTS
+    assert "Same Difference Lines" in captured.err
+    assert "1000" in captured.err
+    assert captured.out == ""
+
+
+@pytest.mark.parametrize(
+    "live_payload",
+    [
+        {"clues": [{"cell": 0}]},
+        {"negative": [1]},
+        {"input": {"groups": [{"cells": [0, 1]}]}},
+    ],
+    ids=["clues", "negative", "input-groups"],
+)
+def test_every_live_payload_shape_warns(
+    live_payload: dict[str, object], capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Live data reaches gridfind under any of three shapes; each must trip the
+    # loud drop, matching scripts/inspect_link.py's classification (issue #182).
+    payload = _encode(
+        {
+            "cells": _EMPTY_CELLS,
+            "constraints": [*_WIRE_CONSTRAINTS, {"type": 1000, **live_payload}],
+        }
+    )
+
+    decode_link(payload)
+
+    assert "1000" in capsys.readouterr().err
+
+
+def test_disabled_active_constraint_is_skipped_without_warning(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A disabled constraint is one the setter switched off — skipped before the
+    # active/inert check, so even a live payload never warns.
+    payload = _encode(
+        {
+            "cells": _EMPTY_CELLS,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {"type": 1000, "clues": [{"cell": 0}], "disabled": True},
+            ],
+        }
+    )
+
+    decode_link(payload)
+
+    assert capsys.readouterr().err == ""
 
 
 def test_link_without_type_one_is_a_latin_square() -> None:
