@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from gridfind.engine import MalformedPuzzleError
 
@@ -235,12 +235,19 @@ class Puzzle:
 
     @classmethod
     def from_json(cls, text: str) -> Puzzle:
-        data = json.loads(text)
+        return cls.from_dict(json.loads(text))
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JsonValue]) -> Puzzle:
+        """Read a Puzzle from an already-parsed JSON object — the seam a caller
+        holding the whole document uses, so it reads a sub-object without
+        re-serializing it for `from_json` to parse again."""
+        doc: Any = data  # parsed-JSON boundary, narrowed by the typed helpers
         return cls(
-            board=_board_from_dict(data["board"]),
-            constraints=tuple(_constraint_from_dict(c) for c in data["constraints"]),
+            board=_board_from_dict(doc["board"]),
+            constraints=tuple(_constraint_from_dict(c) for c in doc["constraints"]),
             givens=tuple(
-                Given(address=g["address"], digit=g["digit"]) for g in data["givens"]
+                Given(address=g["address"], digit=g["digit"]) for g in doc["givens"]
             ),
         )
 
@@ -272,20 +279,25 @@ class WorkingState:
 
     @classmethod
     def from_json(cls, text: str) -> WorkingState:
-        data = json.loads(text)
+        return cls.from_dict(json.loads(text))
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JsonValue]) -> WorkingState:
+        """Read a WorkingState from an already-parsed JSON object — the seam a
+        caller holding the whole document uses (see `Puzzle.from_dict`)."""
+        doc: Any = data  # parsed-JSON boundary, narrowed by the typed helpers
         return cls(
             places=tuple(
-                Placement(address=p["address"], digit=p["digit"])
-                for p in data["places"]
+                Placement(address=p["address"], digit=p["digit"]) for p in doc["places"]
             ),
             candidates=tuple(
                 Candidate(address=c["address"], digits=frozenset(c["digits"]))
-                for c in data["candidates"]
+                for c in doc["candidates"]
             ),
             # A save with no s_directives key predates the grammar — read it as
             # an empty tuple rather than refusing it (ADR-0006).
             s_directives=tuple(
-                _s_directive_from_dict(d) for d in data.get("s_directives", [])
+                _s_directive_from_dict(d) for d in doc.get("s_directives", [])
             ),
         )
 

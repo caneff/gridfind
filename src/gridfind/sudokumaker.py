@@ -91,9 +91,6 @@ _RED_BIT = 2
 # looser bare/half directives instead (issue #143's encoding table).
 _SCELL_PIN_MARKS = 2
 
-# SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all
-# three explicit — rows/cols are always bare, and regions per _regions_constraint.
-
 # type 202 is XV (decode reference #189): `clues: [{value, edge}], negative:
 # [...]`. `value` selects the existing pair-sum alias — 10 is X, 5 is V
 # (design #190) — never a raw `sum`, so a puzzle carrying both an XV clue and
@@ -171,6 +168,8 @@ def decode_link(
             candidates.append(Candidate(address, digits))
         # cornerPencilMarks, colors, and {} carry nothing gridfind can represent.
 
+    # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all
+    # three explicit — rows/cols always bare, regions per `_regions_constraint`.
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
     if regions is not None:
         constraints.append(regions)

@@ -286,6 +286,28 @@ def test_constraint_with_arbitrary_params_round_trips() -> None:
     assert restored.constraints[0].params == {"cells": ["R1C1", "R1C2"], "sum": 5}
 
 
+def test_puzzle_reads_from_an_already_parsed_dict() -> None:
+    # from_dict takes the parsed object a caller already holds — so a caller
+    # with the whole document parsed reads a sub-object without re-serializing
+    # it back to a string for from_json to parse again.
+    puzzle = Puzzle(
+        board=Board(size=9),
+        constraints=(Constraint(type="rows-distinct"),),
+        givens=(Given(address="R1C1", digit=5),),
+    )
+
+    assert Puzzle.from_dict(json.loads(puzzle.to_json())) == puzzle
+
+
+def test_working_state_reads_from_an_already_parsed_dict() -> None:
+    state = WorkingState(
+        places=(Placement(address="R1C1", digit=3),),
+        candidates=(Candidate(address="R2C2", digits=frozenset({1, 2})),),
+    )
+
+    assert WorkingState.from_dict(json.loads(state.to_json())) == state
+
+
 @given(puzzle=PUZZLES)
 def test_any_puzzle_round_trips_through_json(puzzle: Puzzle) -> None:
     assert Puzzle.from_json(puzzle.to_json()) == puzzle

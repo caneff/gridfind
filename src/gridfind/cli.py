@@ -120,8 +120,8 @@ def _verdict_of(
         puzzle, state = decode_link(stripped, schrodinger=schrodinger, reading=reading)
     else:
         doc = json.loads(stripped)
-        puzzle = Puzzle.from_json(json.dumps(doc["puzzle"]))
-        state = WorkingState.from_json(json.dumps(doc["working_state"]))
+        puzzle = Puzzle.from_dict(doc["puzzle"])
+        state = WorkingState.from_dict(doc["working_state"])
     return verdict(puzzle, state)
 
 
