@@ -4,18 +4,23 @@ One pure function, `decode_link`, mirroring `puzzle.py`'s schema-only role: it
 strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 `formatVersion 1.5.0` JSON to the model per the confirmed field-by-field map in
 `docs/research/sudoku-link-formats.md` §4a/§4b (issues #54, #172). Size, digit
-domain, and box partition are read from the link's own fields — `width`/`size`
-(else `isqrt(len(cells))`), `minDigit`/`maxDigit` (else `1..N`), and the
-`type 1` regions matrix (else the convention tiling) — so any square N the
-engine can tile decodes (issue #176); a classic 9x9 link omits every one of
-those fields and decodes via the fallbacks exactly as before. A link gridfind
-can't answer — non-square, a cell-count/size mismatch, a domain that doesn't
-span N, an un-tileable size with no regions, an unknown ruleset — is rejected
-with `ValueError` rather than mis-decoded into a confident wrong verdict. A
-`type 1` jigsaw regions matrix decodes
-instead of being refused (issue #125): it rides straight onto the
-`regions-distinct` constraint's `params["regions"]`, unvalidated — a malformed
-matrix surfaces as `MalformedPuzzleError` from `verdict`, never from here.
+domain, and regions are read from the link's own fields — `width`/`size` (else
+`isqrt(len(cells))`), `minDigit`/`maxDigit` (else `1..N`), and the `type 1`
+regions matrix — so any square N decodes (issue #176); a classic 9x9 link takes
+the size/domain fallbacks and carries its boxes as an explicit `type 1`, so it
+decodes exactly as before. A link gridfind can't answer — non-square, a
+cell-count/size mismatch, a domain that doesn't span N, an unknown ruleset — is
+rejected with `ValueError` rather than mis-decoded into a confident wrong
+verdict.
+
+Regions live *only* in a `type 1` block. A boxed puzzle always ships its boxes
+as one (the §4a classic fixture carries it), so its absence means the setter
+asked for no regions — a Latin square, rows and columns distinct only, no boxes
+invented and no size refused for lacking a box convention. A present matrix
+decodes bare when it is the board's box tiling, or rides straight onto the
+`regions-distinct` constraint's `params["regions"]` verbatim for a jigsaw
+(issue #125), unvalidated — a malformed matrix surfaces as
+`MalformedPuzzleError` from `verdict`, never from here.
 
 The `schrodinger`/`reading` keywords (issue #143, spec #139) declare a
 SudokuMaker-Schrödinger link explicitly rather than sniffing one: they relax
@@ -142,11 +147,9 @@ def decode_link(
             candidates.append(Candidate(address, digits))
         # cornerPencilMarks, colors, and {} carry nothing gridfind can represent.
 
-    constraints = [
-        Constraint("rows-distinct"),
-        Constraint("cols-distinct"),
-        regions,
-    ]
+    constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
+    if regions is not None:
+        constraints.append(regions)
     board = Board(size=size, values=domain)
     if schrodinger:
         constraints.append(Constraint("schrodinger"))
@@ -271,27 +274,26 @@ def _decode_schrodinger_cell(
     # represent — same as the classic path.
 
 
-def _regions_constraint(puzzle_data: dict[str, object], size: int) -> Constraint:
-    """The `regions-distinct` constraint for an `N`x`N` board: bare for the
-    standard partition (today's classic shape, unchanged) or when `type 1` is
-    absent, carrying the setter's own `params["regions"]` matrix verbatim for a
-    jigsaw partition otherwise (issue #125, generalized to non-9 in #176). A
+def _regions_constraint(puzzle_data: dict[str, object], size: int) -> Constraint | None:
+    """The `regions-distinct` constraint for an `N`x`N` board, or `None` when
+    the link carries no regions at all — a Latin square.
+
+    The region partition lives *only* in a `type 1` block. A boxed SudokuMaker
+    puzzle always ships its boxes as an explicit `type 1` matrix (verified: the
+    §4a classic fixture carries one), so its absence means the setter asked for
+    no regions — rows and columns distinct only, no boxes invented. A present
+    matrix decodes bare when it equals the board's box tiling (the engine
+    supplies that partition by convention) or rides onto `params["regions"]`
+    verbatim for a jigsaw (issue #125, generalized to non-9 in #176). A
     `disabled: true` type-1 block is skipped (issue #143) — a real link may
     carry a disabled duplicate alongside the live one. Never validated here — a
-    malformed matrix surfaces from `verdict`, not decode.
-
-    When the link omits `type 1`, the box partition falls back to the engine's
-    convention tiling (`region_map_for(N)`); a size with no convention and no
-    matrix has no partition at all and is refused (a bare 5 or 7)."""
+    malformed matrix surfaces from `verdict`, not decode."""
     matrix = _regions_matrix(puzzle_data)
-    if matrix is not None:
-        if size in BOX_SHAPE and matrix == _classic_regions_for(size):
-            return Constraint("regions-distinct")
-        return Constraint("regions-distinct", params={"regions": matrix})
-    if size not in BOX_SHAPE:
-        msg = f"non-classic link: size {size} has no box convention and no regions"
-        raise ValueError(msg)
-    return Constraint("regions-distinct")
+    if matrix is None:
+        return None
+    if size in BOX_SHAPE and matrix == _classic_regions_for(size):
+        return Constraint("regions-distinct")
+    return Constraint("regions-distinct", params={"regions": matrix})
 
 
 def _regions_matrix(puzzle_data: dict[str, object]) -> object | None:
