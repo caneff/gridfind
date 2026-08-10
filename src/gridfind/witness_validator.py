@@ -1,0 +1,124 @@
+"""An independent check of a rendered witness grid against the puzzle that
+produced it (spec #185, issue #186; extended #187 for Schrödinger S-cells).
+
+`validate_witness` reverses `Witness.render()` enough to recover the grid of
+cells, then checks it directly: right size, every cell's digit(s) in the
+board's domain, every row/column/region a permutation of it, and every given
+sitting in its cell. It reads a `Puzzle` (typically `sudokumaker.decode_link`'s
+output) but never calls `verdict()` and never touches `Witness` or its
+`render()` — so a defect in the solver or the renderer can't hide behind a
+witness that merely *looks* right to the same code that produced it.
+
+Regions come straight off the puzzle's own `regions-distinct` constraint —
+bare (the board's box tiling, via `region_map_for`) or jigsaw
+(`params["regions"]`, via `region_map_from_labels`) — the same two shapes
+`decode_link` itself ever emits, so this stays in lockstep with the decoder
+without importing anything from the verdict/render path.
+
+A cell parses as a 1-tuple for an ordinary digit or a 2-tuple for a
+Schrödinger S-cell's rendered pair `{a b}` (`Witness.render()`'s `fmt`). The
+permutation check flattens each row/column/region's cells to individual
+digits before comparing against the domain — for an all-singleton group that
+is exactly the digit list itself, so a classic puzzle's check is unchanged;
+for a Schrödinger group, a house's digit slots (`d0` always, `d1` for its one
+S-cell) must land on each domain digit exactly once (`emit_house`, spec
+#139/#141), so the same "flatten, then must equal the domain with no
+repeats" check covers both without a schrodinger branch.
+"""
+
+from __future__ import annotations
+
+import re
+
+from gridfind.layers.regions import RegionMap, region_map_for, region_map_from_labels
+from gridfind.puzzle import Puzzle
+
+_CELL_RE = re.compile(r"\{(\d+) (\d+)\}|(\d+)")
+_ADDRESS_RE = re.compile(r"R(\d+)C(\d+)")
+
+Cell = tuple[int, ...]
+
+
+def validate_witness(rendered: str, puzzle: Puzzle) -> bool:
+    """`True` when `rendered` (a `Witness.render()` string) is a legal
+    completion of `puzzle`. `False` on any violation, including a grid whose
+    shape doesn't even parse as `puzzle.board.size`x`size`."""
+    size = puzzle.board.size
+    grid = _parse_grid(rendered, size)
+    if grid is None:
+        return False
+
+    domain = frozenset(puzzle.board.values)
+    if any(digit not in domain for row in grid for cell in row for digit in cell):
+        return False
+
+    columns = [[grid[row][col] for row in range(size)] for col in range(size)]
+    regions = _regions(puzzle, size, grid)
+    if any(not _is_permutation(group, domain) for group in (*grid, *columns, *regions)):
+        return False
+
+    for given in puzzle.givens:
+        row, col = _parse_address(given.address)
+        if grid[row - 1][col - 1] != (given.digit,):
+            return False
+    return True
+
+
+def _is_permutation(group: list[Cell], domain: frozenset[int]) -> bool:
+    """`True` when `group`'s cells, flattened to individual digits (an
+    S-cell's rendered pair contributing both), hold each of `domain`'s digits
+    exactly once."""
+    digits = [digit for cell in group for digit in cell]
+    return len(digits) == len(domain) and frozenset(digits) == domain
+
+
+def _parse_grid(rendered: str, size: int) -> list[list[Cell]] | None:
+    """The rendered box-drawing grid, read back into a `size`x`size` array of
+    cells: `n+1` border lines interleave with `n` cell lines (issue #124's
+    render shape), so the cell lines are every other line starting at index
+    1. Each cell token is either a bare digit or a Schrödinger S-cell pair
+    `{a b}` (issue #141's `fmt`); `_CELL_RE` matches the pair whole so its
+    two digits are never mistaken for two separate cells. `None` when the
+    text doesn't have that many lines, or a cell line doesn't hold exactly
+    `size` cell tokens — a shape mismatch is a validation failure, not a
+    crash."""
+    lines = [line for line in rendered.split("\n") if line]
+    if len(lines) != 2 * size + 1:
+        return None
+    grid = []
+    for line in lines[1::2]:
+        cells: list[Cell] = []
+        for match in _CELL_RE.finditer(line):
+            pair_a, pair_b, single = match.groups()
+            if single is None:
+                cells.append((int(pair_a), int(pair_b)))
+            else:
+                cells.append((int(single),))
+        if len(cells) != size:
+            return None
+        grid.append(cells)
+    return grid
+
+
+def _regions(puzzle: Puzzle, size: int, grid: list[list[Cell]]) -> list[list[Cell]]:
+    region_map = _region_map(puzzle, size)
+    if region_map is None:
+        return []
+    return [[grid[row - 1][col - 1] for row, col in group] for group in region_map]
+
+
+def _region_map(puzzle: Puzzle, size: int) -> RegionMap | None:
+    for constraint in puzzle.constraints:
+        if constraint.type == "regions-distinct":
+            if "regions" in constraint.params:
+                return region_map_from_labels(size, constraint.params["regions"])
+            return region_map_for(size)
+    return None
+
+
+def _parse_address(address: str) -> tuple[int, int]:
+    match = _ADDRESS_RE.fullmatch(address)
+    if match is None:
+        msg = f"malformed cell address: {address!r}"
+        raise ValueError(msg)
+    return int(match.group(1)), int(match.group(2))
