@@ -22,6 +22,12 @@ decodes bare when it is the board's box tiling, or rides straight onto the
 (issue #125), unvalidated — a malformed matrix surfaces as
 `MalformedPuzzleError` from `verdict`, never from here.
 
+Every wire type gridfind decodes or otherwise recognizes — givens, regions,
+and each opt-in variant decoder (XV, white-kropki, killer-cage) — is one row
+in `DECODER_REGISTRY` (issue #209): `decode_link`'s dispatch, the
+dropped-constraint warning path, and `has_live_data`'s active/inert check all
+read that one table instead of each restating "type N is decoded" by hand.
+
 The `schrodinger`/`reading` keywords (issue #143, spec #139) declare a
 SudokuMaker-Schrödinger link explicitly rather than sniffing one: they relax
 the `minDigit` guard to read the widened domain, decode each cell's red
@@ -49,12 +55,14 @@ from __future__ import annotations
 import json
 import sys
 import urllib.parse
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from math import isqrt
 from typing import Any, cast
 
 from lzstring import LZString
 
+from gridfind.layers import ALIAS_REGISTRY
 from gridfind.layers.board import cell_address
 from gridfind.layers.regions import BOX_SHAPE, region_map_for
 from gridfind.puzzle import (
@@ -95,9 +103,15 @@ _SCELL_PIN_MARKS = 2
 # [...]`. `value` selects the existing pair-sum alias — 10 is X, 5 is V
 # (design #190) — never a raw `sum`, so a puzzle carrying both an XV clue and
 # a literal pair-sum on the same cells still hits the alias's own
-# fixed-param conflict check in `expand_constraints`.
+# fixed-param conflict check in `expand_constraints`. Read off
+# `gridfind.layers.ALIAS_REGISTRY` (issue #209) rather than restated here — the
+# sum each alias fixes is stated once, in the registry that also builds it.
 _XV_TYPE = 202
-_XV_ALIASES: dict[int, str] = {10: "x", 5: "v"}
+_XV_ALIASES: dict[int, str] = {
+    cast("int", fixed["sum"]): alias
+    for alias, (canonical, fixed) in ALIAS_REGISTRY.items()
+    if canonical == "pair-sum" and "sum" in fixed
+}
 
 # type 200 is white-kropki (decode reference #191): `clues: [{value, edge}],
 # negative: [...]`, the same wire shape as XV. The type number *is* the
@@ -140,7 +154,6 @@ def decode_link(
     puzzle_data: Any = json.loads(raw)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
-    regions = _regions_constraint(puzzle_data, size)
 
     cells = puzzle_data["cells"]
     givens: list[Given] = []
@@ -168,14 +181,12 @@ def decode_link(
             candidates.append(Candidate(address, digits))
         # cornerPencilMarks, colors, and {} carry nothing gridfind can represent.
 
-    # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all
-    # three explicit — rows/cols always bare, regions per `_regions_constraint`.
+    # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
+    # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
-    if regions is not None:
-        constraints.append(regions)
-    constraints.extend(_xv_constraints(puzzle_data, size))
-    constraints.extend(_kropki_constraints(puzzle_data, size))
-    constraints.extend(_cage_constraints(puzzle_data, size))
+    for decoded_type in DECODER_REGISTRY.values():
+        if decoded_type.handler is not None:
+            constraints.extend(decoded_type.handler(puzzle_data, size))
     board = Board(size=size, values=domain)
     if schrodinger:
         constraints.append(Constraint("schrodinger"))
@@ -300,9 +311,11 @@ def _decode_schrodinger_cell(
     # represent — same as the classic path.
 
 
-def _regions_constraint(puzzle_data: dict[str, object], size: int) -> Constraint | None:
-    """The `regions-distinct` constraint for an `N`x`N` board, or `None` when
-    the link carries no regions at all — a Latin square.
+def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+    """The `regions-distinct` constraint for an `N`x`N` board, or `[]` when
+    the link carries no regions at all — a Latin square. Returns a list, not
+    `Constraint | None`, so a `DECODER_REGISTRY` entry's handler shares the
+    same shape every other decoded type's handler does.
 
     The region partition lives *only* in a `type 1` block. A boxed SudokuMaker
     puzzle always ships its boxes as an explicit `type 1` matrix (verified: the
@@ -316,10 +329,10 @@ def _regions_constraint(puzzle_data: dict[str, object], size: int) -> Constraint
     malformed matrix surfaces from `verdict`, not decode."""
     matrix = _regions_matrix(puzzle_data)
     if matrix is None:
-        return None
+        return []
     if size in BOX_SHAPE and matrix == _classic_regions_for(size):
-        return Constraint("regions-distinct")
-    return Constraint("regions-distinct", params={"regions": matrix})
+        return [Constraint("regions-distinct")]
+    return [Constraint("regions-distinct", params={"regions": matrix})]
 
 
 def _regions_matrix(puzzle_data: dict[str, object]) -> object | None:
@@ -428,7 +441,7 @@ def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constrain
                 raise ValueError(msg)
             a, b = _edge_to_pair(clue["edge"], size)
             decoded.append(Constraint(alias, params={"cells": [a, b]}))
-        _warn_dropped_negative(block, "XV")
+        _warn_dropped_negative(block, DECODER_REGISTRY[_XV_TYPE].name)
     return decoded
 
 
@@ -449,7 +462,7 @@ def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
             a, b = _edge_to_pair(clue["edge"], size)
             params = {"cells": [a, b], "diff": clue["value"]}
             decoded.append(Constraint("pair-difference", params=params))
-        _warn_dropped_negative(block, "white-kropki")
+        _warn_dropped_negative(block, DECODER_REGISTRY[_KROPKI_WHITE_TYPE].name)
     return decoded
 
 
@@ -469,10 +482,57 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
             decoded.append(Constraint("cage", params={"cells": cells}))
             if cage.get("value", 0) > 0:
                 print(
-                    "warning: ignoring killer-cage sum — verdict computed without it",
+                    f"warning: ignoring {DECODER_REGISTRY[_CAGE_TYPE].name} sum "
+                    "— verdict computed without it",
                     file=sys.stderr,
                 )
     return decoded
+
+
+@dataclass(frozen=True)
+class DecodedType:
+    """One SudokuMaker wire-type the decoder recognizes, one row wide (issue
+    #209): `handler` builds this type's `Constraint`s from the link (`None`
+    for a structural type with nothing to build — a bare `type 0` is just the
+    unconditional rows/cols, and `type 1`'s regions live behind
+    `_regions_constraints` like every other handler), `live_keys` are the
+    payload keys that mark this type's wire shape as carrying a real rule
+    (read by `has_live_data`, generalized to unmodeled types too), and `name`
+    labels it in the decoder's own warnings.
+    """
+
+    handler: Callable[[dict[str, object], int], list[Constraint]] | None
+    live_keys: tuple[str, ...]
+    name: str
+
+
+# The one table wire-type -> (handler, live-data payload keys, display name):
+# `decode_link` dispatches through it, `_warn_on_dropped_constraints` treats
+# its keys as the already-modeled ruleset, and `has_live_data` reads its
+# `live_keys` — adding a link type is one row here, not three hand-synced
+# call sites.
+DECODER_REGISTRY: dict[int, DecodedType] = {
+    0: DecodedType(handler=None, live_keys=(), name="givens"),
+    1: DecodedType(handler=_regions_constraints, live_keys=(), name="regions"),
+    _KROPKI_WHITE_TYPE: DecodedType(
+        handler=_kropki_constraints,
+        live_keys=("clues", "negative"),
+        name="white-kropki",
+    ),
+    _XV_TYPE: DecodedType(
+        handler=_xv_constraints, live_keys=("clues", "negative"), name="XV"
+    ),
+    _CAGE_TYPE: DecodedType(
+        handler=_cage_constraints, live_keys=("cages",), name="killer-cage"
+    ),
+}
+
+# The union of every registered type's live-data keys, order-preserved and
+# deduped — `has_live_data` checks these instead of a hand-copied list that
+# happened to match what the decoders above read (issue #209).
+_LIVE_LIST_KEYS: tuple[str, ...] = tuple(
+    dict.fromkeys(key for entry in DECODER_REGISTRY.values() for key in entry.live_keys)
+)
 
 
 def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
@@ -480,19 +540,20 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     stderr for any that carries live data — so a verdict is never silently
     computed under a smaller ruleset than the link states.
 
-    Known types (0 givens / 1 regions / 200 white-kropki / 202 XV / 301
-    killer-cage) are modeled elsewhere and pass through. A `disabled` constraint
-    is skipped first with no warning: the setter switched it off, so it is not
-    part of the puzzle even for a type gridfind knows how to decode. A remaining
-    enabled unmodeled constraint is inert (empty or cosmetic-only payload) and
-    dropped quietly, or active (a live clue/negative list or a populated group)
-    and dropped loudly, named by its `definition.name` when the link carries
-    one. Honoring a specific variant rather than dropping it is the opt-in
-    variant-decoder path (map #180) — `202` graduated first (issue #198), `301`
-    next (issue #199), `200` after (issue #200); each still warns on the part it
-    can't model (a kropki/XV `negative` list, a cage's sum), fired from its own
-    decoder instead. `201` (black/ratio) is deliberately *not* graduated — no
-    ratio layer (backlog #195), so it stays here.
+    Types in `DECODER_REGISTRY` (issue #209) — 0 givens, 1 regions, 200
+    white-kropki, 202 XV, 301 killer-cage — are modeled elsewhere and pass
+    through. A `disabled` constraint is skipped first with no warning: the
+    setter switched it off, so it is not part of the puzzle even for a type
+    gridfind knows how to decode. A remaining enabled unmodeled constraint is
+    inert (empty or cosmetic-only payload) and dropped quietly, or active (a
+    live clue/negative list or a populated group) and dropped loudly, named by
+    its `definition.name` when the link carries one. Honoring a specific
+    variant rather than dropping it is the opt-in variant-decoder path (map
+    #180) — `202` graduated first (issue #198), `301` next (issue #199), `200`
+    after (issue #200); each still warns on the part it can't model (a
+    kropki/XV `negative` list, a cage's sum), fired from its own decoder
+    instead. `201` (black/ratio) is deliberately *not* graduated — no ratio
+    layer (backlog #195), so it stays here.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both
@@ -507,7 +568,7 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         if constraint.get("disabled") is True:
             continue
         kind = constraint.get("type")
-        if kind in (0, 1, _XV_TYPE, _KROPKI_WHITE_TYPE, _CAGE_TYPE):
+        if kind in DECODER_REGISTRY:
             continue
         if has_live_data(constraint):
             name = constraint_name(constraint)
@@ -521,9 +582,9 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
 
 def has_live_data(constraint: dict[Any, Any]) -> bool:
     """True when an enabled, unmodeled constraint carries data that would emit
-    a rule: a non-empty `clues`/`negative`/`cages` list, or a group holding
-    real cells under `input.groups`. Empty payloads and cosmetic-only `lines`
-    are inert.
+    a rule: a non-empty list under one of `DECODER_REGISTRY`'s `live_keys`
+    (`clues`/`negative`/`cages`, issue #209), or a group holding real cells
+    under `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
 
     `cages` is a killer-cage block's (`type 301`) payload. It is decoded now
     (issue #199), so `_warn_on_dropped_constraints` skips it — this entry marks
@@ -535,7 +596,7 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     predicate the decoder drops by (issue #184). `Any` keeps the decoded-JSON
     boundary type (a dict narrowed from the untyped payload), as `decode_link`
     does for `puzzle_data`."""
-    for key in ("clues", "negative", "cages"):
+    for key in _LIVE_LIST_KEYS:
         value = constraint.get(key)
         if isinstance(value, list) and any(value):
             return True
