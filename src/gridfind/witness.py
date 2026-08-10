@@ -9,13 +9,17 @@ the dataclass rather than inside `verdict.py`.
 
 `witness_validator.py` reads a rendered witness back independently and never
 imports this module, on purpose (spec #185): a renderer defect must not hide
-behind the same code that produced the grid.
+behind the same code that produced the grid. Both sides do cite
+`grid_text.py` — the named text-shape contract (issue #210) that keeps a
+layout change here from silently drifting out from under the validator's
+parse.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from gridfind import grid_text
 from gridfind.layers.regions import RegionMap
 
 # A box-drawing glyph for a grid junction, keyed by which arms (up, down,
@@ -77,11 +81,13 @@ class Witness:
         borders through the same path.
 
         A singleton cell prints its bare digit; an S-cell prints its
-        unordered pair `{a b}` (issue #141, decision #135). Every cell is
-        right-padded to the widest cell in the witness so columns stay
-        aligned and the box banding survives whatever width an S-cell adds —
-        for an ordinary witness (every cell a singleton) the widest cell is
-        one character, so this is the same output as before.
+        unordered pair `{a b}` (issue #141, decision #135), via
+        `grid_text.format_cell` — the same token shape `witness_validator`
+        parses back (issue #210). Every cell is right-padded to the widest
+        cell in the witness so columns stay aligned and the box banding
+        survives whatever width an S-cell adds — for an ordinary witness
+        (every cell a singleton) the widest cell is one character, so this
+        is the same output as before.
         """
         n = len(self.grid)
         region_id = {
@@ -101,14 +107,9 @@ class Witness:
                 row == 0 or row == n or region_at(row - 1, col) != region_at(row, col)
             )
 
-        def fmt(content: tuple[int, ...]) -> str:
-            if len(content) == 1:
-                return str(content[0])
-            a, b = content
-            return f"{{{a} {b}}}"
-
         formatted = [
-            [fmt(self.assignment[address]) for address in row] for row in self.grid
+            [grid_text.format_cell(self.assignment[address]) for address in row]
+            for row in self.grid
         ]
         width = max(len(cell) for row in formatted for cell in row)
 
