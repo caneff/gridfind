@@ -1,6 +1,6 @@
 # Sandbox image for a Python (uv) target repo. Runs the coding agent, git, gh,
-# and the target's uv/just toolchain. main.mts runs on the HOST (via tsx) — it
-# is never in this image; only the in-sandbox agent + its tools live here.
+# and the target's toolchain. main.mts runs on the HOST (via tsx) — it is never
+# in this image; only the in-sandbox agent + its tools live here.
 FROM debian:bookworm-slim
 
 # System dependencies
@@ -48,7 +48,7 @@ RUN /home/agent/.local/bin/uv tool install rust-just
 # Claude Code CLI (standalone binary — not a Node app).
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# uv + claude both install under ~/.local/bin
+# The tools installed above land under ~/.local/bin
 ENV PATH="/home/agent/.local/bin:$PATH"
 
 WORKDIR /home/agent

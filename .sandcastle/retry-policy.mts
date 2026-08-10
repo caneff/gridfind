@@ -4,15 +4,15 @@ import { readFileSync, writeFileSync } from "node:fs";
 // existing branch) up to this many times before we give up on review-only and
 // escalate to a full re-implement. A review-fail issue (spec and/or standards)
 // is re-implemented up to this many times before being handed to a human.
-// Without a cap, a
-// deterministically-broken branch would re-review/re-fail every run forever.
+// Without a cap, a deterministically-broken branch would re-review/re-fail
+// every run forever.
 export const REVIEW_RETRY_CAP = 2;
 
 const ATTEMPTS_FILE = ".sandcastle/review-attempts.json";
 
 // Per-key failed-attempt counters, persisted across runs. Keys are issue ids
-// (review-retry) or `spec-<id>` (spec re-implement), kept distinct so the two
-// caps count independently for the same issue.
+// (review-retry) or `review-<id>` (re-implement after a failed review axis),
+// kept distinct so the two caps count independently for the same issue.
 export type Attempts = Record<string, number>;
 
 export function readAttempts(file = ATTEMPTS_FILE): Attempts {

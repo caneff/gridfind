@@ -103,7 +103,7 @@ export function applyBotToken(
  * Hook-path isolation: the host `.git` (carrying the host pre-commit hook) is
  * mounted in, but pre-commit isn't on the container PATH, so a plain commit
  * dies; pointing `core.hooksPath` at an empty dir disables it in-sandbox. The
- * Phase-3 `just check` gate runs the same ruff/ty.
+ * Phase-3 check gate runs the same linters anyway.
  */
 export function onSandboxReadyCommands(
   identity: SandboxIdentity
