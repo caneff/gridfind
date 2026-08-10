@@ -65,13 +65,19 @@ deprecated = "ignore"
 
 # --- pytest (hardened) ---
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config -m \"not e2e\""
 xfail_strict = true
+markers = [
+  "e2e: drives real SudokuMaker links through the CLI front door (slow CP-SAT solves); deselected by default, run via `just e2e`.",
+]
 
 # --- coverage (soft) ---
 [tool.coverage.run]
 branch = true
 
-# --- wheel: don't ship interleaved test files or fixtures ---
+# --- wheel: don't ship interleaved test files, fixtures, or test-only support ---
+# witness_validator is imported only by the e2e tests (an independent oracle for
+# the CLI's rendered witness); it's not public API, so keep it off the shipped
+# py.typed surface.
 [tool.uv.build-backend]
-source-exclude = ["**/*_test.py", "**/conftest.py"]
+source-exclude = ["**/*_test.py", "**/conftest.py", "**/witness_validator.py"]

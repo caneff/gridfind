@@ -35,6 +35,12 @@ typecheck:
 test:
     uv run pytest
 
+# On-demand real-link E2E suite (spec #185, issue #186): drives real
+# SudokuMaker links through the CLI front door. CP-SAT-slow, not flaky —
+# skipped by `just check` / `uv run pytest` via the `not e2e` deselection.
+e2e:
+    uv run pytest -m e2e
+
 # Focused selection over the puzzle corpus, by canonical-stack id or by layer
 # name (e.g. `just puzzles rows-distinct`, `just puzzles board+cols-distinct+regions-distinct+rows-distinct`).
 puzzles PATTERN:
