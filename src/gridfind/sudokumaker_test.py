@@ -103,24 +103,127 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
     ("puzzle", "match"),
     [
         (
-            {"cells": _EMPTY_CELLS, "minDigit": 0, "constraints": _WIRE_CONSTRAINTS},
-            "minDigit",
-        ),
-        (
             {"cells": [{} for _ in range(80)], "constraints": _WIRE_CONSTRAINTS},
-            "81 cells",
+            "do not match size",
         ),
         (
             {"cells": _EMPTY_CELLS, "constraints": [{"type": 5}]},
             "unknown constraint type",
         ),
+        # A non-square shape: width 6 over 54 cells derives 9 rows (§4b's 6x9).
+        (
+            {
+                "cells": [{} for _ in range(54)],
+                "width": 6,
+                "constraints": [{"type": 0}],
+            },
+            "not a square grid",
+        ),
+        # A declared size that the cell count contradicts.
+        (
+            {"cells": _EMPTY_CELLS, "size": 6, "constraints": [{"type": 0}]},
+            "do not match size",
+        ),
+        # An un-tileable size (5) with no regions matrix has no box partition.
+        (
+            {"cells": [{} for _ in range(25)], "size": 5, "constraints": [{"type": 0}]},
+            "no box convention",
+        ),
+        # A domain that doesn't span the board: 0..5 is six digits for a 9x9.
+        (
+            {
+                "cells": _EMPTY_CELLS,
+                "minDigit": 0,
+                "maxDigit": 5,
+                "constraints": _WIRE_CONSTRAINTS,
+            },
+            "is not 9 digits",
+        ),
     ],
-    ids=["minDigit", "wrong-cell-count", "unknown-type"],
+    ids=[
+        "wrong-cell-count",
+        "unknown-type",
+        "non-square",
+        "size-mismatch",
+        "untileable-no-regions",
+        "bad-domain-span",
+    ],
 )
 def test_non_classic_link_is_rejected(puzzle: dict[str, object], match: str) -> None:
     # Each case fails for *its own* reason, not an incidental ValueError.
     with pytest.raises(ValueError, match=match):
         decode_link(_encode(puzzle))
+
+
+def test_shifted_domain_link_decodes_against_its_own_digits() -> None:
+    # minDigit/maxDigit set the domain; a 0-based 9x9 reads candidates against
+    # 0..8, not 1..9, so bit 0 is a real digit here.
+    cells: list[dict[str, object]] = [{} for _ in range(81)]
+    cells[0] = {"candidates": _mask({0, 8})}
+    payload = _encode(
+        {
+            "cells": cells,
+            "minDigit": 0,
+            "maxDigit": 8,
+            "constraints": _WIRE_CONSTRAINTS,
+        }
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert puzzle.board == Board(size=9, values=range(9))
+    assert Candidate("R1C1", frozenset({0, 8})) in state.candidates
+
+
+def _regions_for(n: int, box_rows: int, box_cols: int) -> list[int]:
+    """The standard box partition of an n x n board as a flat row-major id
+    array, derived independently of the decoder (region = band-row * bands +
+    band-col)."""
+    bands = n // box_cols
+    return [
+        (r // box_rows) * bands + (c // box_cols) for r in range(n) for c in range(n)
+    ]
+
+
+def test_non_nine_jigsaw_matrix_rides_onto_constraint_params() -> None:
+    # A 6x6 type-1 matrix that isn't the 2x3 convention tiling carries verbatim
+    # onto params["regions"] (issue #125 generalized to non-9).
+    standard_6 = _regions_for(6, 2, 3)
+    # Move R1C1 into R1C4's box (0 -> 1): a real jigsaw, not a within-box swap.
+    jigsaw_6 = [standard_6[3], *standard_6[1:]]
+    payload = _encode(
+        {
+            "cells": [{} for _ in range(36)],
+            "size": 6,
+            "constraints": [{"type": 0}, {"type": 1, "regions": jigsaw_6}],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    regions_constraint = next(
+        c for c in puzzle.constraints if c.type == "regions-distinct"
+    )
+    assert regions_constraint.params == {"regions": jigsaw_6}
+
+
+def test_non_nine_standard_matrix_stays_bare() -> None:
+    # A 6x6 type-1 matrix equal to the 2x3 convention tiling emits a bare
+    # regions-distinct, just as the classic 9x9 case does.
+    payload = _encode(
+        {
+            "cells": [{} for _ in range(36)],
+            "size": 6,
+            "constraints": [{"type": 0}, {"type": 1, "regions": _regions_for(6, 2, 3)}],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    regions_constraint = next(
+        c for c in puzzle.constraints if c.type == "regions-distinct"
+    )
+    assert regions_constraint == Constraint("regions-distinct")
 
 
 def test_jigsaw_regions_decode_into_constraint_params() -> None:
@@ -276,3 +379,34 @@ def test_red_cell_with_a_value_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="R1C1"):
         decode_link(payload, schrodinger=True)
+
+
+# --- non-9 square-N decode (issue #176) --------------------------------
+
+
+def test_six_by_six_link_decodes_at_the_right_size() -> None:
+    # size:6 with no regions matrix falls back to the 2x3 convention tiling;
+    # a given, a placement, and a center mark land at 6x6 addresses.
+    cells: list[dict[str, object]] = [{} for _ in range(36)]
+    cells[0] = {"given": True, "value": 5}  # R1C1
+    cells[7] = {"value": 3}  # R2C2
+    cells[35] = {"candidates": _mask({2, 4})}  # R6C6
+    payload = _encode({"cells": cells, "size": 6, "constraints": [{"type": 0}]})
+
+    puzzle, state = decode_link(payload)
+
+    assert puzzle.board == Board(size=6)
+    assert puzzle.givens == (Given("R1C1", 5),)
+    assert state.places == (Placement("R2C2", 3),)
+    assert state.candidates == (Candidate("R6C6", frozenset({2, 4})),)
+
+
+def test_four_by_four_link_decodes_at_the_right_size() -> None:
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells[15] = {"given": True, "value": 4}  # R4C4
+    payload = _encode({"cells": cells, "size": 4, "constraints": [{"type": 0}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert puzzle.board == Board(size=4)
+    assert puzzle.givens == (Given("R4C4", 4),)

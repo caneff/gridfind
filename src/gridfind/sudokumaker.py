@@ -3,10 +3,16 @@
 One pure function, `decode_link`, mirroring `puzzle.py`'s schema-only role: it
 strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 `formatVersion 1.5.0` JSON to the model per the confirmed field-by-field map in
-`docs/research/sudoku-link-formats.md` §4a (issue #54). Classic 9x9 domain
-only — a non-classic link (a variant `minDigit`/`maxDigit` domain, an unknown
-ruleset, a non-81 grid) is rejected with `ValueError` rather than mis-decoded
-into a confident wrong verdict. A `type 1` jigsaw regions matrix decodes
+`docs/research/sudoku-link-formats.md` §4a/§4b (issues #54, #172). Size, digit
+domain, and box partition are read from the link's own fields — `width`/`size`
+(else `isqrt(len(cells))`), `minDigit`/`maxDigit` (else `1..N`), and the
+`type 1` regions matrix (else the convention tiling) — so any square N the
+engine can tile decodes (issue #176); a classic 9x9 link omits every one of
+those fields and decodes via the fallbacks exactly as before. A link gridfind
+can't answer — non-square, a cell-count/size mismatch, a domain that doesn't
+span N, an un-tileable size with no regions, an unknown ruleset — is rejected
+with `ValueError` rather than mis-decoded into a confident wrong verdict. A
+`type 1` jigsaw regions matrix decodes
 instead of being refused (issue #125): it rides straight onto the
 `regions-distinct` constraint's `params["regions"]`, unvalidated — a malformed
 matrix surfaces as `MalformedPuzzleError` from `verdict`, never from here.
@@ -36,12 +42,13 @@ from __future__ import annotations
 
 import json
 import urllib.parse
+from math import isqrt
 from typing import Any
 
 from lzstring import LZString
 
 from gridfind.layers.board import cell_address
-from gridfind.layers.regions import region_map_for
+from gridfind.layers.regions import BOX_SHAPE, region_map_for
 from gridfind.puzzle import (
     BareSCell,
     Board,
@@ -57,14 +64,11 @@ from gridfind.puzzle import (
     WorkingState,
 )
 
-# The decoder is classic-9x9-only (issue #77 leaves it untouched) — its own
-# constant, not the board layer's (which now derives size from the puzzle).
-BOARD_SIZE = 9
-CELL_COUNT = BOARD_SIZE * BOARD_SIZE
-# The digit domain of a classic (1-9). Bit 0 of a candidates/corner mask is only
-# meaningful for a `minDigit:0` variant, which the guard rejects (§4a) unless
-# --schrodinger is given (issue #143).
-_DIGITS = range(1, BOARD_SIZE + 1)
+# Board size, digit domain, and box partition are all read from the link now
+# (issue #176), not from a module constant — a classic 9x9 link, which omits
+# every size/domain field, still decodes exactly as before via the fallbacks
+# (isqrt -> 9, domain -> 1..9, convention tiling). §4b (issue #172) records the
+# omit-when-default wire rule the derivation is written against.
 
 # The only reading built so far (issue #143 first light) — sum-valued and
 # positional are future values of the same flag, refused until then.
@@ -82,21 +86,13 @@ _SCELL_PIN_MARKS = 2
 # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all
 # three explicit — rows/cols are always bare, and regions per _regions_constraint.
 
-# The standard 3x3 box partition as SudokuMaker's flat 81-array of region ids,
-# row-major — a `type 1` `regions` matrix equal to this is the classic box
-# tiling (no params needed); anything else is a jigsaw partition to carry
-# through verbatim (issue #125).
-_CLASSIC_REGIONS = [0] * CELL_COUNT
-for _region_id, _box in enumerate(region_map_for(BOARD_SIZE)):
-    for _row, _col in _box:
-        _CLASSIC_REGIONS[(_row - 1) * BOARD_SIZE + (_col - 1)] = _region_id
-
 
 def decode_link(
     link: str, *, schrodinger: bool = False, reading: str = _CLASSIC_READING
 ) -> tuple[Puzzle, WorkingState]:
-    """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a classic 9x9
-    `Puzzle` + `WorkingState`. Raises `ValueError` on a non-classic link.
+    """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a square-N
+    `Puzzle` + `WorkingState`, sizing the board and domain from the link itself
+    (issue #176). Raises `ValueError` on a link gridfind can't answer.
 
     `schrodinger` **declares** the SudokuMaker-Schrödinger variant (spec #139,
     issue #143) — it is never inferred from the link. It reads the link's
@@ -116,16 +112,22 @@ def decode_link(
     # Decoded JSON is an untyped external boundary — a local `Any` is deliberate
     # (CODING_STANDARDS: reach for Any only at genuine boundaries).
     puzzle_data: Any = json.loads(raw)["puzzle"]
-    _reject_non_classic(puzzle_data, schrodinger=schrodinger)
+    size = _board_size(puzzle_data)
+    _reject_unknown_constraints(puzzle_data, schrodinger=schrodinger)
+    regions = _regions_constraint(puzzle_data, size)
 
     cells = puzzle_data["cells"]
     givens: list[Given] = []
     places: list[Placement] = []
     candidates: list[Candidate] = []
     s_directives: list[SDirective] = []
-    domain = _schrodinger_domain(puzzle_data) if schrodinger else _DIGITS
+    domain = (
+        _schrodinger_domain(puzzle_data, size)
+        if schrodinger
+        else _digit_domain(puzzle_data, size)
+    )
     for i, cell in enumerate(cells):
-        address = cell_address(i // BOARD_SIZE + 1, i % BOARD_SIZE + 1)
+        address = cell_address(i // size + 1, i % size + 1)
         if schrodinger:
             _decode_schrodinger_cell(
                 cell, address, domain, givens, s_directives, candidates
@@ -143,11 +145,9 @@ def decode_link(
     constraints = [
         Constraint("rows-distinct"),
         Constraint("cols-distinct"),
-        _regions_constraint(puzzle_data),
+        regions,
     ]
-    board = (
-        Board(size=BOARD_SIZE, values=domain) if schrodinger else Board(size=BOARD_SIZE)
-    )
+    board = Board(size=size, values=domain)
     if schrodinger:
         constraints.append(Constraint("schrodinger"))
 
@@ -160,16 +160,66 @@ def decode_link(
     return puzzle, state
 
 
-def _schrodinger_domain(puzzle_data: dict[str, object]) -> range:
-    """The board's digit domain under the classic reading: `minDigit`
-    (defaulting to 1 when absent — the link carries no `maxDigit` or
-    `digitCount`, per #143's verified wire format) through `minDigit + size`,
-    the `k = 1` extra digit the classic Schrödinger rule derives, not reads."""
-    min_digit = puzzle_data.get("minDigit", 1)
-    if not isinstance(min_digit, int):
-        msg = f"non-classic link: minDigit must be an int, got {min_digit!r}"
+def _board_size(puzzle_data: dict[str, object]) -> int:
+    """The board's size `N` read from the link, most specific first (§4b): a
+    `width` (with `height`, else derived from the cell count), else a `size`,
+    else `isqrt(len(cells))` — the classic link, which omits all three, lands
+    on `isqrt(81) = 9`. The shape must be square (`rows == cols`) and its cell
+    count must match (`rows * cols == len(cells)`); a non-square link or a
+    size/count mismatch is refused with its own reason (map #171 targets
+    square N only)."""
+    cells = puzzle_data.get("cells")
+    if not isinstance(cells, list):
+        msg = "non-classic link: puzzle carries no cells array"
         raise ValueError(msg)
-    return range(min_digit, min_digit + BOARD_SIZE + 1)
+    count = len(cells)
+    if "width" in puzzle_data:
+        cols = _as_int(puzzle_data["width"], "width")
+        height = puzzle_data.get("height")
+        rows = _as_int(height, "height") if height is not None else count // (cols or 1)
+    elif "size" in puzzle_data:
+        rows = cols = _as_int(puzzle_data["size"], "size")
+    else:
+        rows = cols = isqrt(count)
+    if rows != cols:
+        msg = f"non-square link: {rows}x{cols} is not a square grid"
+        raise ValueError(msg)
+    if rows * cols != count:
+        msg = f"non-classic link: {count} cells do not match size {rows}"
+        raise ValueError(msg)
+    return rows
+
+
+def _as_int(value: object, field: str) -> int:
+    """A link header field that must be an integer, or a `ValueError` naming it
+    (a `bool` is not an `int` here — a `True` width is a malformed link)."""
+    if not isinstance(value, int) or isinstance(value, bool):
+        msg = f"non-classic link: {field} must be an int, got {value!r}"
+        raise ValueError(msg)
+    return value
+
+
+def _digit_domain(puzzle_data: dict[str, object], size: int) -> range:
+    """The board's digit domain (§4b): `minDigit`..`maxDigit` when the link
+    carries them, else the implicit `1..N`. `maxDigit` defaults to a full
+    `N`-wide span from `minDigit`, and the span is validated against N
+    (`maxDigit - minDigit + 1 == N`) — a domain that doesn't fit the board is
+    refused. A classic link omits both, so this is `1..9`, unchanged."""
+    min_digit = _as_int(puzzle_data.get("minDigit", 1), "minDigit")
+    max_digit = _as_int(puzzle_data.get("maxDigit", min_digit + size - 1), "maxDigit")
+    if max_digit - min_digit + 1 != size:
+        msg = f"non-classic link: domain {min_digit}..{max_digit} is not {size} digits"
+        raise ValueError(msg)
+    return range(min_digit, max_digit + 1)
+
+
+def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
+    """The board's digit domain under the classic Schrödinger reading:
+    `minDigit` (defaulting to 1 when absent — the link carries no `maxDigit` or
+    `digitCount`, per #143's verified wire format) through `minDigit + N`, the
+    `k = 1` extra digit the classic Schrödinger rule derives, not reads."""
+    min_digit = _as_int(puzzle_data.get("minDigit", 1), "minDigit")
+    return range(min_digit, min_digit + size + 1)
 
 
 def _decode_schrodinger_cell(
@@ -221,14 +271,32 @@ def _decode_schrodinger_cell(
     # represent — same as the classic path.
 
 
-def _regions_constraint(puzzle_data: dict[str, object]) -> Constraint:
-    """The `regions-distinct` constraint: bare for the standard 3x3 partition
-    (today's classic shape, unchanged) or when `type 1` is absent, carrying
-    the setter's own `params["regions"]` matrix verbatim for a jigsaw
-    partition otherwise (issue #125). A `disabled: true` type-1 block is
-    skipped (issue #143) — a real link may carry a disabled duplicate
-    alongside the live one. Never validated here — a malformed matrix
-    surfaces from `verdict`, not decode."""
+def _regions_constraint(puzzle_data: dict[str, object], size: int) -> Constraint:
+    """The `regions-distinct` constraint for an `N`x`N` board: bare for the
+    standard partition (today's classic shape, unchanged) or when `type 1` is
+    absent, carrying the setter's own `params["regions"]` matrix verbatim for a
+    jigsaw partition otherwise (issue #125, generalized to non-9 in #176). A
+    `disabled: true` type-1 block is skipped (issue #143) — a real link may
+    carry a disabled duplicate alongside the live one. Never validated here — a
+    malformed matrix surfaces from `verdict`, not decode.
+
+    When the link omits `type 1`, the box partition falls back to the engine's
+    convention tiling (`region_map_for(N)`); a size with no convention and no
+    matrix has no partition at all and is refused (a bare 5 or 7)."""
+    matrix = _regions_matrix(puzzle_data)
+    if matrix is not None:
+        if size in BOX_SHAPE and matrix == _classic_regions_for(size):
+            return Constraint("regions-distinct")
+        return Constraint("regions-distinct", params={"regions": matrix})
+    if size not in BOX_SHAPE:
+        msg = f"non-classic link: size {size} has no box convention and no regions"
+        raise ValueError(msg)
+    return Constraint("regions-distinct")
+
+
+def _regions_matrix(puzzle_data: dict[str, object]) -> object | None:
+    """The enabled `type 1` regions matrix from the link, or `None` when the
+    link carries no live jigsaw block."""
     constraints = puzzle_data.get("constraints", [])
     if isinstance(constraints, list):
         for constraint in constraints:
@@ -237,33 +305,31 @@ def _regions_constraint(puzzle_data: dict[str, object]) -> Constraint:
                 and constraint.get("type") == 1
                 and not constraint.get("disabled")
             ):
-                regions = constraint.get("regions")
-                if regions != _CLASSIC_REGIONS:
-                    return Constraint("regions-distinct", params={"regions": regions})
-    return Constraint("regions-distinct")
+                return constraint.get("regions")
+    return None
 
 
-def _reject_non_classic(
+def _classic_regions_for(size: int) -> list[int]:
+    """The standard box partition of an `N`x`N` board as SudokuMaker's flat,
+    row-major region-id array — the matrix a `type 1` block equal to it is
+    just the classic tiling of (no params needed)."""
+    labels = [0] * (size * size)
+    for region_id, box in enumerate(region_map_for(size)):
+        for row, col in box:
+            labels[(row - 1) * size + (col - 1)] = region_id
+    return labels
+
+
+def _reject_unknown_constraints(
     puzzle_data: dict[str, object], *, schrodinger: bool = False
 ) -> None:
-    """Guard the classic 9x9 boundary: refuse a variant domain, a non-81 grid,
-    or an unknown ruleset (§4a). Narrows the untyped JSON as it checks — a
-    shape that isn't a classic's is exactly what it rejects. A jigsaw `type 1`
-    regions matrix is not rejected here (issue #125) — see
+    """Guard the ruleset: refuse an unknown constraint type (§4a). A jigsaw
+    `type 1` regions matrix is not rejected (issue #125) — see
     `_regions_constraint`.
 
-    Under `--schrodinger` (issue #143) the `minDigit` domain check and the
-    constraint-type whitelist below are both skipped: a real Schrödinger link
-    carries `minDigit` on purpose (`_schrodinger_domain` reads it) and is
-    full of cosmetic constraint types and disabled duplicates that must be
-    ignored, not rejected — only the cell-count check still applies."""
-    if not schrodinger and _has_key(puzzle_data, ("minDigit", "maxDigit")):
-        msg = "non-classic link: a minDigit/maxDigit domain is a variant"
-        raise ValueError(msg)
-    cells = puzzle_data.get("cells")
-    if not isinstance(cells, list) or len(cells) != CELL_COUNT:
-        msg = f"non-classic link: expected {CELL_COUNT} cells"
-        raise ValueError(msg)
+    Under `--schrodinger` (issue #143) the whitelist is skipped: a real
+    Schrödinger link is full of cosmetic constraint types and disabled
+    duplicates that must be ignored, not rejected."""
     if schrodinger:
         return
     constraints = puzzle_data.get("constraints", [])
@@ -276,14 +342,3 @@ def _reject_non_classic(
         if kind not in (0, 1):
             msg = f"non-classic link: unknown constraint type {kind!r}"
             raise ValueError(msg)
-
-
-def _has_key(value: object, keys: tuple[str, ...]) -> bool:
-    """True if any of `keys` appears anywhere in the nested JSON `value`."""
-    if isinstance(value, dict):
-        return any(k in value for k in keys) or any(
-            _has_key(v, keys) for v in value.values()
-        )
-    if isinstance(value, list):
-        return any(_has_key(item, keys) for item in value)
-    return False
