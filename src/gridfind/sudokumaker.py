@@ -50,7 +50,7 @@ import json
 import sys
 import urllib.parse
 from math import isqrt
-from typing import Any
+from typing import Any, cast
 
 from lzstring import LZString
 
@@ -92,6 +92,14 @@ _SCELL_PIN_MARKS = 2
 
 # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes all
 # three explicit — rows/cols are always bare, and regions per _regions_constraint.
+
+# type 202 is XV (decode reference #189): `clues: [{value, edge}], negative:
+# [...]`. `value` selects the existing pair-sum alias — 10 is X, 5 is V
+# (design #190) — never a raw `sum`, so a puzzle carrying both an XV clue and
+# a literal pair-sum on the same cells still hits the alias's own
+# fixed-param conflict check in `expand_constraints`.
+_XV_TYPE = 202
+_XV_ALIASES: dict[int, str] = {10: "x", 5: "v"}
 
 
 def decode_link(
@@ -151,6 +159,7 @@ def decode_link(
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
     if regions is not None:
         constraints.append(regions)
+    constraints.extend(_xv_constraints(puzzle_data, size))
     board = Board(size=size, values=domain)
     if schrodinger:
         constraints.append(Constraint("schrodinger"))
@@ -323,19 +332,90 @@ def _classic_regions_for(size: int) -> list[int]:
     return labels
 
 
+def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
+    """An XV/kropki `edge` integer decoded to its two orthogonally-adjacent
+    cell addresses (design #190), the primitive shared by the XV (#198) and
+    white-kropki (#200) decoders.
+
+    Edges are enumerated in row-major blocks of `2 * size`, one block per
+    0-indexed row `r0`: within a block, offset `1..size-1` is a horizontal
+    (left/right) pair starting `r0`, and offset `size..2*size-1` is a
+    vertical (up/down) pair starting `r0` — the two closed-form formulas
+    (`edge = 2N*r0 + c0 + 1` horizontal, `edge = 2N*r0 + c0 + N` vertical)
+    inverted by `divmod`. Oracle-verified against a real link (#190): X @ 70
+    = R4C8/R5C8, V @ 103 = R6C5/R7C5 (vertical), kropki @ 75 = R5C3/R5C4, @
+    132 = R8C6/R8C7 (horizontal), all on a 9x9 board.
+
+    Raises `ValueError` when `edge` names no in-bounds pair on a `size`x`size`
+    board (an out-of-range offset, or a row with no room for the pair)."""
+    block = 2 * size
+    r0, offset = divmod(edge, block)
+    if 1 <= offset <= size - 1 and 0 <= r0 <= size - 1:
+        c0 = offset - 1
+        return cell_address(r0 + 1, c0 + 1), cell_address(r0 + 1, c0 + 2)
+    if size <= offset <= block - 1 and 0 <= r0 <= size - 2:
+        c0 = offset - size
+        return cell_address(r0 + 1, c0 + 1), cell_address(r0 + 2, c0 + 1)
+    msg = (
+        f"non-classic link: edge {edge!r} does not name a valid cell pair "
+        f"on a {size}x{size} board"
+    )
+    raise ValueError(msg)
+
+
+def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+    """The `type 202` XV clues as aliased pair-sum `Constraint`s (design
+    #190): each clue's `value` selects the existing `x`/`v` alias (10/5) and
+    its `edge` decodes to the adjacent cell pair via `_edge_to_pair`. A
+    `disabled` block is skipped entirely; a non-empty `negative` list is
+    warn-and-dropped to stderr (issue #194) while its positive clues still
+    decode."""
+    blocks = puzzle_data.get("constraints", [])
+    if not isinstance(blocks, list):
+        return []
+    decoded: list[Constraint] = []
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != _XV_TYPE:
+            continue
+        if block.get("disabled") is True:
+            continue
+        clues = cast("list[dict[str, Any]]", block.get("clues", []))
+        for clue in clues:
+            value = clue["value"]
+            alias = _XV_ALIASES.get(value)
+            if alias is None:
+                msg = (
+                    f"non-classic link: XV clue value {value!r} is neither "
+                    "X (10) nor V (5)"
+                )
+                raise ValueError(msg)
+            a, b = _edge_to_pair(clue["edge"], size)
+            decoded.append(Constraint(alias, params={"cells": [a, b]}))
+        negative = block.get("negative")
+        if isinstance(negative, list) and negative:
+            print(
+                "warning: ignoring XV negative constraint "
+                "— verdict computed without it",
+                file=sys.stderr,
+            )
+    return decoded
+
+
 def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     """Ignore every constraint gridfind doesn't model (issue #181), warning to
     stderr for any that carries live data — so a verdict is never silently
     computed under a smaller ruleset than the link states.
 
-    Known types (0 givens / 1 regions) are modeled elsewhere and pass through.
-    A `disabled` constraint is skipped first with no warning: the setter
-    switched it off, so it is not part of the puzzle even for a type gridfind
-    knows how to decode. A remaining enabled unmodeled constraint is inert
-    (empty or cosmetic-only payload) and dropped quietly, or active (a live
-    clue/negative list or a populated group) and dropped loudly, named by its
-    `definition.name` when the link carries one. Honoring a specific variant
-    rather than dropping it is the opt-in variant-decoder path (map #180).
+    Known types (0 givens / 1 regions / 202 XV) are modeled elsewhere and pass
+    through. A `disabled` constraint is skipped first with no warning: the
+    setter switched it off, so it is not part of the puzzle even for a type
+    gridfind knows how to decode. A remaining enabled unmodeled constraint is
+    inert (empty or cosmetic-only payload) and dropped quietly, or active (a
+    live clue/negative list or a populated group) and dropped loudly, named by
+    its `definition.name` when the link carries one. Honoring a specific
+    variant rather than dropping it is the opt-in variant-decoder path (map
+    #180) — `202` is the first to graduate out of this path (issue #198); its
+    own `negative` list still warns, fired from `_xv_constraints` instead.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both
@@ -350,7 +430,7 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         if constraint.get("disabled") is True:
             continue
         kind = constraint.get("type")
-        if kind in (0, 1):
+        if kind in (0, 1, _XV_TYPE):
             continue
         if has_live_data(constraint):
             name = constraint_name(constraint)
