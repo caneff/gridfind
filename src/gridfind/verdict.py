@@ -219,16 +219,20 @@ def verdict(
 
 
 def _resolve_region_map(canonical: list[Constraint], size: int) -> RegionMap:
-    """The region map the witness renders against: a setter-supplied jigsaw
-    partition (issue #123's `params["regions"]`) when the puzzle's
-    regions-distinct constraint carries one, the board's box tiling by
-    convention otherwise, and — for a size with no box convention — one
-    whole-board region, since no regions-distinct rule is being enforced for
-    render to fail on."""
+    """The region map the witness renders against — box grid-lines the render
+    draws only when a regions-distinct rule is actually enforced. A
+    regions-distinct constraint carrying a jigsaw matrix (issue #123's
+    `params["regions"]`) resolves to that partition; a bare one to the board's
+    box tiling by convention. With no regions-distinct rule the board is a
+    Latin square, so one whole-board region — the render draws no interior
+    lines the solver never enforced (a boxed size, e.g. a 9x9, included)."""
+    has_regions = False
     for constraint in canonical:
-        if constraint.type == "regions-distinct" and "regions" in constraint.params:
-            return region_map_from_labels(size, constraint.params["regions"])
-    if size in BOX_SHAPE:
+        if constraint.type == "regions-distinct":
+            has_regions = True
+            if "regions" in constraint.params:
+                return region_map_from_labels(size, constraint.params["regions"])
+    if has_regions and size in BOX_SHAPE:
         return box_regions(size, *BOX_SHAPE[size])
     return [[(row, col) for row in range(1, size + 1) for col in range(1, size + 1)]]
 
