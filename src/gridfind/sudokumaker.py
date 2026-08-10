@@ -444,14 +444,19 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
 
 def has_live_data(constraint: dict[Any, Any]) -> bool:
     """True when an enabled, unmodeled constraint carries data that would emit
-    a rule: a non-empty `clues`/`negative` list, or a group holding real cells
-    under `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
+    a rule: a non-empty `clues`/`negative`/`cages` list, or a group holding
+    real cells under `input.groups`. Empty payloads and cosmetic-only `lines`
+    are inert.
+
+    `cages` is a killer-cage block's (`type 301`) payload — not yet decoded
+    (issue #199), but a populated one is real setter data, so it must warn
+    loudly rather than vanish (design #192's `has_live_data` gap).
 
     Public so `scripts/inspect_link.py` classifies constraints against the same
     predicate the decoder drops by (issue #184). `Any` keeps the decoded-JSON
     boundary type (a dict narrowed from the untyped payload), as `decode_link`
     does for `puzzle_data`."""
-    for key in ("clues", "negative"):
+    for key in ("clues", "negative", "cages"):
         value = constraint.get(key)
         if isinstance(value, list) and any(value):
             return True
