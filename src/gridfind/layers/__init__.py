@@ -31,7 +31,7 @@ from gridfind.layers.distinct import (
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_difference import PairDifference
 from gridfind.layers.pair_sum import PairSum
-from gridfind.layers.regions import region_map_from_labels
+from gridfind.layers.regions import region_map_for_constraints
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Constraint, JsonValue
 
@@ -135,12 +135,18 @@ def build_stack(
     unrecognized `type` is rejected.
 
     A `regions-distinct` constraint carrying `params["regions"]` (issue #123)
-    is the one type-directed exception: the door reads the setter's flat
-    label matrix, validates and converts it to a `RegionMap` (`size` is why
-    this door takes one — the matrix shape check needs it), and builds a
-    fresh `DistinctOverGroups` closed over that partition instead of
-    dispatching to the registry's box-tiling default. The layer itself stays
+    is the one type-directed exception: the door resolves it through the
+    shared `region_map_for_constraints` (issue #207) rather than
+    re-deriving the jigsaw-vs-box branch inline, and builds a fresh
+    `DistinctOverGroups` closed over that partition instead of dispatching
+    to the registry's box-tiling default. The layer itself stays
     param-agnostic; only the function it is built with differs.
+
+    The bare, no-`params["regions"]` case is left to `setdefault` below
+    rather than also routed through the resolver: it must keep returning
+    the registry's one shared `DistinctOverGroups` instance (tests key off
+    that identity), and the resolver would build a fresh closure per call
+    instead.
     """
     canonical = expand_constraints(constraints)
     layers: dict[str, Layer] = {"board": LAYER_REGISTRY["board"]}
@@ -149,7 +155,7 @@ def build_stack(
             msg = f"unknown constraint type {constraint.type!r}"
             raise UnknownLayerError(msg)
         if constraint.type == "regions-distinct" and "regions" in constraint.params:
-            region_map = region_map_from_labels(size, constraint.params["regions"])
+            region_map = region_map_for_constraints([constraint], size)
             layers[constraint.type] = DistinctOverGroups(
                 constraint.type, regions_from(region_map)
             )

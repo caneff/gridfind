@@ -2,6 +2,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.layers import UnknownLayerError
 from gridfind.layers.board import cell_address
@@ -486,29 +487,6 @@ def test_regions_distinct_found_when_no_box_repeats() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-
-
-# A connected tetromino partition of a 4x4 board — deliberately not the box
-# tiling (which would be four 2x2 quadrants), so a found verdict proves the
-# supplied jigsaw map drove the solve rather than a fallback.
-JIGSAW_TETROMINOES = [
-    0,
-    0,
-    0,
-    1,
-    0,
-    1,
-    1,
-    1,
-    2,
-    2,
-    3,
-    3,
-    2,
-    2,
-    3,
-    3,
-]
 
 
 def _label_groups(size: int, labels: list[int]) -> dict[int, list[str]]:

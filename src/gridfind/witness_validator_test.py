@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 
+from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.puzzle import Board, Constraint, Puzzle, WorkingState
 from gridfind.verdict import verdict
 from gridfind.witness_validator import validate_witness
@@ -30,6 +31,28 @@ SCHRODINGER_PUZZLE = Puzzle(
         Constraint(type="regions-distinct"),
         Constraint(type="schrodinger"),
     ),
+)
+
+# A hand-built jigsaw partition (issue #123's params["regions"]), the shape
+# region_map_for_constraints' other branch resolves. Shared with
+# verdict_test.py via conftest.py: it must be a genuine tetromino shape, not
+# the box default FOUND_4X4_DOC and SCHRODINGER_PUZZLE both exercise, or a
+# render/validate path that silently fell back to box tiling would still
+# round-trip clean (issue #207 review finding).
+JIGSAW_PUZZLE = Puzzle(
+    board=Board(size=4),
+    constraints=(
+        Constraint(type="rows-distinct"),
+        Constraint(type="cols-distinct"),
+        Constraint(type="regions-distinct", params={"regions": JIGSAW_TETROMINOES}),
+    ),
+)
+
+# No regions-distinct constraint at all — the render path's one-whole-board
+# fallback vs. the validator's skip-the-check branch (issue #207).
+LATIN_SQUARE_PUZZLE = Puzzle(
+    board=Board(size=4),
+    constraints=(Constraint(type="rows-distinct"), Constraint(type="cols-distinct")),
 )
 
 
@@ -88,3 +111,27 @@ def test_validate_witness_rejects_a_schrodinger_grid_that_violates_the_reading()
     broken = _duplicate_first_two_cells_in_first_row(result.witness.render())
 
     assert validate_witness(broken, SCHRODINGER_PUZZLE) is False
+
+
+def test_validate_witness_round_trips_a_jigsaw_partition() -> None:
+    # Issue #207: the render path and validate_witness both cross
+    # region_map_for_constraints. A jigsaw regions-distinct constraint
+    # (params["regions"], not the box default) proves they still resolve the
+    # identical partition, not just the bare box case the other tests cover.
+    result = verdict(JIGSAW_PUZZLE)
+    assert result.kind == "found"
+    assert result.witness is not None
+
+    assert validate_witness(result.witness.render(), JIGSAW_PUZZLE) is True
+
+
+def test_validate_witness_round_trips_a_board_with_no_regions_constraint() -> None:
+    # With no regions-distinct constraint at all, the render path falls back
+    # to one whole-board region for its box-line drawing while the validator
+    # skips the region check entirely (issue #207) — both sides of that same
+    # no-regions fallback must still agree the grid is legal.
+    result = verdict(LATIN_SQUARE_PUZZLE)
+    assert result.kind == "found"
+    assert result.witness is not None
+
+    assert validate_witness(result.witness.render(), LATIN_SQUARE_PUZZLE) is True
