@@ -11,6 +11,8 @@ import json
 from typing import Any
 
 import pytest
+from hypothesis import given as hyp_given
+from hypothesis import strategies as st
 from lzstring import LZString
 
 from gridfind.puzzle import (
@@ -173,6 +175,28 @@ def test_shifted_domain_link_decodes_against_its_own_digits() -> None:
 
     assert puzzle.board == Board(size=9, values=range(9))
     assert Candidate("R1C1", frozenset({0, 8})) in state.candidates
+
+
+@hyp_given(
+    size=st.sampled_from([4, 6, 9]),  # a tileable N, so no regions matrix needed
+    min_digit=st.integers(min_value=-3, max_value=5),
+)
+def test_size_and_domain_derivation_round_trip(size: int, min_digit: int) -> None:
+    # For any tileable N and any domain start, a size:N link carrying its own
+    # minDigit/maxDigit decodes to Board(size=N) over exactly those N digits.
+    payload = _encode(
+        {
+            "cells": [{} for _ in range(size * size)],
+            "size": size,
+            "minDigit": min_digit,
+            "maxDigit": min_digit + size - 1,
+            "constraints": [{"type": 0}],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert puzzle.board == Board(size=size, values=range(min_digit, min_digit + size))
 
 
 def _regions_for(n: int, box_rows: int, box_cols: int) -> list[int]:
@@ -399,6 +423,9 @@ def test_six_by_six_link_decodes_at_the_right_size() -> None:
     assert puzzle.givens == (Given("R1C1", 5),)
     assert state.places == (Placement("R2C2", 3),)
     assert state.candidates == (Candidate("R6C6", frozenset({2, 4})),)
+    # No type-1 block, so the box partition falls back to the convention
+    # tiling — a bare regions-distinct, same as a classic 9x9.
+    assert Constraint("regions-distinct") in puzzle.constraints
 
 
 def test_four_by_four_link_decodes_at_the_right_size() -> None:
