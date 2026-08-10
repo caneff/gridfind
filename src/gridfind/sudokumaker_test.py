@@ -126,11 +126,6 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
             {"cells": _EMPTY_CELLS, "size": 6, "constraints": [{"type": 0}]},
             "do not match size",
         ),
-        # An un-tileable size (5) with no regions matrix has no box partition.
-        (
-            {"cells": [{} for _ in range(25)], "size": 5, "constraints": [{"type": 0}]},
-            "no box convention",
-        ),
         # A domain that doesn't span the board: 0..5 is six digits for a 9x9.
         (
             {
@@ -147,7 +142,6 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
         "unknown-type",
         "non-square",
         "size-mismatch",
-        "untileable-no-regions",
         "bad-domain-span",
     ],
 )
@@ -155,6 +149,37 @@ def test_non_classic_link_is_rejected(puzzle: dict[str, object], match: str) -> 
     # Each case fails for *its own* reason, not an incidental ValueError.
     with pytest.raises(ValueError, match=match):
         decode_link(_encode(puzzle))
+
+
+def test_link_without_type_one_is_a_latin_square() -> None:
+    # No `type 1` regions block means the setter asked for no regions — rows and
+    # columns distinct only. gridfind must not invent boxes (the box tiling is
+    # supplied only when the link carries the box matrix). A real boxed
+    # SudokuMaker puzzle always ships its boxes as an explicit `type 1`.
+    payload = _encode({"cells": _EMPTY_CELLS, "constraints": [{"type": 0}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("regions-distinct") not in puzzle.constraints
+    assert all(c.type != "regions-distinct" for c in puzzle.constraints)
+    assert puzzle.constraints == (
+        Constraint("rows-distinct"),
+        Constraint("cols-distinct"),
+    )
+
+
+def test_untileable_latin_square_decodes() -> None:
+    # A 5x5 has no box convention, but with no `type 1` it needs none — it is a
+    # 5x5 Latin square, answerable on rows and columns alone, not a link to
+    # refuse.
+    payload = _encode(
+        {"cells": [{} for _ in range(25)], "size": 5, "constraints": [{"type": 0}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert puzzle.board == Board(size=5)
+    assert all(c.type != "regions-distinct" for c in puzzle.constraints)
 
 
 def test_shifted_domain_link_decodes_against_its_own_digits() -> None:
@@ -408,14 +433,21 @@ def test_red_cell_with_a_value_is_rejected() -> None:
 # --- non-9 square-N decode (issue #176) --------------------------------
 
 
-def test_six_by_six_link_decodes_at_the_right_size() -> None:
-    # size:6 with no regions matrix falls back to the 2x3 convention tiling;
-    # a given, a placement, and a center mark land at 6x6 addresses.
+def test_six_by_six_boxed_link_decodes_at_the_right_size() -> None:
+    # A boxed 6x6 ships its 2x3 boxes as an explicit type-1 matrix; a given, a
+    # placement, and a center mark land at 6x6 addresses, and the box partition
+    # decodes to a bare regions-distinct.
     cells: list[dict[str, object]] = [{} for _ in range(36)]
     cells[0] = {"given": True, "value": 5}  # R1C1
     cells[7] = {"value": 3}  # R2C2
     cells[35] = {"candidates": _mask({2, 4})}  # R6C6
-    payload = _encode({"cells": cells, "size": 6, "constraints": [{"type": 0}]})
+    payload = _encode(
+        {
+            "cells": cells,
+            "size": 6,
+            "constraints": [{"type": 0}, {"type": 1, "regions": _regions_for(6, 2, 3)}],
+        }
+    )
 
     puzzle, state = decode_link(payload)
 
@@ -423,8 +455,6 @@ def test_six_by_six_link_decodes_at_the_right_size() -> None:
     assert puzzle.givens == (Given("R1C1", 5),)
     assert state.places == (Placement("R2C2", 3),)
     assert state.candidates == (Candidate("R6C6", frozenset({2, 4})),)
-    # No type-1 block, so the box partition falls back to the convention
-    # tiling — a bare regions-distinct, same as a classic 9x9.
     assert Constraint("regions-distinct") in puzzle.constraints
 
 
