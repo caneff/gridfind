@@ -51,6 +51,9 @@ def test_classic_link_decodes_to_expected_puzzle_and_state(classic_link: str) ->
             Given("R7C6", 8),
         ),
     )
+    # R6C8's single center mark `candidates 4 = 2^2` is a one-digit narrowing,
+    # so it lands as a Candidate, never a Placement — the exact-state equality
+    # below pins that (R6C8 is in candidates and absent from places).
     assert state == WorkingState(
         places=(Placement("R1C1", 7),),
         candidates=(
@@ -58,15 +61,6 @@ def test_classic_link_decodes_to_expected_puzzle_and_state(classic_link: str) ->
             Candidate("R6C8", frozenset({2})),
         ),
     )
-
-
-def test_singleton_center_mark_is_a_candidate_not_a_place(classic_link: str) -> None:
-    # `candidates 4 = 2^2` at R6C8 is a one-digit *narrowing*, not a committed
-    # digit — it must never be mistaken for a placement.
-    _, state = decode_link(classic_link)
-
-    assert Candidate("R6C8", frozenset({2})) in state.candidates
-    assert all(place.address != "R6C8" for place in state.places)
 
 
 # The standard 3x3 box id per cell, derived independently of the decoder's own
@@ -259,8 +253,6 @@ def test_link_without_type_one_is_a_latin_square() -> None:
 
     puzzle, _ = decode_link(payload)
 
-    assert Constraint("regions-distinct") not in puzzle.constraints
-    assert all(c.type != "regions-distinct" for c in puzzle.constraints)
     assert puzzle.constraints == (
         Constraint("rows-distinct"),
         Constraint("cols-distinct"),
@@ -641,7 +633,7 @@ def test_edge_to_pair_rejects_an_out_of_bounds_edge() -> None:
 # --- type 202 XV decode (design #190, issue #198) -----------------------
 
 
-def _xv_link(constraint: dict[str, object]) -> str:
+def _constraint_link(constraint: dict[str, object]) -> str:
     return _encode(
         {"cells": _EMPTY_CELLS, "constraints": [*_WIRE_CONSTRAINTS, constraint]}
     )
@@ -659,7 +651,7 @@ def _xv_link(constraint: dict[str, object]) -> str:
 def test_xv_clue_decodes_to_aliased_pair_sum(
     value: int, edge: int, alias: str, cells: list[str]
 ) -> None:
-    payload = _xv_link({"type": 202, "clues": [{"value": value, "edge": edge}]})
+    payload = _constraint_link({"type": 202, "clues": [{"value": value, "edge": edge}]})
 
     puzzle, _ = decode_link(payload)
 
@@ -667,7 +659,7 @@ def test_xv_clue_decodes_to_aliased_pair_sum(
 
 
 def test_multiple_xv_clues_each_decode_to_their_own_constraint() -> None:
-    payload = _xv_link(
+    payload = _constraint_link(
         {
             "type": 202,
             "clues": [{"value": 10, "edge": 70}, {"value": 5, "edge": 103}],
@@ -683,7 +675,7 @@ def test_multiple_xv_clues_each_decode_to_their_own_constraint() -> None:
 def test_xv_negative_list_warns_but_keeps_positive_clues(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    payload = _xv_link(
+    payload = _constraint_link(
         {"type": 202, "clues": [{"value": 10, "edge": 70}], "negative": [1, 2]}
     )
 
@@ -693,35 +685,7 @@ def test_xv_negative_list_warns_but_keeps_positive_clues(
     assert "negative" in capsys.readouterr().err
 
 
-def test_disabled_xv_block_is_skipped_without_decoding(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    payload = _xv_link(
-        {"type": 202, "clues": [{"value": 10, "edge": 70}], "disabled": True}
-    )
-
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type not in ("x", "v", "pair-sum") for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
-
-
-def test_empty_xv_block_decodes_cleanly(capsys: pytest.CaptureFixture[str]) -> None:
-    payload = _xv_link({"type": 202, "clues": [], "negative": []})
-
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type not in ("x", "v", "pair-sum") for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
-
-
 # --- type 200 white-kropki decode (design #191, issue #200) --------------
-
-
-def _kropki_link(constraint: dict[str, object]) -> str:
-    return _encode(
-        {"cells": _EMPTY_CELLS, "constraints": [*_WIRE_CONSTRAINTS, constraint]}
-    )
 
 
 @pytest.mark.parametrize(
@@ -736,7 +700,7 @@ def _kropki_link(constraint: dict[str, object]) -> str:
 def test_kropki_clue_decodes_to_pair_difference(
     value: int, edge: int, cells: list[str]
 ) -> None:
-    payload = _kropki_link({"type": 200, "clues": [{"value": value, "edge": edge}]})
+    payload = _constraint_link({"type": 200, "clues": [{"value": value, "edge": edge}]})
 
     puzzle, _ = decode_link(payload)
 
@@ -749,7 +713,7 @@ def test_kropki_clue_decodes_to_pair_difference(
 def test_kropki_honors_a_labelled_non_one_value() -> None:
     # A white dot labelled with a difference other than 1 is honored verbatim —
     # never silently treated as the consecutive (diff 1) default.
-    payload = _kropki_link({"type": 200, "clues": [{"value": 3, "edge": 75}]})
+    payload = _constraint_link({"type": 200, "clues": [{"value": 3, "edge": 75}]})
 
     puzzle, _ = decode_link(payload)
 
@@ -760,7 +724,7 @@ def test_kropki_honors_a_labelled_non_one_value() -> None:
 
 
 def test_multiple_kropki_clues_each_decode_to_their_own_constraint() -> None:
-    payload = _kropki_link(
+    payload = _constraint_link(
         {
             "type": 200,
             "clues": [{"value": 1, "edge": 75}, {"value": 1, "edge": 132}],
@@ -782,7 +746,7 @@ def test_multiple_kropki_clues_each_decode_to_their_own_constraint() -> None:
 def test_kropki_negative_list_warns_but_keeps_positive_clues(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    payload = _kropki_link(
+    payload = _constraint_link(
         {"type": 200, "clues": [{"value": 1, "edge": 75}], "negative": [1, 2]}
     )
 
@@ -800,7 +764,7 @@ def test_black_kropki_type_201_is_not_decoded_and_warns(
 ) -> None:
     # type 201 (black/ratio) has no ratio layer (backlog #195): it stays on the
     # generic warn-and-drop path, emitting no pair-difference constraint.
-    payload = _kropki_link({"type": 201, "clues": [{"value": 2, "edge": 75}]})
+    payload = _constraint_link({"type": 201, "clues": [{"value": 2, "edge": 75}]})
 
     puzzle, _ = decode_link(payload)
 
@@ -808,37 +772,7 @@ def test_black_kropki_type_201_is_not_decoded_and_warns(
     assert "201" in capsys.readouterr().err
 
 
-def test_disabled_kropki_block_is_skipped_without_decoding(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    payload = _kropki_link(
-        {"type": 200, "clues": [{"value": 1, "edge": 75}], "disabled": True}
-    )
-
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type != "pair-difference" for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
-
-
-def test_empty_kropki_block_decodes_cleanly(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    payload = _kropki_link({"type": 200, "clues": [], "negative": []})
-
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type != "pair-difference" for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
-
-
 # --- type 301 killer-cage decode (design #192, issue #199) ---------------
-
-
-def _cage_link(constraint: dict[str, object]) -> str:
-    return _encode(
-        {"cells": _EMPTY_CELLS, "constraints": [*_WIRE_CONSTRAINTS, constraint]}
-    )
 
 
 def test_cage_decodes_to_region_only_cage_constraint(
@@ -846,7 +780,9 @@ def test_cage_decodes_to_region_only_cage_constraint(
 ) -> None:
     # A no-sum cage (value 0) is honored silently as a plain region-only cage,
     # its raw indices mapped row-major to addresses ([18, 19] -> R3C1, R3C2).
-    payload = _cage_link({"type": 301, "cages": [{"cells": [18, 19], "value": 0}]})
+    payload = _constraint_link(
+        {"type": 301, "cages": [{"cells": [18, 19], "value": 0}]}
+    )
 
     puzzle, _ = decode_link(payload)
 
@@ -859,7 +795,7 @@ def test_cage_with_a_sum_decodes_cells_only_and_warns(
 ) -> None:
     # A summed cage (value > 0) decodes to the same cells-only cage — the layer
     # reads no sum (backlog #196) — and warns to stderr that the sum was dropped.
-    payload = _cage_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
+    payload = _constraint_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
 
     puzzle, _ = decode_link(payload)
 
@@ -868,7 +804,7 @@ def test_cage_with_a_sum_decodes_cells_only_and_warns(
 
 
 def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
-    payload = _cage_link(
+    payload = _constraint_link(
         {
             "type": 301,
             "cages": [
@@ -884,25 +820,49 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
 
 
-def test_disabled_cage_block_is_skipped_without_decoding(
+# --- shared: a disabled or empty block of any decoded family is a no-op ---
+
+
+@pytest.mark.parametrize(
+    ("block", "decoded_types"),
+    [
+        pytest.param(
+            {"type": 202, "clues": [{"value": 10, "edge": 70}], "disabled": True},
+            ("x", "v", "pair-sum"),
+            id="xv-disabled",
+        ),
+        pytest.param(
+            {"type": 202, "clues": [], "negative": []},
+            ("x", "v", "pair-sum"),
+            id="xv-empty",
+        ),
+        pytest.param(
+            {"type": 200, "clues": [{"value": 1, "edge": 75}], "disabled": True},
+            ("pair-difference",),
+            id="kropki-disabled",
+        ),
+        pytest.param(
+            {"type": 200, "clues": [], "negative": []},
+            ("pair-difference",),
+            id="kropki-empty",
+        ),
+        pytest.param(
+            {"type": 301, "cages": [{"cells": [0, 1], "value": 7}], "disabled": True},
+            ("cage",),
+            id="cage-disabled",
+        ),
+        pytest.param({"type": 301, "cages": []}, ("cage",), id="cage-empty"),
+    ],
+)
+def test_disabled_or_empty_block_decodes_to_nothing_quietly(
+    block: dict[str, object],
+    decoded_types: tuple[str, ...],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    payload = _cage_link(
-        {"type": 301, "cages": [{"cells": [0, 1], "value": 7}], "disabled": True}
-    )
+    # A disabled block (setter switched it off) and an empty one (no clues/cages)
+    # both add no constraint and warn nothing — one rule across every decoded
+    # family (XV #198, white-kropki #200, killer-cage #199).
+    puzzle, _ = decode_link(_constraint_link(block))
 
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type != "cage" for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
-
-
-def test_empty_cage_block_decodes_cleanly(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    payload = _cage_link({"type": 301, "cages": []})
-
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type != "cage" for c in puzzle.constraints)
+    assert all(c.type not in decoded_types for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
