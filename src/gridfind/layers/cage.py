@@ -22,6 +22,17 @@ a cell to become an S-cell.
 
 An optional `name` param is accepted and reserved for future killer keying;
 unread today.
+
+A killer sum (issue #196): an optional `value` param, when present and `> 0`,
+additionally emits `sum(cells) == value` read through the singular `content()`
+seam — matching `pair-sum`'s precedent, this is S-blind by decision: a killer
+sum over an S-cell raises `"not Schrödinger-ready yet"` rather than guessing
+which of its two digits counts, while the no-repeats half above stays
+Schrödinger-ready as-is. Future path (not built): an S-cell would eventually
+contribute both its digits to the sum, its value settled by the Schrödinger
+layer elsewhere — left for when a real link needs it. Absent `value` or
+`value == 0` (SudokuMaker's own no-sum cage) stays region-only, exactly as
+before.
 """
 
 from __future__ import annotations
@@ -43,8 +54,14 @@ class Cage:
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object) — narrow to this
-            # clue's shape: the cage's cells. `name`, if present, is reserved
-            # and unread.
+            # clue's shape: the cage's cells, and an optional killer sum.
+            # `name`, if present, is reserved and unread.
             addresses = cast("list[str]", clue.params["cells"])
             slots = [slot for address in addresses for slot in engine.contents(address)]
             engine.model.add_all_different(slots)
+            value = clue.params.get("value")
+            if value:
+                total = cast("int", value)
+                engine.model.add(
+                    sum(engine.content(address) for address in addresses) == total
+                )

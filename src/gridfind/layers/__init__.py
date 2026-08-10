@@ -171,8 +171,12 @@ def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
     string).
 
     ponytail: keys on constraint `type` only — right for the sudoku family (all
-    bare constraints). Fold params in when data-bearing variants (killer,
-    thermo) land, or two cages differing only by sum would collide.
+    bare constraints). Killer cages (issue #196) already collide on this: two
+    cages differing only by `value` compare identical here. Left alone —
+    `canonical_identity` has zero non-test callers, and the same collision
+    already existed for cage `cells` before the sum landed, so folding only
+    `value` in would be an inconsistent half-fix for a consumer that doesn't
+    exist yet. Fold params in (thermo too) when a real caller needs it.
     """
     return tuple(
         sorted({constraint.type for constraint in expand_constraints(constraints)})
