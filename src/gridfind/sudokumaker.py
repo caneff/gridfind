@@ -337,10 +337,10 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     `definition.name` when the link carries one. Honoring a specific variant
     rather than dropping it is the opt-in variant-decoder path (map #180).
 
-    The active/inert split mirrors `scripts/inspect_link.py`'s
-    `classify_constraint` (issue #182) so the dev tool's report and this
-    runtime policy can never disagree — the shared predicate wants a single
-    home once both have landed."""
+    `has_live_data` is the shared active/inert predicate: this runtime policy
+    and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both
+    call it, so the dev tool's report and what the decoder actually drops can
+    never disagree (issue #184)."""
     constraints = puzzle_data.get("constraints", [])
     if not isinstance(constraints, list):
         return
@@ -352,8 +352,8 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         kind = constraint.get("type")
         if kind in (0, 1):
             continue
-        if _has_live_data(constraint):
-            name = _constraint_name(constraint)
+        if has_live_data(constraint):
+            name = constraint_name(constraint)
             named = f" {name!r}" if name is not None else ""
             msg = (
                 f"warning: ignoring unmodeled constraint{named} (type {kind!r}) "
@@ -362,12 +362,15 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
             print(msg, file=sys.stderr)
 
 
-def _has_live_data(constraint: dict[Any, Any]) -> bool:
+def has_live_data(constraint: dict[Any, Any]) -> bool:
     """True when an enabled, unmodeled constraint carries data that would emit
     a rule: a non-empty `clues`/`negative` list, or a group holding real cells
     under `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
-    `Any` keeps the decoded-JSON boundary type (a dict narrowed from the
-    untyped payload), as `decode_link` does for `puzzle_data`."""
+
+    Public so `scripts/inspect_link.py` classifies constraints against the same
+    predicate the decoder drops by (issue #184). `Any` keeps the decoded-JSON
+    boundary type (a dict narrowed from the untyped payload), as `decode_link`
+    does for `puzzle_data`."""
     for key in ("clues", "negative"):
         value = constraint.get(key)
         if isinstance(value, list) and any(value):
@@ -382,10 +385,11 @@ def _has_live_data(constraint: dict[Any, Any]) -> bool:
     return False
 
 
-def _constraint_name(constraint: dict[Any, Any]) -> str | None:
+def constraint_name(constraint: dict[Any, Any]) -> str | None:
     """A custom constraint's display name (e.g. "Same Difference Lines"), read
     from `definition.name` — the field SudokuMaker stores it under (issue
-    #182). `None` when the link carries no name for the type."""
+    #182). `None` when the link carries no name for the type. Public alongside
+    `has_live_data` for `scripts/inspect_link.py` (issue #184)."""
     definition = constraint.get("definition")
     if isinstance(definition, dict):
         name = definition.get("name")
