@@ -24,7 +24,7 @@ from typing import Any, TextIO
 from lzstring import LZString
 
 from gridfind.engine import GridfindError
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import constraint_name, decode_link, has_live_data
 from gridfind.verdict import verdict
 
 _KNOWN_TYPES = (0, 1)
@@ -42,37 +42,9 @@ def classify_constraint(constraint: dict[str, object]) -> str:
         return "disabled"
     if constraint.get("type") in _KNOWN_TYPES:
         return "known"
-    if _has_live_data(constraint):
+    if has_live_data(constraint):
         return "active"
     return "inert"
-
-
-def _has_live_data(constraint: dict[str, object]) -> bool:
-    """True when an enabled constraint carries data that would emit a rule: a
-    non-empty clue/negative list, or a group holding real cells."""
-    for key in ("clues", "negative"):
-        value = constraint.get(key)
-        if isinstance(value, list) and any(value):
-            return True
-    payload = constraint.get("input")
-    if isinstance(payload, dict):
-        groups = payload.get("groups")
-        if isinstance(groups, list) and any(
-            isinstance(group, dict) and group.get("cells") for group in groups
-        ):
-            return True
-    return False
-
-
-def _constraint_name(constraint: dict[str, object]) -> str | None:
-    """A custom constraint's display name (e.g. "Same Difference Lines"), if it
-    carries one under `definition.name`."""
-    definition = constraint.get("definition")
-    if isinstance(definition, dict):
-        name = definition.get("name")
-        if isinstance(name, str):
-            return name
-    return None
 
 
 def _decode_payload(link: str) -> dict[str, object]:
@@ -136,7 +108,7 @@ def inspect_link(link: str, *, schrodinger: bool) -> str:
         if label == "known":
             continue
         ctype = constraint.get("type")
-        name = _constraint_name(constraint)
+        name = constraint_name(constraint)
         buckets[label].append(f"{ctype}({name})" if name else f"{ctype}")
 
     segments = [
