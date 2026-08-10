@@ -28,7 +28,7 @@ from gridfind.puzzle import (
     SingletonPin,
     WorkingState,
 )
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import _edge_to_pair, decode_link
 
 # All three constraints, in the order the decoder emits them.
 _CLASSIC_CONSTRAINTS = (
@@ -565,3 +565,150 @@ def test_four_by_four_link_decodes_at_the_right_size() -> None:
 
     assert puzzle.board == Board(size=4)
     assert puzzle.givens == (Given("R4C4", 4),)
+
+
+# --- edge -> pair (design #190, issue #198) -----------------------------
+
+
+@pytest.mark.parametrize(
+    ("edge", "expected"),
+    [
+        (70, ("R4C8", "R5C8")),
+        (103, ("R6C5", "R7C5")),
+        (75, ("R5C3", "R5C4")),
+        (132, ("R8C6", "R8C7")),
+    ],
+    ids=["x-vertical", "v-vertical", "kropki-horizontal-75", "kropki-horizontal-132"],
+)
+def test_edge_to_pair_oracle_cases(edge: int, expected: tuple[str, str]) -> None:
+    # Verified against a real link during design (#190): all four fit the two
+    # closed-form formulas exactly on a 9x9 board.
+    assert _edge_to_pair(edge, size=9) == expected
+
+
+def _parse_address(address: str) -> tuple[int, int]:
+    row, _, col = address[1:].partition("C")
+    return int(row), int(col)
+
+
+@st.composite
+def _valid_edges(draw: st.DrawFn) -> tuple[int, int, str]:
+    """A `(size, edge, orientation)` triple where `edge` is a real,
+    in-bounds edge of that orientation on a `size`x`size` board — built from
+    the same `r0, c0` space `_edge_to_pair` inverts, so every draw is valid
+    by construction."""
+    size = draw(st.integers(min_value=2, max_value=15))
+    orientation = draw(st.sampled_from(["horizontal", "vertical"]))
+    if orientation == "horizontal":
+        r0 = draw(st.integers(min_value=0, max_value=size - 1))
+        c0 = draw(st.integers(min_value=0, max_value=size - 2))
+        edge = 2 * size * r0 + c0 + 1
+    else:
+        r0 = draw(st.integers(min_value=0, max_value=size - 2))
+        c0 = draw(st.integers(min_value=0, max_value=size - 1))
+        edge = 2 * size * r0 + c0 + size
+    return size, edge, orientation
+
+
+@hyp_given(_valid_edges())
+def test_edge_to_pair_decodes_an_in_bounds_adjacent_pair(
+    case: tuple[int, int, str],
+) -> None:
+    size, edge, orientation = case
+    a, b = _edge_to_pair(edge, size)
+    row_a, col_a = _parse_address(a)
+    row_b, col_b = _parse_address(b)
+
+    assert 1 <= row_a <= size
+    assert 1 <= col_a <= size
+    assert 1 <= row_b <= size
+    assert 1 <= col_b <= size
+    if orientation == "horizontal":
+        assert row_a == row_b
+        assert col_b == col_a + 1
+    else:
+        assert col_a == col_b
+        assert row_b == row_a + 1
+
+
+def test_edge_to_pair_rejects_an_out_of_bounds_edge() -> None:
+    # size=2's only edges are 0..7; 8 names no in-bounds pair.
+    with pytest.raises(ValueError, match="edge"):
+        _edge_to_pair(8, size=2)
+
+
+# --- type 202 XV decode (design #190, issue #198) -----------------------
+
+
+def _xv_link(constraint: dict[str, object]) -> str:
+    return _encode(
+        {"cells": _EMPTY_CELLS, "constraints": [*_WIRE_CONSTRAINTS, constraint]}
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "edge", "alias", "cells"),
+    [
+        (10, 70, "x", ["R4C8", "R5C8"]),
+        (5, 103, "v", ["R6C5", "R7C5"]),
+        (10, 75, "x", ["R5C3", "R5C4"]),
+    ],
+    ids=["x-vertical", "v-vertical", "x-horizontal"],
+)
+def test_xv_clue_decodes_to_aliased_pair_sum(
+    value: int, edge: int, alias: str, cells: list[str]
+) -> None:
+    payload = _xv_link({"type": 202, "clues": [{"value": value, "edge": edge}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint(alias, params={"cells": cells}) in puzzle.constraints
+
+
+def test_multiple_xv_clues_each_decode_to_their_own_constraint() -> None:
+    payload = _xv_link(
+        {
+            "type": 202,
+            "clues": [{"value": 10, "edge": 70}, {"value": 5, "edge": 103}],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("x", params={"cells": ["R4C8", "R5C8"]}) in puzzle.constraints
+    assert Constraint("v", params={"cells": ["R6C5", "R7C5"]}) in puzzle.constraints
+
+
+def test_xv_negative_list_warns_but_keeps_positive_clues(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _xv_link(
+        {"type": 202, "clues": [{"value": 10, "edge": 70}], "negative": [1, 2]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("x", params={"cells": ["R4C8", "R5C8"]}) in puzzle.constraints
+    assert "negative" in capsys.readouterr().err
+
+
+def test_disabled_xv_block_is_skipped_without_decoding(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _xv_link(
+        {"type": 202, "clues": [{"value": 10, "edge": 70}], "disabled": True}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type not in ("x", "v", "pair-sum") for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
+def test_empty_xv_block_decodes_cleanly(capsys: pytest.CaptureFixture[str]) -> None:
+    payload = _xv_link({"type": 202, "clues": [], "negative": []})
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type not in ("x", "v", "pair-sum") for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
