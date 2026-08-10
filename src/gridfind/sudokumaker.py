@@ -49,6 +49,7 @@ from __future__ import annotations
 import json
 import sys
 import urllib.parse
+from collections.abc import Iterator
 from math import isqrt
 from typing import Any, cast
 
@@ -325,15 +326,8 @@ def _regions_constraint(puzzle_data: dict[str, object], size: int) -> Constraint
 def _regions_matrix(puzzle_data: dict[str, object]) -> object | None:
     """The enabled `type 1` regions matrix from the link, or `None` when the
     link carries no live jigsaw block."""
-    constraints = puzzle_data.get("constraints", [])
-    if isinstance(constraints, list):
-        for constraint in constraints:
-            if (
-                isinstance(constraint, dict)
-                and constraint.get("type") == 1
-                and not constraint.get("disabled")
-            ):
-                return constraint.get("regions")
+    for block in _enabled_blocks(puzzle_data, 1):
+        return block.get("regions")
     return None
 
 
@@ -346,6 +340,41 @@ def _classic_regions_for(size: int) -> list[int]:
         for row, col in box:
             labels[(row - 1) * size + (col - 1)] = region_id
     return labels
+
+
+def _enabled_blocks(
+    puzzle_data: dict[str, object], type_: int
+) -> Iterator[dict[Any, Any]]:
+    """Every enabled constraint block of one `type` from the link, in wire
+    order — the shared front the per-type decoders (XV #198, kropki #200, cage
+    #199) and `_regions_matrix` all iterate behind. Folds the three guards each
+    used to repeat: a non-list `constraints` yields nothing, a non-dict block is
+    skipped, and a `disabled` block is skipped (the setter switched it off, so
+    it is not part of the puzzle even for a type gridfind decodes). `Any` in the
+    element type keeps the decoded-JSON boundary, as elsewhere in this module."""
+    blocks = puzzle_data.get("constraints", [])
+    if not isinstance(blocks, list):
+        return
+    for block in blocks:
+        if (
+            isinstance(block, dict)
+            and block.get("type") == type_
+            and block.get("disabled") is not True
+        ):
+            yield block
+
+
+def _warn_dropped_negative(block: dict[str, Any], label: str) -> None:
+    """Warn to stderr when a kropki/XV `block` carries a non-empty `negative`
+    list (issue #194): gridfind models only the positive clues, so the verdict
+    is computed without the negative rule and the drop must never be silent."""
+    negative = block.get("negative")
+    if isinstance(negative, list) and negative:
+        print(
+            f"warning: ignoring {label} negative constraint "
+            "— verdict computed without it",
+            file=sys.stderr,
+        )
 
 
 def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
@@ -386,15 +415,8 @@ def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constrain
     `disabled` block is skipped entirely; a non-empty `negative` list is
     warn-and-dropped to stderr (issue #194) while its positive clues still
     decode."""
-    blocks = puzzle_data.get("constraints", [])
-    if not isinstance(blocks, list):
-        return []
     decoded: list[Constraint] = []
-    for block in blocks:
-        if not isinstance(block, dict) or block.get("type") != _XV_TYPE:
-            continue
-        if block.get("disabled") is True:
-            continue
+    for block in _enabled_blocks(puzzle_data, _XV_TYPE):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
         for clue in clues:
             value = clue["value"]
@@ -407,13 +429,7 @@ def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constrain
                 raise ValueError(msg)
             a, b = _edge_to_pair(clue["edge"], size)
             decoded.append(Constraint(alias, params={"cells": [a, b]}))
-        negative = block.get("negative")
-        if isinstance(negative, list) and negative:
-            print(
-                "warning: ignoring XV negative constraint "
-                "— verdict computed without it",
-                file=sys.stderr,
-            )
+        _warn_dropped_negative(block, "XV")
     return decoded
 
 
@@ -427,27 +443,14 @@ def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
     generic warn-and-drop path. A `disabled` block is skipped entirely; a
     non-empty `negative` list is warn-and-dropped to stderr (issue #194) while
     its positive clues still decode."""
-    blocks = puzzle_data.get("constraints", [])
-    if not isinstance(blocks, list):
-        return []
     decoded: list[Constraint] = []
-    for block in blocks:
-        if not isinstance(block, dict) or block.get("type") != _KROPKI_WHITE_TYPE:
-            continue
-        if block.get("disabled") is True:
-            continue
+    for block in _enabled_blocks(puzzle_data, _KROPKI_WHITE_TYPE):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
         for clue in clues:
             a, b = _edge_to_pair(clue["edge"], size)
             params = {"cells": [a, b], "diff": clue["value"]}
             decoded.append(Constraint("pair-difference", params=params))
-        negative = block.get("negative")
-        if isinstance(negative, list) and negative:
-            print(
-                "warning: ignoring white-kropki negative constraint "
-                "— verdict computed without it",
-                file=sys.stderr,
-            )
+        _warn_dropped_negative(block, "white-kropki")
     return decoded
 
 
@@ -459,15 +462,8 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
     (SudokuMaker's no-sum cage) is honored silently, a positive sum decodes
     cells-only and warns to stderr that the sum was dropped (backlog #196). A
     `disabled` block is skipped entirely; an empty `cages` list adds nothing."""
-    blocks = puzzle_data.get("constraints", [])
-    if not isinstance(blocks, list):
-        return []
     decoded: list[Constraint] = []
-    for block in blocks:
-        if not isinstance(block, dict) or block.get("type") != _CAGE_TYPE:
-            continue
-        if block.get("disabled") is True:
-            continue
+    for block in _enabled_blocks(puzzle_data, _CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         for cage in cages:
             cells = [cell_address(i // size + 1, i % size + 1) for i in cage["cells"]]
