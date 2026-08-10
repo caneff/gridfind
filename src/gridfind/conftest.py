@@ -6,9 +6,26 @@ lives here as a fixture so neither test module imports the other, matching
 `conftest.py` is also the shape the wheel already excludes
 (`pyproject.toml` `source-exclude`), so shared test data stays out of the
 installed package.
+
+`JIGSAW_TETROMINOES` is plain data, not a fixture — `layers/conftest.py`'s
+docstring already makes the case that a fixture whose whole body is `return
+_f` buys nothing over an import, and the same holds for a constant.
 """
 
 import pytest
+
+# A connected tetromino partition of a 4x4 board — deliberately not box
+# tiling (which would be four 2x2 quadrants). `verdict_test.py` and
+# `witness_validator_test.py` both need a regions-distinct partition a
+# box-tiling fallback could not produce by accident (issue #207); sharing
+# one definition keeps them from silently drifting into the box shape a
+# typo could produce.
+JIGSAW_TETROMINOES = [
+    0, 0, 0, 1,
+    0, 1, 1, 1,
+    2, 2, 3, 3,
+    2, 2, 3, 3,
+]  # fmt: skip
 
 
 @pytest.fixture

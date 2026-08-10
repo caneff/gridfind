@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 
+from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.puzzle import Board, Constraint, Puzzle, WorkingState
 from gridfind.verdict import verdict
 from gridfind.witness_validator import validate_witness
@@ -33,20 +34,17 @@ SCHRODINGER_PUZZLE = Puzzle(
 )
 
 # A hand-built jigsaw partition (issue #123's params["regions"]), the shape
-# region_map_for_constraints' other branch resolves — not the box default
-# FOUND_4X4_DOC and SCHRODINGER_PUZZLE both exercise.
-JIGSAW_LABELS_4X4 = [
-    0, 0, 1, 1,
-    0, 0, 1, 1,
-    2, 2, 3, 3,
-    2, 2, 3, 3,
-]  # fmt: skip
+# region_map_for_constraints' other branch resolves. Shared with
+# verdict_test.py via conftest.py: it must be a genuine tetromino shape, not
+# the box default FOUND_4X4_DOC and SCHRODINGER_PUZZLE both exercise, or a
+# render/validate path that silently fell back to box tiling would still
+# round-trip clean (issue #207 review finding).
 JIGSAW_PUZZLE = Puzzle(
     board=Board(size=4),
     constraints=(
         Constraint(type="rows-distinct"),
         Constraint(type="cols-distinct"),
-        Constraint(type="regions-distinct", params={"regions": JIGSAW_LABELS_4X4}),
+        Constraint(type="regions-distinct", params={"regions": JIGSAW_TETROMINOES}),
     ),
 )
 
