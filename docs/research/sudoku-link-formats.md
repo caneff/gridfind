@@ -193,6 +193,50 @@ hard "this cell is one of this subset" domain restriction that `candidates` carr
 Corner marks are a looser box-placement annotation with no gridfind equivalent, so
 they map nowhere, the same as `colors`. Only `candidates` becomes a `Candidate`.
 
+### 4b. Size & domain on the wire — where they actually live (confirmed 2026-08-09, issue #172)
+
+Decoded two more real `formatVersion "1.5.0"` links to settle decisions #2/#3 of
+[map #171](https://github.com/caneff/gridfind/issues/171): the §4a classic 9×9
+(issue #54 fixture) and a real 6×6 variant ("2 Same 2 Differences", ChinStrap,
+constraint types `0,1,2000,1000,405,201`). The map's decisions assumed
+`width`/`height` (size source) and `minDigit`/`maxDigit` (domain source) fields.
+**Neither field exists in the observed wire.** What's actually there:
+
+| Fact | Real 9×9 (§4a) | Real 6×6 |
+|---|---|---|
+| top-level `puzzle` keys | `author, cells, constraints, name` | `author, cells, comment, constraints, name, size, type` |
+| `width` / `height` | absent | absent |
+| `size` | **absent** | **`6`** (integer) |
+| `minDigit` / `maxDigit` / `digitCount` | absent | absent |
+| `type` (string, e.g. `"sudoku"`) | absent | present |
+
+- **No `width`/`height` anywhere — the size field is `puzzle.size` (a single
+  integer), and it is *omitted on the 9×9*.** So the trustworthy size source is
+  **`puzzle.size` when present, else `isqrt(len(cells))`** — not `width`/`height`,
+  which never appear. Cross-check square against the cell count, as decision #2
+  already says.
+- **No `minDigit`/`maxDigit`/`maxDigit` on either link.** A real classic 9×9 does
+  **not** carry a domain on the wire (confirming §4a), and neither does a real
+  non-Schrödinger 6×6. The domain is implicit `1..size`. `minDigit` shows up only
+  when deliberately shifted (the `minDigit:0` Schrödinger sample). There is **no
+  `maxDigit` on the wire at all**, so decision #3's `maxDigit − minDigit + 1 == N`
+  validation has nothing to read — the domain span comes from `size`, offset by an
+  optional `minDigit` (default 1).
+
+**Consequences for map #171's locked decisions:**
+
+- Reading `minDigit`/`maxDigit` *when present* is a safe superset: the default
+  (`minDigit = 1`, span from `size`) reproduces today's behavior byte-for-byte,
+  because real classic links carry no domain fields to change it.
+- Today's `minDigit`/`maxDigit` reject-guard is **not** firing on real classic 9×9
+  links (they don't carry those keys) — so relaxing it enables variants
+  (Schrödinger, future domain-shifted), it is **not** a correctness fix for
+  existing 9×9 links.
+- Decision #2 ("size from `width`/`height`") and decision #3 ("read
+  `minDigit`/`maxDigit`") should be reworded before `/to-spec`: **size from
+  `puzzle.size` (isqrt fallback)**; **domain from `size`, reading an optional
+  `minDigit` (no `maxDigit` on the wire)**.
+
 ## 5. Python decode difficulty
 
 Deterministic and offline for all self-contained forms. Building blocks:
