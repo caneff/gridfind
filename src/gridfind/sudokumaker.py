@@ -101,6 +101,14 @@ _SCELL_PIN_MARKS = 2
 _XV_TYPE = 202
 _XV_ALIASES: dict[int, str] = {10: "x", 5: "v"}
 
+# type 200 is white-kropki (decode reference #191): `clues: [{value, edge}],
+# negative: [...]`, the same wire shape as XV. The type number *is* the
+# white/black discriminator — 200 is white/difference, 201 black/ratio — so
+# `value` is the target difference, honored verbatim onto the existing
+# `pair-difference` layer (a labelled non-1 value is never coerced to 1). 201
+# is not decoded (no ratio layer, backlog #195); it stays warn-and-dropped.
+_KROPKI_WHITE_TYPE = 200
+
 # type 301 is a killer-cage block (design #192): `cages: [{cells, value}]`. The
 # `cage` layer is region-only (no-repeats, no sum), so `value` is dropped — 0 is
 # SudokuMaker's own no-sum cage (silent), a positive sum is honored as cells-only
@@ -166,6 +174,7 @@ def decode_link(
     if regions is not None:
         constraints.append(regions)
     constraints.extend(_xv_constraints(puzzle_data, size))
+    constraints.extend(_kropki_constraints(puzzle_data, size))
     constraints.extend(_cage_constraints(puzzle_data, size))
     board = Board(size=size, values=domain)
     if schrodinger:
@@ -408,6 +417,40 @@ def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constrain
     return decoded
 
 
+def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+    """The `type 200` white-kropki clues as `pair-difference` `Constraint`s
+    (design #191): each clue's `edge` decodes to the adjacent cell pair via
+    `_edge_to_pair`, and its `value` is the target difference passed verbatim
+    as `diff` — a labelled non-1 dot is honored at that value, never coerced to
+    the consecutive default. Only `type 200` (white/difference) decodes here;
+    `type 201` (black/ratio) has no ratio layer (backlog #195) and stays on the
+    generic warn-and-drop path. A `disabled` block is skipped entirely; a
+    non-empty `negative` list is warn-and-dropped to stderr (issue #194) while
+    its positive clues still decode."""
+    blocks = puzzle_data.get("constraints", [])
+    if not isinstance(blocks, list):
+        return []
+    decoded: list[Constraint] = []
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != _KROPKI_WHITE_TYPE:
+            continue
+        if block.get("disabled") is True:
+            continue
+        clues = cast("list[dict[str, Any]]", block.get("clues", []))
+        for clue in clues:
+            a, b = _edge_to_pair(clue["edge"], size)
+            params = {"cells": [a, b], "diff": clue["value"]}
+            decoded.append(Constraint("pair-difference", params=params))
+        negative = block.get("negative")
+        if isinstance(negative, list) and negative:
+            print(
+                "warning: ignoring white-kropki negative constraint "
+                "— verdict computed without it",
+                file=sys.stderr,
+            )
+    return decoded
+
+
 def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
     """The `type 301` killer cages as region-only `cage` `Constraint`s (design
     #192): each cage's raw `cells` indices map row-major to addresses — the same
@@ -442,17 +485,19 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     stderr for any that carries live data — so a verdict is never silently
     computed under a smaller ruleset than the link states.
 
-    Known types (0 givens / 1 regions / 202 XV / 301 killer-cage) are modeled
-    elsewhere and pass through. A `disabled` constraint is skipped first with no
-    warning: the setter switched it off, so it is not part of the puzzle even
-    for a type gridfind knows how to decode. A remaining enabled unmodeled
-    constraint is inert (empty or cosmetic-only payload) and dropped quietly, or
-    active (a live clue/negative list or a populated group) and dropped loudly,
-    named by its `definition.name` when the link carries one. Honoring a
-    specific variant rather than dropping it is the opt-in variant-decoder path
-    (map #180) — `202` graduated first (issue #198), `301` next (issue #199);
-    each still warns on the part it can't model (XV's `negative` list, a cage's
-    sum), fired from its own decoder instead.
+    Known types (0 givens / 1 regions / 200 white-kropki / 202 XV / 301
+    killer-cage) are modeled elsewhere and pass through. A `disabled` constraint
+    is skipped first with no warning: the setter switched it off, so it is not
+    part of the puzzle even for a type gridfind knows how to decode. A remaining
+    enabled unmodeled constraint is inert (empty or cosmetic-only payload) and
+    dropped quietly, or active (a live clue/negative list or a populated group)
+    and dropped loudly, named by its `definition.name` when the link carries
+    one. Honoring a specific variant rather than dropping it is the opt-in
+    variant-decoder path (map #180) — `202` graduated first (issue #198), `301`
+    next (issue #199), `200` after (issue #200); each still warns on the part it
+    can't model (a kropki/XV `negative` list, a cage's sum), fired from its own
+    decoder instead. `201` (black/ratio) is deliberately *not* graduated — no
+    ratio layer (backlog #195), so it stays here.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both
@@ -467,7 +512,7 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         if constraint.get("disabled") is True:
             continue
         kind = constraint.get("type")
-        if kind in (0, 1, _XV_TYPE, _CAGE_TYPE):
+        if kind in (0, 1, _XV_TYPE, _KROPKI_WHITE_TYPE, _CAGE_TYPE):
             continue
         if has_live_data(constraint):
             name = constraint_name(constraint)
