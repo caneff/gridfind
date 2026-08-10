@@ -1,6 +1,9 @@
 """An independent check of a rendered witness grid against the puzzle that
 produced it (spec #185, issue #186; extended #187 for Schrödinger S-cells).
 
+Test-only support, not public API: imported solely by the e2e suite, and kept
+out of the shipped wheel via `source-exclude` in pyproject.toml.
+
 `validate_witness` reverses `Witness.render()` enough to recover the grid of
 cells, then checks it directly: right size, every cell's digit(s) in the
 board's domain, every row/column/region a permutation of it, and every given
