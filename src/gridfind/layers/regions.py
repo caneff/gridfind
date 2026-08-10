@@ -36,9 +36,10 @@ constraint list rather than a single already-found constraint: it scans for
 `regions-distinct` and picks jigsaw vs. box tiling exactly as `region_map_for`
 would, but also owns the third case neither of the above two decide alone —
 no `regions-distinct` constraint at all, which resolves to one region
-covering the whole board. The witness render path and `witness_validator`
-both cross this one seam instead of each re-deriving the same three-way
-branch, which is what let them quietly resolve different partitions.
+covering the whole board. `build_stack`, the witness render path, and
+`witness_validator` all cross this one seam instead of each re-deriving
+the same three-way branch, which is what let them quietly resolve
+different partitions.
 """
 
 from __future__ import annotations
