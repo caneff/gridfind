@@ -790,17 +790,20 @@ def test_cage_decodes_to_region_only_cage_constraint(
     assert capsys.readouterr().err == ""
 
 
-def test_cage_with_a_sum_decodes_cells_only_and_warns(
+def test_cage_with_a_sum_decodes_the_sum_through_and_warns_nothing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # A summed cage (value > 0) decodes to the same cells-only cage — the layer
-    # reads no sum (backlog #196) — and warns to stderr that the sum was dropped.
+    # A summed cage (value > 0) now decodes its sum through as the `cage`
+    # layer's `value` param (issue #196) — no warning, the sum is honored.
     payload = _constraint_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
 
     puzzle, _ = decode_link(payload)
 
-    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
-    assert "sum" in capsys.readouterr().err
+    assert (
+        Constraint("cage", params={"cells": ["R1C1", "R1C2"], "value": 7})
+        in puzzle.constraints
+    )
+    assert capsys.readouterr().err == ""
 
 
 def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
