@@ -209,13 +209,14 @@ def test_active_unmodeled_constraint_decodes_with_named_stderr_warning(
         {"clues": [{"cell": 0}]},
         {"negative": [1]},
         {"input": {"groups": [{"cells": [0, 1]}]}},
+        {"cages": [{"cells": [0, 1], "value": 5}]},
     ],
-    ids=["clues", "negative", "input-groups"],
+    ids=["clues", "negative", "input-groups", "cages"],
 )
 def test_every_live_payload_shape_warns(
     live_payload: dict[str, object], capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # Live data reaches gridfind under any of three shapes; each must trip the
+    # Live data reaches gridfind under any of four shapes; each must trip the
     # loud drop, matching scripts/inspect_link.py's classification (issue #182).
     payload = _encode(
         {
