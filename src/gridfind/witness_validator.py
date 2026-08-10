@@ -12,6 +12,11 @@ output) but never calls `verdict()` and never touches `Witness` or its
 `render()` — so a defect in the solver or the renderer can't hide behind a
 witness that merely *looks* right to the same code that produced it.
 
+The parse below reads against `grid_text.py`'s line/token shape, not against
+`witness.py` itself (issue #210) — that contract is the one place both sides
+cite, so a layout drift in `render()` fails this parse loudly (`None`, then
+`False`) instead of silently reading the wrong cells.
+
 Regions come straight off the puzzle's own `regions-distinct` constraint, via
 `region_map_for_constraints` (issue #207's one door: bare resolves to the
 board's box tiling, jigsaw to `params["regions"]`) — the same shapes
@@ -21,24 +26,24 @@ render → validate round-trip proves both sides agree on one partition
 instead of each re-deriving it.
 
 A cell parses as a 1-tuple for an ordinary digit or a 2-tuple for a
-Schrödinger S-cell's rendered pair `{a b}` (`Witness.render()`'s `fmt`). The
-permutation check flattens each row/column/region's cells to individual
-digits before comparing against the domain — for an all-singleton group that
-is exactly the digit list itself, so a classic puzzle's check is unchanged;
-for a Schrödinger group, a house's digit slots (`d0` always, `d1` for its one
-S-cell) must land on each domain digit exactly once (`emit_house`, spec
-#139/#141), so the same "flatten, then must equal the domain with no
-repeats" check covers both without a schrodinger branch.
+Schrödinger S-cell's rendered pair `{a b}` (`grid_text.format_cell`'s
+inverse). The permutation check flattens each row/column/region's cells to
+individual digits before comparing against the domain — for an all-singleton
+group that is exactly the digit list itself, so a classic puzzle's check is
+unchanged; for a Schrödinger group, a house's digit slots (`d0` always, `d1`
+for its one S-cell) must land on each domain digit exactly once
+(`emit_house`, spec #139/#141), so the same "flatten, then must equal the
+domain with no repeats" check covers both without a schrodinger branch.
 """
 
 from __future__ import annotations
 
 import re
 
+from gridfind import grid_text
 from gridfind.layers.regions import region_map_for_constraints
 from gridfind.puzzle import Puzzle
 
-_CELL_RE = re.compile(r"\{(\d+) (\d+)\}|(\d+)")
 _ADDRESS_RE = re.compile(r"R(\d+)C(\d+)")
 
 Cell = tuple[int, ...]
@@ -79,26 +84,25 @@ def _is_permutation(group: list[Cell], domain: frozenset[int]) -> bool:
 
 def _parse_grid(rendered: str, size: int) -> list[list[Cell]] | None:
     """The rendered box-drawing grid, read back into a `size`x`size` array of
-    cells: `n+1` border lines interleave with `n` cell lines (issue #124's
-    render shape), so the cell lines are every other line starting at index
-    1. Each cell token is either a bare digit or a Schrödinger S-cell pair
-    `{a b}` (issue #141's `fmt`); `_CELL_RE` matches the pair whole so its
-    two digits are never mistaken for two separate cells. `None` when the
-    text doesn't have that many lines, or a cell line doesn't hold exactly
-    `size` cell tokens — a shape mismatch is a validation failure, not a
-    crash."""
+    cells, against `grid_text.py`'s named line/token contract (issue #210):
+    `grid_text.line_count(size)` total lines, cell tokens on
+    `grid_text.cell_line_indices(size)`. Each cell token is either a bare
+    digit or a Schrödinger S-cell pair `{a b}` (issue #141's
+    `grid_text.format_cell`); `grid_text.CELL_PATTERN` matches the pair whole
+    so its two digits are never mistaken for two separate cells. `None` when
+    the text doesn't have that many lines, or a cell line doesn't hold
+    exactly `size` cell tokens — a shape mismatch, including a `render()`
+    layout drift from this contract, is a validation failure, not a crash."""
     lines = [line for line in rendered.split("\n") if line]
-    if len(lines) != 2 * size + 1:
+    if len(lines) != grid_text.line_count(size):
         return None
     grid = []
-    for line in lines[1::2]:
-        cells: list[Cell] = []
-        for match in _CELL_RE.finditer(line):
-            pair_a, pair_b, single = match.groups()
-            if single is None:
-                cells.append((int(pair_a), int(pair_b)))
-            else:
-                cells.append((int(single),))
+    for index in grid_text.cell_line_indices(size):
+        line = lines[index]
+        cells = [
+            grid_text.parse_cell(match)
+            for match in grid_text.CELL_PATTERN.finditer(line)
+        ]
         if len(cells) != size:
             return None
         grid.append(cells)

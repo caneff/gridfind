@@ -135,3 +135,34 @@ def test_validate_witness_round_trips_a_board_with_no_regions_constraint() -> No
     assert result.witness is not None
 
     assert validate_witness(result.witness.render(), LATIN_SQUARE_PUZZLE) is True
+
+
+def test_validate_witness_rejects_a_grid_missing_a_border_line() -> None:
+    # A layout drift in Witness.render() that drops a line (e.g. a border
+    # line lost off the end) must be caught against grid_text.py's named
+    # line-count contract (issue #210) rather than silently reparsed as a
+    # shorter, still-legal-looking grid.
+    puzzle, state = _load(FOUND_4X4_DOC)
+    result = verdict(puzzle, state)
+    assert result.witness is not None
+
+    lines = result.witness.render().split("\n")
+    drifted = "\n".join(lines[:-1])
+
+    assert validate_witness(drifted, puzzle) is False
+
+
+def test_validate_witness_rejects_a_cell_line_carrying_an_extra_token() -> None:
+    # A layout drift that puts an extra cell token on a row line (e.g. a
+    # stray digit from a mis-widened column) violates grid_text.py's "size
+    # tokens per cell line" contract (issue #210) — caught as a shape
+    # mismatch, not silently accepted as one of the row's real cells.
+    puzzle, state = _load(FOUND_4X4_DOC)
+    result = verdict(puzzle, state)
+    assert result.witness is not None
+
+    lines = result.witness.render().split("\n")
+    lines[1] += " 1"
+    drifted = "\n".join(lines)
+
+    assert validate_witness(drifted, puzzle) is False
