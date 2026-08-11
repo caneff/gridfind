@@ -39,6 +39,21 @@ from inspect_link import _display_size, _fmt_bucket, classify_constraint
             "active",
             id="populated-cage-active",
         ),
+        pytest.param(
+            {"type": 2001, "value": "11", "cells": [0, 1, 2]},
+            "active",
+            id="graduated-cosmetic-cage-active",
+        ),
+        pytest.param(
+            {"type": 2001, "value": "Total", "cells": [0, 1]},
+            "inert",
+            id="non-numeric-cosmetic-cage-inert",
+        ),
+        pytest.param(
+            {"type": 2001, "value": "", "cells": [0, 1]},
+            "inert",
+            id="empty-cosmetic-cage-inert",
+        ),
     ],
 )
 def test_classify_constraint(constraint: dict[str, object], expected: str) -> None:
