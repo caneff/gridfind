@@ -16,6 +16,7 @@ This is a test seam, not engine surface. `emit` still writes straight to
 """
 
 from collections.abc import Iterator
+from typing import cast
 
 from gridfind.engine import Engine
 
@@ -177,6 +178,63 @@ def pair_sum_rules(engine: Engine) -> list[tuple[list[str], int]]:
         for variables, total in _sums(engine)
         if all(variable in address_of for variable in variables)
     ]
+
+
+def _less_pairs(engine: Engine, *, closed_at: int) -> list[tuple[int, int]]:
+    """Every `a < b` (`closed_at=-1`) or `a <= b` (`closed_at=0`) solver
+    constraint, as its two operand variable indices, in emission order.
+
+    Read structurally off the compiled linear form CP-SAT's `add(a < b)` /
+    `add(a <= b)` produces: two vars with coefficients `[1, -1]` and a domain
+    closed at `-1` (`a - b <= -1`, strict) or `0` (`a - b <= 0`, non-strict,
+    a slow thermo edge) — distinct in shape from a plain sum's `[1, 1]`
+    coefficients and single-value domain (`_sums`), and from `add_abs_equality`'s
+    `lin_max` form (`_abs_equality_targets`); `closed_at` is the one bit that
+    tells a slow edge from a normal one, never variable names.
+    """
+    pairs: list[tuple[int, int]] = []
+    for constraint in engine.model.proto.constraints:
+        if not constraint.has_linear():
+            continue
+        if list(constraint.enforcement_literal):
+            continue
+        lin = constraint.linear
+        variables = list(lin.vars)
+        domain = list(lin.domain)
+        if list(lin.coeffs) == [1, -1] and domain[-1:] == [closed_at]:
+            pairs.append((variables[0], variables[1]))
+    return pairs
+
+
+def thermo_rules(engine: Engine) -> list[list[tuple[str, str]]]:
+    """Every thermo rule, grouped by clue, as each consecutive pair's
+    addresses in path order.
+
+    Reads the strict (`_less_pairs(closed_at=-1)`) and non-strict
+    (`_less_pairs(closed_at=0)`) edge streams structurally, then regroups by
+    each clue's own path length and `slow` flag in emission order —
+    `Thermo.emit` walks `constraints_of` in order and emits exactly one
+    solver constraint per consecutive pair, into whichever stream its `slow`
+    flag picks, so counting off each path's edge count against the matching
+    stream recovers the per-clue grouping without depending on variable
+    names.
+    """
+    address_of = _cell_addresses(engine)
+    strict_edges = _less_pairs(engine, closed_at=-1)
+    slow_edges = _less_pairs(engine, closed_at=0)
+    grouped: list[list[tuple[str, str]]] = []
+    strict_cursor = 0
+    slow_cursor = 0
+    for clue in engine.constraints_of("thermo"):
+        edge_count = len(cast("list[str]", clue.params["path"])) - 1
+        if cast("bool", clue.params["slow"]):
+            clue_edges = slow_edges[slow_cursor : slow_cursor + edge_count]
+            slow_cursor += edge_count
+        else:
+            clue_edges = strict_edges[strict_cursor : strict_cursor + edge_count]
+            strict_cursor += edge_count
+        grouped.append([(address_of[a], address_of[b]) for a, b in clue_edges])
+    return grouped
 
 
 def distinct_count_targets(engine: Engine) -> dict[str, int]:
