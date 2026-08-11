@@ -890,7 +890,7 @@ def test_cage_decodes_to_region_only_cage_constraint(
 def test_cage_with_a_sum_decodes_the_sum_through_and_warns_nothing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # A summed cage (value > 0) now decodes its sum through as the `cage`
+    # A summed cage (value > 0) decodes its sum through as the `cage`
     # layer's `value` param — no warning, the sum is honored.
     payload = _constraint_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
 

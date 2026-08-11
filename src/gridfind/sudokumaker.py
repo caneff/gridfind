@@ -84,12 +84,6 @@ from gridfind.puzzle import (
     WorkingState,
 )
 
-# Board size, digit domain, and box partition are all read from the link;
-# a classic 9x9 link, which omits every size/domain field, takes
-# the fallbacks (isqrt -> 9, domain -> 1..9, convention tiling). §4b records the
-# omit-when-default wire rule the derivation is written
-# against.
-
 # The only reading built so far — sum-valued and
 # positional are future values of the same flag, refused until then.
 _CLASSIC_READING = "classic"
