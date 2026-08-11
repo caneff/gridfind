@@ -560,6 +560,21 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
     return decoded
 
 
+def _cosmetic_cage_killer_sum(block: dict[Any, Any]) -> int | None:
+    """The killer sum a `type 2001` cosmetic-cage block graduates to (ADR-0008),
+    or `None` when its `value` label is non-numeric/empty and the cage is
+    genuinely decorative. Shared by the decoder and `has_live_data`'s liveness
+    check, so which cages are "active" can never drift from which ones the
+    decoder actually graduates."""
+    value = block.get("value")
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
 def _cosmetic_cage_constraints(
     puzzle_data: dict[str, object], size: int
 ) -> list[Constraint]:
@@ -571,12 +586,8 @@ def _cosmetic_cage_constraints(
     `disabled` block is skipped entirely."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
-        value = block.get("value")
-        if not isinstance(value, str) or not value.strip():
-            continue
-        try:
-            total = int(value)
-        except ValueError:
+        total = _cosmetic_cage_killer_sum(block)
+        if total is None:
             continue
         cells = cast("list[int]", block.get("cells", []))
         addresses = [cell_address(i // size + 1, i % size + 1) for i in cells]
@@ -611,13 +622,17 @@ class DecodedType:
     unconditional rows/cols, and `type 1`'s regions live behind
     `_regions_constraints` like every other handler), `live_keys` are the
     payload keys that mark this type's wire shape as carrying a real rule
-    (read by `has_live_data`, generalized to unmodeled types too), and `name`
-    labels it in the decoder's own warnings.
+    (read by `has_live_data`, generalized to unmodeled types too), `name`
+    labels it in the decoder's own warnings, and `live_scalar` is an optional
+    override for a type whose liveness hinges on a scalar field `live_keys`'
+    non-empty-list check can't express (a cosmetic cage's numeric-string
+    `value`) — when set, `has_live_data` defers to it instead of `live_keys`.
     """
 
     handler: Callable[[dict[str, object], int], list[Constraint]] | None
     live_keys: tuple[str, ...]
     name: str
+    live_scalar: Callable[[dict[Any, Any]], bool] | None = None
 
 
 # The one table wire-type -> (handler, live-data payload keys, display name):
@@ -645,7 +660,10 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=_cage_constraints, live_keys=("cages",), name="killer-cage"
     ),
     _COSMETIC_CAGE_TYPE: DecodedType(
-        handler=_cosmetic_cage_constraints, live_keys=(), name="cosmetic-cage"
+        handler=_cosmetic_cage_constraints,
+        live_keys=(),
+        name="cosmetic-cage",
+        live_scalar=lambda block: _cosmetic_cage_killer_sum(block) is not None,
     ),
     _THERMO_TYPE: DecodedType(
         handler=_thermo_constraints, live_keys=("thermometers",), name="thermo"
@@ -716,10 +734,20 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     the `clues` entry does for decoded XV (`type 202`): a decoded variant still
     carries a live rule the dev tool must not report as inert.
 
+    A type whose liveness isn't list-shaped (a `type 2001` cosmetic cage's
+    numeric-string `value`) registers a `live_scalar` predicate instead; when
+    the constraint's own `type` names such an entry, that predicate decides
+    liveness directly rather than falling through the list-key scan — a
+    graduated cosmetic cage is `active`, same as a populated killer cage.
+
     Public so `scripts/inspect_link.py` classifies constraints against the same
     predicate the decoder drops by. `Any` keeps the decoded-JSON
     boundary type (a dict narrowed from the untyped payload), as `decode_link`
     does for `puzzle_data`."""
+    kind = constraint.get("type")
+    entry = DECODER_REGISTRY.get(kind) if isinstance(kind, int) else None
+    if entry is not None and entry.live_scalar is not None:
+        return entry.live_scalar(constraint)
     for key in _LIVE_LIST_KEYS:
         value = constraint.get(key)
         if isinstance(value, list) and any(value):
