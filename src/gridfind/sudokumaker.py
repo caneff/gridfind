@@ -23,8 +23,8 @@ decodes bare when it is the board's box tiling, or rides straight onto the
 `MalformedPuzzleError` from `verdict`, never from here.
 
 Every wire type gridfind decodes or otherwise recognizes — givens, regions,
-and each opt-in variant decoder (XV, white-kropki, killer-cage) — is one row
-in `DECODER_REGISTRY` (issue #209): `decode_link`'s dispatch, the
+and each opt-in variant decoder (XV, white-kropki, black-kropki, killer-cage)
+— is one row in `DECODER_REGISTRY` (issue #209): `decode_link`'s dispatch, the
 dropped-constraint warning path, and `has_live_data`'s active/inert check all
 read that one table instead of each restating "type N is decoded" by hand.
 
@@ -121,9 +121,15 @@ _XV_ALIASES: dict[int, str] = {
 # negative: [...]`, the same wire shape as XV. The type number *is* the
 # white/black discriminator — 200 is white/difference, 201 black/ratio — so
 # `value` is the target difference, honored verbatim onto the existing
-# `pair-difference` layer (a labelled non-1 value is never coerced to 1). 201
-# is not decoded (no ratio layer, backlog #195); it stays warn-and-dropped.
+# `pair-difference` layer (a labelled non-1 value is never coerced to 1).
 _KROPKI_WHITE_TYPE = 200
+
+# type 201 is black-kropki (spec #195, issue #226): the same `clues:
+# [{value, edge}], negative: [...]` wire shape as white kropki, `value` read
+# as the target integer ratio `k` onto the `pair-ratio` layer (a labelled
+# non-2 dot is never coerced to 2). A non-integer `value` raises at decode —
+# modeling a wrong verdict would be worse than refusing the link.
+_KROPKI_BLACK_TYPE = 201
 
 # type 301 is a killer-cage block (design #192): `cages: [{cells, value}]`. A
 # positive `value` is the killer sum, honored by the `cage` layer (issue #196)
@@ -466,10 +472,10 @@ def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
     `_edge_to_pair`, and its `value` is the target difference passed verbatim
     as `diff` — a labelled non-1 dot is honored at that value, never coerced to
     the consecutive default. Only `type 200` (white/difference) decodes here;
-    `type 201` (black/ratio) has no ratio layer (backlog #195) and stays on the
-    generic warn-and-drop path. A `disabled` block is skipped entirely; a
-    non-empty `negative` list is warn-and-dropped to stderr (issue #194) while
-    its positive clues still decode."""
+    `type 201` (black/ratio) has its own `_black_kropki_constraints` handler.
+    A `disabled` block is skipped entirely; a non-empty `negative` list is
+    warn-and-dropped to stderr (issue #194) while its positive clues still
+    decode."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _KROPKI_WHITE_TYPE):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
@@ -478,6 +484,28 @@ def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
             params = {"cells": [a, b], "diff": clue["value"]}
             decoded.append(Constraint("pair-difference", params=params))
         _warn_dropped_negative(block, DECODER_REGISTRY[_KROPKI_WHITE_TYPE].name)
+    return decoded
+
+
+def _black_kropki_constraints(
+    puzzle_data: dict[str, object], size: int
+) -> list[Constraint]:
+    """The `type 201` black-kropki clues as `pair-ratio` `Constraint`s (spec
+    #195, issue #226): each clue's `edge` decodes to the adjacent cell pair
+    via `_edge_to_pair`, and its `value` is the target integer ratio `k`,
+    honored verbatim — a labelled non-2 dot is never coerced to 2. `value`
+    must be an int (`_as_int`); a non-integer ratio raises `ValueError` at
+    decode rather than modeling a wrong verdict. A `disabled` block is
+    skipped entirely; a non-empty `negative` list is warn-and-dropped to
+    stderr (issue #194) while its positive clues still decode."""
+    decoded: list[Constraint] = []
+    for block in _enabled_blocks(puzzle_data, _KROPKI_BLACK_TYPE):
+        clues = cast("list[dict[str, Any]]", block.get("clues", []))
+        for clue in clues:
+            a, b = _edge_to_pair(clue["edge"], size)
+            k = _as_int(clue["value"], "black-kropki value")
+            decoded.append(Constraint("pair-ratio", params={"cells": [a, b], "k": k}))
+        _warn_dropped_negative(block, DECODER_REGISTRY[_KROPKI_BLACK_TYPE].name)
     return decoded
 
 
@@ -533,6 +561,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         live_keys=("clues", "negative"),
         name="white-kropki",
     ),
+    _KROPKI_BLACK_TYPE: DecodedType(
+        handler=_black_kropki_constraints,
+        live_keys=("clues", "negative"),
+        name="black-kropki",
+    ),
     _XV_TYPE: DecodedType(
         handler=_xv_constraints, live_keys=("clues", "negative"), name="XV"
     ),
@@ -555,19 +588,19 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     computed under a smaller ruleset than the link states.
 
     Types in `DECODER_REGISTRY` (issue #209) — 0 givens, 1 regions, 200
-    white-kropki, 202 XV, 301 killer-cage — are modeled elsewhere and pass
-    through. A `disabled` constraint is skipped first with no warning: the
-    setter switched it off, so it is not part of the puzzle even for a type
-    gridfind knows how to decode. A remaining enabled unmodeled constraint is
-    inert (empty or cosmetic-only payload) and dropped quietly, or active (a
-    live clue/negative list or a populated group) and dropped loudly, named by
-    its `definition.name` when the link carries one. Honoring a specific
-    variant rather than dropping it is the opt-in variant-decoder path (map
-    #180) — `202` graduated first (issue #198), `301` next (issue #199, its
-    killer sum honored per issue #196), `200` after (issue #200); each still
-    warns on the part it can't model (a kropki/XV `negative` list), fired from
-    its own decoder instead. `201` (black/ratio) is deliberately *not*
-    graduated — no ratio layer (backlog #195), so it stays here.
+    white-kropki, 201 black-kropki, 202 XV, 301 killer-cage — are modeled
+    elsewhere and pass through. A `disabled` constraint is skipped first with
+    no warning: the setter switched it off, so it is not part of the puzzle
+    even for a type gridfind knows how to decode. A remaining enabled
+    unmodeled constraint is inert (empty or cosmetic-only payload) and
+    dropped quietly, or active (a live clue/negative list or a populated
+    group) and dropped loudly, named by its `definition.name` when the link
+    carries one. Honoring a specific variant rather than dropping it is the
+    opt-in variant-decoder path (map #180) — `202` graduated first (issue
+    #198), `301` next (issue #199, its killer sum honored per issue #196),
+    `200` after (issue #200), `201` last (spec #195, issue #226); each still
+    warns on the part it can't model (a kropki/XV `negative` list), fired
+    from its own decoder instead.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both

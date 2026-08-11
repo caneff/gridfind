@@ -170,14 +170,15 @@ def test_inert_unmodeled_constraints_decode_quietly(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # A real link routinely carries cosmetic or empty extras (issue #181): an
-    # empty pair-difference, cosmetic pen-lines, an empty group. None emits a
-    # rule, so the puzzle is identical to one without them and nothing warns.
+    # empty unmodeled clue list, cosmetic pen-lines, an empty group. None
+    # emits a rule, so the puzzle is identical to one without them and
+    # nothing warns.
     with_extras = _encode(
         {
             "cells": _EMPTY_CELLS,
             "constraints": [
                 *_WIRE_CONSTRAINTS,
-                {"type": 201, "clues": []},  # empty pair-difference
+                {"type": 250, "clues": []},  # empty, unmodeled clue list
                 {"type": 2000, "lines": [[0, 1]]},  # cosmetic pen-lines
                 {"type": 303, "input": {"groups": [{"cells": []}]}},  # empty group
             ],
@@ -785,17 +786,87 @@ def test_kropki_negative_list_warns_but_keeps_positive_clues(
     assert "negative" in capsys.readouterr().err
 
 
-def test_black_kropki_type_201_is_not_decoded_and_warns(
-    capsys: pytest.CaptureFixture[str],
+# --- type 201 black-kropki decode (spec #195, issue #226) ----------------
+
+
+@pytest.mark.parametrize(
+    ("value", "edge", "cells"),
+    [
+        (2, 75, ["R5C3", "R5C4"]),
+        (2, 132, ["R8C6", "R8C7"]),
+        (2, 70, ["R4C8", "R5C8"]),
+    ],
+    ids=["black-horizontal-75", "black-horizontal-132", "black-vertical-70"],
+)
+def test_black_kropki_clue_decodes_to_pair_ratio(
+    value: int, edge: int, cells: list[str]
 ) -> None:
-    # type 201 (black/ratio) has no ratio layer (backlog #195): it stays on the
-    # generic warn-and-drop path, emitting no pair-difference constraint.
-    payload = _constraint_link({"type": 201, "clues": [{"value": 2, "edge": 75}]})
+    payload = _constraint_link({"type": 201, "clues": [{"value": value, "edge": edge}]})
 
     puzzle, _ = decode_link(payload)
 
-    assert all(c.type != "pair-difference" for c in puzzle.constraints)
-    assert "201" in capsys.readouterr().err
+    assert (
+        Constraint("pair-ratio", params={"cells": cells, "k": value})
+        in puzzle.constraints
+    )
+
+
+def test_black_kropki_honors_a_labelled_non_two_value() -> None:
+    # A black dot labelled with a ratio other than 2 is honored verbatim —
+    # never silently treated as the default 2:1.
+    payload = _constraint_link({"type": 201, "clues": [{"value": 3, "edge": 75}]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": 3})
+        in puzzle.constraints
+    )
+
+
+def test_multiple_black_kropki_clues_each_decode_to_their_own_constraint() -> None:
+    payload = _constraint_link(
+        {
+            "type": 201,
+            "clues": [{"value": 2, "edge": 75}, {"value": 2, "edge": 132}],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": 2})
+        in puzzle.constraints
+    )
+    assert (
+        Constraint("pair-ratio", params={"cells": ["R8C6", "R8C7"], "k": 2})
+        in puzzle.constraints
+    )
+
+
+def test_black_kropki_negative_list_warns_but_keeps_positive_clues(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _constraint_link(
+        {"type": 201, "clues": [{"value": 2, "edge": 75}], "negative": [1, 2]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": 2})
+        in puzzle.constraints
+    )
+    assert "negative" in capsys.readouterr().err
+
+
+def test_black_kropki_non_integer_value_raises_at_decode() -> None:
+    # A non-integer wire value must never model a wrong verdict — refuse the
+    # link instead.
+    payload = _constraint_link({"type": 201, "clues": [{"value": 2.5, "edge": 75}]})
+
+    with pytest.raises(ValueError, match="black-kropki value"):
+        decode_link(payload)
 
 
 # --- type 301 killer-cage decode (design #192, issue #199) ---------------

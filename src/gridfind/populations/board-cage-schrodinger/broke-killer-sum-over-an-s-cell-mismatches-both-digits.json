@@ -1,0 +1,35 @@
+{
+  "puzzle": {
+    "board": {
+      "size": 4,
+      "values": [0, 5, 1]
+    },
+    "constraints": [
+      {
+        "type": "cage",
+        "cells": ["R1C1", "R1C2"],
+        "value": 4
+      },
+      {
+        "type": "schrodinger"
+      }
+    ],
+    "givens": [
+      {
+        "address": "R1C2",
+        "digit": 2
+      }
+    ]
+  },
+  "working_state": {
+    "places": [],
+    "candidates": [],
+    "s_directives": [
+      {
+        "kind": "s-cell-pin",
+        "address": "R1C1",
+        "pair": [0, 1]
+      }
+    ]
+  }
+}

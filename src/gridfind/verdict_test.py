@@ -639,6 +639,67 @@ def test_jigsaw_regions_distinct_with_an_under_coverable_region_returns_broke() 
     assert result.reason == "region 1 holds 3 cells, domain is 10 — too few to cover"
 
 
+def _quattroquadri_box_labels(size: int) -> list[int]:
+    box_span = size // 2
+    return [
+        (row // box_span) * 2 + (col // box_span)
+        for row in range(size)
+        for col in range(size)
+    ]
+
+
+def _quattroquadri_row_col_cages(size: int) -> tuple[Constraint, ...]:
+    return tuple(
+        Constraint(type="cage", params={"cells": group})
+        for group in (*_rows(size), *_cols(size))
+    )
+
+
+def test_quattroquadri_found_over_a_6x6_grid_with_a_nine_digit_domain() -> None:
+    # Ruleset 000EPV (issue #173): four 3x3 boxes tile a 6x6 grid, each a
+    # region covering the full 1-9 digit domain (cells == domain, the classic
+    # no-S-cell edge of the cover band). Each 6-cell row/column may not repeat
+    # but can never cover all 9 digits, so rows/cols are cages, not regions —
+    # a domain-9-over-size-6 case the region/cage split (spec #156) exists for.
+    size = 6
+    labels = _quattroquadri_box_labels(size)
+    puzzle = Puzzle(
+        board=Board(size=size, values=range(1, 10)),
+        constraints=(
+            Constraint(type="regions-distinct", params={"regions": labels}),
+            *_quattroquadri_row_col_cages(size),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    for addresses in _label_groups(size, labels).values():
+        digits = [result.witness[address][0] for address in addresses]
+        assert sorted(digits) == list(range(1, 10))
+    for group in (*_rows(size), *_cols(size)):
+        digits = [result.witness[address][0] for address in group]
+        assert len(set(digits)) == len(digits)
+
+
+def test_quattroquadri_breaks_on_a_digit_repeated_within_one_box() -> None:
+    # R1C1 and R2C2 share no row and no column, so the row/col cages alone
+    # allow both to hold 5 — only the box region (the regions-distinct layer)
+    # catches the repeat.
+    size = 6
+    labels = _quattroquadri_box_labels(size)
+    row_col_cages = _quattroquadri_row_col_cages(size)
+
+    boxes_constraint = Constraint(type="regions-distinct", params={"regions": labels})
+    assert_layer_newly_breaks(
+        row_col_cages,
+        (*row_col_cages, boxes_constraint),
+        (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5)),
+        board=Board(size=size, values=range(1, 10)),
+    )
+
+
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
     # A contradiction unrelated to region sizing (two conflicting givens on
     # one cell) must not get blamed on a region that is well within the

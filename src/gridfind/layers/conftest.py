@@ -120,6 +120,53 @@ def pair_difference_rules(engine: Engine) -> list[tuple[list[str], int]]:
     ]
 
 
+def _pair_ratio_targets(engine: Engine) -> dict[int, tuple[int, int, int]]:
+    """Every pair-ratio reified either-or, keyed by its indicator bool's
+    variable index, to the two operand variable indices and the target `k`.
+
+    Read structurally off the enforced-linear-equality pair `ratio_of`'s
+    `rel` emits: two two-var linear constraints sharing one enforcement
+    literal's variable, one on the positive literal (`a == k*b`) and one on
+    its negation (`b == k*a`). Only the positive branch is read — it already
+    carries `a`, `b`, and `k` — so `d1 <= high`-shaped single-var reified
+    constraints (`schrodinger`'s `is_s` gate) never match: this filter
+    requires exactly two vars with a coefficient of `1` on one of them, a
+    shape those single-var constraints don't have.
+    """
+    targets: dict[int, tuple[int, int, int]] = {}
+    for constraint in engine.model.proto.constraints:
+        if not constraint.has_linear():
+            continue
+        literals = list(constraint.enforcement_literal)
+        if len(literals) != 1 or literals[0] < 0:
+            continue
+        linear = constraint.linear
+        if len(linear.vars) != 2:
+            continue
+        v0, v1 = linear.vars
+        c0, c1 = linear.coeffs
+        if c0 == 1:
+            a_index, b_index, k = v0, v1, -c1
+        elif c1 == 1:
+            a_index, b_index, k = v1, v0, -c0
+        else:
+            continue
+        targets[literals[0]] = (a_index, b_index, k)
+    return targets
+
+
+def pair_ratio_rules(engine: Engine) -> list[tuple[list[str], int]]:
+    """Every pair-ratio rule, as the pair's addresses and its target `k`.
+    Reads the reified either-or's canonical (`a == k*b`) branch structurally
+    (`_pair_ratio_targets`) — the one non-trivial shape `pair-ratio` adds
+    over `pair-difference`'s single `add_abs_equality`."""
+    address_of = _cell_addresses(engine)
+    return [
+        ([address_of[a_index], address_of[b_index]], k)
+        for a_index, b_index, k in _pair_ratio_targets(engine).values()
+    ]
+
+
 def pair_sum_rules(engine: Engine) -> list[tuple[list[str], int]]:
     """Every sum-over-cells rule, as the addresses it adds up and the total
     they must reach. A sum over cell content is this rule; a counting rule
