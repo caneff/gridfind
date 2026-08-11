@@ -1,13 +1,14 @@
-"""The `schrodinger` layer's own mechanics (issue #141, spec #139): the
+"""The `schrodinger` layer's own mechanics: the
 widening, the malformed refusal, and the `is_s` structure `distinct.py`'s
 is_S-gated counting rule reads.
 
 `verdict_test.py` covers the end-to-end acceptance criteria (found with the
-right S-cell count per house, malformed, over-packed broke, no-regression);
+right S-cell count per house, malformed, over-packed broke, a non-schrodinger
+puzzle unaffected);
 these tests isolate the layer's own model — one house type at a time, is_s
 pinned directly the way the deciding prototype (`prototype/131-is-s-model`)
 did — since forcing a contradictory S-cell count needs a pin gridfind has no
-setter-facing directive for yet (#142).
+setter-facing directive for yet.
 """
 
 from typing import cast
@@ -55,7 +56,7 @@ def test_schrodinger_registers_an_is_s_bool_per_cell() -> None:
 
 def test_schrodinger_rejects_a_board_whose_values_equal_its_size() -> None:
     # len(values) == size forces no S-cell — a degenerate classic, refused
-    # rather than silently accepted (#139 story 6).
+    # rather than silently accepted.
     with pytest.raises(MalformedPuzzleError, match="9"):
         build_engine([GridCells(), Schrodinger()], board=Board(size=9))
 

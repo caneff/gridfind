@@ -72,7 +72,7 @@ def test_regions_first_region_is_the_top_left_3x3_box() -> None:
 
 def test_regions_from_cuts_the_grid_by_the_supplied_map() -> None:
     # A partition function built from a setter-supplied map, not the box
-    # convention (issue #123) — a jigsaw region here spans two rows.
+    # convention — a jigsaw region here spans two rows.
     grid = _grid(2)
     supplied = [[(1, 1), (2, 2)], [(1, 2), (2, 1)]]
 
@@ -118,8 +118,8 @@ def test_distinct_layer_emits_one_all_different_rule_per_group(
 
 def test_distinct_layer_skips_all_different_when_schrodinger_widens_the_cells() -> None:
     # With `schrodinger` in the stack, DistinctOverGroups routes through the
-    # is_S-gated counting rule (issue #141) instead — no add_all_different at
-    # all, so a non-schrodinger puzzle's model stays untouched (no-regression).
+    # is_S-gated counting rule instead — no add_all_different at
+    # all, so a non-schrodinger puzzle's model stays untouched.
     engine = build_engine(
         [GridCells(), Schrodinger(), DistinctOverGroups("rows-distinct", rows)],
         board=Board(size=4, values=range(5)),

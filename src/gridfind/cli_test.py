@@ -4,8 +4,7 @@ Each test hands `main` an argv and a stdin, captures stdout/stderr via capsys,
 and asserts the printed verdict, the rendered witness, and the exit code — never
 a private helper. The `found` and `broke` cases run the real `verdict` over
 plain document literals, materialized to a file with `_write_doc` when a test
-needs a real path (issue #246 — these used to be read from the retired
-by-construction `populations/` corpus).
+needs a real path.
 """
 
 import io
@@ -90,8 +89,7 @@ def test_found_prints_verdict_then_witness_grid(
 
     # The witness is solver-chosen, but the givens are pinned, so their cells
     # render deterministically: R1C1=1, R1C4=2 sit in row 1. Box borders are
-    # box-drawing lines, with a solid divider between box row-groups
-    # (issue #124).
+    # box-drawing lines, with a solid divider between box row-groups.
     grid = lines[1:]
     assert grid[0] == "┌───────────┬───────────┬───────────┐"
     assert re.fullmatch(r"│ 1   \d   \d │ 2   \d   \d │ \d   \d   \d │", grid[1])
@@ -121,7 +119,7 @@ def test_found_prints_rows_with_box_aware_spacing(
     grid = lines[1:]
     # n+1 border rows interleave with n cell rows: a solid divider at every
     # box_rows-th border, a bordered row of box_cols-grouped cells otherwise
-    # (BOX_SHAPE[size] = (box_rows, box_cols), issue #124).
+    # (BOX_SHAPE[size] = (box_rows, box_cols)).
     assert len(grid) == 2 * size + 1
 
     cell_rows = grid[1::2]
@@ -153,7 +151,7 @@ def test_sudokumaker_link_argument_prints_found_and_grid(
     lines = out.split("\n")
     assert code == 0
     assert lines[0] == "found"
-    # R1C1=7 is a placement in the #54 link, so it renders deterministically.
+    # R1C1=7 is a placement in the classic link, so it renders deterministically.
     # lines[1] is the top border; lines[2] is the first cell row.
     assert re.fullmatch(r"│ 7   \d   \d │ \d   \d   \d │ \d   \d   \d │", lines[2])
 
@@ -169,7 +167,7 @@ def test_sudokumaker_link_on_stdin_matches_argument(
 
 def _solvable_jigsaw_link() -> str:
     """A synthesised, fully-given `type 1` link whose regions are a broken
-    diagonal partition, not the classic 3x3 boxes (issue #125). The grid
+    diagonal partition, not the classic 3x3 boxes. The grid
     val(r, c) = (r + c) % 9 + 1 is a Latin square where rows, columns, *and*
     every r - c ≡ k (mod 9) diagonal each hold all nine digits, so filling
     every cell as a given makes the puzzle trivially solvable against this
@@ -208,8 +206,8 @@ def test_solvable_jigsaw_link_prints_found_and_region_bordered_witness(
 
 
 def _classic_schrodinger_solution_link() -> str:
-    """A synthesised, fully-given/pinned classic Schrödinger link (issue
-    #143): a valid completed 1-9 Latin square (the well-known
+    """A synthesised, fully-given/pinned classic Schrödinger link: a valid
+    completed 1-9 Latin square (the well-known
     `(r*3 + r//3 + c) % 9 + 1` sudoku-by-formula construction, same shape as
     `_solvable_jigsaw_link`) with one cell per row/column/box promoted to an
     S-cell pinned red with center marks `{0, base}` — 0 is the domain's tenth
@@ -283,8 +281,6 @@ def test_unsupported_reading_exits_two_with_stderr(
 def test_non_schrodinger_link_without_flag_is_unaffected(
     capsys: pytest.CaptureFixture[str], classic_link: str
 ) -> None:
-    # No regression (#143): the classic link decodes exactly as before when
-    # --schrodinger is not given.
     code = cli.main([classic_link], io.StringIO())
 
     assert code == 0
@@ -307,7 +303,7 @@ def test_non_classic_link_exits_two_with_stderr(
 def test_file_path_containing_sudokumaker_app_is_still_read_as_a_file(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
-    # The sniff matches the #60 link shapes, not the bare host substring: a real
+    # The sniff matches the link shapes, not the bare host substring: a real
     # path that merely contains `sudokumaker.app/` must read as a document.
     doc = tmp_path / "sudokumaker.app" / "found.json"
     doc.parent.mkdir()
@@ -388,7 +384,7 @@ def test_malformed_puzzle_exits_two_with_stderr(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     # Valid JSON, but a given naming a digit the board never offers —
-    # MalformedPuzzleError, not a json/schema-shape ValueError (issue #107).
+    # MalformedPuzzleError, not a json/schema-shape ValueError.
     # The CLI must catch it too, not just report/verdict callers.
     doc = tmp_path / "malformed.json"
     doc.write_text(

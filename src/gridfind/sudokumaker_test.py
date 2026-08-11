@@ -1,6 +1,6 @@
 """The SudokuMaker decoder at its one seam: `decode_link(link) -> Puzzle, state`.
 
-The positive fixture is the real classic link from decision #54 (research §4a):
+The positive fixture is the real classic link (research §4a):
 givens, a placement, a multi-digit center mark `{1,2,9}`, a singleton center
 mark `{2}`, and corner marks `{3}` that gridfind drops. Every rejection case is
 synthesised — lz-string-compressed JSON built here — since it tests the guard,
@@ -169,7 +169,7 @@ def test_non_classic_link_is_rejected(puzzle: dict[str, object], match: str) -> 
 def test_inert_unmodeled_constraints_decode_quietly(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # A real link routinely carries cosmetic or empty extras (issue #181): an
+    # A real link routinely carries cosmetic or empty extras: an
     # empty unmodeled clue list, cosmetic pen-lines, an empty group. None
     # emits a rule, so the puzzle is identical to one without them and
     # nothing warns.
@@ -238,7 +238,7 @@ def test_every_live_payload_shape_warns(
     live_payload: dict[str, object], capsys: pytest.CaptureFixture[str]
 ) -> None:
     # Live data reaches gridfind under any of four shapes; each must trip the
-    # loud drop, matching scripts/inspect_link.py's classification (issue #182).
+    # loud drop, matching scripts/inspect_link.py's classification.
     payload = _encode(
         {
             "cells": _EMPTY_CELLS,
@@ -354,7 +354,7 @@ def _regions_for(n: int, box_rows: int, box_cols: int) -> list[int]:
 
 def test_non_nine_jigsaw_matrix_rides_onto_constraint_params() -> None:
     # A 6x6 type-1 matrix that isn't the 2x3 convention tiling carries verbatim
-    # onto params["regions"] (issue #125 generalized to non-9).
+    # onto params["regions"] (generalized to non-9).
     standard_6 = _regions_for(6, 2, 3)
     # Move R1C1 into R1C4's box (0 -> 1): a real jigsaw, not a within-box swap.
     jigsaw_6 = [standard_6[3], *standard_6[1:]]
@@ -394,9 +394,9 @@ def test_non_nine_standard_matrix_stays_bare() -> None:
 
 
 def test_jigsaw_regions_decode_into_constraint_params() -> None:
-    # A type 1 link whose regions differ from the standard 3x3 partition is no
-    # longer refused (issue #125): it decodes with the setter's own matrix
-    # carried on the regions-distinct constraint's params.
+    # A type 1 link whose regions differ from the standard 3x3 partition decodes
+    # with the setter's own matrix carried on the regions-distinct constraint's
+    # params.
     payload = _encode(
         {
             "cells": _EMPTY_CELLS,
@@ -412,7 +412,7 @@ def test_jigsaw_regions_decode_into_constraint_params() -> None:
     assert regions_constraint.params == {"regions": _JIGSAW_REGIONS}
 
 
-# --- --schrodinger ingest (issue #143) ---------------------------------
+# --- --schrodinger ingest ---------------------------------
 
 # A schrodinger link's own cosmetic vocabulary: unknown types the decoder
 # must ignore (not reject) under --schrodinger, plus a disabled duplicate of
@@ -548,7 +548,7 @@ def test_red_cell_with_a_value_is_rejected() -> None:
         decode_link(payload, schrodinger=True)
 
 
-# --- non-9 square-N decode (issue #176) --------------------------------
+# --- non-9 square-N decode --------------------------------
 
 
 def test_six_by_six_boxed_link_decodes_at_the_right_size() -> None:
@@ -587,7 +587,7 @@ def test_four_by_four_link_decodes_at_the_right_size() -> None:
     assert puzzle.givens == (Given("R4C4", 4),)
 
 
-# --- edge -> pair (design #190, issue #198) -----------------------------
+# --- edge -> pair -----------------------------
 
 
 @pytest.mark.parametrize(
@@ -601,7 +601,7 @@ def test_four_by_four_link_decodes_at_the_right_size() -> None:
     ids=["x-vertical", "v-vertical", "kropki-horizontal-75", "kropki-horizontal-132"],
 )
 def test_edge_to_pair_oracle_cases(edge: int, expected: tuple[str, str]) -> None:
-    # Verified against a real link during design (#190): all four fit the two
+    # Verified against a real link during design: all four fit the two
     # closed-form formulas exactly on a 9x9 board.
     assert _edge_to_pair(edge, size=9) == expected
 
@@ -657,7 +657,7 @@ def test_edge_to_pair_rejects_an_out_of_bounds_edge() -> None:
         _edge_to_pair(8, size=2)
 
 
-# --- type 202 XV decode (design #190, issue #198) -----------------------
+# --- type 202 XV decode -----------------------
 
 
 def _constraint_link(constraint: dict[str, object]) -> str:
@@ -712,7 +712,7 @@ def test_xv_negative_list_warns_but_keeps_positive_clues(
     assert "negative" in capsys.readouterr().err
 
 
-# --- type 200 white-kropki decode (design #191, issue #200) --------------
+# --- type 200 white-kropki decode --------------
 
 
 @pytest.mark.parametrize(
@@ -786,7 +786,7 @@ def test_kropki_negative_list_warns_but_keeps_positive_clues(
     assert "negative" in capsys.readouterr().err
 
 
-# --- type 201 black-kropki decode (spec #195, issue #226) ----------------
+# --- type 201 black-kropki decode ----------------
 
 
 @pytest.mark.parametrize(
@@ -869,7 +869,7 @@ def test_black_kropki_non_integer_value_raises_at_decode() -> None:
         decode_link(payload)
 
 
-# --- type 301 killer-cage decode (design #192, issue #199) ---------------
+# --- type 301 killer-cage decode ---------------
 
 
 def test_cage_decodes_to_region_only_cage_constraint(
@@ -891,7 +891,7 @@ def test_cage_with_a_sum_decodes_the_sum_through_and_warns_nothing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # A summed cage (value > 0) now decodes its sum through as the `cage`
-    # layer's `value` param (issue #196) — no warning, the sum is honored.
+    # layer's `value` param — no warning, the sum is honored.
     payload = _constraint_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
 
     puzzle, _ = decode_link(payload)
@@ -920,7 +920,7 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
 
 
-# --- type 300 thermo decode (spec #251, issues #253/#254) -----------------
+# --- type 300 thermo decode -----------------
 
 
 def test_normal_thermo_decodes_to_ordered_path_constraint() -> None:
@@ -1063,7 +1063,7 @@ def test_disabled_or_empty_block_decodes_to_nothing_quietly(
 ) -> None:
     # A disabled block (setter switched it off) and an empty one (no clues/cages)
     # both add no constraint and warn nothing — one rule across every decoded
-    # family (XV #198, white-kropki #200, killer-cage #199).
+    # family (XV, white-kropki, killer-cage).
     puzzle, _ = decode_link(_constraint_link(block))
 
     assert all(c.type not in decoded_types for c in puzzle.constraints)

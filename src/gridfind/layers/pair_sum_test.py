@@ -1,14 +1,14 @@
 """pair-sum behaviour, tested at two seams.
 
-Most of it is behaviour at the top seam — `verdict` (issue #66): a clue's
+Most of it is behaviour at the top seam — `verdict`: a clue's
 effect on the completion, and the XV aliases riding on top, where a `v` clue is
 a pair-sum of 5 and an `x` clue a pair-sum of 10.
 
-The rules the layer emits are read back directly (issue #100), which is the one
+The rules the layer emits are read back directly, which is the one
 claim a solve cannot make: that a clue emitted its *own* rule rather than being
 satisfied by accident.
 
-Two more tests read at the engine seam (issue #237, spec #232): with `doubler`
+Two more tests read at the engine seam: with `doubler`
 in the stack, a pair-sum reads a named cell's `"modifier_value"` instead of its
 raw digit — proven the same differential way as the two seams above, by
 forcing `is_modifier` and checking the sum only balances through the fold.

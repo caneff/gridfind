@@ -5,8 +5,7 @@ A pair-relation clue names two cells and holds them to some binary relation
 — difference today, ratio and inequality later. One `PairRelation` instance,
 built with a **relation-emitter** closure, pulls every constraint of its own
 `name` via `constraints_of` and emits one rule per clue through the shared
-`emit_over_pairs` walk (decision 5) — exactly what `pair-difference` did
-on its own before this extraction.
+`emit_over_pairs` walk (decision 5).
 
 The relation-emitter is the seam: given a clue's own `params`, it returns
 the `rel(engine, a, b)` callable `emit_over_pairs` applies to the pair. Each

@@ -85,9 +85,7 @@ class Witness:
         `grid_text.format_cell` — the same token shape `witness_validator`
         parses back. Every cell is right-padded to the widest
         cell in the witness so columns stay aligned and the box banding
-        survives whatever width an S-cell adds — for an ordinary witness
-        (every cell a singleton) the widest cell is one character, so this
-        is the same output as before.
+        survives whatever width an S-cell adds.
         """
         n = len(self.grid)
         region_id = {

@@ -11,8 +11,7 @@ partition maps this address partition onto the live grid.
 
 `BOX_SHAPE` is the convention that gives a board its box shape:
 a 6x6 tiles as six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3 — never a
-6x6 as four 3x3 mini-grids (the *quattro quadri* the old single-board-size
-partition produced). `box_regions` is the one generator: it serves every
+6x6 as four 3x3 mini-grids. `box_regions` is the one generator: it serves every
 board size, including the classic 9x9 the SudokuMaker decoder reads through
 `region_map_for`.
 

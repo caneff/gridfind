@@ -1,6 +1,6 @@
-"""`thermo` behaviour, tested at two seams (spec #251, issues #253/#254).
+"""`thermo` behaviour, tested at two seams.
 
-Mirrors `pair_difference_test.py`: the direct rule readback (issue #100) —
+Mirrors `pair_difference_test.py`: the direct rule readback —
 that a clue emitted its own edges (strict for normal, non-strict for slow),
 not that a solve happened to satisfy them — plus verdict-seam behaviour
 (found/broke).

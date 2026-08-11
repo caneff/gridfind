@@ -1,4 +1,4 @@
-"""`_base`'s shared emit helpers, tested directly (issue #100).
+"""`_base`'s shared emit helpers, tested directly.
 
 `emit_distinct_count` is the deepest expansion in the package — one counting
 rule costing O(cells x digits) solver constraints — and until the read side
@@ -71,7 +71,7 @@ def test_a_counting_rule_and_a_pair_difference_are_told_apart() -> None:
     """A counting rule's `present` sum and a difference rule's `d == k` pin
     are both a single-var linear equality over a non-content var —
     structurally identical shapes read by two different functions. Neither
-    read side may pick up the other's rule (issue #129)."""
+    read side may pick up the other's rule."""
     engine = _board_engine()
     pair = (engine.cells["R1C1"].content[0], engine.cells["R1C2"].content[0])
     trio = [engine.cells[address].content[0] for address in ("R2C1", "R2C2", "R2C3")]
@@ -116,7 +116,7 @@ def test_emit_house_forces_the_extra_digit_into_the_width_two_cells_second_slot(
 ):
     """Three cells — two width-1, one width-2 — over a 4-digit board: the
     fourth digit has nowhere to live but the width-2 cell's second slot, and
-    no-repeats + cover (schrodinger's is_S-gated counting, issue #141) is one
+    no-repeats + cover (schrodinger's is_S-gated counting) is one
     rule, not stated as a count."""
     engine = _board_engine()
     a = engine.model.new_int_var(1, 4, "a")

@@ -1,10 +1,9 @@
-"""The `modifier-placement` layer's own mechanics (issue #234, spec #232
-decision #222): the `is_modifier` structure, one-per-house, and the
-distinct-digit transversal.
+"""The `modifier-placement` layer's own mechanics: the `is_modifier`
+structure, one-per-house, and the distinct-digit transversal.
 
 No fold lives here yet — a doubler or other concrete modifier type is a
-future layer that reuses this placement and reads `is_modifier` back
-(#237) — so these tests pin `is_modifier` and read digits directly the way
+future layer that reuses this placement and reads `is_modifier` back —
+so these tests pin `is_modifier` and read digits directly the way
 `schrodinger_test.py` pins `is_s`, since gridfind has no setter-facing
 modifier directive yet.
 """
