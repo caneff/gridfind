@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 // is re-implemented up to this many times before being handed to a human.
 // Without a cap, a deterministically-broken branch would re-review/re-fail
 // every run forever.
-export const REVIEW_RETRY_CAP = 2;
+export const REVIEW_RETRY_CAP = 4;
 
 const ATTEMPTS_FILE = ".sandcastle/review-attempts.json";
 
