@@ -309,7 +309,19 @@ both of an S-cell's digits, but states no target digit count, so a cage never
 forces a cell to become an S-cell.
 
 - **cage** — the constraint and the rule it emits: `{type: cage, cells:
-  [...], name?}`. `name` is reserved for future killer keying, unused today.
+  [...], name?, distinct-over?}`. `name` is reserved for future killer keying,
+  unused today. `distinct-over` picks the no-repeats mode, `digit` (the default)
+  or `value`.
+
+- **digits-distinct** / **values-distinct** — the two things a cage's no-repeats
+  rule can forbid. A **digits-distinct** cage (the default) forbids two cells
+  holding the same **digit** — the classic killer rule, over the placed symbols.
+  A **values-distinct** cage forbids two cells holding the same **value**, so a
+  **doubler** showing 3 (value 6) clashes with a plain 6 but not a plain 3. The
+  two agree on a plain puzzle: with no modifier present a cell's value is its
+  digit, so values-distinct reduces to digits-distinct. A cage's killer **sum**
+  is unaffected — it always folds modifiers (ADR-0009); only the no-repeats half
+  answers to `distinct-over`.
 
 - **cosmetic cage** — a cage a setter draws for display, carrying its sum as a
   label rather than as an enforced killer constraint. SudokuMaker forces one
