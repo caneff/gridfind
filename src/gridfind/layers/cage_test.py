@@ -19,7 +19,7 @@ from typing import cast
 import pytest
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, GridfindError, build_engine
+from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
@@ -296,13 +296,63 @@ def test_a_cage_sum_that_cannot_be_met_resolves_broke() -> None:
     assert result.witness is None
 
 
-def test_a_cage_sum_over_a_widened_cell_raises_not_schrodinger_ready() -> None:
-    # The sum reads through singular `content()` (`sole`), which raises the
-    # moment an S-cell is possible — one story with `pair-sum`: distinctness
-    # is Schrödinger-aware, sums are not.
-    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
-        build_engine(
-            [GridCells(), Schrodinger(), Cage()],
-            (_cage(("R1C1", "R1C2"), value=3),),
-            board=Board(size=4, values=range(5)),
-        )
+def test_a_cage_sum_over_an_s_cell_adds_both_of_its_digits() -> None:
+    # R1C1 is forced S with digits {0, 1}; R1C2 is a singleton at 2. The sum
+    # only balances (0 + 1 + 2 == 3) if the S-cell contributes both digits.
+    engine = build_engine(
+        [GridCells(), Schrodinger(), Cage()],
+        (_cage(("R1C1", "R1C2"), value=3),),
+        board=Board(size=4, values=range(5)),
+    )
+    is_s = _is_s(engine)
+    r1c1 = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 0)
+    engine.model.add(r1c1[1] == 1)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 2)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_a_cage_sum_over_an_s_cell_rejects_a_total_matching_only_one_digit() -> None:
+    # Same S-cell pinning as above, but a target that only balances if the
+    # S-cell contributed one digit, not both (0 + 2 == 2, not 3).
+    engine = build_engine(
+        [GridCells(), Schrodinger(), Cage()],
+        (_cage(("R1C1", "R1C2"), value=2),),
+        board=Board(size=4, values=range(5)),
+    )
+    is_s = _is_s(engine)
+    r1c1 = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 0)
+    engine.model.add(r1c1[1] == 1)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 2)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
+
+
+def test_a_cage_sum_over_a_non_s_cell_is_unchanged_on_a_schrodinger_board() -> None:
+    # The companion regression: pinning both cells not-S, the sum still reads
+    # each cell's single real digit — the plain-cell path is untouched by
+    # the S-cell awareness above.
+    engine = build_engine(
+        [GridCells(), Schrodinger(), Cage()],
+        (_cage(("R1C1", "R1C2"), value=3),),
+        board=Board(size=4, values=range(5)),
+    )
+    is_s = _is_s(engine)
+    engine.model.add(is_s["R1C1"] == 0)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C1") == 1)
+    engine.model.add(engine.d0("R1C2") == 2)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
