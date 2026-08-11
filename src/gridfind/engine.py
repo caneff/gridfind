@@ -224,29 +224,22 @@ class Engine:
         a layer registered for the cell, the same way each layer owns and
         reifies its own value:
 
-        - a **modifier** cell's value is its `modifier_value` (a doubler's
-          `2·d0`, reified on discovery);
+        Each channel already folds the one beneath it, so a plain precedence
+        values every cell:
+
+        - a **modifier** cell's value is its `modifier_value` — a doubler's
+          `2·d0`, or `2·s_value` for a doubled S-cell, since the doubler doubles
+          the value beneath it (ADR-0010);
         - an **S-cell**'s value is its `s_value` (its two digits combined under
           the puzzle's `combine` rule, reified on `is_s`);
-        - a **plain** cell's value is its digit.
-
-        A cell in both channels is a doubled S-cell — no defined value yet
-        (ADR-0009 decision 5) — so this raises rather than pick one."""
+        - a **plain** cell's value is its digit."""
         modifier_value = cast(
             "dict[str, cp_model.IntVar]", self.structures.get("modifier_value", {})
         )
         s_value = cast("dict[str, cp_model.IntVar]", self.structures.get("s_value", {}))
-        in_modifier = address in modifier_value
-        in_s = address in s_value
-        if in_modifier and in_s:
-            msg = (
-                f"cell {address!r} is both a modifier and an S-cell; a doubled "
-                "S-cell has no defined value (ADR-0009)"
-            )
-            raise MalformedPuzzleError(msg)
-        if in_modifier:
+        if address in modifier_value:
             return modifier_value[address]
-        if in_s:
+        if address in s_value:
             return s_value[address]
         return self.content(address)
 

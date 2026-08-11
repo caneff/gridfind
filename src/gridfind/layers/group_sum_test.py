@@ -335,3 +335,36 @@ def test_group_sum_falls_back_to_the_digit_when_the_cell_is_not_the_modifier() -
     status = cp_model.CpSolver().solve(engine.model)
 
     assert status == cp_model.INFEASIBLE
+
+
+def test_group_sum_adds_twice_the_combined_value_of_a_doubled_s_cell() -> None:
+    # A cell marked both a modifier and an S-cell contributes 2·s_value: its two
+    # digits combine (1+2=3), then the doubler doubles that value to 6
+    # (ADR-0010). With R1C2 a plain 4, the group's total is 10 — reachable only
+    # if group-sum read R1C1's folded 6, not its bare s_value 3 (total 7).
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _group_sum(("R1C1", "R1C2"), 10),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 1)
+    engine.model.add(content[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 4)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 6

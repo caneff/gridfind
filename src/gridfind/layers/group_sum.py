@@ -21,8 +21,8 @@ S-cell's combined `s_value` — the value channel each producing layer reifies
 for itself. group-sum knows nothing of modifiers or Schrödinger cells; it sums
 the one value the seam defines, so a killer cage's sum reads a cell exactly as
 its values-distinct half does, never a second hand-rolled encoding. A doubled
-S-cell has no defined value, so `value_expr` raises rather than sum it
-(ADR-0009 decision 5).
+S-cell is worth `2·s_value` through that same seam (ADR-0010), summed like any
+other value.
 """
 
 from __future__ import annotations

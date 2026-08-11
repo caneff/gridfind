@@ -115,16 +115,17 @@ resolve on model coherence alone.
 
 - A cell's value lives in one place — the channel the owning layer reifies — and
   every consumer reads it through `value_expr`, blind to which layer built it.
-  The values-distinct cage is the seam's consumer; `group-sum`, the killer
-  sum's later home, folds a modifier's `modifier_value` but declines the rest
-  of the seam by its own S-blind decision (decision 6). Making the Schrödinger
-  layer register `s_value` the way the doubler registers `modifier_value` is
-  what lets the cage drop all S-cell and modifier special-casing.
+  The values-distinct cage and `group-sum`, the killer sum's later home, are
+  both the seam's consumers; each reads a modifier's `modifier_value` and an
+  S-cell's `s_value` alike (decision 6). Making the Schrödinger layer register
+  `s_value` the way the doubler registers `modifier_value` is what lets the cage
+  drop all S-cell and modifier special-casing.
 - The Schrödinger layer registers `s_value` in phase 1 (`register`), so the
   cage's phase-2 read sees it whatever the stack order. This is the same ground
   issue #255 is working (whether the seam subsumes discovered modifiers). This
   decision names the cage's needs; the seam's shape is settled there.
 - The doubled-S-cell guard is a deliberate ceiling, recorded so a future reader
   lifts it through the coexistence path rather than reading the raise as an
-  accident. It still guards the values-distinct cage; the killer sum no longer
-  reaches it (decision 6).
+  accident. *(Superseded by [ADR-0010](0010-doubled-schrodinger-cell-value.md):
+  the guard is lifted — a doubled S-cell is worth `2·s_value` and `value_expr`
+  no longer raises for it.)*

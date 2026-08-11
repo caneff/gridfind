@@ -2,8 +2,8 @@
 `ModifierPlacement`'s discovery and
 placement unchanged — one modifier per house, a distinct-digit
 transversal over `d0` — and supplies only this type's own value: a
-discovered doubler's value is `2·d0`. `ModifierPlacement` itself
-stays doubler-blind; this layer is the one place doubler-ness (the `2·d0`
+discovered doubler doubles the value beneath it. `ModifierPlacement` itself
+stays doubler-blind; this layer is the one place doubler-ness (the `2·`
 coefficient) appears.
 
 The value is carried in the model, not only reported after a solve: discovery
@@ -11,13 +11,16 @@ here is a decision variable (`is_modifier`) an arithmetic clue must react to
 while the model is still being built — the demand that "a clue that only
 balances if a cell is doubled forces that cell to be a doubler" needs the
 CP-SAT model itself to carry the doubled value. So each cell's value is a
-reified `IntVar`: the digit when not discovered as the modifier, `2·digit`
-when it is — registered under `"modifier_value"`, a name that says nothing
-about doubling so a future modifier type (a negator) can register the same
-channel with its own coefficient. A layer that wants a modifier-aware value
-reads `"modifier_value"` off the registry (tolerating its absence, like every
-other late-bound structure) instead of the raw digit. The schrödinger layer's
-`"s_value"` is the same shape for an S-cell.
+reified `IntVar`: the value beneath the modifier when not discovered, twice it
+when discovered. That value beneath is the S-cell's combined `s_value` when the
+schrödinger layer registered one for the cell, else the raw digit — so a
+doubled S-cell is worth `2·s_value` (ADR-0010). It is registered under
+`"modifier_value"`, a name that says nothing about doubling so a future
+modifier type (a negator) can register the same channel with its own
+coefficient. A layer that wants a modifier-aware value reads `"modifier_value"`
+off the registry (tolerating its absence, like every other late-bound
+structure) instead of the raw digit. The schrödinger layer's `"s_value"` is the
+same shape for an S-cell.
 
 Also registers `"modifier_type"` as this layer's own name (`"doubler"`) — the
 one place a discovered-modifier location can be named, since
@@ -51,14 +54,23 @@ class Doubler:
         is_modifier = cast(
             "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
         )
-        high = engine.board.values[-1]
+        s_value = cast(
+            "dict[str, cp_model.IntVar]", engine.structures.get("s_value", {})
+        )
         modifier_value: dict[str, cp_model.IntVar] = {}
         for address in engine.cells:
-            d0 = engine.d0(address)
-            value = engine.model.new_int_var(0, 2 * high, f"{address}.modifier_value")
-            engine.model.add(value == d0).only_enforce_if(
+            # The value beneath the modifier: an S-cell's combined `s_value` when
+            # the schrödinger layer registered one for this cell, else the raw
+            # digit `d0`. Doubling it makes a doubled S-cell worth `2·s_value`
+            # and a plain doubler worth `2·d0` (ADR-0010).
+            underlying = s_value.get(address, engine.d0(address))
+            ceiling = 2 * max(underlying.proto.domain)
+            value = engine.model.new_int_var(0, ceiling, f"{address}.modifier_value")
+            engine.model.add(value == underlying).only_enforce_if(
                 is_modifier[address].negated()
             )
-            engine.model.add(value == 2 * d0).only_enforce_if(is_modifier[address])
+            engine.model.add(value == 2 * underlying).only_enforce_if(
+                is_modifier[address]
+            )
             modifier_value[address] = value
         engine.register_structure("modifier_value", modifier_value)
