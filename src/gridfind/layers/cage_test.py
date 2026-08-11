@@ -19,7 +19,12 @@ from typing import cast
 import pytest
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, build_engine
+from gridfind.engine import (
+    Combine,
+    Engine,
+    MalformedPuzzleError,
+    build_engine,
+)
 from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
@@ -36,13 +41,18 @@ BOARD = Board(size=9)
 
 
 def _cage(
-    cells: tuple[str, ...], name: str | None = None, value: int | None = None
+    cells: tuple[str, ...],
+    name: str | None = None,
+    value: int | None = None,
+    distinct_over: str | None = None,
 ) -> Constraint:
     params: dict[str, object] = {"cells": list(cells)}
     if name is not None:
         params["name"] = name
     if value is not None:
         params["value"] = value
+    if distinct_over is not None:
+        params["distinct-over"] = distinct_over
     return Constraint(type="cage", params=params)
 
 
@@ -352,3 +362,217 @@ def test_a_cage_sum_over_a_non_s_cell_is_unchanged_on_a_schrodinger_board() -> N
     status = cp_model.CpSolver().solve(engine.model)
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+# --- per-cage distinctness mode --------------------------------------------
+
+
+def test_values_distinct_cage_permits_a_value_distinct_from_its_digits() -> None:
+    # R1C1 is forced S with digits {2, 3}: its combined (concat) value is 23.
+    # R1C2 is a singleton at 2. A digits-distinct cage would forbid this (R1C1
+    # holds digit 2 too); a values-distinct cage only cares that no other cell's
+    # value equals 23, so the pair is feasible.
+    engine = build_engine(
+        [GridCells(), Schrodinger(), Cage()],
+        (_cage(("R1C1", "R1C2"), distinct_over="value"),),
+        board=Board(size=4, values=range(5)),
+    )
+    is_s = _is_s(engine)
+    r1c1 = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 2)
+    engine.model.add(r1c1[1] == 3)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 2)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_values_distinct_cage_forbids_a_repeated_value() -> None:
+    # Both R1C1 and R1C2 are forced S with the same pair {2, 3}: both concat
+    # to 23. A values-distinct cage must reject the repeat even though no
+    # single slot is a digit-for-digit clash.
+    engine = build_engine(
+        [GridCells(), Schrodinger(), Cage()],
+        (_cage(("R1C1", "R1C2"), distinct_over="value"),),
+        board=Board(size=4, values=range(5)),
+    )
+    is_s = _is_s(engine)
+    r1c1 = engine.contents("R1C1")
+    r1c2 = engine.contents("R1C2")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 2)
+    engine.model.add(r1c1[1] == 3)
+    engine.model.add(is_s["R1C2"] == 1)
+    engine.model.add(r1c2[0] == 2)
+    engine.model.add(r1c2[1] == 3)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
+
+
+def test_values_distinct_cage_collides_a_doubled_value_with_an_s_value() -> None:
+    # The no-offset decision (ADR-0009 decision 3): a value is a number, so a
+    # cell worth 18 through the modifier_value channel (a doubler's 2·9) and one
+    # worth 18 through the s_value channel (an S-cell concatting 1, 8) are the
+    # same value and clash — even though the two came from different channels.
+    engine = build_engine(
+        [], constraints=(_cage(("R1C1", "R1C2"), distinct_over="value"),), board=BOARD
+    )
+    engine.add_cell("R1C1", low=1, high=9)
+    engine.add_cell("R1C2", low=1, high=9)
+    modifier_value = engine.model.new_int_var(0, 18, "R1C1.modifier_value")
+    s_value = engine.model.new_int_var(0, 99, "R1C2.s_value")
+    engine.register_structure("modifier_value", {"R1C1": modifier_value})
+    engine.register_structure("s_value", {"R1C2": s_value})
+    engine.model.add(modifier_value == 18)
+    engine.model.add(s_value == 18)
+    cage = Cage()
+    cage.register(engine)
+    cage.emit(engine)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
+
+
+def test_values_distinct_cage_reads_a_modifier_value_not_the_raw_digit() -> None:
+    # A cell in the modifier_value channel (a discovered doubler's 2·d0)
+    # contributes that value, not its digit. R1C1's raw digit is 3 but its
+    # modifier_value is 6; pinning R1C2's digit to 6 clashes only if the cage
+    # read the value, so INFEASIBLE proves it reads modifier_value.
+    engine = build_engine(
+        [], constraints=(_cage(("R1C1", "R1C2"), distinct_over="value"),), board=BOARD
+    )
+    engine.add_cell("R1C1", low=1, high=9)
+    engine.add_cell("R1C2", low=1, high=9)
+    modifier_value = engine.model.new_int_var(0, 18, "R1C1.modifier_value")
+    engine.register_structure("modifier_value", {"R1C1": modifier_value})
+    engine.model.add(modifier_value == 6)
+    engine.model.add(engine.d0("R1C1") == 3)
+    engine.model.add(engine.d0("R1C2") == 6)
+    cage = Cage()
+    cage.register(engine)
+    cage.emit(engine)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
+
+
+def test_values_distinct_cage_rejects_a_doubled_s_cell() -> None:
+    # A cell in both the modifier_value and s_value channels is a doubled
+    # S-cell — no defined value yet (ADR-0009 decision 5), so building the rule
+    # fails loudly rather than picking one channel over the other.
+    engine = build_engine(
+        [], constraints=(_cage(("R1C1",), distinct_over="value"),), board=BOARD
+    )
+    engine.add_cell("R1C1", low=1, high=9)
+    modifier_value = engine.model.new_int_var(0, 18, "R1C1.modifier_value")
+    s_value = engine.model.new_int_var(0, 99, "R1C1.s_value")
+    engine.register_structure("modifier_value", {"R1C1": modifier_value})
+    engine.register_structure("s_value", {"R1C1": s_value})
+    cage = Cage()
+    cage.register(engine)
+
+    with pytest.raises(MalformedPuzzleError, match="doubled S-cell"):
+        cage.emit(engine)
+
+
+@pytest.mark.parametrize(
+    ("combine", "infeasible"),
+    [
+        pytest.param("sum", True, id="sum-makes-2-3-equal-5"),
+        pytest.param("concat", False, id="concat-makes-2-3-equal-23"),
+    ],
+)
+def test_schrodinger_combine_rule_sets_the_s_cell_value(
+    combine: Combine, *, infeasible: bool
+) -> None:
+    # The schrodinger layer's `combine` rule decides how an S-cell's two digits
+    # read as one value — the value it reifies into the s_value channel: {2, 3}
+    # is 5 under `sum`, 23 under `concat`. Beside a singleton 5, a values-distinct
+    # cage clashes only when the S-cell also reads 5.
+    engine = build_engine(
+        [GridCells(), Schrodinger(combine=combine), Cage()],
+        (_cage(("R1C1", "R1C2"), distinct_over="value"),),
+        board=Board(size=4, values=range(6)),
+    )
+    is_s = _is_s(engine)
+    r1c1 = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 2)
+    engine.model.add(r1c1[1] == 3)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 5)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    if infeasible:
+        assert status == cp_model.INFEASIBLE
+    else:
+        assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_a_values_distinct_cage_resolves_found_through_verdict() -> None:
+    # End-to-end at the verdict seam: a values-distinct cage of two singletons
+    # holding distinct digits (hence distinct values) is found.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_cage(("R1C1", "R1C2"), distinct_over="value"),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C2", digit=3)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+@pytest.mark.parametrize("distinct_over", [None, "digit"], ids=["unstated", "explicit"])
+def test_digits_distinct_is_the_default(distinct_over: str | None) -> None:
+    # An unstated distinct-over and an explicit "digit" resolve the same
+    # verdict — a forced digit repeat breaks either way.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_cage(("R1C1", "R1C2"), distinct_over=distinct_over),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=1)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+
+
+def test_digits_distinct_cage_reads_the_raw_digit_not_the_value_channel() -> None:
+    # digits-distinct forbids a repeated digit — the placed symbol — not a
+    # value (ADR-0009 decision 1). R1C1's modifier_value is 6 while its digit is
+    # 3; R1C2's digit is 6. The values collide (6, 6) but the digits differ, so
+    # a digits-distinct cage stays FEASIBLE — proof it reads raw content, not
+    # the value channel a values-distinct cage would.
+    engine = build_engine([], constraints=(_cage(("R1C1", "R1C2")),), board=BOARD)
+    engine.add_cell("R1C1", low=1, high=9)
+    engine.add_cell("R1C2", low=1, high=9)
+    modifier_value = engine.model.new_int_var(0, 18, "R1C1.modifier_value")
+    engine.register_structure("modifier_value", {"R1C1": modifier_value})
+    engine.model.add(modifier_value == 6)
+    engine.model.add(engine.d0("R1C1") == 3)
+    engine.model.add(engine.d0("R1C2") == 6)
+    cage = Cage()
+    cage.register(engine)
+    cage.emit(engine)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_cage_rejects_an_unknown_distinct_over() -> None:
+    puzzle = Puzzle(
+        board=BOARD, constraints=(_cage(("R1C1", "R1C2"), distinct_over="bogus"),)
+    )
+
+    with pytest.raises(MalformedPuzzleError, match="bogus"):
+        verdict(puzzle)

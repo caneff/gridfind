@@ -27,37 +27,40 @@ resolve on model coherence alone.
    and the classic killer convention, so every existing cage keeps its verdict.
    A **values-distinct** cage forbids a repeated value.
 
-2. **A cell's value is what the value methods return — the cage does not define
-   its own.** The value seam (ADR-0004) is the single definition of a cell's
-   value: a plain cell's value is its digit, a doubler's is its doubled amount
-   (the `modifier_value` a modifier layer reifies), an S-cell's is its two
-   digits folded. A values-distinct cage reads each cell's value through that
-   seam and puts it in one `add_all_different`. It does not hand-roll a fold of
-   its own — a bespoke `10·d0 + d1` in the cage would be a second, divergent
-   definition of the same thing.
+2. **Each layer reifies its own cell values into a channel; the cage only
+   reads.** A cell's value is not the cage's to compute. Every layer that gives
+   a cell a value beyond its digit reifies that value into a named channel: the
+   doubler into `modifier_value` (`2·d0` on discovery), the Schrödinger layer
+   into `s_value` (its two digits combined on `is_s`). A values-distinct cage
+   reads each cell's value through `value_expr`, which returns whichever channel
+   the cell has — else its raw digit — and puts them in one `add_all_different`.
+   The cage never hand-rolls a `10·d0 + d1`; that would be a second, divergent
+   definition of a value a layer already owns.
 
 3. **Same value collides — always, with no exception.** Two cells clash exactly
    when their values are the same number. A doubler worth 18 and an S-cell that
-   folds to 18 collide, because a value is a number and 18 equals 18. There is no
-   offset, no separate band, no rule that a "doubled 18" and a "folded 18" are
-   different — they are the same value, so they repeat. An earlier draft proposed
-   offsetting the two encodings apart; that was wrong, and it would have let two
-   equal values sit in one cage.
+   reads 18 collide, because a value is a number and 18 equals 18. There is no
+   offset, no separate band, no rule that a "doubled 18" and a "concatenated 18"
+   are different — they are the same value, so they repeat. An earlier draft
+   proposed offsetting the two encodings apart; that was wrong, and it would have
+   let two equal values sit in one cage.
 
-4. **How an S-cell folds is a puzzle-wide property, owned by the Schrödinger
-   layer.** Two digits become one value by a **fold** — `sum` (2 + 3 = 5) or
-   `concat` (2, 3 → 23). Which one is a property of the whole puzzle, not of the
-   cage or the cell, and the Schrödinger layer owns it: it is the layer that
-   widens a cell to two digits, so it names how those two digits read as one
-   value. Every values-distinct read of an S-cell in that puzzle uses the same
-   fold.
+4. **The Schrödinger layer builds each S-cell's value, and how it combines two
+   digits is a puzzle-wide `combine` rule.** Since it is the layer that widens a
+   cell to two digits, it is the layer that reifies the cell's value into the
+   `s_value` channel — the same shape the doubler uses for `modifier_value`, so
+   the cage reads a value without knowing which layer built it. Whether two
+   digits combine by `sum` (2 + 3 = 5) or `concat` (2, 3 → 23) is the `combine`
+   rule, a property of the whole puzzle that this layer holds, not the cage or
+   the cell.
 
 5. **A doubled S-cell stays deferred.** A cell that is both a doubler and an
    S-cell has no defined value yet — no link can encode both marks (they share
-   the red color bit, ADR-0008) and nothing models the combination. The cage
-   asserts a modifier cell is width-1, so the unconstructable state fails loudly
-   instead of silently mis-valuing the cell. The combination arrives with the
-   rest of doubler-plus-S-cell coexistence, not here.
+   the red color bit, ADR-0008) and nothing models the combination. Such a cell
+   sits in both value channels at once, so `value_expr` raises rather than pick
+   one — the unconstructable state fails loudly instead of silently mis-valuing
+   the cell. The combination arrives with the rest of doubler-plus-S-cell
+   coexistence, not here.
 
 6. **The killer sum is unaffected by the mode.** A cage's sum already folds
    modifiers unconditionally (ADR-0008): a doubler counts as `2·d0` whatever the
@@ -75,31 +78,33 @@ resolve on model coherence alone.
   contributes *both* digits as two `add_all_different` members — the same as
   digits-distinct — and values-distinct differs from digits-distinct *only* for
   a modifier cell. Rejected: it contradicts issue #236's acceptance criteria,
-  which always read an S-cell as one folded value ("a `23`-valued S-cell
+  which always read an S-cell as one combined value ("a `23`-valued S-cell
   coexists with a plain 2 or 3"), and it splits "value" into two mechanisms —
-  a folded value for doublers, a two-member expansion for S-cells — where the
-  seam already gives one folded value for both. The domain owner's model is the
-  single folded value, and the value methods already express it.
+  a combined value for doublers, a two-member expansion for S-cells — where the
+  seam already gives one combined value for both. The domain owner's model is the
+  single combined value, and the value methods already express it.
 
-- **Offset the two encodings apart** so a doubler's value and an S-cell's folded
-  value never share an integer key. Rejected: two cells with the same value are
-  supposed to collide; offsetting them apart defeats the mode. `18` is `18`.
+- **Offset the two encodings apart** so a doubler's value and an S-cell's
+  combined value never share an integer key. Rejected: two cells with the same
+  value are supposed to collide; offsetting them apart defeats the mode. `18` is
+  `18`.
 
-- **Fix the fold at `concat`.** Rejected: the fold is genuinely sometimes a sum
-  and sometimes a concatenation, so it must be a declared property, and the
-  Schrödinger layer is its owner.
+- **Fix the `combine` rule at `concat`.** Rejected: two digits genuinely combine
+  sometimes by a sum and sometimes by a concatenation, so it must be a declared
+  property, and the Schrödinger layer is its owner.
 
 ## Consequences
 
-- The value seam becomes the one place a cell's value is defined, for the killer
-  sum and the values-distinct rule alike. A values-distinct cage that reads the
-  seam rather than its own fold is the same read a modifier-aware distinctness
-  needs, so folding the doubler in falls out of the seam, not a special case in
-  the cage.
-- Sourcing the fold from the Schrödinger layer, and reading a doubler's value at
-  model-build time, both touch the value seam — the same ground issue #255 is
-  working (whether the seam subsumes discovered modifiers). This decision names
-  the cage's needs; the seam's shape is settled there.
-- The width-1 assertion is a deliberate ceiling on doubled S-cells, recorded so a
-  future reader lifts it through the coexistence path rather than reading the
-  guard as an accident.
+- A cell's value lives in one place — the channel the owning layer reifies — and
+  every consumer reads it through `value_expr`, blind to which layer built it.
+  The values-distinct cage is the first such consumer; the killer sum still
+  folds modifiers its own way (decision 6). Making the Schrödinger layer register
+  `s_value` the way the doubler registers `modifier_value` is what lets the cage
+  drop all S-cell and modifier special-casing.
+- The Schrödinger layer registers `s_value` in phase 1 (`register`), so the
+  cage's phase-2 read sees it whatever the stack order. This is the same ground
+  issue #255 is working (whether the seam subsumes discovered modifiers). This
+  decision names the cage's needs; the seam's shape is settled there.
+- The doubled-S-cell guard is a deliberate ceiling, recorded so a future reader
+  lifts it through the coexistence path rather than reading the raise as an
+  accident.

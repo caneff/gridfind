@@ -259,10 +259,12 @@ and owns the working-state directives below.
   digits `0–9` exactly once; which cells are S-cells is discovered by solving, not
   given.
 
-- **fold** — how an S-cell's two digits read as one **value**: `sum` (2 + 3 = 5)
-  or `concat` (2, 3 → 23). One choice for the whole puzzle, owned by this layer —
-  it widens the cell, so it names how the two digits combine. Every value read of
-  an S-cell in the puzzle uses the same fold (ADR-0009).
+- **combine** — how a two-digit S-cell's digits make one **value**: `sum`
+  (2 + 3 = 5) or `concat` (2, 3 → 23). One choice for the whole puzzle, owned by
+  this layer — it widens the cell, so it holds the rule. It reifies each cell's
+  value under this rule into the **`s_value`** channel (the shape the doubler
+  uses for `modifier_value`), so a values-distinct reader reads one value and
+  never asks how it was built (ADR-0009).
 
 The Schrödinger working state spans two independent axes — **S-cell-ness** (is
 this position a singleton, an S-cell, or unknown?) and **digit-content** — so its
@@ -322,14 +324,14 @@ forces a cell to become an S-cell.
   rule can forbid. A **digits-distinct** cage (the default) forbids two cells
   holding the same **digit** — the classic killer rule, over the placed symbols.
   A **values-distinct** cage forbids two cells holding the same **value**, read
-  through the value methods (the seam owns the definition, ADR-0009): a plain
-  cell's value is its digit, a **doubler**'s is its doubled amount, an **S-cell**'s
-  is its two digits folded. Two cells clash whenever those values are the same
-  number — a doubler worth 18 and an S-cell folding to 18 collide, since a value
-  is just a number. On a plain puzzle every value is a digit, so values-distinct
-  reduces to digits-distinct. A cage's killer **sum** is unaffected by the mode —
-  it always folds modifiers (ADR-0008); only the no-repeats half answers to
-  `distinct-over`.
+  from whichever value channel a layer registered (ADR-0009): a plain cell's
+  value is its digit, a **doubler**'s is its `modifier_value` (doubled amount),
+  an **S-cell**'s is its `s_value` (its two digits under the **combine** rule).
+  Two cells clash whenever those values are the same number — a doubler worth 18
+  and an S-cell reading 18 collide, since a value is just a number. On a plain puzzle
+  every value is a digit, so values-distinct reduces to digits-distinct. A cage's
+  killer **sum** is unaffected by the mode — it always folds modifiers
+  (ADR-0008); only the no-repeats half answers to `distinct-over`.
 
 - **cosmetic cage** — a cage a setter draws for display, carrying its sum as a
   label rather than as an enforced killer constraint. SudokuMaker forces one
