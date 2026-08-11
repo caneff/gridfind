@@ -1,0 +1,164 @@
+"""The solution-link emitter's pure seam: fill a witness in, re-decode, get it
+back out.
+
+`fill_witness` is asserted by round-trip only (never by the intermediate
+document shape, per spec #244's testing decision): feed a synthesised
+decoded document and a `Witness` through it, re-encode, then `decode_link`
+the result and confirm the witness digits come back — singletons as givens,
+Schrödinger S-cells as their 2-tuple. `verify_link` is covered end to end on
+two tiny synthetic links, one already-solved (found) and one
+already-contradictory (broke), so the glue with `decode_link`/`verdict`
+is checked without touching the real `links/` corpus.
+"""
+
+from __future__ import annotations
+
+import json
+
+from hypothesis import given
+from hypothesis import strategies as st
+from lzstring import LZString
+from verify_links import fill_witness, verify_link
+
+from gridfind.layers.board import cell_address
+from gridfind.puzzle import Given, SCellPin, WorkingState
+from gridfind.sudokumaker import decode_link
+from gridfind.witness import Witness
+
+_WIRE_CONSTRAINTS = [{"type": 0}]
+
+
+def _document(size: int) -> dict[str, object]:
+    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
+    return {
+        "formatVersion": "1.5.0",
+        "puzzle": {"cells": cells, "constraints": _WIRE_CONSTRAINTS},
+    }
+
+
+def _encode(puzzle_data: dict[str, object]) -> str:
+    doc = {"formatVersion": "1.5.0", "puzzle": puzzle_data}
+    return "https://sudokumaker.app/?puzzle=" + LZString.compressToEncodedURIComponent(
+        json.dumps(doc)
+    )
+
+
+def _grid(size: int) -> list[list[str]]:
+    return [
+        [cell_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
+    ]
+
+
+@given(size=st.integers(min_value=2, max_value=5), data=st.data())
+def test_fill_witness_round_trips_singleton_digits(
+    size: int, data: st.DataObject
+) -> None:
+    digits = data.draw(
+        st.lists(
+            st.integers(min_value=1, max_value=size),
+            min_size=size * size,
+            max_size=size * size,
+        )
+    )
+    grid = _grid(size)
+    addresses = [address for row in grid for address in row]
+    assignment: dict[str, tuple[int, ...]] = {
+        address: (digit,) for address, digit in zip(addresses, digits, strict=True)
+    }
+    witness = Witness(grid=grid, assignment=assignment, region_map=[])
+    document = _document(size)
+
+    filled = fill_witness(document, witness, size)
+
+    url = "https://sudokumaker.app/?puzzle=" + LZString.compressToEncodedURIComponent(
+        json.dumps(filled)
+    )
+    puzzle, state = decode_link(url)
+
+    assert state == WorkingState()
+    assert set(puzzle.givens) == {
+        Given(address, digit[0]) for address, digit in assignment.items()
+    }
+
+
+@given(
+    size=st.integers(min_value=2, max_value=5),
+    s_cell_index=st.integers(min_value=0),
+    data=st.data(),
+)
+def test_fill_witness_round_trips_a_schrodinger_s_cell(
+    size: int, s_cell_index: int, data: st.DataObject
+) -> None:
+    s_cell_index %= size * size
+    domain_max = size + 1  # classic Schrödinger domain: 1..size+1 (k=1 extra digit)
+    pair = data.draw(
+        st.lists(
+            st.integers(min_value=1, max_value=domain_max),
+            min_size=2,
+            max_size=2,
+            unique=True,
+        )
+    )
+    a, b = sorted(pair)
+
+    grid = _grid(size)
+    addresses = [address for row in grid for address in row]
+    s_cell_address = addresses[s_cell_index]
+    assignment: dict[str, tuple[int, ...]] = {
+        address: (a, b) if address == s_cell_address else (1,) for address in addresses
+    }
+    witness = Witness(grid=grid, assignment=assignment, region_map=[])
+    document = _document(size)
+
+    filled = fill_witness(document, witness, size)
+
+    url = "https://sudokumaker.app/?puzzle=" + LZString.compressToEncodedURIComponent(
+        json.dumps(filled)
+    )
+    puzzle, state = decode_link(url, schrodinger=True)
+
+    assert SCellPin(s_cell_address, frozenset({a, b})) in state.s_directives
+    assert set(puzzle.givens) == {
+        Given(address, digit[0])
+        for address, digit in assignment.items()
+        if address != s_cell_address
+    }
+
+
+def test_verify_link_reports_a_solution_link_for_a_found_case() -> None:
+    # A fully-given, already-valid 2x2 Latin square: rows {1,2}/{2,1},
+    # columns {1,2}/{2,1} — trivially found, so filling in the witness
+    # reproduces the same givens verbatim.
+    cells = [
+        {"given": True, "value": 1},
+        {"given": True, "value": 2},
+        {"given": True, "value": 2},
+        {"given": True, "value": 1},
+    ]
+    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
+
+    solution_link = verify_link([link])
+
+    assert solution_link.startswith("https://sudokumaker.app/?puzzle=")
+    puzzle, state = decode_link(solution_link)
+    assert state == WorkingState()
+    assert set(puzzle.givens) == {
+        Given("R1C1", 1),
+        Given("R1C2", 2),
+        Given("R2C1", 2),
+        Given("R2C2", 1),
+    }
+
+
+def test_verify_link_reports_broke_for_a_broke_case() -> None:
+    # Two givens in the same row share a digit — contradicts rows-distinct
+    # before any search is needed.
+    cells = [
+        {"given": True, "value": 1},
+        {"given": True, "value": 1},
+        {},
+        {},
+    ]
+    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
+
+    assert verify_link([link]) == "broke"

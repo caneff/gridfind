@@ -40,3 +40,10 @@ test:
 # skipped by `just check` / `uv run pytest` via the `not e2e` deselection.
 e2e:
     uv run pytest -m e2e
+
+# On-demand solution-link oracle (spec #244, issue #249): for every link
+# under src/gridfind/links/, prints a found link's witness filled back in as
+# an openable sudokumaker.app solution-link, or `broke` for a broke link.
+# CP-SAT-slow, kept out of `just check` and `just e2e`.
+verify-links:
+    uv run python scripts/verify_links.py
