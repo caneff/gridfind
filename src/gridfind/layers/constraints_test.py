@@ -22,7 +22,7 @@ def test_bare_constraints_resolve_to_the_matching_layer_instances() -> None:
 
 
 def test_rows_cols_regions_are_all_one_distinct_layer_class() -> None:
-    # Issue #37: the three distinct rules are instances of one
+    # The three distinct rules are instances of one
     # partition-parameterized layer, not three bespoke classes.
     _, layers = build_stack(
         (
@@ -66,7 +66,7 @@ def test_canonical_identity_is_order_independent() -> None:
 
 
 def test_two_constraints_of_one_type_resolve_to_a_single_layer_instance() -> None:
-    # Dedup by type (issue #65): a puzzle with two cages of the same kind
+    # Dedup by type: a puzzle with two cages of the same kind
     # resolves to one layer that loops its own constraints, not twice.
     constraints = (Constraint(type="rows-distinct"), Constraint(type="rows-distinct"))
 
@@ -76,7 +76,7 @@ def test_two_constraints_of_one_type_resolve_to_a_single_layer_instance() -> Non
 
 
 def test_regions_distinct_with_params_dispatches_over_the_supplied_map() -> None:
-    # Issue #123: a `regions-distinct` carrying `params["regions"]` builds a
+    # A `regions-distinct` carrying `params["regions"]` builds a
     # `DistinctOverGroups` over the setter's own partition, not the box
     # tiling — the label matrix groups R1C1+R2C2 and R1C2+R2C1, a partition
     # no box convention would produce.
@@ -117,8 +117,8 @@ def test_no_constraints_still_carries_the_compulsory_board_layer() -> None:
 
 
 def test_a_board_constraint_dedups_onto_the_one_compulsory_board_layer() -> None:
-    # Issue #101 / #99 further notes: naming `board` as a constraint used to
-    # register the grid a second time. It now resolves to the same one entry.
+    # Naming `board` as a constraint resolves to the one compulsory board
+    # layer, not a second grid registration.
     canonical, layers = build_stack((Constraint(type="board"),), size=9)
 
     assert canonical == [Constraint(type="board")]
@@ -126,8 +126,8 @@ def test_a_board_constraint_dedups_onto_the_one_compulsory_board_layer() -> None
 
 
 def test_a_board_constraint_builds_one_grid_with_no_unruled_variables() -> None:
-    # #99's further notes: naming `board` used to build two grids' worth of
-    # solver variables for one grid of cells. It builds exactly one now.
+    # Naming `board` builds exactly one grid's worth of solver variables for
+    # one grid of cells, not two.
     canonical, layers = build_stack((Constraint(type="board"),), size=4)
     engine = build_engine(layers, tuple(canonical), board=Board(size=4))
 

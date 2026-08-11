@@ -67,7 +67,7 @@ def test_verdict_found_returns_a_witness_consistent_with_the_given() -> None:
 
 
 def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
-    # Self-describing (issue #72): the witness carries the same grid board
+    # Self-describing: the witness carries the same grid board
     # registers, so a consumer lays it out without re-deriving addressing.
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
 
@@ -81,7 +81,7 @@ def test_verdict_found_witness_carries_the_boards_own_grid_shape() -> None:
 
 def test_verdict_found_witness_carries_the_boards_box_region_map() -> None:
     # A regions-distinct constraint with no matrix of its own resolves to the
-    # board's box convention (issue #124): a 9x9 draws nine 3x3 boxes.
+    # board's box convention: a 9x9 draws nine 3x3 boxes.
     puzzle = Puzzle(
         board=BOARD,
         constraints=(Constraint(type="regions-distinct"),),
@@ -136,7 +136,7 @@ def test_verdict_found_witness_falls_back_to_one_region_with_no_convention() -> 
 
 
 def test_verdict_found_witness_carries_a_supplied_jigsaw_partition() -> None:
-    # A hand-built jigsaw partition (issue #123's params["regions"]) rides
+    # A hand-built jigsaw partition (params["regions"]) rides
     # through to the witness as the region map it renders against, not the
     # board's box default.
     labels = [
@@ -276,7 +276,7 @@ def test_verdict_found_on_a_board_keeps_every_witness_digit_in_1_to_n(
 def test_sudoku_breaks_a_digit_repeat_within_one_box(size: int, digit: int) -> None:
     # R1C1 and R2C2 share a box at both sizes but no row and no column, so
     # rows/cols alone can't catch the repeat — only correct tiling does
-    # (2x2 at 4x4, 2x3 at 6x6; issue #79).
+    # (2x2 at 4x4, 2x3 at 6x6).
     assert_layer_newly_breaks(
         (Constraint(type="rows-distinct"), Constraint(type="cols-distinct")),
         (
@@ -401,7 +401,7 @@ def test_rows_distinct_found_when_no_row_repeats() -> None:
 
 def test_rows_distinct_breaks_a_repeat_forced_by_singleton_candidates() -> None:
     # No givens, no placements — the repeat is forced purely because both
-    # cells' candidate sets have narrowed to the one digit (issue #246).
+    # cells' candidate sets have narrowed to the one digit.
     assert_layer_newly_breaks(
         (),
         (Constraint(type="rows-distinct"),),
@@ -446,8 +446,7 @@ def test_line_count_distinct_breaks_when_a_full_row_has_too_few_distinct_digits(
 ):
     # Row 3's target is 3 distinct digits, but every cell is given as the
     # same digit — with the row already full, it can never reach the target
-    # (issue #246, the too-few direction the exceeds-target case above
-    # doesn't cover).
+    # (the too-few direction the exceeds-target case above doesn't cover).
     assert_layer_newly_breaks(
         (),
         (Constraint(type="line-count-distinct"),),
@@ -581,7 +580,7 @@ def test_jigsaw_regions_distinct_found_with_a_connected_tetromino_partition() ->
 
 def test_jigsaw_regions_distinct_breaks_a_repeat_box_tiling_would_miss() -> None:
     # R1C1 and R4C4 share no row, no column, and no classic 2x2 box — only a
-    # custom jigsaw region joining them catches the repeat (issue #123).
+    # custom jigsaw region joining them catches the repeat.
     labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0]
 
     assert_layer_newly_breaks(
@@ -598,8 +597,7 @@ def test_jigsaw_regions_distinct_breaks_a_repeat_box_tiling_would_miss() -> None
 
 def test_jigsaw_regions_distinct_with_an_over_large_region_returns_broke() -> None:
     # A region larger than the digit domain is unsolvable by pigeonhole —
-    # broke, a satisfiability fact, never a validator's judgment (#123
-    # acceptance criteria).
+    # broke, a satisfiability fact, never a validator's judgment.
     labels = [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 3, 3, 2, 2, 3, 3]
     puzzle = Puzzle(
         board=Board(size=4),
@@ -620,7 +618,7 @@ def test_jigsaw_regions_distinct_with_an_over_large_region_returns_broke() -> No
 def test_jigsaw_regions_distinct_with_an_under_coverable_region_returns_broke() -> None:
     # A region with too few cells to cover the domain even doubled by
     # Schrodinger S-cells (domain > 2*cells) is unsolvable — broke,
-    # symmetric to the over-sized pigeonhole case (#158 acceptance criteria).
+    # symmetric to the over-sized pigeonhole case.
     labels = [0, 0, 0, *([1] * 33)]
     puzzle = Puzzle(
         board=Board(size=6, values=range(10)),
@@ -656,11 +654,11 @@ def _quattroquadri_row_col_cages(size: int) -> tuple[Constraint, ...]:
 
 
 def test_quattroquadri_found_over_a_6x6_grid_with_a_nine_digit_domain() -> None:
-    # Ruleset 000EPV (issue #173): four 3x3 boxes tile a 6x6 grid, each a
+    # Ruleset 000EPV: four 3x3 boxes tile a 6x6 grid, each a
     # region covering the full 1-9 digit domain (cells == domain, the classic
     # no-S-cell edge of the cover band). Each 6-cell row/column may not repeat
     # but can never cover all 9 digits, so rows/cols are cages, not regions —
-    # a domain-9-over-size-6 case the region/cage split (spec #156) exists for.
+    # a domain-9-over-size-6 case the region/cage split exists for.
     size = 6
     labels = _quattroquadri_box_labels(size)
     puzzle = Puzzle(
@@ -703,8 +701,8 @@ def test_quattroquadri_breaks_on_a_digit_repeated_within_one_box() -> None:
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
     # A contradiction unrelated to region sizing (two conflicting givens on
     # one cell) must not get blamed on a region that is well within the
-    # cover band (#158 acceptance criteria: no false region-blame). Two
-    # givens, not a given/placement pair: since #155 a placement refines to
+    # cover band (no false region-blame). Two
+    # givens, not a given/placement pair: a placement refines to
     # d ∈ content on a Schrödinger board, so a given=1/placement=2 pair here
     # would resolve (2 lands on d1, R1C1 becomes the S-cell {1, 2}) rather
     # than conflict — givens stay literal d0 = d, so two of them on one
@@ -839,8 +837,8 @@ def _boxes(size: int, box_rows: int, box_cols: int) -> list[list[str]]:
 def test_schrodinger_finds_the_forced_s_cell_count_per_house(
     size: int, values: range, box_shape: tuple[int, int], expected_s_cells: int
 ) -> None:
-    # S-cell-ness discovered from givens alone — none stated here — per #139's
-    # story 4/5: k = len(values) - size S-cells per row, column, and box.
+    # S-cell-ness discovered from givens alone — none stated here:
+    # k = len(values) - size S-cells per row, column, and box.
     puzzle = Puzzle(
         board=Board(size=size, values=values),
         constraints=(Constraint(type="sudoku"), Constraint(type="schrodinger")),
@@ -857,8 +855,8 @@ def test_schrodinger_finds_the_forced_s_cell_count_per_house(
 
 
 def test_schrodinger_with_values_not_exceeding_size_is_malformed() -> None:
-    # len(values) == size forces no S-cell at all — refused before classify
-    # (#139 story 6), not silently accepted as a degenerate classic sudoku.
+    # len(values) == size forces no S-cell at all — refused before classify,
+    # not silently accepted as a degenerate classic sudoku.
     puzzle = Puzzle(
         board=Board(size=9),  # default values 1-9, len == size
         constraints=(Constraint(type="schrodinger"),),
@@ -870,7 +868,7 @@ def test_schrodinger_with_values_not_exceeding_size_is_malformed() -> None:
 
 def test_schrodinger_with_values_more_than_twice_size_is_broke() -> None:
     # Over 2*size digits can't fit even every cell doubled up — a genuine
-    # infeasibility, not a special refusal (#139 story 7).
+    # infeasibility, not a special refusal.
     puzzle = Puzzle(
         board=Board(size=4, values=range(10)),  # 10 values, 2*size == 8
         constraints=(Constraint(type="schrodinger"), Constraint(type="rows-distinct")),
@@ -885,8 +883,7 @@ def test_schrodinger_with_values_more_than_twice_size_is_broke() -> None:
 def test_schrodinger_puzzle_with_no_schrodinger_constraint_keeps_singleton_cells() -> (
     None
 ):
-    # No-regression (#139 story 23): an ordinary puzzle's witness stays every
-    # cell a 1-tuple, exactly as before the layer existed.
+    # An ordinary puzzle's witness stays every cell a 1-tuple.
     puzzle = Puzzle(board=Board(size=4), constraints=(Constraint(type="sudoku"),))
 
     result = verdict(puzzle)
@@ -987,9 +984,8 @@ def test_verdict_rejects_a_pin_with_no_schrodinger_layer(directive: SDirective) 
 
 
 def test_verdict_ignores_empty_s_directives_on_a_non_schrodinger_puzzle() -> None:
-    # No-regression: an empty s_directives tuple is a no-op — the missing-layer
-    # guard fires only when a pin is actually present, so an ordinary puzzle
-    # verdicts exactly as before.
+    # An empty s_directives tuple is a no-op — the missing-layer
+    # guard fires only when a pin is actually present.
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
 
     result = verdict(puzzle, WorkingState(s_directives=()))
@@ -998,7 +994,7 @@ def test_verdict_ignores_empty_s_directives_on_a_non_schrodinger_puzzle() -> Non
 
 
 def test_verdict_runs_a_first_light_singleton_and_s_cell_pin_end_to_end() -> None:
-    # The tracer's headline (issue #153): a puzzle stating just a singleton pin
+    # The tracer's headline: a puzzle stating just a singleton pin
     # and an S-cell pin runs the whole path to a verdict.
     puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
     state = WorkingState(
@@ -1109,7 +1105,7 @@ def test_verdict_breaks_a_placement_absent_from_the_s_cells_content() -> None:
 
 
 def test_verdict_given_vs_placement_diverge_on_an_s_cells_upper_digit() -> None:
-    # #155's headline divergence: on a Schrödinger board a placement refines
+    # The headline divergence: on a Schrödinger board a placement refines
     # to d ∈ content but a given stays literal d0 = d (CONTEXT.md's given /
     # placement glossary entries). Force R1C1 to the S-cell {0, 4} (a=0 <
     # b=4): a placement of b is honored (the upper-digit test above), a
@@ -1127,7 +1123,7 @@ def test_verdict_given_vs_placement_diverge_on_an_s_cells_upper_digit() -> None:
 
 
 def test_verdict_rejects_an_out_of_domain_placement_on_a_schrodinger_board() -> None:
-    # #155's malformed AC: the digit-range refusal must survive the rewrite
+    # The digit-range refusal must survive the rewrite
     # to d ∈ content, on a board that actually has the schrodinger layer
     # (9 is outside 0-4) — not just the pre-existing non-schrodinger case.
     puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
@@ -1149,7 +1145,7 @@ def test_verdict_rejects_a_half_s_cell_digit_outside_the_boards_values() -> None
 
 
 def test_verdict_honors_a_placement_landing_on_an_s_cells_upper_digit() -> None:
-    # Issue #155: a placement refines to d ∈ content on a Schrödinger board,
+    # A placement refines to d ∈ content on a Schrödinger board,
     # so it survives landing on the *upper* slot of a forced S-cell — not
     # just d0. Force R1C1 to the S-cell {0, 4} (d0=0, d1=4), then place the
     # upper digit 4: a literal d0 == 4 would break this, a bare placement

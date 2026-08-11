@@ -1,7 +1,7 @@
-"""pair-difference behaviour, tested at two seams (issue #129, spec #127).
+"""pair-difference behaviour, tested at two seams.
 
 Mirrors `pair_sum_test.py`: verdict-seam behaviour (a clue's effect on the
-completion) plus the direct rule readback (issue #100), the one claim a solve
+completion) plus the direct rule readback, the one claim a solve
 cannot make on its own — that a clue emitted its *own* rule rather than being
 satisfied by accident.
 """

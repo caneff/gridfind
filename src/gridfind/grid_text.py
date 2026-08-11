@@ -1,13 +1,13 @@
 """GridText: the bordered text format shared by `Witness.render()`
 (`witness.py`) and `witness_validator`'s parser.
 
-Before this module, the shape — "N+1 border lines interleave with N cell
-lines, one token per cell, starting and ending on a border line" — lived
+Without this module, the shape — "N+1 border lines interleave with N cell
+lines, one token per cell, starting and ending on a border line" — would live
 twice: once as `Witness.render()`'s loop structure, once as
 `witness_validator._parse_grid`'s re-derivation of the same layout. Nothing
-named the two as one contract, so a layout change to `render()` could drift
-out from under the validator's assumptions with no test to catch it. This
-module is that contract's one home: both sides cite it instead of each
+would name the two as one contract, so a layout change to `render()` could
+drift out from under the validator's assumptions with no test to catch it.
+This module is that contract's one home: both sides cite it instead of each
 re-deriving it.
 
 Neither renderer nor validator import each other — the

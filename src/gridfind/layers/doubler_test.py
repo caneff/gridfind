@@ -1,5 +1,5 @@
-"""The `doubler` layer: the concrete `{type: doubler}` modifier (issue #237,
-spec #232 decision #222). Composes `ModifierPlacement` unchanged — these
+"""The `doubler` layer: the concrete `{type: doubler}` modifier. Composes
+`ModifierPlacement` unchanged — these
 tests pin `is_modifier` and read digits directly, exactly the way
 `modifier_test.py` does, plus the one thing doubler adds: the model-level
 `"modifier_value"` fold (`2·d0` when discovered, `d0` otherwise).

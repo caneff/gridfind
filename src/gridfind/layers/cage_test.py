@@ -1,17 +1,17 @@
-"""cage behaviour, tested at two seams (issue #157, spec #156 decision #150).
+"""cage behaviour, tested at two seams.
 
 A cage names a set of cells and forbids repeats among them, adding no cover
 pressure — unlike a region, it need not use every domain digit and never
-forces a cell to become an S-cell. Structured like `pair-sum` (issue #66): one
+forces a cell to become an S-cell. Structured like `pair-sum`: one
 stateless layer loops every `cage` constraint via `constraints_of` and emits
 one no-repeats rule per clue.
 
 Most of it is behaviour at the top seam — `verdict` — mirroring
 `pair_sum_test.py`: a clue's effect on the completion. The rules the layer
-emits are also read back directly (issue #100), and the cross-slot repeat a
+emits are also read back directly, and the cross-slot repeat a
 Schrödinger-widened cage must catch is pinned directly the way
 `schrodinger_test.py` does, since gridfind has no setter-facing S-cell pin
-yet (#142).
+yet.
 """
 
 from typing import cast
@@ -76,7 +76,7 @@ def test_cage_emits_one_all_different_rule_per_clue(
 
 
 def test_no_cage_constraint_emits_nothing() -> None:
-    # No-regression: a stack that never sees a `cage` clue adds no rule.
+    # A stack that never sees a `cage` clue adds no rule.
     engine = build_engine([GridCells(), Cage()], board=BOARD)
 
     assert all_different_groups(engine) == []
@@ -236,7 +236,7 @@ def test_a_cage_holding_a_proper_subset_of_the_domain_is_found() -> None:
     assert len(set(digits)) == len(digits)
 
 
-# --- killer sum (issue #196) -----------------------------------------------
+# --- killer sum ------------------------------------------------------------
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-"""pair-ratio behaviour (black kropki, spec #195, issue #226), tested at the
+"""pair-ratio behaviour (black kropki), tested at the
 same two seams as `pair_difference_test.py`: verdict-seam behaviour (a clue's
 effect on the completion) plus the direct rule readback — the one claim a
 solve cannot make on its own, that a clue emitted its *own* reified either-or

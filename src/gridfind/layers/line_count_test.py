@@ -1,7 +1,7 @@
 """The `line-count-distinct` layer: its rule, and its dependency contract.
 
 The rule — row *n* holds exactly *n* distinct digits — is read back here from
-the rules the layer emits (issue #100). It is also proved end to end through
+the rules the layer emits. It is also proved end to end through
 `verdict` in `verdict_test.py`, against a returned completion; the two are
 different claims. This one says the layer states the right target for every
 row, including rows a satisfiable witness would have satisfied by accident.

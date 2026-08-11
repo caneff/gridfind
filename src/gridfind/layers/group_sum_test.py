@@ -1,4 +1,4 @@
-"""group-sum behaviour, tested at two seams (issue #241, spec #240).
+"""group-sum behaviour, tested at two seams.
 
 group-sum is purely additive: an N-ary sum reduction over a named set of
 cells, S-blind, carrying no implied uniqueness. `pair-sum` and `cage` are
@@ -7,10 +7,10 @@ untouched here — this only proves the new layer's own behaviour, mirroring
 
 Most of it is behaviour at the top seam — `verdict`: a clue's effect on the
 completion, including the bare-repeat and S-cell-raise cases the spec calls
-out by name. The rule the layer emits is also read back directly (issue
-#100), the one claim a solve cannot make: that a clue emitted its *own* rule
-rather than being satisfied by accident, and that no `add_all_different`
-rides along with it.
+out by name. The rule the layer emits is also read back directly, the one
+claim a solve cannot make: that a clue emitted its *own* rule rather than
+being satisfied by accident, and that no `add_all_different` rides along
+with it.
 """
 
 from __future__ import annotations
@@ -160,8 +160,8 @@ def test_a_group_sum_over_a_widened_cell_raises_not_schrodinger_ready() -> None:
 
 
 def test_a_plain_sudoku_with_no_group_sum_clue_is_unaffected() -> None:
-    # No-regression: a stack that never sees a group-sum clue adds no rule,
-    # and an ordinary sudoku still resolves as before.
+    # A stack that never sees a group-sum clue adds no rule, and an ordinary
+    # sudoku still resolves fully.
     puzzle = Puzzle(board=BOARD, constraints=(Constraint(type="sudoku"),))
 
     result = verdict(puzzle)

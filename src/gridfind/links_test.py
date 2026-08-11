@@ -1,5 +1,5 @@
 """On-demand E2E suite: real SudokuMaker links driven through `cli.main`, the
-CLI front door (spec #185, issue #186).
+CLI front door.
 
 Each case file under `links/` holds the argv `cli.main` receives: any flag
 lines, then the link, one per line. Links are URL-encoded and carry no
@@ -75,8 +75,7 @@ def test_link_case_matches_its_filename_verdict(
 # Wire types 0 (givens) and 1 (regions) are excluded from the one-to-one
 # DECODER_REGISTRY loop below: 0 names no variant of its own, and 1 is shared
 # by two variants (classic vs jigsaw, told apart by regions shape, not wire
-# type) — both handled by the explicit list beside it instead (ADR-0007,
-# spec #244).
+# type) — both handled by the explicit list beside it instead (ADR-0007).
 _NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
 
 # The link-reachable variants that don't map one-to-one onto a DECODER_REGISTRY
@@ -137,7 +136,7 @@ def _variant_tags(argv: list[str]) -> set[int | str]:
 
 @pytest.mark.e2e
 def test_coverage_floor_every_link_reachable_variant_has_found_and_broke() -> None:
-    """The gate from spec #244/T4: every link-reachable variant — the
+    """The gate: every link-reachable variant — the
     one-to-one DECODER_REGISTRY wire types (driven off the registry itself,
     never hand-listed) plus the explicit classic/jigsaw/schrodinger cases —
     owes a `found-*` and a `broke-*` file under `links/`. Adding a new

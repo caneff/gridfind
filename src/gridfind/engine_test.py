@@ -24,8 +24,8 @@ BOARD = Board(size=9)
 
 
 def test_malformed_puzzle_refusals_answer_to_the_base_refusal_handler() -> None:
-    # A tripwire like the one below, not a behavior test: #101, #102 and #107
-    # all raise this error, and callers catch the whole family with one
+    # A tripwire like the one below, not a behavior test: several call sites
+    # raise this error, and callers catch the whole family with one
     # `except GridfindError`. Re-parenting it would silently stop those
     # handlers firing, so the parent is pinned here. See the class docstring
     # for why the error exists.
@@ -37,7 +37,7 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
     # changing this list is a public API change. Downstream agents type-check
     # against the engine->layer contract via py.typed, so editing `__all__`
     # must be a deliberate act with this expectation updated alongside it.
-    # (Issue #28 / ADR-0001: the contract's named vocabulary.)
+    # (ADR-0001: the contract's named vocabulary.)
     assert gridfind.engine.__all__ == [
         "Cell",
         "Engine",
@@ -55,7 +55,7 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
 @dataclass
 class _FakeLayer:
     """A minimal stand-in layer, used only to exercise the build's generic
-    dependency-refusal mechanism (spec #4, decision 10)."""
+    dependency-refusal mechanism (decision 10)."""
 
     name: str
     depends_on: tuple[str, ...] = ()
@@ -99,7 +99,7 @@ def test_build_satisfies_a_dependency_regardless_of_stack_order(
 @dataclass
 class _Constraint:
     """A test-only puzzle constraint: the open `Constraint` shape without
-    the coupling (the engine knows no puzzle concepts, spec #4 decision 31)."""
+    the coupling (the engine knows no puzzle concepts, decision 31)."""
 
     type: str
     params: dict[str, object] = field(default_factory=dict)
@@ -107,7 +107,7 @@ class _Constraint:
 
 @dataclass
 class _CageLayer:
-    """A test-only data-bearing layer (issue #65): one stateless instance
+    """A test-only data-bearing layer: one stateless instance
     pulls every constraint of its type and emits a sum-rule per constraint,
     proving a layer's `params` reach the code that turns them into rules.
 

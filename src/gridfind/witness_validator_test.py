@@ -1,8 +1,8 @@
-"""Unit coverage for `validate_witness`'s own boundary (issue #186, extended
-#187): a known-good rendered grid passes, and the same grid with a duplicate
-digit punched into its first row fails — proving the validator actually
-checks rather than just parsing. Extended to a Schrödinger board (#187) to
-pin the S-cell pair `{a b}` branch of the permutation check the same way."""
+"""Unit coverage for `validate_witness`'s own boundary: a known-good rendered
+grid passes, and the same grid with a duplicate digit punched into its first
+row fails — proving the validator actually checks rather than just parsing.
+Extended to a Schrödinger board to pin the S-cell pair `{a b}` branch of the
+permutation check the same way."""
 
 import json
 import re
@@ -25,12 +25,12 @@ SCHRODINGER_PUZZLE = Puzzle(
     ),
 )
 
-# A hand-built jigsaw partition (issue #123's params["regions"]), the shape
+# A hand-built jigsaw partition (params["regions"]), the shape
 # region_map_for_constraints' other branch resolves. Shared with
 # verdict_test.py via conftest.py: it must be a genuine tetromino shape, not
 # the box default FOUND_4X4_DOC and SCHRODINGER_PUZZLE both exercise, or a
 # render/validate path that silently fell back to box tiling would still
-# round-trip clean (issue #207 review finding).
+# round-trip clean.
 JIGSAW_PUZZLE = Puzzle(
     board=Board(size=4),
     constraints=(
@@ -41,7 +41,7 @@ JIGSAW_PUZZLE = Puzzle(
 )
 
 # No regions-distinct constraint at all — the render path's one-whole-board
-# fallback vs. the validator's skip-the-check branch (issue #207).
+# fallback vs. the validator's skip-the-check branch.
 LATIN_SQUARE_PUZZLE = Puzzle(
     board=Board(size=4),
     constraints=(Constraint(type="rows-distinct"), Constraint(type="cols-distinct")),
@@ -105,7 +105,7 @@ def test_validate_witness_rejects_a_schrodinger_grid_that_violates_the_reading()
 
 
 def test_validate_witness_round_trips_a_jigsaw_partition() -> None:
-    # Issue #207: the render path and validate_witness both cross
+    # The render path and validate_witness both cross
     # region_map_for_constraints. A jigsaw regions-distinct constraint
     # (params["regions"], not the box default) proves they still resolve the
     # identical partition, not just the bare box case the other tests cover.
@@ -119,7 +119,7 @@ def test_validate_witness_round_trips_a_jigsaw_partition() -> None:
 def test_validate_witness_round_trips_a_board_with_no_regions_constraint() -> None:
     # With no regions-distinct constraint at all, the render path falls back
     # to one whole-board region for its box-line drawing while the validator
-    # skips the region check entirely (issue #207) — both sides of that same
+    # skips the region check entirely — both sides of that same
     # no-regions fallback must still agree the grid is legal.
     result = verdict(LATIN_SQUARE_PUZZLE)
     assert result.kind == "found"
@@ -131,7 +131,7 @@ def test_validate_witness_round_trips_a_board_with_no_regions_constraint() -> No
 def test_validate_witness_rejects_a_grid_missing_a_border_line() -> None:
     # A layout drift in Witness.render() that drops a line (e.g. a border
     # line lost off the end) must be caught against grid_text.py's named
-    # line-count contract (issue #210) rather than silently reparsed as a
+    # line-count contract rather than silently reparsed as a
     # shorter, still-legal-looking grid.
     puzzle, state = _build(FOUND_4X4_DOC)
     result = verdict(puzzle, state)
@@ -146,7 +146,7 @@ def test_validate_witness_rejects_a_grid_missing_a_border_line() -> None:
 def test_validate_witness_rejects_a_cell_line_carrying_an_extra_token() -> None:
     # A layout drift that puts an extra cell token on a row line (e.g. a
     # stray digit from a mis-widened column) violates grid_text.py's "size
-    # tokens per cell line" contract (issue #210) — caught as a shape
+    # tokens per cell line" contract — caught as a shape
     # mismatch, not silently accepted as one of the row's real cells.
     puzzle, state = _build(FOUND_4X4_DOC)
     result = verdict(puzzle, state)
