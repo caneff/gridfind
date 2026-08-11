@@ -313,6 +313,30 @@ forces a cell to become an S-cell.
 
 ---
 
+## `group-sum` layer
+
+Sum as an N-ary reduction (issue #241, spec #240): a clue names any number of
+cells (N >= 2, two is just its smallest case) and a target; the layer sums
+their content to it, one rule per clue. Structured like `pair-sum` and the
+killer-sum half of `cage` (a clue-looping layer pulling every `group-sum`
+constraint via the dispatch), emitting only the total — never an
+`add_all_different`, so a bare group-sum carries no implied uniqueness: a
+target of 10 over a non-house pair may be met as 5+5. Where a setter wants
+distinctness too, it composes alongside this layer rather than folding into
+it. S-blind by decision, matching the cage's killer sum: reads the singular
+`content()` seam and raises "not Schrödinger-ready yet" over a named S-cell
+rather than guessing which of its two digits counts.
+
+- **group-sum** — the constraint and the rule it emits: `{type: group-sum,
+  cells: [...], sum}`.
+
+This is purely additive: `pair-sum` and `cage` are unchanged, each still its
+own canonical type. `pair-sum` folding into `group-sum` as an XV-only alias,
+and a killer cage recomposing as `group-sum` + uniqueness, are separate,
+later changes (spec #240).
+
+---
+
 ## `quad-rank` layer
 
 Terms carried over from the quad-rank effort, re-rooted onto the layer model. A
