@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Literal, Protocol, cast
 
 from ortools.sat.python import cp_model
 
@@ -35,13 +35,21 @@ from ortools.sat.python import cp_model
 __all__ = [
     "Cell",
     "Engine",
+    "Fold",
     "GridfindError",
     "Layer",
     "MalformedPuzzleError",
     "MissingDependencyError",
+    "ValueElement",
     "build_engine",
     "sole",
 ]
+
+Fold = Literal["sum", "positional"]
+"""A named reduction over a cell's value-elements (spec #232, #216): `sum`
+adds them; `positional` reads them base-10 with the first element (`d0`)
+most-significant. The starter fold library — `keep-pair` is deferred until
+renban lands."""
 
 
 class GridfindError(Exception):
@@ -74,6 +82,22 @@ class Cell:
 
     address: str
     content: list[cp_model.IntVar]
+
+
+@dataclass(frozen=True)
+class ValueElement:
+    """One affine term `a·x + b` over a single content slot — the value
+    seam's atom (spec #232, #217). A cell's value is an ordered sequence of
+    these, one per content slot; the identity element (default) reads a
+    slot's digit back unchanged, so an unmodified cell's value is `[digit]`.
+    A doubler maps every element to `ValueElement(a=2)` (future issue #237);
+    affine-only by decision — a cipher/lookup value is out of scope."""
+
+    a: int = 1
+    b: int = 0
+
+    def apply(self, digit: int) -> int:
+        return self.a * digit + self.b
 
 
 class Constraint(Protocol):
@@ -188,6 +212,43 @@ class Engine:
         the cell's real digit and nothing about its S-cell axis takes d0
         whatever the width. A width-1 cell's d0 is its only slot."""
         return self._cell(address).content[0]
+
+    def elements(self, address: str) -> list[ValueElement]:
+        """A cell's value-elements, one per content slot (spec #232, #217).
+        Default is the identity element per slot — an unmodified cell's value
+        is `[digit]` (width 1) or `[d0, d1]` (a widened S-cell) — unless a
+        modifier layer has registered this address's coefficients under the
+        `"value_elements"` structure (a doubler's `x2`, future issue #237),
+        the structure-registry channel every other late-bound fact rides
+        (ADR-0004)."""
+        overrides = cast(
+            "dict[str, list[ValueElement]]", self.structures.get("value_elements", {})
+        )
+        width = len(self._cell(address).content)
+        return overrides.get(address, [ValueElement() for _ in range(width)])
+
+    def folded_value(self, solver: cp_model.CpSolver, address: str, fold: Fold) -> int:
+        """The one folding-read (spec #232, #216): a cell's value-elements,
+        applied to its placed digits and reduced under a named `fold`. A
+        width-1 cell with no registered elements collapses byte-identical to
+        `value` — its one identity element folds to the digit itself under
+        either fold, so a puzzle with no Schrödinger or modifier layer keeps
+        today's verdict."""
+        terms = [
+            element.apply(digit)
+            for element, digit in zip(
+                self.elements(address), self.values(solver, address), strict=True
+            )
+        ]
+        if fold == "sum":
+            return sum(terms)
+        if fold == "positional":
+            result = 0
+            for term in terms:
+                result = result * 10 + term
+            return result
+        msg = f"unknown fold {fold!r}"
+        raise GridfindError(msg)
 
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its

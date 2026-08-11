@@ -2,15 +2,19 @@ from dataclasses import dataclass, field
 from typing import cast
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 from ortools.sat.python import cp_model
 
 import gridfind.engine
 from gridfind.engine import (
     Engine,
+    Fold,
     GridfindError,
     Layer,
     MalformedPuzzleError,
     MissingDependencyError,
+    ValueElement,
     build_engine,
     sole,
 )
@@ -37,10 +41,12 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
     assert gridfind.engine.__all__ == [
         "Cell",
         "Engine",
+        "Fold",
         "GridfindError",
         "Layer",
         "MalformedPuzzleError",
         "MissingDependencyError",
+        "ValueElement",
         "build_engine",
         "sole",
     ]
@@ -297,3 +303,107 @@ def test_d0_returns_the_first_slot_and_never_raises_on_a_widened_cell() -> None:
 
     assert engine.d0("x") is plain.content[0]
     assert engine.d0("s") is s_cell.content[0]
+
+
+@given(a=st.integers(-5, 5), b=st.integers(-5, 5), digit=st.integers(1, 9))
+def test_value_element_apply_is_the_affine_read(a: int, b: int, digit: int) -> None:
+    assert ValueElement(a=a, b=b).apply(digit) == a * digit + b
+
+
+def test_value_element_default_is_the_identity() -> None:
+    assert ValueElement().apply(7) == 7
+
+
+def test_elements_default_is_one_identity_element_per_content_slot() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("x", low=1, high=9)
+    engine.add_cell("s", low=1, high=9, width=2)
+
+    assert engine.elements("x") == [ValueElement()]
+    assert engine.elements("s") == [ValueElement(), ValueElement()]
+
+
+def test_elements_on_an_off_board_address_raises() -> None:
+    engine = build_engine([], board=BOARD)
+
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
+        engine.elements("nope")
+
+
+def test_elements_reads_a_registered_override_over_the_default() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("x", low=1, high=9)
+    doubled = [ValueElement(a=2)]
+    engine.register_structure("value_elements", {"x": doubled})
+
+    assert engine.elements("x") == doubled
+
+
+@given(digit=st.integers(1, 9), fold=st.sampled_from(["sum", "positional"]))
+def test_folded_value_of_a_singleton_is_byte_identical_to_value(
+    digit: int, fold: Fold
+) -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+    engine.model.add(cell.content[0] == digit)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    folded = engine.folded_value(solver, "x", fold)
+
+    assert folded == engine.value(solver, "x") == digit
+
+
+def test_sum_fold_adds_a_two_element_values_terms() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("s", low=1, high=9, width=2)
+    engine.model.add(cell.content[0] == 3)
+    engine.model.add(cell.content[1] == 5)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.folded_value(solver, "s", "sum") == 8
+
+
+def test_positional_fold_reads_10_times_d0_plus_d1() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("s", low=1, high=9, width=2)
+    engine.model.add(cell.content[0] == 3)
+    engine.model.add(cell.content[1] == 5)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.folded_value(solver, "s", "positional") == 35
+
+
+@given(a=st.integers(-5, 5), b=st.integers(-5, 5), digit=st.integers(1, 9))
+def test_folded_value_folds_a_registered_affine_element(
+    a: int, b: int, digit: int
+) -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+    engine.model.add(cell.content[0] == digit)
+    engine.register_structure("value_elements", {"x": [ValueElement(a=a, b=b)]})
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.folded_value(solver, "x", "sum") == a * digit + b
+
+
+def test_folded_value_on_an_off_board_address_raises() -> None:
+    engine = build_engine([], board=BOARD)
+    solver = cp_model.CpSolver()
+
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
+        engine.folded_value(solver, "nope", "sum")
+
+
+def test_folded_value_raises_on_an_unknown_fold_name() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+    engine.model.add(cell.content[0] == 4)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    with pytest.raises(GridfindError, match="unknown fold"):
+        engine.folded_value(solver, "x", cast("Fold", "product"))
