@@ -246,10 +246,10 @@ def test_a_cage_holding_a_proper_subset_of_the_domain_is_found() -> None:
 
 
 def test_values_distinct_cage_permits_a_value_distinct_from_its_digits() -> None:
-    # R1C1 is forced S with digits {2, 3}: its combined (concat) value is 23.
-    # R1C2 is a singleton at 2. A digits-distinct cage would forbid this (R1C1
-    # holds digit 2 too); a values-distinct cage only cares that no other cell's
-    # value equals 23, so the pair is feasible.
+    # R1C1 is forced S with digits {2, 3}: under the default `sum` combine its
+    # value is 5. R1C2 is a singleton at 2. A digits-distinct cage would forbid
+    # this (R1C1 holds digit 2 too); a values-distinct cage only cares that no
+    # other cell's value equals 5, so the pair is feasible.
     engine = build_engine(
         [GridCells(), Schrodinger(), Cage()],
         (_cage(("R1C1", "R1C2"), distinct_over="value"),),
@@ -269,9 +269,9 @@ def test_values_distinct_cage_permits_a_value_distinct_from_its_digits() -> None
 
 
 def test_values_distinct_cage_forbids_a_repeated_value() -> None:
-    # Both R1C1 and R1C2 are forced S with the same pair {2, 3}: both concat
-    # to 23. A values-distinct cage must reject the repeat even though no
-    # single slot is a digit-for-digit clash.
+    # Both R1C1 and R1C2 are forced S with the same pair {2, 3}: both sum to 5.
+    # A values-distinct cage must reject the repeat even though no single slot
+    # is a digit-for-digit clash.
     engine = build_engine(
         [GridCells(), Schrodinger(), Cage()],
         (_cage(("R1C1", "R1C2"), distinct_over="value"),),
@@ -295,8 +295,9 @@ def test_values_distinct_cage_forbids_a_repeated_value() -> None:
 def test_values_distinct_cage_collides_a_doubled_value_with_an_s_value() -> None:
     # The no-offset decision (ADR-0009 decision 3): a value is a number, so a
     # cell worth 18 through the modifier_value channel (a doubler's 2·9) and one
-    # worth 18 through the s_value channel (an S-cell concatting 1, 8) are the
-    # same value and clash — even though the two came from different channels.
+    # worth 18 through the s_value channel (an S-cell whose two digits combine to
+    # 18) are the same value and clash — even though the two came from different
+    # channels.
     engine = build_engine(
         [], constraints=(_cage(("R1C1", "R1C2"), distinct_over="value"),), board=BOARD
     )

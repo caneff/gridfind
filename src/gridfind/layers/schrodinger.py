@@ -20,7 +20,7 @@ the `"s_value"` channel — its `d0` when a singleton, its two digits combined
 when an S-cell — so a values-distinct reader reads one value, blind to how it
 was built. How the two digits combine (`sum` or `concat`) is the puzzle-wide
 `combine` rule this layer holds; no SudokuMaker link declares it yet, so it
-defaults to `concat`.
+defaults to `sum` — a Schrödinger cell adds its two digits (ADR-0010).
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from gridfind.engine import Combine, Engine, MalformedPuzzleError
 class Schrodinger:
     name: str = "schrodinger"
     depends_on: tuple[str, ...] = ("board",)
-    combine: Combine = "concat"
+    combine: Combine = "sum"
 
     def register(self, engine: Engine) -> None:
         board = engine.board
