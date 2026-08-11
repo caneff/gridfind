@@ -34,7 +34,6 @@ from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
-from gridfind.layers.pair_sum import PairSum
 from gridfind.layers.regions import region_map_for_constraints
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.layers.thermo import Thermo
@@ -57,7 +56,6 @@ LAYER_REGISTRY = {
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
     "regions-distinct": DistinctOverGroups("regions-distinct", regions),
     "line-count-distinct": LineCountDistinct(),
-    "pair-sum": PairSum(),
     "pair-difference": PairRelation("pair-difference", relation=differs_by),
     "pair-ratio": PairRelation("pair-ratio", relation=ratio_of),
     "schrodinger": Schrodinger(),
@@ -79,11 +77,11 @@ PRESET_REGISTRY: dict[str, list[str]] = {
 }
 
 # An **alias** renames one type to another and fixes one param, carrying its
-# own params through. X and V are pair-sum clues whose target is spelled in
+# own params through. X and V are group-sum clues whose target is spelled in
 # the name — an X pair sums to 10, a V to 5.
 ALIAS_REGISTRY: dict[str, tuple[str, dict[str, JsonValue]]] = {
-    "x": ("pair-sum", {"sum": 10}),
-    "v": ("pair-sum", {"sum": 5}),
+    "x": ("group-sum", {"sum": 10}),
+    "v": ("group-sum", {"sum": 5}),
 }
 
 
@@ -91,7 +89,7 @@ def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
     """Expand presets and aliases into canonical constraints — a load-time
     pass that runs before dispatch. A `{type: "sudoku"}` constraint is a
     preset and becomes the three bare distinct constraints; an
-    `{type: "x", cells}` constraint is an alias and becomes a `pair-sum`
+    `{type: "x", cells}` constraint is an alias and becomes a `group-sum`
     carrying its cells and `sum: 10`; every other constraint passes through
     unchanged.
 
@@ -180,8 +178,9 @@ def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
 
     ponytail: keys on constraint `type` only — right for the sudoku family (all
     bare constraints). Data-bearing constraints collide: killer cages on
-    `value`, and now the value seam's affine modifiers (`+N`, coefficients) on
-    their params — two puzzles differing only there compare identical.
+    `value`, group-sum clues (the `x`/`v` aliases included) on `sum`, and now
+    the value seam's affine modifiers (`+N`, coefficients) on their params —
+    two puzzles differing only there compare identical.
     Left alone: the only caller is a pytest-id label in this module's own test
     suite, not a runtime dedup, and folding params in would make that id worse
     (`killercage:24` noise), not better. Discovered modifiers (doubler) declare

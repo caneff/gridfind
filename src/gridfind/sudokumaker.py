@@ -98,9 +98,9 @@ _RED_BIT = 2
 _SCELL_PIN_MARKS = 2
 
 # type 202 is XV: `clues: [{value, edge}], negative:
-# [...]`. `value` selects the existing pair-sum alias — 10 is X, 5 is V
+# [...]`. `value` selects the existing group-sum alias — 10 is X, 5 is V
 # — never a raw `sum`, so a puzzle carrying both an XV clue and
-# a literal pair-sum on the same cells still hits the alias's own
+# a literal group-sum on the same cells still hits the alias's own
 # fixed-param conflict check in `expand_constraints`. Read off
 # `gridfind.layers.ALIAS_REGISTRY` rather than restated here — the
 # sum each alias fixes is stated once, in the registry that also builds it.
@@ -108,7 +108,7 @@ _XV_TYPE = 202
 _XV_ALIASES: dict[int, str] = {
     cast("int", fixed["sum"]): alias
     for alias, (canonical, fixed) in ALIAS_REGISTRY.items()
-    if canonical == "pair-sum" and "sum" in fixed
+    if canonical == "group-sum" and "sum" in fixed
 }
 
 # type 200 is white-kropki: `clues: [{value, edge}],
@@ -126,8 +126,10 @@ _KROPKI_WHITE_TYPE = 200
 _KROPKI_BLACK_TYPE = 201
 
 # type 301 is a killer-cage block: `cages: [{cells, value}]`. A
-# positive `value` is the killer sum, honored by the `cage` layer
-# — 0 is SudokuMaker's own no-sum cage, region-only exactly as `value` absent.
+# positive `value` is the killer sum, decoded onto a `group-sum` alongside the
+# `cage` (no-repeats) constraint, both over the same cells (spec #240) — 0 is
+# SudokuMaker's own no-sum cage, decoding to `cage` alone, exactly as `value`
+# absent.
 _CAGE_TYPE = 301
 
 # type 2001 is a cosmetic-cage block: `{value: str, cells: [...]}`, one cage
@@ -471,7 +473,7 @@ def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
 
 
 def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
-    """The `type 202` XV clues as aliased pair-sum `Constraint`s: each clue's `value`
+    """The `type 202` XV clues as aliased group-sum `Constraint`s: each clue's `value`
     selects the existing `x`/`v` alias (10/5) and
     its `edge` decodes to the adjacent cell pair via `_edge_to_pair`. A
     `disabled` block is skipped entirely; a non-empty `negative` list is
@@ -539,24 +541,25 @@ def _black_kropki_constraints(
 
 
 def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
-    """The `type 301` killer cages as `cage` `Constraint`s (killer sum): each cage's raw
-    `cells` indices map row-major to
-    addresses — the same `i // N`, `i % N` scheme givens use — so `[18, 19]`
-    on a 9-board is R3C1/R3C2. A positive `value` rides through as the `cage`
-    layer's `value` param, which enforces it as the killer sum; `0`
-    (SudokuMaker's own no-sum cage) decodes cells-only, region-only exactly
-    as an absent `value`. A `disabled` block is skipped entirely; an empty
-    `cages` list adds nothing."""
+    """The `type 301` killer cages as `Constraint`s: each cage's raw `cells`
+    indices map row-major to addresses — the same `i // N`, `i % N` scheme
+    givens use — so `[18, 19]` on a 9-board is R3C1/R3C2. Every cage decodes
+    to a no-repeats `cage` constraint; a positive `value` additionally
+    decodes a `group-sum` over the same cells carrying that total as its
+    `sum` param (spec #240) — `0` (SudokuMaker's own no-sum cage) decodes to
+    `cage` alone, exactly as an absent `value`. A `disabled` block is skipped
+    entirely; an empty `cages` list adds nothing."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         for cage in cages:
             cells = [cell_address(i // size + 1, i % size + 1) for i in cage["cells"]]
-            params: dict[str, object] = {"cells": cells}
+            decoded.append(Constraint("cage", params={"cells": cells}))
             value = cage.get("value", 0)
             if value > 0:
-                params["value"] = value
-            decoded.append(Constraint("cage", params=params))
+                decoded.append(
+                    Constraint("group-sum", params={"cells": cells, "sum": value})
+                )
     return decoded
 
 
@@ -578,10 +581,11 @@ def _cosmetic_cage_killer_sum(block: dict[Any, Any]) -> int | None:
 def _cosmetic_cage_constraints(
     puzzle_data: dict[str, object], size: int
 ) -> list[Constraint]:
-    """The `type 2001` cosmetic-cage blocks graduated to `cage` `Constraint`s
-    (ADR-0008): each block's raw `cells` indices map row-major to addresses,
-    same as `type 301`. A numeric string `value` is the killer sum, honored
-    onto the `cage` layer's `value` param. A non-numeric or empty `value`
+    """The `type 2001` cosmetic-cage blocks graduated to killer-cage
+    `Constraint`s (ADR-0008): each block's raw `cells` indices map row-major
+    to addresses, same as `type 301`. A numeric string `value` is the killer
+    sum, decoded to a no-repeats `cage` plus a `group-sum` carrying that
+    total over the same cells (spec #240). A non-numeric or empty `value`
     names a genuinely decorative cage — it drops inert, adding nothing. A
     `disabled` block is skipped entirely."""
     decoded: list[Constraint] = []
@@ -591,7 +595,10 @@ def _cosmetic_cage_constraints(
             continue
         cells = cast("list[int]", block.get("cells", []))
         addresses = [cell_address(i // size + 1, i % size + 1) for i in cells]
-        decoded.append(Constraint("cage", params={"cells": addresses, "value": total}))
+        decoded.append(Constraint("cage", params={"cells": addresses}))
+        decoded.append(
+            Constraint("group-sum", params={"cells": addresses, "sum": total})
+        )
     return decoded
 
 

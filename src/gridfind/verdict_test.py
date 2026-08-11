@@ -698,6 +698,78 @@ def test_quattroquadri_breaks_on_a_digit_repeated_within_one_box() -> None:
     )
 
 
+def _killer_cage(cells: tuple[str, ...], total: int) -> tuple[Constraint, Constraint]:
+    """A killer cage's recomposition (spec #240): a no-repeats `cage` plus the
+    total as a `group-sum`, both over the same cells."""
+    return (
+        Constraint(type="cage", params={"cells": list(cells)}),
+        Constraint(type="group-sum", params={"cells": list(cells), "sum": total}),
+    )
+
+
+def test_killer_cage_satisfiable_resolves_found() -> None:
+    cells = ("R1C1", "R1C2", "R1C3")
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_killer_cage(cells, 6),
+        givens=(Given(address="R1C1", digit=1),),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    digits = [result.witness[address][0] for address in cells]
+    assert sum(digits) == 6
+    assert len(set(digits)) == len(digits)
+
+
+def test_killer_cage_forced_repeat_resolves_broke() -> None:
+    # 1 + 1 meets the total but repeats a digit — the cage's no-repeats half
+    # breaks it even though the sum alone would be satisfied, proving the
+    # two composed rules both bind.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_killer_cage(("R1C1", "R1C2"), 2),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=1)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_killer_cage_unreachable_total_resolves_broke() -> None:
+    # Two distinct 1-9 digits reach at most 17; 30 is unreachable.
+    puzzle = Puzzle(board=BOARD, constraints=_killer_cage(("R1C1", "R1C2"), 30))
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_killer_cage_sum_over_an_s_cell_reads_the_value_seam() -> None:
+    # A killer cage on a Schrödinger board no longer refuses: its group-sum
+    # half reads each cell's value through `value_expr`, so an S-cell folds in
+    # as its `s_value` rather than raising "not Schrödinger-ready". The cage
+    # completes (the value-seam reading proven discriminatingly at the
+    # `group-sum` engine seam).
+    puzzle = Puzzle(
+        board=Board(size=4, values=range(5)),
+        constraints=(
+            Constraint(type="schrodinger"),
+            *_killer_cage(("R1C1", "R1C2"), 3),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+
+
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
     # A contradiction unrelated to region sizing (two conflicting givens on
     # one cell) must not get blamed on a region that is well within the
@@ -1190,14 +1262,14 @@ def test_verdict_found_witness_reports_every_discovered_doubler_as_doubler() -> 
 
 
 def test_verdict_found_witness_names_the_cell_a_sum_forces_to_discover() -> None:
-    # 19 exceeds the max of two plain 1-9 digits (18), so the pair-sum clue
+    # 19 exceeds the max of two plain 1-9 digits (18), so the group-sum clue
     # is only reachable by discovering a doubler in R1C1 or R1C2 (mirrors
-    # pair_sum_test.py's engine-seam version of this same forcing).
+    # group_sum_test.py's engine-seam version of this same forcing).
     puzzle = Puzzle(
         board=BOARD,
         constraints=(
             Constraint(type="doubler"),
-            Constraint(type="pair-sum", params={"cells": ["R1C1", "R1C2"], "sum": 19}),
+            Constraint(type="group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 19}),
         ),
     )
 
@@ -1212,7 +1284,7 @@ def test_verdict_found_witness_names_the_cell_a_sum_forces_to_discover() -> None
 
 def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None:
     # A given writes d0 = 5 (never the value); 15 is only reachable if that
-    # digit is discovered as a doubler and read as 10 by the pair-sum, so
+    # digit is discovered as a doubler and read as 10 by the group-sum, so
     # R1C2 must land on 5 (10 + 5), not 10 (5 + 10 is off the board anyway).
     # This proves the clue read the *derived* value while the given kept the
     # witness's own digit untouched (spec #232 decision #218).
@@ -1220,7 +1292,7 @@ def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None
         board=BOARD,
         constraints=(
             Constraint(type="doubler"),
-            Constraint(type="pair-sum", params={"cells": ["R1C1", "R1C2"], "sum": 15}),
+            Constraint(type="group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 15}),
         ),
         givens=(Given(address="R1C1", digit=5),),
     )

@@ -83,13 +83,17 @@ Four words name four levels, told apart by how many of each there are: one
 handled by one **layer**.
 
 - **variant** — a rule family: XV, killer, thermo, Schrödinger. What a setter
-  names when they say what kind of puzzle this is. One variant is served by one
-  layer.
+  names when they say what kind of puzzle this is. Usually one variant is
+  served by one layer; killer is the exception, composing two orthogonal
+  capabilities — `cage` (uniqueness) and `group-sum` (the total) — rather than
+  bundling them into one (spec #240).
 
-- **constraint** — one typed statement in a puzzle: a killer cage with its cells
-  and its sum, an X clue naming its pair, or a bare `sudoku` naming a family that
+- **constraint** — one typed statement in a puzzle: a killer cage's cells named
+  to a `cage` constraint and, separately, to a `group-sum` constraint carrying
+  its total; an X clue naming its pair; or a bare `sudoku` naming a family that
   carries no data of its own. The level a setter writes and gridfind serializes.
-  Many constraints per variant — two X clues are two constraints of one variant.
+  Many constraints per variant — two X clues are two constraints of one variant,
+  and a killer cage is itself two constraints over the same cells.
 
 - **rule** — one atomic relation a layer emits over cell content (an AllDifferent,
   a sum, an equality). Many rules per constraint. _Constraint_ is retired at
@@ -177,7 +181,7 @@ handled by one **layer**.
   is a preset: it expands to the three basic distinct rules.
 
 - **alias** — a second spelling of one constraint type, expanding to the
-  canonical type with a param already fixed: an **X clue** is a `pair-sum` of
+  canonical type with a param already fixed: an **X clue** is a `group-sum` of
   10. A preset makes many constraints out of one; an alias makes one out of
   one. Both expand at load, before any layer sees them.
 
@@ -213,34 +217,18 @@ directives on top; a header line declares the active layer stack.
 
 ---
 
-## `pair-sum` layer
-
-The first real data-bearing variant (issue #66), and the pattern later variants
-copy. A clue names a **pair** and a target; the layer sums the pair's content to
-it, one rule per clue. Explicit-pair and positive-only — it sums the named pair
-without asking whether it is a **domino**, and constrains only marked pairs (the
-negative rule against *unmarked* adjacent pairs is out of scope).
-
-- **pair-sum** — the constraint and the rule it emits:
-  `{type: pair-sum, cells: [a, b], sum}`. The canonical form every XV clue
-  expands to.
-- **XV** — the setter-facing variant, two **aliases** of a pair-sum whose
-  target is named rather than written: an **X clue** is a pair-sum of 10, a
-  **V clue** a pair-sum of 5.
-
----
-
 ## `pair-difference` layer
 
 The second explicit-pair variant (issue #129, spec #127), landing beside the
-`emit_over_pairs` extraction (#42 decision 5, #128) that lets it and `pair-sum`
-share one emit pattern. A clue names a **pair** and a target `k`; the layer
+`emit_over_pairs` extraction (#42 decision 5, #128) that its own relation
+shares with `pair-ratio` (both via `PairRelation`) and `thermo`'s
+consecutive-pair walk. A clue names a **pair** and a target `k`; the layer
 constrains the pair's content to differ, in absolute value, by exactly `k`,
-one rule per clue. Explicit-pair, positive-only, and absolute — like pair-sum
-it never asks whether the pair is a **domino** and constrains only marked
-pairs, and either cell may hold the larger value (no directed `a - b = k`
-form). No setter-facing alias in this change; kropki-white / consecutive
-(`k = 1`) can alias later.
+one rule per clue. Explicit-pair, positive-only, and absolute — like
+`group-sum`'s two-cell case it never asks whether the pair is a **domino**
+and constrains only marked pairs, and either cell may hold the larger value
+(no directed `a - b = k` form). No setter-facing alias in this change;
+kropki-white / consecutive (`k = 1`) can alias later.
 
 - **pair-difference** — the constraint and the rule it emits:
   `{type: pair-difference, cells: [a, b], diff: k}`.
@@ -307,7 +295,7 @@ about what the puzzle says, not about whether the file parses.
 
 The no-repeats-only sibling of a region (issue #157, spec #156 decision
 #150): a clue names a set of cells and the layer forbids a digit repeat among
-them, adding no cover pressure. Structured like `pair-sum` (a clue-looping
+them, adding no cover pressure. Structured like `group-sum` (a clue-looping
 layer pulling every `cage` constraint via the dispatch), not like the
 partition-driven `regions-distinct` — no shared base with it. Unlike a
 region, a cage need not use every domain digit: a 7-cell cage on a 9-digit
@@ -329,17 +317,21 @@ forces a cell to become an S-cell.
   an **S-cell**'s is its `s_value` (its two digits under the **combine** rule).
   Two cells clash whenever those values are the same number — a doubler worth 18
   and an S-cell reading 18 collide, since a value is just a number. On a plain puzzle
-  every value is a digit, so values-distinct reduces to digits-distinct. A cage's
-  killer **sum** is unaffected by the mode — it always folds modifiers
-  (ADR-0008); only the no-repeats half answers to `distinct-over`.
+  every value is a digit, so values-distinct reduces to digits-distinct.
+
+- **killer cage** — a `cage` (no-repeats) composed with a `group-sum` (the
+  total) over the same cells, not one bundled layer (spec #240). The two
+  capabilities carry their own Schrödinger semantics: the cage's no-repeats
+  half is S-ready, the sum is S-blind — "not Schrödinger-ready yet" over a
+  named S-cell comes from `group-sum`, never the cage.
 
 - **cosmetic cage** — a cage a setter draws for display, carrying its sum as a
   label rather than as an enforced killer constraint. SudokuMaker forces one
   whenever a killer sum runs out of standard-digit range — the case a **doubler**
   inside a cage creates — because its killer tool refuses to store that sum.
-  gridfind reads a cosmetic cage whose label is a number **as a killer cage**; it
-  is the only channel an out-of-range sum arrives through (ADR-0008). A cage
-  whose label is non-numeric stays inert.
+  gridfind reads a cosmetic cage whose label is a number **as a killer cage**
+  (a `cage` plus a `group-sum`); it is the only channel an out-of-range sum
+  arrives through (ADR-0008). A cage whose label is non-numeric stays inert.
 
 ---
 
@@ -347,23 +339,25 @@ forces a cell to become an S-cell.
 
 Sum as an N-ary reduction (issue #241, spec #240): a clue names any number of
 cells (N >= 2, two is just its smallest case) and a target; the layer sums
-their content to it, one rule per clue. Structured like `pair-sum` and the
-killer-sum half of `cage` (a clue-looping layer pulling every `group-sum`
-constraint via the dispatch), emitting only the total — never an
-`add_all_different`, so a bare group-sum carries no implied uniqueness: a
-target of 10 over a non-house pair may be met as 5+5. Where a setter wants
-distinctness too, it composes alongside this layer rather than folding into
-it. S-blind by decision, matching the cage's killer sum: reads the singular
+their content to it, one rule per clue. A clue-looping layer structured like
+`cage` (pulling every `group-sum` constraint via the dispatch), emitting
+only the total — never an `add_all_different`, so a bare group-sum carries
+no implied uniqueness: a target of 10 over a non-house pair may be met as
+5+5. Where a setter wants distinctness too, it composes alongside this layer
+rather than folding into it. S-blind by decision: reads the singular
 `content()` seam and raises "not Schrödinger-ready yet" over a named S-cell
-rather than guessing which of its two digits counts.
+rather than guessing which of its two digits counts. Its arithmetic still
+reads a modifier cell's `modifier_value` in place of the raw digit, so a
+discovered doubler folds into the total.
 
 - **group-sum** — the constraint and the rule it emits: `{type: group-sum,
-  cells: [...], sum}`.
+  cells: [...], sum}`. The canonical form every XV clue expands to.
+- **XV** — the setter-facing variant, two **aliases** of a group-sum whose
+  target is named rather than written: an **X clue** is a group-sum of 10, a
+  **V clue** a group-sum of 5.
 
-This is purely additive: `pair-sum` and `cage` are unchanged, each still its
-own canonical type. `pair-sum` folding into `group-sum` as an XV-only alias,
-and a killer cage recomposing as `group-sum` + uniqueness, are separate,
-later changes (spec #240).
+A **killer cage** recomposes as `group-sum` (the total) + `cage` (uniqueness)
+over the same cells (issue #243, spec #240) — see the `cage` layer section.
 
 ---
 

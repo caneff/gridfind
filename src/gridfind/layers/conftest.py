@@ -168,7 +168,7 @@ def pair_ratio_rules(engine: Engine) -> list[tuple[list[str], int]]:
     ]
 
 
-def pair_sum_rules(engine: Engine) -> list[tuple[list[str], int]]:
+def sum_rules(engine: Engine) -> list[tuple[list[str], int]]:
     """Every sum-over-cells rule, as the addresses it adds up and the total
     they must reach. A sum over cell content is this rule; a counting rule
     sums per-digit markers instead."""

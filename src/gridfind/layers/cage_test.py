@@ -2,22 +2,20 @@
 
 A cage names a set of cells and forbids repeats among them, adding no cover
 pressure — unlike a region, it need not use every domain digit and never
-forces a cell to become an S-cell. Structured like `pair-sum`: one
+forces a cell to become an S-cell. Structured like `group-sum`: one
 stateless layer loops every `cage` constraint via `constraints_of` and emits
 one no-repeats rule per clue.
 
 Most of it is behaviour at the top seam — `verdict` — mirroring
-`pair_sum_test.py`: a clue's effect on the completion. The rules the layer
+`group_sum_test.py`: a clue's effect on the completion. The rules the layer
 emits are also read back directly, and the cross-slot repeat a
 Schrödinger-widened cage must catch is pinned directly the way
 `schrodinger_test.py` does, since gridfind has no setter-facing S-cell pin
 yet.
 
-A killer sum's modifier fold is tested at the engine seam with `doubler` in
-the stack, the same differential shape `pair_sum_test.py` uses: force
-`is_modifier` and check the sum only balances through the fold, force it off
-and check the raw-digit sum is infeasible, and leave it free to prove the
-sum forces discovery on its own.
+A killer cage's total is not this layer's concern — it is a `group-sum`
+composed alongside a `cage`, tested at the two seams `group_sum_test.py`
+covers and, for the composition itself, `verdict_test.py`.
 """
 
 from typing import cast
@@ -34,11 +32,7 @@ from gridfind.engine import (
 from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
-from gridfind.layers.conftest import (
-    all_different_groups,
-    distinct_count_targets,
-    pair_sum_rules,
-)
+from gridfind.layers.conftest import all_different_groups, distinct_count_targets
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
@@ -49,14 +43,11 @@ BOARD = Board(size=9)
 def _cage(
     cells: tuple[str, ...],
     name: str | None = None,
-    value: int | None = None,
     distinct_over: str | None = None,
 ) -> Constraint:
     params: dict[str, object] = {"cells": list(cells)}
     if name is not None:
         params["name"] = name
-    if value is not None:
-        params["value"] = value
     if distinct_over is not None:
         params["distinct-over"] = distinct_over
     return Constraint(type="cage", params=params)
@@ -249,209 +240,6 @@ def test_a_cage_holding_a_proper_subset_of_the_domain_is_found() -> None:
     assert result.witness is not None
     digits = [result.witness[address][0] for address in cells]
     assert len(set(digits)) == len(digits)
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [(5, [(["R1C1", "R1C2"], 5)]), (0, []), (None, [])],
-    ids=[
-        "positive value emits a sum rule",
-        "zero is region-only",
-        "absent is region-only",
-    ],
-)
-def test_a_cage_sum_rule_is_emitted_only_for_a_positive_value(
-    value: int | None, expected: list[tuple[list[str], int]]
-) -> None:
-    puzzle = Puzzle(board=BOARD, constraints=(_cage(("R1C1", "R1C2"), value=value),))
-    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
-    engine = build_engine(layers, tuple(canonical), board=BOARD)
-
-    assert pair_sum_rules(engine) == expected
-
-
-def test_a_cage_sum_still_emits_its_no_repeats_rule() -> None:
-    # The sum is additional, not a replacement — the cage's cells must still
-    # be pairwise distinct.
-    puzzle = Puzzle(board=BOARD, constraints=(_cage(("R1C1", "R1C2"), value=5),))
-    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
-    engine = build_engine(layers, tuple(canonical), board=BOARD)
-
-    assert all_different_groups(engine) == [["R1C1", "R1C2"]]
-
-
-def test_a_cage_sum_forces_the_witness_to_match_it() -> None:
-    puzzle = Puzzle(
-        board=BOARD,
-        constraints=(_cage(("R1C1", "R1C2"), value=3),),
-        givens=(Given(address="R1C1", digit=1),),
-    )
-
-    result = verdict(puzzle)
-
-    assert result.kind == "found"
-    assert result.witness is not None
-    assert result.witness["R1C2"] == (2,)
-
-
-def test_a_cage_sum_that_cannot_be_met_resolves_broke() -> None:
-    # 1 + 5 already sums to 6, wanting 3 — no completion can satisfy it.
-    puzzle = Puzzle(
-        board=BOARD,
-        constraints=(_cage(("R1C1", "R1C2"), value=3),),
-        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=5)),
-    )
-
-    result = verdict(puzzle)
-
-    assert result.kind == "broke"
-    assert result.witness is None
-
-
-def test_a_cage_sum_reads_an_s_cells_combined_value() -> None:
-    # R1C1 is forced S with digits {1, 2}: its value is the two combined under
-    # the puzzle's `combine` rule — concat by default, so 12, not the digit sum
-    # 3. R1C2 is a singleton at 3. The cage total balances only at the combined
-    # value: 12 + 3 == 15. Digits {1, 2} (not {0, 1}) make concat differ from
-    # the digit sum, so this proves the seam, not a coincidence.
-    engine = build_engine(
-        [GridCells(), Schrodinger(), Cage()],
-        (_cage(("R1C1", "R1C2"), value=15),),
-        board=Board(size=4, values=range(5)),
-    )
-    is_s = _is_s(engine)
-    r1c1 = engine.contents("R1C1")
-    engine.model.add(is_s["R1C1"] == 1)
-    engine.model.add(r1c1[0] == 1)
-    engine.model.add(r1c1[1] == 2)
-    engine.model.add(is_s["R1C2"] == 0)
-    engine.model.add(engine.d0("R1C2") == 3)
-
-    status = cp_model.CpSolver().solve(engine.model)
-
-    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-
-
-def test_a_cage_sum_over_an_s_cell_rejects_the_digit_sum_total() -> None:
-    # Same pinning as above. The old digit-adding model would balance at
-    # 1 + 2 + 3 == 6; the value seam reads the S-cell as its combined 12, so a
-    # target of 6 is unreachable — proving the sum reads the cell's value, not
-    # its raw digits.
-    engine = build_engine(
-        [GridCells(), Schrodinger(), Cage()],
-        (_cage(("R1C1", "R1C2"), value=6),),
-        board=Board(size=4, values=range(5)),
-    )
-    is_s = _is_s(engine)
-    r1c1 = engine.contents("R1C1")
-    engine.model.add(is_s["R1C1"] == 1)
-    engine.model.add(r1c1[0] == 1)
-    engine.model.add(r1c1[1] == 2)
-    engine.model.add(is_s["R1C2"] == 0)
-    engine.model.add(engine.d0("R1C2") == 3)
-
-    status = cp_model.CpSolver().solve(engine.model)
-
-    assert status == cp_model.INFEASIBLE
-
-
-def test_a_cage_sum_over_a_non_s_cell_is_unchanged_on_a_schrodinger_board() -> None:
-    # The companion regression: pinning both cells not-S, the sum still reads
-    # each cell's single real digit — the plain-cell path is untouched by
-    # the S-cell awareness above.
-    engine = build_engine(
-        [GridCells(), Schrodinger(), Cage()],
-        (_cage(("R1C1", "R1C2"), value=3),),
-        board=Board(size=4, values=range(5)),
-    )
-    is_s = _is_s(engine)
-    engine.model.add(is_s["R1C1"] == 0)
-    engine.model.add(is_s["R1C2"] == 0)
-    engine.model.add(engine.d0("R1C1") == 1)
-    engine.model.add(engine.d0("R1C2") == 2)
-
-    status = cp_model.CpSolver().solve(engine.model)
-
-    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-
-
-# --- modifier-aware killer sum ----------------------------------------------
-
-
-def test_a_cage_sum_reads_the_doubled_value_when_a_cell_is_the_modifier() -> None:
-    # 19 exceeds two distinct plain digits' max (9 + 8 = 17) but is reachable
-    # once one cell doubles (2*9 + 1). Forcing R1C1 to be the modifier isolates
-    # the claim: the sum only balances if the cage read R1C1's folded value,
-    # not its raw digit.
-    puzzle = Puzzle(
-        board=BOARD,
-        constraints=(Constraint(type="doubler"), _cage(("R1C1", "R1C2"), value=19)),
-    )
-    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
-    engine = build_engine(layers, tuple(canonical), board=BOARD)
-    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
-    engine.model.add(is_modifier["R1C1"] == 1)
-
-    solver = cp_model.CpSolver()
-    status = solver.solve(engine.model)
-
-    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-    assert 2 * solver.value(engine.d0("R1C1")) + solver.value(engine.d0("R1C2")) == 19
-
-
-def test_a_cage_sum_forces_discovery_when_only_reachable_doubled() -> None:
-    # With nothing pinned: 19 exceeds two distinct plain digits' max (9 + 8 =
-    # 17), so a free solve can only satisfy the clue by discovering the
-    # modifier on R1C1 or R1C2 — the clue forces the discovery.
-    puzzle = Puzzle(
-        board=BOARD,
-        constraints=(Constraint(type="doubler"), _cage(("R1C1", "R1C2"), value=19)),
-    )
-    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
-    engine = build_engine(layers, tuple(canonical), board=BOARD)
-    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
-
-    solver = cp_model.CpSolver()
-    status = solver.solve(engine.model)
-
-    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-    assert solver.value(is_modifier["R1C1"]) + solver.value(is_modifier["R1C2"]) == 1
-
-
-def test_a_cage_sum_over_a_doubled_s_cell_raises() -> None:
-    # A cell in both the modifier_value and s_value channels is a doubled
-    # S-cell with no defined value (ADR-0009 decision 5). The killer sum reads
-    # the same seam as the values-distinct cage, so building it fails loudly
-    # rather than silently summing one channel over the other.
-    engine = build_engine([], constraints=(_cage(("R1C1",), value=6),), board=BOARD)
-    engine.add_cell("R1C1", low=1, high=9)
-    modifier_value = engine.model.new_int_var(0, 18, "R1C1.modifier_value")
-    s_value = engine.model.new_int_var(0, 99, "R1C1.s_value")
-    engine.register_structure("modifier_value", {"R1C1": modifier_value})
-    engine.register_structure("s_value", {"R1C1": s_value})
-    cage = Cage()
-    cage.register(engine)
-
-    with pytest.raises(MalformedPuzzleError, match="doubled S-cell"):
-        cage.emit(engine)
-
-
-def test_a_cage_sum_falls_back_to_the_digit_when_the_cell_is_not_the_modifier() -> None:
-    # Forcing both cage cells off the modifier leaves only the raw-digit sum,
-    # and 19 is unreachable by two distinct plain digits (max 9 + 8 = 17).
-    puzzle = Puzzle(
-        board=BOARD,
-        constraints=(Constraint(type="doubler"), _cage(("R1C1", "R1C2"), value=19)),
-    )
-    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
-    engine = build_engine(layers, tuple(canonical), board=BOARD)
-    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
-    engine.model.add(is_modifier["R1C1"] == 0)
-    engine.model.add(is_modifier["R1C2"] == 0)
-
-    status = cp_model.CpSolver().solve(engine.model)
-
-    assert status == cp_model.INFEASIBLE
 
 
 # --- per-cage distinctness mode --------------------------------------------

@@ -89,18 +89,19 @@ def emit_over_pairs(
     rel: Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None],
 ) -> None:
     """Rule: `rel(engine, a, b)` holds for every pair in `pairs` — the shared
-    walk behind every explicit-pair variant (pair-sum today, a second variant at
-    decision 5).
+    walk behind every explicit-pair variant: `pair-difference` and
+    `pair-ratio` (both via `PairRelation`, decision 5), and `thermo`'s
+    consecutive-pair decomposition.
 
-    A callback rather than a relation-as-data table: the relation a pair-sum
-    or pair-difference clue wants (a sum, an absolute difference) is native
-    CP-SAT — `add`, `add_abs_equality` — so encoding it as an
-    AllowedAssignments table would trade a direct primitive for indirection
-    with nothing gained (ADR-0001 keeps the engine seam raw OR-Tools). `rel`
-    closes over whatever per-clue data it needs (a target sum, a target
-    difference); this helper never learns clue or path structure, so a future
-    path-shaped variant can decompose its own path into consecutive pairs
-    before calling it.
+    A callback rather than a relation-as-data table: the relation a
+    pair-difference or pair-ratio clue wants (an absolute difference, a
+    ratio) is native CP-SAT — `add_abs_equality`, a reified either-or — so
+    encoding it as an AllowedAssignments table would trade a direct
+    primitive for indirection with nothing gained (ADR-0001 keeps the engine
+    seam raw OR-Tools). `rel` closes over whatever per-clue data it needs (a
+    target difference, a target ratio); this helper never learns clue or
+    path structure, so a future path-shaped variant can decompose its own
+    path into consecutive pairs before calling it.
     """
     for a, b in pairs:
         rel(engine, a, b)

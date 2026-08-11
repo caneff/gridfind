@@ -710,7 +710,7 @@ def _constraint_link(constraint: dict[str, object]) -> str:
     ],
     ids=["x-vertical", "v-vertical", "x-horizontal"],
 )
-def test_xv_clue_decodes_to_aliased_pair_sum(
+def test_xv_clue_decodes_to_aliased_group_sum(
     value: int, edge: int, alias: str, cells: list[str]
 ) -> None:
     payload = _constraint_link({"type": 202, "clues": [{"value": value, "edge": edge}]})
@@ -922,17 +922,19 @@ def test_cage_decodes_to_region_only_cage_constraint(
     assert capsys.readouterr().err == ""
 
 
-def test_cage_with_a_sum_decodes_the_sum_through_and_warns_nothing(
+def test_cage_with_a_sum_decodes_to_a_cage_plus_a_group_sum(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # A summed cage (value > 0) decodes its sum through as the `cage`
-    # layer's `value` param — no warning, the sum is honored.
+    # A summed cage (value > 0) decodes to two constraints over the same
+    # cells: a no-repeats `cage` and the total as a `group-sum` — the killer
+    # cage's recomposition (spec #240). No warning, the sum is honored.
     payload = _constraint_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
 
     puzzle, _ = decode_link(payload)
 
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
-        Constraint("cage", params={"cells": ["R1C1", "R1C2"], "value": 7})
+        Constraint("group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 7})
         in puzzle.constraints
     )
     assert capsys.readouterr().err == ""
@@ -963,13 +965,17 @@ def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
 ) -> None:
     # A numeric string `value` is the only channel an out-of-range killer sum
     # (a doubler inside a cage) reaches gridfind through, so it graduates to a
-    # real `cage` constraint carrying that sum.
+    # `cage` plus the total as a `group-sum` over the same cells.
     payload = _constraint_link({"type": 2001, "value": "11", "cells": [0, 1, 2]})
 
     puzzle, _ = decode_link(payload)
 
     assert (
-        Constraint("cage", params={"cells": ["R1C1", "R1C2", "R1C3"], "value": 11})
+        Constraint("cage", params={"cells": ["R1C1", "R1C2", "R1C3"]})
+        in puzzle.constraints
+    )
+    assert (
+        Constraint("group-sum", params={"cells": ["R1C1", "R1C2", "R1C3"], "sum": 11})
         in puzzle.constraints
     )
     assert capsys.readouterr().err == ""
@@ -1013,12 +1019,14 @@ def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
 
     puzzle, _ = decode_link(payload)
 
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
-        Constraint("cage", params={"cells": ["R1C1", "R1C2"], "value": 7})
+        Constraint("group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 7})
         in puzzle.constraints
     )
+    assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
     assert (
-        Constraint("cage", params={"cells": ["R3C1", "R3C2"], "value": 11})
+        Constraint("group-sum", params={"cells": ["R3C1", "R3C2"], "sum": 11})
         in puzzle.constraints
     )
 
@@ -1123,12 +1131,12 @@ def test_disabled_thermo_block_decodes_to_nothing_quietly(
     [
         pytest.param(
             {"type": 202, "clues": [{"value": 10, "edge": 70}], "disabled": True},
-            ("x", "v", "pair-sum"),
+            ("x", "v", "group-sum"),
             id="xv-disabled",
         ),
         pytest.param(
             {"type": 202, "clues": [], "negative": []},
-            ("x", "v", "pair-sum"),
+            ("x", "v", "group-sum"),
             id="xv-empty",
         ),
         pytest.param(

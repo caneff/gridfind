@@ -41,8 +41,8 @@ resolve on model coherence alone.
    reads a cell**, not a cage specialty: a constraint takes a cell's *value*
    unless it has a specific reason to read raw digits. The digits-distinct
    no-repeats rule is that exception — the classic killer forbids a repeated
-   placed *symbol*, so it reads digit slots directly (decision 1). Every other
-   reader, the killer sum included (decision 6), takes the value.
+   placed *symbol*, so it reads digit slots directly (decision 1). The killer
+   sum is a second, deliberate exception — see decision 6.
 
 3. **Same value collides — always, with no exception.** Two cells clash exactly
    when their values are the same number. A doubler worth 18 and an S-cell that
@@ -69,16 +69,19 @@ resolve on model coherence alone.
    the cell. The combination arrives with the rest of doubler-plus-S-cell
    coexistence, not here.
 
-6. **The killer sum reads each cell's value through the same seam.** A cage's
-   sum emits `sum(cells) == value` where each cell contributes its `value_expr`
-   — a doubler's `2·d0`, an S-cell's combined `s_value`, else its plain digit —
-   and raises on a doubled S-cell (decision 5), exactly as the values-distinct
-   half reads. It never hand-rolls a sum-only encoding (decision 2), so an
-   S-cell counts as its one combined value, not a private digit sum. The sum
-   folds modifiers whatever the `distinct-over` mode (ADR-0008): the doubler
-   exists to change the total, and only the no-repeats half answers to
-   `distinct-over`. Sum and no-repeats are independent rules, but both read the
-   cell's one value.
+6. **Superseded — the killer sum no longer lives on the cage.** This decision
+   originally had the cage's own sum read `value_expr` — a doubler's `2·d0`,
+   an S-cell's combined `s_value` — so it shared the values-distinct half's
+   value-seam reading rather than a private encoding. The killer cage later
+   recomposed as `cage` (uniqueness) plus `group-sum` (the total), two
+   constraints over the same cells, not one bundled layer (spec #240, issue
+   #243). `group-sum` folds a modifier's `modifier_value` (ADR-0008 decision 4)
+   but is **S-blind by its own, separate decision**: it raises "not
+   Schrödinger-ready yet" over a named S-cell rather than reading `s_value`,
+   so decision 6's value-seam reading for an S-cell no longer holds anywhere
+   — the cage states no sum to hold it, and `group-sum` never reaches an
+   S-cell's value at all. `distinct-over` still answers only for the cage's
+   own no-repeats half, which is unaffected by this recomposition.
 
 7. **`distinct-over` is an internal param with no decoder yet.** No SudokuMaker
    link we have carries a distinctness mode. The cage constraint accepts the key
@@ -110,14 +113,16 @@ resolve on model coherence alone.
 
 - A cell's value lives in one place — the channel the owning layer reifies — and
   every consumer reads it through `value_expr`, blind to which layer built it.
-  The values-distinct cage is the first such consumer; the killer sum still
-  folds modifiers its own way (decision 6). Making the Schrödinger layer register
-  `s_value` the way the doubler registers `modifier_value` is what lets the cage
-  drop all S-cell and modifier special-casing.
+  The values-distinct cage is the seam's consumer; `group-sum`, the killer
+  sum's later home, folds a modifier's `modifier_value` but declines the rest
+  of the seam by its own S-blind decision (decision 6). Making the Schrödinger
+  layer register `s_value` the way the doubler registers `modifier_value` is
+  what lets the cage drop all S-cell and modifier special-casing.
 - The Schrödinger layer registers `s_value` in phase 1 (`register`), so the
   cage's phase-2 read sees it whatever the stack order. This is the same ground
   issue #255 is working (whether the seam subsumes discovered modifiers). This
   decision names the cage's needs; the seam's shape is settled there.
 - The doubled-S-cell guard is a deliberate ceiling, recorded so a future reader
   lifts it through the coexistence path rather than reading the raise as an
-  accident.
+  accident. It still guards the values-distinct cage; the killer sum no longer
+  reaches it (decision 6).

@@ -62,7 +62,7 @@ def verdict(
     # door expands presets and aliases exactly once and hands back both the
     # canonical constraints (so a layer's constraints_of(name) matches the
     # canonical types dispatch resolved on — an `x`/`v` clue reaches its
-    # `pair-sum` layer as a sum-10/5 constraint) and the stack, compulsory
+    # `group-sum` layer as a sum-10/5 constraint) and the stack, compulsory
     # `board` layer already in it.
     canonical, layer_stack = build_stack(puzzle.constraints, size=puzzle.board.size)
     engine = build_engine(layer_stack, tuple(canonical), board=puzzle.board)
