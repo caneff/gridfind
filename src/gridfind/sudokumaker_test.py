@@ -920,6 +920,87 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
 
 
+# --- type 300 thermo decode (spec #251, issue #253) -----------------------
+
+
+def test_normal_thermo_decodes_to_ordered_path_constraint() -> None:
+    # Raw indices map row-major to addresses, bulb first, order preserved —
+    # [0, 1, 2] -> R1C1, R1C2, R1C3.
+    payload = _constraint_link(
+        {"type": 300, "slow": False, "thermometers": [[0, 1, 2]]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
+        in puzzle.constraints
+    )
+
+
+def test_multiple_thermo_paths_each_decode_to_their_own_constraint() -> None:
+    payload = _constraint_link(
+        {
+            "type": 300,
+            "slow": False,
+            "thermometers": [[0, 1, 2], [9, 18, 27]],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
+        in puzzle.constraints
+    )
+    assert (
+        Constraint("thermo", params={"path": ["R2C1", "R3C1", "R4C1"], "slow": False})
+        in puzzle.constraints
+    )
+
+
+def test_two_cell_thermo_decodes_the_bare_inequality_path() -> None:
+    payload = _constraint_link({"type": 300, "slow": False, "thermometers": [[0, 1]]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("thermo", params={"path": ["R1C1", "R1C2"], "slow": False})
+        in puzzle.constraints
+    )
+
+
+def test_thermo_style_is_ignored() -> None:
+    payload = _constraint_link(
+        {
+            "type": 300,
+            "slow": False,
+            "thermometers": [[0, 1, 2]],
+            "style": {"color": "#ff0000", "thickness": 5},
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
+        in puzzle.constraints
+    )
+
+
+def test_disabled_thermo_block_decodes_to_nothing_quietly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _constraint_link(
+        {"type": 300, "slow": False, "thermometers": [[0, 1, 2]], "disabled": True}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "thermo" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
 # --- shared: a disabled or empty block of any decoded family is a no-op ---
 
 
@@ -952,6 +1033,16 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
             id="cage-disabled",
         ),
         pytest.param({"type": 301, "cages": []}, ("cage",), id="cage-empty"),
+        pytest.param(
+            {"type": 300, "slow": False, "thermometers": [[0, 1]], "disabled": True},
+            ("thermo",),
+            id="thermo-disabled",
+        ),
+        pytest.param(
+            {"type": 300, "slow": False, "thermometers": []},
+            ("thermo",),
+            id="thermo-empty",
+        ),
     ],
 )
 def test_disabled_or_empty_block_decodes_to_nothing_quietly(

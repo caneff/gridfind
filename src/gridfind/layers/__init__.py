@@ -36,6 +36,7 @@ from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.pair_sum import PairSum
 from gridfind.layers.regions import region_map_for_constraints
 from gridfind.layers.schrodinger import Schrodinger
+from gridfind.layers.thermo import Thermo
 from gridfind.puzzle import Constraint, JsonValue
 
 __all__ = [
@@ -61,6 +62,7 @@ LAYER_REGISTRY = {
     "schrodinger": Schrodinger(),
     "cage": Cage(),
     "group-sum": GroupSum(),
+    "thermo": Thermo(),
 }
 
 # Two mechanisms expand a constraint at load (spec #45, issue #47), and they

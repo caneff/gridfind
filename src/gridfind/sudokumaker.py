@@ -23,8 +23,9 @@ decodes bare when it is the board's box tiling, or rides straight onto the
 `MalformedPuzzleError` from `verdict`, never from here.
 
 Every wire type gridfind decodes or otherwise recognizes — givens, regions,
-and each opt-in variant decoder (XV, white-kropki, black-kropki, killer-cage)
-— is one row in `DECODER_REGISTRY` (issue #209): `decode_link`'s dispatch, the
+and each opt-in variant decoder (XV, white-kropki, black-kropki, killer-cage,
+thermo) — is one row in `DECODER_REGISTRY` (issue #209): `decode_link`'s
+dispatch, the
 dropped-constraint warning path, and `has_live_data`'s active/inert check all
 read that one table instead of each restating "type N is decoded" by hand.
 
@@ -135,6 +136,13 @@ _KROPKI_BLACK_TYPE = 201
 # positive `value` is the killer sum, honored by the `cage` layer (issue #196)
 # — 0 is SudokuMaker's own no-sum cage, region-only exactly as `value` absent.
 _CAGE_TYPE = 301
+
+# type 300 is a thermometer block (spec #251, issue #253): `slow: bool,
+# thermometers: [[cell indices, ordered, bulb first], …]`. Each path becomes
+# its own `thermo` Constraint; `slow` rides through onto every path in the
+# block. The strict-vs-non-strict split is the `thermo` layer's concern, not
+# the decoder's.
+_THERMO_TYPE = 300
 
 
 def decode_link(
@@ -531,6 +539,25 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
     return decoded
 
 
+def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+    """The `type 300` thermometers as `thermo` `Constraint`s (spec #251,
+    issue #253): each path's raw indices map row-major to addresses, order
+    preserved (bulb first) — order is the whole point of a line, unlike
+    `cage`'s unordered `cells`. `slow` rides through verbatim onto every path
+    in the block. A `disabled` block is skipped entirely; an empty
+    `thermometers` list adds nothing. The cosmetic `style` object is
+    ignored."""
+    decoded: list[Constraint] = []
+    for block in _enabled_blocks(puzzle_data, _THERMO_TYPE):
+        slow = bool(block.get("slow", False))
+        paths = cast("list[list[int]]", block.get("thermometers", []))
+        for path in paths:
+            addresses = [cell_address(i // size + 1, i % size + 1) for i in path]
+            params: dict[str, object] = {"path": addresses, "slow": slow}
+            decoded.append(Constraint("thermo", params=params))
+    return decoded
+
+
 @dataclass(frozen=True)
 class DecodedType:
     """One SudokuMaker wire-type the decoder recognizes, one row wide (issue
@@ -572,6 +599,9 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
     _CAGE_TYPE: DecodedType(
         handler=_cage_constraints, live_keys=("cages",), name="killer-cage"
     ),
+    _THERMO_TYPE: DecodedType(
+        handler=_thermo_constraints, live_keys=("thermometers",), name="thermo"
+    ),
 }
 
 # The union of every registered type's live-data keys, order-preserved and
@@ -588,19 +618,19 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     computed under a smaller ruleset than the link states.
 
     Types in `DECODER_REGISTRY` (issue #209) — 0 givens, 1 regions, 200
-    white-kropki, 201 black-kropki, 202 XV, 301 killer-cage — are modeled
-    elsewhere and pass through. A `disabled` constraint is skipped first with
-    no warning: the setter switched it off, so it is not part of the puzzle
-    even for a type gridfind knows how to decode. A remaining enabled
-    unmodeled constraint is inert (empty or cosmetic-only payload) and
+    white-kropki, 201 black-kropki, 202 XV, 300 thermo, 301 killer-cage — are
+    modeled elsewhere and pass through. A `disabled` constraint is skipped
+    first with no warning: the setter switched it off, so it is not part of
+    the puzzle even for a type gridfind knows how to decode. A remaining
+    enabled unmodeled constraint is inert (empty or cosmetic-only payload) and
     dropped quietly, or active (a live clue/negative list or a populated
     group) and dropped loudly, named by its `definition.name` when the link
     carries one. Honoring a specific variant rather than dropping it is the
     opt-in variant-decoder path (map #180) — `202` graduated first (issue
     #198), `301` next (issue #199, its killer sum honored per issue #196),
-    `200` after (issue #200), `201` last (spec #195, issue #226); each still
-    warns on the part it can't model (a kropki/XV `negative` list), fired
-    from its own decoder instead.
+    `200` after (issue #200), `201` next (spec #195, issue #226), `300` last
+    (issue #253); each still warns on the part it can't model (a kropki/XV
+    `negative` list), fired from its own decoder instead.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both
