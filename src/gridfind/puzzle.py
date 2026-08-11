@@ -169,9 +169,8 @@ class Constraint:
     """
 
     type: str
-    # ponytail: dict makes Constraint unhashable, but only equality is compared
-    # today, which dicts do fine; a future canonical identity would freeze
-    # params then.
+    # dict makes Constraint unhashable, but only equality is compared, which
+    # dicts do fine.
     params: dict[str, JsonValue] = field(default_factory=dict)
 
 

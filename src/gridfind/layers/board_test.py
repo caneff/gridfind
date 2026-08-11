@@ -41,10 +41,10 @@ def test_board_bounds_cells_to_values_a_setter_chose_over_the_size_default() -> 
 
 @pytest.mark.parametrize("digit", [3, 5, 7])
 def test_board_excludes_a_digit_between_a_stepped_domains_gaps(digit: int) -> None:
-    """A board declaring 2, 4, 6, 8 must exclude 3, 5, 7 — the regression the
-    issue names. Bounding a cell to the domain's two ends is not enough: a
-    digit strictly between two declared values is illegal, so forcing one
-    onto the cell must be infeasible."""
+    """A board declaring 2, 4, 6, 8 must exclude 3, 5, 7. Bounding a cell to
+    the domain's two ends is not enough: a digit strictly between two
+    declared values is illegal, so forcing one onto the cell must be
+    infeasible."""
     board = Board(size=1, values=range(2, 9, 2))
     engine = build_engine([GridCells()], board=board)
     var = engine.cells["R1C1"].content[0]

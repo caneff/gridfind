@@ -76,7 +76,6 @@ def test_cage_emits_one_all_different_rule_per_clue(
 
 
 def test_no_cage_constraint_emits_nothing() -> None:
-    # A stack that never sees a `cage` clue adds no rule.
     engine = build_engine([GridCells(), Cage()], board=BOARD)
 
     assert all_different_groups(engine) == []

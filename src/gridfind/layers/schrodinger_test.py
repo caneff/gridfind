@@ -6,9 +6,8 @@ is_S-gated counting rule reads.
 right S-cell count per house, malformed, over-packed broke, a non-schrodinger
 puzzle unaffected);
 these tests isolate the layer's own model — one house type at a time, is_s
-pinned directly the way the deciding prototype (`prototype/131-is-s-model`)
-did — since forcing a contradictory S-cell count needs a pin gridfind has no
-setter-facing directive for yet.
+pinned directly, since forcing a contradictory S-cell count needs a pin
+gridfind has no setter-facing directive for yet.
 """
 
 from typing import cast
