@@ -28,6 +28,7 @@ from gridfind.layers.distinct import (
     regions_from,
     rows,
 )
+from gridfind.layers.group_sum import GroupSum
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_difference import PairDifference
 from gridfind.layers.pair_sum import PairSum
@@ -56,6 +57,7 @@ LAYER_REGISTRY = {
     "pair-difference": PairDifference(),
     "schrodinger": Schrodinger(),
     "cage": Cage(),
+    "group-sum": GroupSum(),
 }
 
 # Two mechanisms expand a constraint at load (spec #45, issue #47), and they
