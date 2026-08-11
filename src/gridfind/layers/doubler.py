@@ -54,16 +54,15 @@ class Doubler:
         is_modifier = cast(
             "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
         )
-        s_value = cast(
-            "dict[str, cp_model.IntVar]", engine.structures.get("s_value", {})
-        )
         modifier_value: dict[str, cp_model.IntVar] = {}
         for address in engine.cells:
-            # The value beneath the modifier: an S-cell's combined `s_value` when
-            # the schrödinger layer registered one for this cell, else the raw
-            # digit `d0`. Doubling it makes a doubled S-cell worth `2·s_value`
-            # and a plain doubler worth `2·d0` (ADR-0010).
-            underlying = s_value.get(address, engine.d0(address))
+            # Double the value beneath the modifier — the cell's `base_value`,
+            # which is its combined `s_value` for an S-cell and its digit
+            # otherwise. Doubling it makes a doubled S-cell worth `2·s_value`
+            # and a plain doubler worth `2·d0` (ADR-0010); the seam names the
+            # value beneath, so this never has to know a schrödinger layer sits
+            # under it.
+            underlying = engine.base_value(address)
             ceiling = 2 * max(underlying.proto.domain)
             value = engine.model.new_int_var(0, ceiling, f"{address}.modifier_value")
             engine.model.add(value == underlying).only_enforce_if(

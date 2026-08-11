@@ -217,31 +217,32 @@ class Engine:
         whatever the width. A width-1 cell's d0 is its only slot."""
         return self._cell(address).content[0]
 
-    def value_expr(self, address: str) -> cp_model.LinearExprT:
-        """A cell's value as a model-build-time expression, for a constraint
-        that must put a cell's *value* (not its raw digit) into a CP rule, such
-        as a values-distinct cage (ADR-0009). It reads whichever value channel
-        a layer registered for the cell, the same way each layer owns and
-        reifies its own value:
-
-        Each channel already folds the one beneath it, so a plain precedence
-        values every cell:
-
-        - a **modifier** cell's value is its `modifier_value` — a doubler's
-          `2·d0`, or `2·s_value` for a doubled S-cell, since the doubler doubles
-          the value beneath it (ADR-0010);
-        - an **S-cell**'s value is its `s_value` (its two digits combined under
-          the puzzle's `combine` rule, reified on `is_s`);
-        - a **plain** cell's value is its digit."""
-        modifier_value = cast(
-            "dict[str, cp_model.IntVar]", self.structures.get("modifier_value", {})
-        )
+    def base_value(self, address: str) -> cp_model.IntVar:
+        """A cell's value beneath any modifier — its `s_value` when the
+        schrödinger layer reified one (its two digits combined under the
+        puzzle's `combine` rule), else its digit. This is the value a modifier
+        layer maps: the doubler reads it and reifies twice it (ADR-0010), so
+        the `2·` never has to name the schrödinger channel. `value_expr` layers
+        the modifier's mapped value on top of it."""
         s_value = cast("dict[str, cp_model.IntVar]", self.structures.get("s_value", {}))
-        if address in modifier_value:
-            return modifier_value[address]
         if address in s_value:
             return s_value[address]
         return self.content(address)
+
+    def value_expr(self, address: str) -> cp_model.LinearExprT:
+        """A cell's value as a model-build-time expression, for a constraint
+        that must put a cell's *value* (not its raw digit) into a CP rule, such
+        as a values-distinct cage (ADR-0009). A modifier maps the value beneath
+        it, so the value is the `modifier_value` a modifier reified for the cell
+        — a doubler's `2·d0`, or `2·s_value` for a doubled S-cell (ADR-0010) —
+        else the unmodified `base_value`. Each reader stays blind to which
+        layer built the value it gets."""
+        modifier_value = cast(
+            "dict[str, cp_model.IntVar]", self.structures.get("modifier_value", {})
+        )
+        if address in modifier_value:
+            return modifier_value[address]
+        return self.base_value(address)
 
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
