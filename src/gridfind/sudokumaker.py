@@ -84,8 +84,8 @@ from gridfind.puzzle import (
     WorkingState,
 )
 
-# The only reading built so far — sum-valued and
-# positional are future values of the same flag, refused until then.
+# The only reading built so far — sum- and
+# concat-valued are future values of the same flag, refused until then.
 _CLASSIC_READING = "classic"
 
 # `colors` is an OR of palette-color bits; red — SudokuMaker's S-cell

@@ -30,22 +30,22 @@ from ortools.sat.python import cp_model
 # against these; everything else in the module is implementation detail.
 __all__ = [
     "Cell",
+    "Combine",
     "Engine",
-    "Fold",
     "GridfindError",
     "Layer",
     "MalformedPuzzleError",
     "MissingDependencyError",
-    "ValueElement",
     "build_engine",
     "sole",
 ]
 
-Fold = Literal["sum", "positional"]
-"""A named reduction over a cell's value-elements: `sum`
-adds them; `positional` reads them base-10 with the first element (`d0`)
-most-significant. The starter fold library — `keep-pair` is deferred until
-renban lands."""
+Combine = Literal["sum", "concat"]
+"""How a two-digit S-cell's digits combine into one value: `sum` adds them
+(2 + 3 = 5); `concat` reads them base-10 with the first digit (`d0`)
+most-significant (2, 3 → 23). One choice per puzzle, owned by the schrödinger
+layer, which uses it to build each S-cell's value channel (ADR-0009). A
+single digit has nothing to combine."""
 
 
 class GridfindError(Exception):
@@ -76,32 +76,6 @@ class Cell:
 
     address: str
     content: list[cp_model.IntVar]
-
-
-@dataclass(frozen=True)
-class ValueElement:
-    """One affine term `a·x + b` over a single content slot — the value
-    seam's atom. A cell's value is an ordered sequence of
-    these, one per content slot; the identity element (default) reads a
-    slot's digit back unchanged, so an unmodified cell's value is `[digit]`.
-    Affine-only by decision — a cipher/lookup value is out of scope.
-
-    `doubler` does *not* register elements here. `a`/`b` are
-    plain ints, fixed before any solve, but a doubler's coefficient depends
-    on `is_modifier` — a decision variable the solver hasn't resolved while
-    the model is still being built (arithmetic clues must react to discovery
-    during solving, not just report it after). `layers/doubler.py` builds its
-    own reified `"modifier_value"` structure instead of this one; see its
-    module docstring for the full reasoning. This seam remains the read for
-    a value-element whose coefficient *is* known without solving — a future
-    report-time read, or the doubled-S-cell composition once the doubler's
-    value is itself a settled fact."""
-
-    a: int = 1
-    b: int = 0
-
-    def apply(self, digit: int) -> int:
-        return self.a * digit + self.b
 
 
 class Constraint(Protocol):
@@ -212,8 +186,8 @@ class Engine:
     def values(self, solver: cp_model.CpSolver, address: str) -> tuple[int, ...]:
         """A cell's placed content sequence after a solve. A
         width-1 cell hands back a length-1 sequence, so a caller that wants a
-        single digit folds it itself; a width-2 (S-cell) read is
-        `schrodinger`'s to fold."""
+        single digit reads it itself; a width-2 (S-cell) read is
+        `schrodinger`'s to combine."""
         return tuple(solver.value(v) for v in self._cell(address).content)
 
     def contents(self, address: str) -> list[cp_model.IntVar]:
@@ -243,45 +217,38 @@ class Engine:
         whatever the width. A width-1 cell's d0 is its only slot."""
         return self._cell(address).content[0]
 
-    def elements(self, address: str) -> list[ValueElement]:
-        """A cell's value-elements, one per content slot.
-        Default is the identity element per slot — an unmodified cell's value
-        is `[digit]` (width 1) or `[d0, d1]` (a widened S-cell) — unless a
-        layer has registered this address's coefficients under the
-        `"value_elements"` structure, the structure-registry channel every
-        other late-bound fact rides (ADR-0004). No production layer
-        registers this yet: `doubler` needs a coefficient that
-        depends on `is_modifier`, a decision variable not resolved until
-        solve time, so it reifies its own `"modifier_value"` channel instead
-        of this static per-address override — see `ValueElement`'s
-        docstring and `layers/doubler.py`."""
-        overrides = cast(
-            "dict[str, list[ValueElement]]", self.structures.get("value_elements", {})
-        )
-        width = len(self._cell(address).content)
-        return overrides.get(address, [ValueElement() for _ in range(width)])
+    def value_expr(self, address: str) -> cp_model.LinearExprT:
+        """A cell's value as a model-build-time expression, for a constraint
+        that must put a cell's *value* (not its raw digit) into a CP rule, such
+        as a values-distinct cage (ADR-0009). It reads whichever value channel
+        a layer registered for the cell, the same way each layer owns and
+        reifies its own value:
 
-    def folded_value(self, solver: cp_model.CpSolver, address: str, fold: Fold) -> int:
-        """The one folding-read: a cell's value-elements,
-        applied to its placed digits and reduced under a named `fold`. A
-        width-1 cell with no registered elements folds to the digit itself
-        under either fold — its one identity element applied to its one
-        digit — so it reads the same as the plain `value`."""
-        terms = [
-            element.apply(digit)
-            for element, digit in zip(
-                self.elements(address), self.values(solver, address), strict=True
+        - a **modifier** cell's value is its `modifier_value` (a doubler's
+          `2·d0`, reified on discovery);
+        - an **S-cell**'s value is its `s_value` (its two digits combined under
+          the puzzle's `combine` rule, reified on `is_s`);
+        - a **plain** cell's value is its digit.
+
+        A cell in both channels is a doubled S-cell — no defined value yet
+        (ADR-0009 decision 5) — so this raises rather than pick one."""
+        modifier_value = cast(
+            "dict[str, cp_model.IntVar]", self.structures.get("modifier_value", {})
+        )
+        s_value = cast("dict[str, cp_model.IntVar]", self.structures.get("s_value", {}))
+        in_modifier = address in modifier_value
+        in_s = address in s_value
+        if in_modifier and in_s:
+            msg = (
+                f"cell {address!r} is both a modifier and an S-cell; a doubled "
+                "S-cell has no defined value (ADR-0009)"
             )
-        ]
-        if fold == "sum":
-            return sum(terms)
-        if fold == "positional":
-            result = 0
-            for term in terms:
-                result = result * 10 + term
-            return result
-        msg = f"unknown fold {fold!r}"
-        raise GridfindError(msg)
+            raise MalformedPuzzleError(msg)
+        if in_modifier:
+            return modifier_value[address]
+        if in_s:
+            return s_value[address]
+        return self.content(address)
 
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
