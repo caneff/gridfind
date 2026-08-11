@@ -9,17 +9,13 @@ input, fixed before any layer runs and wanted typed by every reader. The engine
 knows those only through read-only protocol views, never the concrete `Puzzle`
 types behind them (decision 31).
 
-Who produced the fact used to be the test (ADR-0003); it is now only the
-explanation for why the two usually coincide. Read the registry's current
-contents against that rule rather than from it: `is_s`, registered by the
-schrödinger layer, is the first entry the binding test would have put there —
-`distinct` and `verdict` read it back through `.get`, tolerating its absence,
-so neither hard-depends on schrödinger being present. `"grid"`, the addresses
-`board` registers, is the standing anomaly: built from `board.size` alone, a
-fact no layer's work informs, and cast by both readers rather than read
-through `.get`. ADR-0004 decisions 2 and 4 move it to a `CellGeometry`
-descriptor; until that lands it is a fact the binding test would not have put
-there.
+`is_s`, registered by the schrödinger layer, is read back by `distinct` and
+`verdict` through the `engine.is_s()` accessor's `.get`, which tolerates its
+absence — so neither hard-depends on schrödinger being present. `grid`, the
+addresses `board` registers, is the anomaly: built from `board.size` alone, a
+fact no layer's work informs, so it belongs on the board, not in the late-
+binding registry. ADR-0004 decisions 2 and 4 move it to a `CellGeometry`
+descriptor.
 """
 
 from __future__ import annotations
@@ -200,16 +196,15 @@ class Engine:
         return cast("list[list[str]]", self.structures["grid"])
 
     def values(self, solver: cp_model.CpSolver, address: str) -> tuple[int, ...]:
-        """A cell's placed content sequence after a solve — the plural read
-        (issue #140), replacing the scalar `value`. A width-1 cell hands back
-        a length-1 sequence, so a caller that wants a single digit folds it
-        itself; a width-2 (S-cell) read is `schrodinger`'s to fold."""
+        """A cell's placed content sequence after a solve (issue #140). A
+        width-1 cell hands back a length-1 sequence, so a caller that wants a
+        single digit folds it itself; a width-2 (S-cell) read is
+        `schrodinger`'s to fold."""
         return tuple(solver.value(v) for v in self._cell(address).content)
 
     def contents(self, address: str) -> list[cp_model.IntVar]:
         """A cell's raw content sequence, for a layer building an expression
-        over it — the plural read (issue #140), replacing the scalar
-        `content`. A width-1 cell hands back a length-1 sequence."""
+        over it (issue #140). A width-1 cell hands back a length-1 sequence."""
         return self._cell(address).content
 
     def value(self, solver: cp_model.CpSolver, address: str) -> int:
@@ -255,10 +250,9 @@ class Engine:
     def folded_value(self, solver: cp_model.CpSolver, address: str, fold: Fold) -> int:
         """The one folding-read (spec #232, #216): a cell's value-elements,
         applied to its placed digits and reduced under a named `fold`. A
-        width-1 cell with no registered elements collapses byte-identical to
-        `value` — its one identity element folds to the digit itself under
-        either fold, so a puzzle with no Schrödinger or modifier layer keeps
-        today's verdict."""
+        width-1 cell with no registered elements folds to the digit itself
+        under either fold — its one identity element applied to its one
+        digit — so it reads the same as the plain `value`."""
         terms = [
             element.apply(digit)
             for element, digit in zip(

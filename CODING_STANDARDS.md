@@ -60,3 +60,27 @@ this doc covers the parts a linter can't.
   meaningful prefix just to shorten one line — a bare `loads` or `connect`
   hides its source and collides with the next module that exports the same
   name.
+
+## Comments describe the code, not its history
+
+A comment or docstring speaks to the reader in front of the current code, not
+to the reviewer of the diff that produced it. Write what the code *does* and
+*why*; never what it *used to do*.
+
+- **No history narration.** Cut the diff-against-a-version-nobody-can-see:
+  "used to raise," "is retired," "no longer," "replacing the scalar X," "split
+  out of Y," "byte-identical to before," "exactly as before," "has always
+  emitted," "no-regression." The reader never saw the old code, so the
+  comparison lands as noise. Git already holds that story with the diff
+  attached; a comment that repeats it does the job worse.
+- **State the invariant, not the change.** "A cage with no `schrodinger` layer
+  sums each cell's sole content variable" earns its place; "keeps summing…
+  byte-identical to before" does not. Same fact, minus the backward glance.
+- **A bare issue/spec/ADR tag is a citation, not a comment.** `(issue #235)`
+  after a sentence that explains something is a fine pointer. A line whose
+  *only* content is `(decision #150)` — or a changelog of merge order ("202
+  first, 301 next, 200 after") — carries no information; drop it or replace it
+  with the fact it was standing in for.
+- **When you change code, delete the comment that describes the old shape.**
+  A stale comment is worse than none — it actively lies. If the edit made a
+  docstring's claim false, fix the docstring in the same diff.

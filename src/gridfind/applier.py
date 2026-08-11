@@ -1,11 +1,8 @@
 """The working-state applier: turns a `Puzzle`'s givens and a `WorkingState`'s
 marks into restrictions on an already-built engine model (issue #208).
 
-Split out of `verdict.py`, which built the model, ran the solve, and applied
-the working state all in one place. The ~100 lines here never observe the
-solve — they only narrow the model before it runs — so `verdict()` now keeps
-assemble-solve-classify and hands the narrowing step to `apply`, the one
-entry point.
+These functions never observe the solve — they only narrow the model before it
+runs. `apply` is the one entry point.
 """
 
 from __future__ import annotations

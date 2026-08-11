@@ -32,8 +32,7 @@ JIGSAW_TETROMINOES = [
 # file to drive the file-path/stdin front door; `witness_validator_test`
 # builds the `Puzzle`/`WorkingState` directly to exercise `validate_witness`'s
 # box-aware rendering path (issue #207). Shared so the two can't drift into
-# testing subtly different 4x4 boards (issue #246 — this doc moved here from
-# the retired by-construction `populations/` corpus).
+# testing subtly different 4x4 boards (issue #246).
 FOUND_4X4_DOC: dict[str, object] = {
     "puzzle": {
         "board": {"size": 4},

@@ -1,6 +1,5 @@
 """The `pair-difference` relation: the second explicit-pair variant (#42
-decision 5), now expressed as one `PairRelation` (issue #225) relation-emitter
-rather than its own layer class.
+decision 5), a `PairRelation` (issue #225) relation-emitter.
 
 A pair-difference clue names two cells whose contents must differ, in
 absolute value, by a target `k` — kropki-white / consecutive is the `k = 1`

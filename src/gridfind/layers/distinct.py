@@ -73,8 +73,7 @@ class DistinctOverGroups:
     Rides on `board`'s `grid` structure — registers nothing, emits in phase 2.
 
     With no `schrodinger` layer in the stack, every cell's content stays
-    width 1 and each group gets a plain `add_all_different` — the identical
-    model this layer has always emitted (issue #141 no-regression). With
+    width 1 and each group gets a plain `add_all_different` (issue #141). With
     `schrodinger` present, `is_s` rides on the structure registry (never a
     direct reference to that layer) and each group instead gets the is_S-
     gated counting rule `emit_house` builds, over content already widened to

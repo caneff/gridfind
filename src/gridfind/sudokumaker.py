@@ -7,8 +7,8 @@ strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 domain, and regions are read from the link's own fields — `width`/`size` (else
 `isqrt(len(cells))`), `minDigit`/`maxDigit` (else `1..N`), and the `type 1`
 regions matrix — so any square N decodes (issue #176); a classic 9x9 link takes
-the size/domain fallbacks and carries its boxes as an explicit `type 1`, so it
-decodes exactly as before. A link gridfind can't answer — non-square, a
+the size/domain fallbacks and carries its boxes as an explicit `type 1`. A link
+gridfind can't answer — non-square, a
 cell-count/size mismatch, a domain that doesn't span N, an unknown ruleset — is
 rejected with `ValueError` rather than mis-decoded into a confident wrong
 verdict.
@@ -36,7 +36,6 @@ the `minDigit` guard to read the widened domain, decode each cell's red
 (CONTEXT.md `schrodinger` layer). Every link — Schrödinger or not — ignores
 the unmodeled constraint types and `disabled` blocks a real link carries,
 warning to stderr only when a dropped one carried live data (issue #181).
-Without the flag every link decodes exactly as before.
 
 Deliberately kept as `ValueError`, not folded into `MalformedPuzzleError`
 (issue #107): every rejection here fires before a `Puzzle` exists at all — it
@@ -85,11 +84,11 @@ from gridfind.puzzle import (
     WorkingState,
 )
 
-# Board size, digit domain, and box partition are all read from the link now
-# (issue #176), not from a module constant — a classic 9x9 link, which omits
-# every size/domain field, still decodes exactly as before via the fallbacks
-# (isqrt -> 9, domain -> 1..9, convention tiling). §4b (issue #172) records the
-# omit-when-default wire rule the derivation is written against.
+# Board size, digit domain, and box partition are all read from the link
+# (issue #176); a classic 9x9 link, which omits every size/domain field, takes
+# the fallbacks (isqrt -> 9, domain -> 1..9, convention tiling). §4b (issue
+# #172) records the omit-when-default wire rule the derivation is written
+# against.
 
 # The only reading built so far (issue #143 first light) — sum-valued and
 # positional are future values of the same flag, refused until then.
@@ -388,9 +387,10 @@ def _enabled_blocks(
 ) -> Iterator[dict[Any, Any]]:
     """Every enabled constraint block of one `type` from the link, in wire
     order — the shared front the per-type decoders (XV #198, kropki #200, cage
-    #199) and `_regions_matrix` all iterate behind. Folds the three guards each
-    used to repeat: a non-list `constraints` yields nothing, a non-dict block is
-    skipped, and a `disabled` block is skipped (the setter switched it off, so
+    #199) and `_regions_matrix` all iterate behind. Folds the three guards
+    every decoder needs: a non-list `constraints` yields nothing, a non-dict
+    block is skipped, and a `disabled` block is skipped (the setter switched it
+    off, so
     it is not part of the puzzle even for a type gridfind decodes). `Any` in the
     element type keeps the decoded-JSON boundary, as elsewhere in this module."""
     blocks = puzzle_data.get("constraints", [])
@@ -626,11 +626,9 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     dropped quietly, or active (a live clue/negative list or a populated
     group) and dropped loudly, named by its `definition.name` when the link
     carries one. Honoring a specific variant rather than dropping it is the
-    opt-in variant-decoder path (map #180) — `202` graduated first (issue
-    #198), `301` next (issue #199, its killer sum honored per issue #196),
-    `200` after (issue #200), `201` next (spec #195, issue #226), `300` last
-    (issue #253); each still warns on the part it can't model (a kropki/XV
-    `negative` list), fired from its own decoder instead.
+    opt-in variant-decoder path (map #180); each variant still warns on the
+    part it can't model (a kropki/XV `negative` list), fired from its own
+    decoder instead.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` (issue #182) both

@@ -23,17 +23,14 @@ a cell to become an S-cell.
 An optional `name` param is accepted and reserved for future killer keying;
 unread today.
 
-A killer sum (issue #196, made S-aware by issue #235): an optional `value`
+A killer sum (issue #196, S-aware per issue #235): an optional `value`
 param, when present and `> 0`, additionally emits `sum(cells) == value` —
 each cell contributing its one digit, or, on a cell an S-cell pin has
-widened, both of its digits. The refusal a killer sum used to raise the
-moment an S-cell was possible ("not Schrödinger-ready yet") is retired: the
-per-cell contribution is gated on `is_s` (`_cage_sum_term`), the same
-structure-registry fact the no-repeats half above already tolerates the
-absence of, so a cage with no `schrodinger` layer in the stack keeps
-summing each cell's sole content variable directly, byte-identical to
-before. Absent `value` or `value == 0` (SudokuMaker's own no-sum cage) stays
-region-only, exactly as before.
+widened, both of its digits. The per-cell contribution is gated on `is_s`
+(`_cage_sum_term`), the same structure-registry fact the no-repeats half
+above tolerates the absence of, so a cage with no `schrodinger` layer in the
+stack sums each cell's sole content variable directly. Absent `value` or
+`value == 0` (SudokuMaker's own no-sum cage) stays region-only.
 """
 
 from __future__ import annotations
@@ -52,8 +49,8 @@ def _cage_sum_term(
     """This cage cell's contribution to a killer sum: its one digit, or, once
     an S-cell pin has widened it, both — reified on `is_s` since which case
     applies is a solve-time fact, not something `emit` can branch on
-    directly. A cell `schrodinger` never widened stays a plain content read,
-    matching the pre-#235 model exactly."""
+    directly. A cell `schrodinger` never widened stays a plain content
+    read."""
     contents = engine.contents(address)
     if len(contents) == 1:
         return contents[0]

@@ -11,10 +11,9 @@ engine from scratch — the build is ~1% of a solve, and no caller races many
 working states over one puzzle, so no build-once/race-many API is offered
 (ADR-0002).
 
-`verdict()` itself keeps only assemble-solve-classify (issue #208): building
-the working state onto the model is `gridfind.applier.apply`, and the
-broke-path diagnosis is `gridfind.layers.regions.reason` — both their own
-module, named, rather than ~100 lines apiece wearing the classifier's clothes.
+`verdict()` keeps only assemble-solve-classify (issue #208): applying the
+working state onto the model is `gridfind.applier.apply`, and the broke-path
+diagnosis is `gridfind.layers.regions.reason`.
 """
 
 from __future__ import annotations

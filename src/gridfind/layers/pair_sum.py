@@ -18,8 +18,7 @@ Arithmetic reads value, not digit (spec #232 decision #216): with a modifier
 layer (`doubler`, issue #237) in the stack, a named cell's `"modifier_value"`
 structure — the digit, or the puzzle's declared fold when the solver discovers
 that cell as the modifier — stands in for its raw digit. Absent that structure
-(no modifier layer), the sum reads `content()` exactly as before, so a plain
-puzzle's model is unchanged.
+(no modifier layer), the sum reads each cell's `content()` — the raw digit.
 """
 
 from __future__ import annotations

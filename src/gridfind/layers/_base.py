@@ -34,9 +34,7 @@ def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
     resolving an address to its content must wait until here. Hands back
     each cell's raw sequence, never a folded scalar (issue #140) — a
     width-1 cell's sequence has length 1, so a caller that wants one
-    variable per cell folds it itself. The one cast lives in this helper —
-    `structures` stays generic so every layer shares one channel; only this
-    consumer needs the concrete type.
+    variable per cell folds it itself.
     """
     grid = engine.grid()
     return [[engine.contents(address) for address in row] for row in grid]
