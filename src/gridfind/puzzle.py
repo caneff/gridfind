@@ -161,6 +161,21 @@ SDirective = SingletonPin | SCellPin | BareSingleton | BareSCell | HalfSCell
 
 
 @dataclass(frozen=True)
+class ModifierDirective:
+    """A discovered-modifier working-state directive: this cell either **is**
+    or **is not** a discovered modifier (spec #232 decision #218). Its own
+    channel on `WorkingState`, mirroring `s_directives` (ADR-0006) rather than
+    folding into `given`/`candidate`/`placement` — a modifier's position is
+    discovered, not a digit fact those channels state. Unlike a Schrödinger
+    directive it carries no digit or pair, since `is_modifier` is a bare
+    per-cell boolean; one shape covers both states, so no `kind`-tagged union
+    is needed here."""
+
+    address: str
+    is_modifier: bool
+
+
+@dataclass(frozen=True)
 class Constraint:
     """One typed statement a setter makes — a bare `{type}`, or a type carrying
     its own params (a killer cage's cells and sum, a thermo path). Many
@@ -214,14 +229,17 @@ class Puzzle:
 
 @dataclass(frozen=True)
 class WorkingState:
-    """The solver's evolving marks: placements, candidates, and the Schrödinger
-    directives (ADR-0006). Defaults to EMPTY. `places` keeps the wire key's
-    spelling; `s_directives` is one tagged list, not a field per directive
-    kind."""
+    """The solver's evolving marks: placements, candidates, the Schrödinger
+    directives (ADR-0006), and the discovered-modifier directives. Defaults to
+    EMPTY. `places` keeps the wire key's spelling; `s_directives` is one
+    tagged list, not a field per directive kind; `modifier_directives` is its
+    own sibling channel, one shape per entry, not folded into
+    given/candidate/placement (spec #232 decision #218)."""
 
     places: tuple[Placement, ...] = ()
     candidates: tuple[Candidate, ...] = ()
     s_directives: tuple[SDirective, ...] = ()
+    modifier_directives: tuple[ModifierDirective, ...] = ()
 
     def to_json(self) -> str:
         return json.dumps(
@@ -235,6 +253,10 @@ class WorkingState:
                 ],
                 "s_directives": [
                     s_directives.s_directive_to_dict(d) for d in self.s_directives
+                ],
+                "modifier_directives": [
+                    {"address": d.address, "is_modifier": d.is_modifier}
+                    for d in self.modifier_directives
                 ],
             }
         )
@@ -261,6 +283,12 @@ class WorkingState:
             s_directives=tuple(
                 s_directives.s_directive_from_dict(d)
                 for d in doc.get("s_directives", [])
+            ),
+            # Same empty-default treatment for a save that predates the
+            # modifier channel.
+            modifier_directives=tuple(
+                ModifierDirective(address=d["address"], is_modifier=d["is_modifier"])
+                for d in doc.get("modifier_directives", [])
             ),
         )
 

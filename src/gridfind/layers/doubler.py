@@ -21,6 +21,11 @@ modifier type (a negator) can register the same channel with its own
 coefficient. An arithmetic layer that wants a modifier-aware value reads
 `"modifier_value"` off the registry (tolerating its absence, like every
 other late-bound structure) instead of the raw digit.
+
+Also registers `"modifier_type"` as this layer's own name (`"doubler"`) — the
+one place a discovered-modifier location can be named, since
+`ModifierPlacement` itself carries no type. `Engine.modifier_type` and
+`verdict.py`'s witness read it back.
 """
 
 from __future__ import annotations
@@ -45,6 +50,7 @@ class Doubler:
 
     def emit(self, engine: Engine) -> None:
         self._placement.emit(engine)
+        engine.register_structure("modifier_type", self.name)
         is_modifier = cast(
             "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
         )

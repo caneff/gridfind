@@ -17,7 +17,7 @@ parse.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from gridfind import grid_text
 from gridfind.layers.regions import RegionMap
@@ -61,11 +61,20 @@ class Witness:
     `region_map` is the partition `render` borders against —
     always populated, never `None`: a board with no regions-distinct rule of
     its own still gets one region covering the whole board, so there is
-    nothing to guess at render time."""
+    nothing to guess at render time.
+
+    `modifiers` names every cell the solver discovered as a modifier —
+    address to the puzzle's declared modifier type (`"doubler"`), populated
+    from `is_modifier` exactly as `assignment` is from `is_s` (spec #232
+    decision #218). `assignment` still carries the digit, never the modifier's
+    folded value — a given on a modified cell pins the digit, and the value
+    derives from it at render/read time, not here. Empty on a puzzle with no
+    modifier layer, never `None`."""
 
     grid: list[list[str]]
     assignment: dict[str, tuple[int, ...]]
     region_map: RegionMap
+    modifiers: dict[str, str] = field(default_factory=dict)
 
     def __getitem__(self, address: str) -> tuple[int, ...]:
         return self.assignment[address]
