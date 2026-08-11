@@ -955,6 +955,74 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
 
 
+# --- type 2001 cosmetic-cage graduation (ADR-0008) ---------------
+
+
+def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A numeric string `value` is the only channel an out-of-range killer sum
+    # (a doubler inside a cage) reaches gridfind through, so it graduates to a
+    # real `cage` constraint carrying that sum.
+    payload = _constraint_link({"type": 2001, "value": "11", "cells": [0, 1, 2]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("cage", params={"cells": ["R1C1", "R1C2", "R1C3"], "value": 11})
+        in puzzle.constraints
+    )
+    assert capsys.readouterr().err == ""
+
+
+def test_cosmetic_cage_with_non_numeric_label_decodes_to_nothing_quietly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A non-numeric label is genuinely decorative, not a killer sum — drops
+    # inert, same as today, and warns nothing since the type is known.
+    payload = _constraint_link({"type": 2001, "value": "Total", "cells": [0, 1]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "cage" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
+def test_cosmetic_cage_with_empty_label_decodes_to_nothing_quietly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = _constraint_link({"type": 2001, "value": "", "cells": [0, 1]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type != "cage" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
+def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
+    payload = _encode(
+        {
+            "cells": _EMPTY_CELLS,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {"type": 2001, "value": "7", "cells": [0, 1]},
+                {"type": 2001, "value": "11", "cells": [18, 19]},
+            ],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("cage", params={"cells": ["R1C1", "R1C2"], "value": 7})
+        in puzzle.constraints
+    )
+    assert (
+        Constraint("cage", params={"cells": ["R3C1", "R3C2"], "value": 11})
+        in puzzle.constraints
+    )
+
+
 # --- type 300 thermo decode -----------------
 
 
@@ -1079,6 +1147,16 @@ def test_disabled_thermo_block_decodes_to_nothing_quietly(
             id="cage-disabled",
         ),
         pytest.param({"type": 301, "cages": []}, ("cage",), id="cage-empty"),
+        pytest.param(
+            {"type": 2001, "value": "7", "cells": [0, 1], "disabled": True},
+            ("cage",),
+            id="cosmetic-cage-disabled",
+        ),
+        pytest.param(
+            {"type": 2001, "value": "Total", "cells": [0, 1]},
+            ("cage",),
+            id="cosmetic-cage-non-numeric",
+        ),
         pytest.param(
             {"type": 300, "slow": False, "thermometers": [[0, 1]], "disabled": True},
             ("thermo",),
