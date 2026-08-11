@@ -18,6 +18,7 @@ from gridfind.engine import Engine, MissingDependencyError, build_engine
 from gridfind.layers.board import GridCells
 from gridfind.layers.distinct import cols, regions, rows
 from gridfind.layers.modifier import ModifierPlacement
+from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board
 
 
@@ -108,3 +109,21 @@ def test_forcing_two_modifiers_onto_the_same_digit_is_infeasible() -> None:
     status = cp_model.CpSolver().solve(engine.model)
 
     assert status == cp_model.INFEASIBLE
+
+
+def test_composes_with_schrodinger_and_stays_feasible() -> None:
+    # Regression for the AC3 bug: an `== 1` per-digit transversal count is a
+    # bijection with `board.values`, which only matches the one-per-house
+    # modifier count (== board.size) when `len(values) == size`. schrodinger
+    # always widens `values` past `size`, so that bijection made every
+    # composed board unconditionally infeasible. `<= 1` (true all-different)
+    # composes: the digit domain widening leaves room for modifiers to skip
+    # digits instead of forcing more modifiers than houses ever place.
+    engine = build_engine(
+        [GridCells(), Schrodinger(), ModifierPlacement()],
+        board=Board(size=4, values=range(5)),
+    )
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
