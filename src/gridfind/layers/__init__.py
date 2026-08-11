@@ -29,7 +29,8 @@ from gridfind.layers.distinct import (
     rows,
 )
 from gridfind.layers.line_count import LineCountDistinct
-from gridfind.layers.pair_difference import PairDifference
+from gridfind.layers.pair_difference import differs_by
+from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.pair_sum import PairSum
 from gridfind.layers.regions import region_map_for_constraints
 from gridfind.layers.schrodinger import Schrodinger
@@ -53,7 +54,7 @@ LAYER_REGISTRY = {
     "regions-distinct": DistinctOverGroups("regions-distinct", regions),
     "line-count-distinct": LineCountDistinct(),
     "pair-sum": PairSum(),
-    "pair-difference": PairDifference(),
+    "pair-difference": PairRelation("pair-difference", relation=differs_by),
     "schrodinger": Schrodinger(),
     "cage": Cage(),
 }
