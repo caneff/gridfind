@@ -1,6 +1,6 @@
 """Decode a SudokuMaker share link into gridfind's `Puzzle` + `WorkingState`.
 
-One pure function, `decode_link`, mirroring `puzzle.py`'s schema-only role: it
+Its core function, `decode_link`, mirrors `puzzle.py`'s schema-only role: it
 strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 `formatVersion 1.5.0` JSON to the model per the confirmed field-by-field map in
 `docs/research/sudoku-link-formats.md` §4a/§4b (issues #54, #172). Size, digit
@@ -48,6 +48,10 @@ would cost a caller the ability to tell "this share link doesn't decode" from
 one of them means the *link* is bad.
 
 No engine, no `verdict` call. Schema in, model out.
+
+`encode_link` (issue #245) sits beside `decode_link` as its inverse: a decoded
+document back to an openable link. Two later pieces of work both need it
+(spec #244), so it lands once, on its own.
 """
 
 from __future__ import annotations
@@ -203,6 +207,18 @@ def decode_link(
         s_directives=tuple(s_directives),
     )
     return puzzle, state
+
+
+def encode_link(document: dict[str, object]) -> str:
+    """A decoded SudokuMaker document (the full `json.loads(raw)` object
+    `decode_link` reads — `formatVersion` plus its `puzzle` block) mapped back
+    to an openable `sudokumaker.app` URL. The exact reverse of `decode_link`'s
+    payload step (issue #245): lz-string-compress the document's JSON to an
+    encoded URI component, then prepend the `?puzzle=` prefix `decode_link`
+    strips. `document` rides through untouched, so its `size`/`type`-bearing
+    fields survive verbatim and the link opens as the same puzzle."""
+    payload = LZString.compressToEncodedURIComponent(json.dumps(document))
+    return f"https://sudokumaker.app/?puzzle={payload}"
 
 
 def _board_size(puzzle_data: dict[str, object]) -> int:

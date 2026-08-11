@@ -200,6 +200,39 @@ def test_verdict_broke_on_a_candidate_excluding_the_given() -> None:
     assert result.witness is None
 
 
+def test_verdict_broke_on_a_placement_outside_its_own_candidate_set() -> None:
+    puzzle = Puzzle(board=BOARD)
+    state = WorkingState(
+        places=(Placement(address="R2C2", digit=9),),
+        candidates=(Candidate(address="R2C2", digits=frozenset({1, 2, 3})),),
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_verdict_found_when_givens_a_placement_and_a_candidate_set_all_agree() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        givens=(Given(address="R1C1", digit=5), Given(address="R2C2", digit=7)),
+    )
+    state = WorkingState(
+        places=(Placement(address="R4C4", digit=3),),
+        candidates=(Candidate(address="R3C3", digits=frozenset({1, 2, 9})),),
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C1"] == (5,)
+    assert result.witness["R2C2"] == (7,)
+    assert result.witness["R4C4"] == (3,)
+    assert result.witness["R3C3"][0] in {1, 2, 9}
+
+
 def test_verdict_unknown_when_the_budget_is_exhausted() -> None:
     puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
 
@@ -366,6 +399,22 @@ def test_rows_distinct_found_when_no_row_repeats() -> None:
     assert result.witness is not None
 
 
+def test_rows_distinct_breaks_a_repeat_forced_by_singleton_candidates() -> None:
+    # No givens, no placements — the repeat is forced purely because both
+    # cells' candidate sets have narrowed to the one digit (issue #246).
+    assert_layer_newly_breaks(
+        (),
+        (Constraint(type="rows-distinct"),),
+        (),
+        working_state=WorkingState(
+            candidates=(
+                Candidate(address="R4C2", digits=frozenset({6})),
+                Candidate(address="R4C7", digits=frozenset({6})),
+            )
+        ),
+    )
+
+
 def test_line_count_distinct_breaks_when_a_row_already_exceeds_its_target() -> None:
     assert_layer_newly_breaks(
         (),
@@ -390,6 +439,20 @@ def test_line_count_distinct_found_when_row_counts_are_satisfiable() -> None:
     assert result.kind == "found"
     assert result.witness is not None
     assert len({result.witness[f"R1C{c}"] for c in range(1, 10)}) == 1
+
+
+def test_line_count_distinct_breaks_when_a_full_row_has_too_few_distinct_digits() -> (
+    None
+):
+    # Row 3's target is 3 distinct digits, but every cell is given as the
+    # same digit — with the row already full, it can never reach the target
+    # (issue #246, the too-few direction the exceeds-target case above
+    # doesn't cover).
+    assert_layer_newly_breaks(
+        (),
+        (Constraint(type="line-count-distinct"),),
+        tuple(Given(address=f"R3C{c}", digit=1) for c in range(1, 10)),
+    )
 
 
 @pytest.mark.parametrize("size", [9, 6], ids=["9x9", "6x6"])

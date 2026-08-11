@@ -40,8 +40,3 @@ test:
 # skipped by `just check` / `uv run pytest` via the `not e2e` deselection.
 e2e:
     uv run pytest -m e2e
-
-# Focused selection over the puzzle corpus, by canonical-stack id or by layer
-# name (e.g. `just puzzles rows-distinct`, `just puzzles board+cols-distinct+regions-distinct+rows-distinct`).
-puzzles PATTERN:
-    uv run pytest src/gridfind/population_test.py -k "{{PATTERN}}"

@@ -177,8 +177,8 @@ def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
     bare constraints). Data-bearing constraints collide: killer cages (#196) on
     `value`, and now the value seam's affine modifiers (`+N`, coefficients) on
     their params — two puzzles differing only there compare identical (#219).
-    Left alone: the only caller is a pytest-id label (population_test), not a
-    runtime dedup, and folding params in would make that id worse
+    Left alone: the only caller is a pytest-id label in this module's own test
+    suite, not a runtime dedup, and folding params in would make that id worse
     (`killercage:24` noise), not better. Discovered modifiers (doubler) declare
     a rule with no cell data, so `type` already tells them apart. Fold params
     in when a real dedup caller needs it.

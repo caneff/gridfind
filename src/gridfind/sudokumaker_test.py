@@ -28,7 +28,7 @@ from gridfind.puzzle import (
     SingletonPin,
     WorkingState,
 )
-from gridfind.sudokumaker import _edge_to_pair, decode_link
+from gridfind.sudokumaker import _edge_to_pair, decode_link, encode_link
 
 # All three constraints, in the order the decoder emits them.
 _CLASSIC_CONSTRAINTS = (
@@ -77,6 +77,32 @@ def _encode(puzzle: dict[str, object]) -> str:
     """A synthesised bare payload: lz-string-compressed `formatVersion 1.5.0`."""
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
     return LZString.compressToEncodedURIComponent(json.dumps(doc))
+
+
+def test_encode_link_round_trips_a_classic_document() -> None:
+    cells: list[dict[str, object]] = [{} for _ in range(81)]
+    cells[0] = {"given": True, "value": 7}
+    document: dict[str, object] = {
+        "formatVersion": "1.5.0",
+        "puzzle": {"cells": cells, "constraints": _WIRE_CONSTRAINTS},
+    }
+
+    url = encode_link(document)
+
+    # Exact reverse of decode_link's payload step: the emitted link's own
+    # payload decompresses back to the identical document it was given.
+    payload = url.split("?puzzle=", 1)[-1]
+    raw = LZString.decompressFromEncodedURIComponent(payload)
+    assert json.loads(raw) == document
+    # size/type survive the round trip: the emitted link opens as the same
+    # classic 9x9 puzzle+state decode_link would read from the document.
+    puzzle, state = decode_link(url)
+    assert puzzle == Puzzle(
+        board=Board(size=9),
+        constraints=_CLASSIC_CONSTRAINTS,
+        givens=(Given("R1C1", 7),),
+    )
+    assert state == WorkingState()
 
 
 def test_colors_and_corner_marks_leave_the_state_empty() -> None:
