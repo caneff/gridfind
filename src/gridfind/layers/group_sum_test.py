@@ -220,13 +220,13 @@ def test_an_alias_clue_that_also_states_its_own_sum_is_refused(kind: str) -> Non
 
 
 def test_a_group_sum_over_a_widened_cell_reads_its_s_value() -> None:
-    # R1C1 is forced S with digits {2, 3}: its combined (concat) value is 23.
-    # R1C2 is a singleton at 2. The sum reads each cell's value through
-    # `value_expr`, so it balances at 23 + 2 = 25 — the S-cell's s_value, not
-    # its raw digit (which would make 25 unreachable).
+    # R1C1 is forced S with digits {2, 3}: under the default `sum` combine its
+    # value is 5. R1C2 is a singleton at 2. The sum reads each cell's value
+    # through `value_expr`, so it balances at 5 + 2 = 7 — the S-cell's s_value,
+    # not its raw digit d0 (2, which would make 7 unreachable).
     engine = build_engine(
         [GridCells(), Schrodinger(), GroupSum()],
-        (_group_sum(("R1C1", "R1C2"), 25),),
+        (_group_sum(("R1C1", "R1C2"), 7),),
         board=Board(size=4, values=range(5)),
     )
     is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])

@@ -31,6 +31,31 @@ def _is_s(engine: Engine) -> dict[str, cp_model.IntVar]:
     return cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
 
 
+def _s_value(engine: Engine) -> dict[str, cp_model.IntVar]:
+    return cast("dict[str, cp_model.IntVar]", engine.structures["s_value"])
+
+
+def test_default_combine_sums_an_s_cells_two_digits() -> None:
+    # With no `combine` declared, an S-cell's two digits add: {2, 3} is worth 5,
+    # not 23 (ADR-0010 decision 5). `concat` stays a choosable rule, exercised
+    # where a cage reads the value.
+    engine = build_engine(
+        [GridCells(), Schrodinger()], board=Board(size=4, values=range(5))
+    )
+    is_s = _is_s(engine)
+    s_value = _s_value(engine)
+    content = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 2)
+    engine.model.add(content[1] == 3)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(s_value["R1C1"]) == 5
+
+
 def test_schrodinger_requires_board() -> None:
     with pytest.raises(MissingDependencyError):
         build_engine([Schrodinger()], board=Board(size=4, values=range(5)))

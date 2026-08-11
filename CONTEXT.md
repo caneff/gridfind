@@ -248,7 +248,8 @@ and owns the working-state directives below.
   given.
 
 - **combine** — how a two-digit S-cell's digits make one **value**: `sum`
-  (2 + 3 = 5) or `concat` (2, 3 → 23). One choice for the whole puzzle, owned by
+  (2 + 3 = 5, the default) or `concat` (2, 3 → 23). One choice for the whole
+  puzzle, owned by
   this layer — it widens the cell, so it holds the rule. It reifies each cell's
   value under this rule into the **`s_value`** channel (the shape the doubler
   uses for `modifier_value`), so a values-distinct reader reads one value and
