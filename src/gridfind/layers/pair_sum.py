@@ -13,6 +13,13 @@ are constrained; the negative rule forbidding *unmarked* adjacent pairs from
 summing to 5 or 10 needs board-wide adjacency and is out of scope. The rule
 emits through the shared `emit_over_pairs` helper (#42 decision 5), its target
 sum riding in via the `rel` closure.
+
+Arithmetic reads value, not digit (spec #232 decision #216): with a modifier
+layer (`doubler`, issue #237) in the stack, a named cell's `"modifier_value"`
+structure — the digit, or the puzzle's declared fold when the solver discovers
+that cell as the modifier — stands in for its raw digit. Absent that structure
+(no modifier layer), the sum reads `content()` exactly as before, so a plain
+puzzle's model is unchanged.
 """
 
 from __future__ import annotations
@@ -45,10 +52,16 @@ class PairSum:
         pass
 
     def emit(self, engine: Engine) -> None:
+        modifier_value = cast(
+            "dict[str, cp_model.IntVar]", engine.structures.get("modifier_value", {})
+        )
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object) — narrow to this clue's
             # shape: a pair of cell addresses and its target sum.
             addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
-            a, b = (engine.content(address) for address in addresses)
+            a, b = (
+                modifier_value.get(address, engine.content(address))
+                for address in addresses
+            )
             emit_over_pairs(engine, [(a, b)], _sums_to(total))
