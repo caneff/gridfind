@@ -750,10 +750,12 @@ def test_killer_cage_unreachable_total_resolves_broke() -> None:
     assert result.witness is None
 
 
-def test_killer_cage_sum_over_an_s_cell_raises_from_group_sum() -> None:
-    # The S-blind "not Schrödinger-ready yet" refusal now comes from
-    # group-sum, not the cage — the cage's own no-repeats half stays S-ready
-    # (it never raises here; the exception is group-sum's, at build time).
+def test_killer_cage_sum_over_an_s_cell_reads_the_value_seam() -> None:
+    # A killer cage on a Schrödinger board no longer refuses: its group-sum
+    # half reads each cell's value through `value_expr`, so an S-cell folds in
+    # as its `s_value` rather than raising "not Schrödinger-ready". The cage
+    # completes (the value-seam reading proven discriminatingly at the
+    # `group-sum` engine seam).
     puzzle = Puzzle(
         board=Board(size=4, values=range(5)),
         constraints=(
@@ -762,8 +764,10 @@ def test_killer_cage_sum_over_an_s_cell_raises_from_group_sum() -> None:
         ),
     )
 
-    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
-        verdict(puzzle)
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
 
 
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:

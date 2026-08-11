@@ -1,9 +1,9 @@
 """group-sum behaviour, tested at two seams.
 
 group-sum is purely additive: an N-ary sum reduction over a named set of
-cells, S-blind, carrying no implied uniqueness. This file proves this
-layer's own behaviour; a killer cage composing it with `cage`'s no-repeats
-rule is tested at the `verdict` seam in `verdict_test.py`.
+cells, carrying no implied uniqueness. This file proves this layer's own
+behaviour; a killer cage composing it with `cage`'s no-repeats rule is tested
+at the `verdict` seam in `verdict_test.py`.
 
 The `x`/`v` aliases resolve onto this layer too, each fixing a two-cell
 group-sum's total (10 for X, 5 for V) and passing the clue's own cells
@@ -12,16 +12,16 @@ an X/V clue is just this layer's smallest arity with its total spelled in
 the name.
 
 Most of it is behaviour at the top seam — `verdict`: a clue's effect on the
-completion, including the bare-repeat and S-cell-raise cases the spec calls
-out by name. The rule the layer emits is also read back directly, the one
-claim a solve cannot make: that a clue emitted its *own* rule rather than
-being satisfied by accident, and that no `add_all_different` rides along
-with it.
+completion, including the bare-repeat case the spec calls out by name. The
+rule the layer emits is also read back directly, the one claim a solve cannot
+make: that a clue emitted its *own* rule rather than being satisfied by
+accident, and that no `add_all_different` rides along with it.
 
-Two more tests read at the engine seam: with `doubler` in the stack, a
-group-sum reads a named cell's `"modifier_value"` instead of its raw digit —
-proven the same differential way as the two seams above, by forcing
-`is_modifier` and checking the sum only balances through the fold.
+The rest read at the engine seam that a group-sum sums each cell's *value*
+through `value_expr`, not its raw digit: with `doubler` in the stack it reads
+a discovered modifier's `modifier_value`, and over a widened S-cell it reads
+the `s_value` — proven the differential way, by forcing the channel and
+checking the sum only balances through the folded value.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from ortools.sat.python import cp_model
 
-from gridfind.engine import GridfindError, MalformedPuzzleError, build_engine
+from gridfind.engine import MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups, sum_rules
@@ -219,16 +219,27 @@ def test_an_alias_clue_that_also_states_its_own_sum_is_refused(kind: str) -> Non
         verdict(puzzle)
 
 
-def test_a_group_sum_over_a_widened_cell_raises_not_schrodinger_ready() -> None:
-    # The sum reads through singular `content()` (`sole`), which raises the
-    # moment an S-cell is possible — S-blind by decision, matching the
-    # cage's killer sum.
-    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
-        build_engine(
-            [GridCells(), Schrodinger(), GroupSum()],
-            (_group_sum(("R1C1", "R1C2"), 3),),
-            board=Board(size=4, values=range(5)),
-        )
+def test_a_group_sum_over_a_widened_cell_reads_its_s_value() -> None:
+    # R1C1 is forced S with digits {2, 3}: its combined (concat) value is 23.
+    # R1C2 is a singleton at 2. The sum reads each cell's value through
+    # `value_expr`, so it balances at 23 + 2 = 25 — the S-cell's s_value, not
+    # its raw digit (which would make 25 unreachable).
+    engine = build_engine(
+        [GridCells(), Schrodinger(), GroupSum()],
+        (_group_sum(("R1C1", "R1C2"), 25),),
+        board=Board(size=4, values=range(5)),
+    )
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    r1c1 = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 2)
+    engine.model.add(r1c1[1] == 3)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 2)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 
 
 def test_a_plain_sudoku_with_no_group_sum_clue_is_unaffected() -> None:

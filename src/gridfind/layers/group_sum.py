@@ -15,23 +15,20 @@ a separate capability composed alongside this one, not folded into it — a
 killer cage is a `cage` (no-repeats) plus a `group-sum` (the total) over the
 same cells, not one bundled layer (spec #240).
 
-S-blind by decision: reads the singular `content()` seam and raises "not
-Schrödinger-ready yet" the moment a named cell is a widened S-cell, rather
-than guessing which of its two digits counts.
-
-Arithmetic reads value, not digit: with a modifier layer (`doubler`) in the
-stack, a named cell's `"modifier_value"` structure — the digit, or the
-puzzle's declared fold when the solver discovers that cell as the modifier —
-stands in for its raw digit. Absent that structure (no modifier layer), the
-sum reads each cell's `content()` — the raw digit.
+Reads each cell's value through `Engine.value_expr` (ADR-0009), blind to how
+that value was built: a plain cell's digit, a doubler's `modifier_value`, an
+S-cell's combined `s_value` — the value channel each producing layer reifies
+for itself. group-sum knows nothing of modifiers or Schrödinger cells; it sums
+the one value the seam defines, so a killer cage's sum reads a cell exactly as
+its values-distinct half does, never a second hand-rolled encoding. A doubled
+S-cell has no defined value, so `value_expr` raises rather than sum it
+(ADR-0009 decision 5).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import cast
-
-from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine
 
@@ -45,15 +42,9 @@ class GroupSum:
         pass
 
     def emit(self, engine: Engine) -> None:
-        modifier_value = cast(
-            "dict[str, cp_model.IntVar]", engine.structures.get("modifier_value", {})
-        )
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object), narrowed by cast.
             addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
-            terms = [
-                modifier_value.get(address, engine.content(address))
-                for address in addresses
-            ]
+            terms = [engine.value_expr(address) for address in addresses]
             engine.model.add(sum(terms) == total)
