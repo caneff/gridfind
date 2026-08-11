@@ -5,8 +5,7 @@ Each case file under `links/` holds the argv `cli.main` receives: any flag
 lines, then the link, one per line. Links are URL-encoded and carry no
 spaces, so the loader builds argv by `content.split()`. The filename stem
 starts `found-` or `broke-`; the loader partitions on the first `-` for the
-expected verdict, exactly as `population_test.py` does for its
-by-construction corpus.
+expected verdict.
 
 A `found` case gets two layers of assertion: the front-door contract (exit
 0, `found` on stdout, a grid follows), and an *independent* witness check —
@@ -36,7 +35,7 @@ def _link_cases() -> list[Path]:
     if not cases:
         # A glob that finds nothing must fail here. Left unchecked, an empty
         # list parametrizes into zero cases and the corpus passes by
-        # vanishing (mirrors population_test.py's empty-corpus guard).
+        # vanishing.
         msg = f"no link case files under {LINKS_DIR}"
         raise RuntimeError(msg)
     return cases

@@ -27,6 +27,29 @@ JIGSAW_TETROMINOES = [
     2, 2, 3, 3,
 ]  # fmt: skip
 
+# A found 4x4 sudoku-shaped partial (rows/cols/regions-distinct box tiling),
+# two givens, no working-state placements. `cli_test` materializes it as a
+# file to drive the file-path/stdin front door; `witness_validator_test`
+# builds the `Puzzle`/`WorkingState` directly to exercise `validate_witness`'s
+# box-aware rendering path (issue #207). Shared so the two can't drift into
+# testing subtly different 4x4 boards (issue #246 — this doc moved here from
+# the retired by-construction `populations/` corpus).
+FOUND_4X4_DOC: dict[str, object] = {
+    "puzzle": {
+        "board": {"size": 4},
+        "constraints": [
+            {"type": "rows-distinct"},
+            {"type": "cols-distinct"},
+            {"type": "regions-distinct"},
+        ],
+        "givens": [
+            {"address": "R1C1", "digit": 1},
+            {"address": "R3C3", "digit": 2},
+        ],
+    },
+    "working_state": {"places": [], "candidates": []},
+}
+
 
 @pytest.fixture
 def classic_link() -> str:

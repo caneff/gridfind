@@ -6,19 +6,11 @@ pin the S-cell pair `{a b}` branch of the permutation check the same way."""
 
 import json
 import re
-from pathlib import Path
 
-from gridfind.conftest import JIGSAW_TETROMINOES
+from gridfind.conftest import FOUND_4X4_DOC, JIGSAW_TETROMINOES
 from gridfind.puzzle import Board, Constraint, Puzzle, WorkingState
 from gridfind.verdict import verdict
 from gridfind.witness_validator import validate_witness
-
-POPULATIONS_DIR = Path(__file__).parent / "populations"
-FOUND_4X4_DOC = (
-    POPULATIONS_DIR
-    / "board-rows-distinct-cols-distinct-regions-distinct"
-    / "found-legal-4x4-sudoku-partial.json"
-)
 
 # A 4x4 board with a 5-digit domain forces exactly one S-cell per row, column,
 # and region (k = len(values) - size = 1) — small enough to solve fast while
@@ -56,8 +48,7 @@ LATIN_SQUARE_PUZZLE = Puzzle(
 )
 
 
-def _load(path: Path) -> tuple[Puzzle, WorkingState]:
-    doc = json.loads(path.read_text())
+def _build(doc: dict[str, object]) -> tuple[Puzzle, WorkingState]:
     puzzle = Puzzle.from_json(json.dumps(doc["puzzle"]))
     state = WorkingState.from_json(json.dumps(doc["working_state"]))
     return puzzle, state
@@ -77,7 +68,7 @@ def _duplicate_first_two_cells_in_first_row(rendered: str) -> str:
 
 
 def test_validate_witness_accepts_a_known_good_grid() -> None:
-    puzzle, state = _load(FOUND_4X4_DOC)
+    puzzle, state = _build(FOUND_4X4_DOC)
     result = verdict(puzzle, state)
     assert result.witness is not None
 
@@ -85,7 +76,7 @@ def test_validate_witness_accepts_a_known_good_grid() -> None:
 
 
 def test_validate_witness_rejects_a_row_with_a_duplicate_digit() -> None:
-    puzzle, state = _load(FOUND_4X4_DOC)
+    puzzle, state = _build(FOUND_4X4_DOC)
     result = verdict(puzzle, state)
     assert result.witness is not None
 
@@ -142,7 +133,7 @@ def test_validate_witness_rejects_a_grid_missing_a_border_line() -> None:
     # line lost off the end) must be caught against grid_text.py's named
     # line-count contract (issue #210) rather than silently reparsed as a
     # shorter, still-legal-looking grid.
-    puzzle, state = _load(FOUND_4X4_DOC)
+    puzzle, state = _build(FOUND_4X4_DOC)
     result = verdict(puzzle, state)
     assert result.witness is not None
 
@@ -157,7 +148,7 @@ def test_validate_witness_rejects_a_cell_line_carrying_an_extra_token() -> None:
     # stray digit from a mis-widened column) violates grid_text.py's "size
     # tokens per cell line" contract (issue #210) — caught as a shape
     # mismatch, not silently accepted as one of the row's real cells.
-    puzzle, state = _load(FOUND_4X4_DOC)
+    puzzle, state = _build(FOUND_4X4_DOC)
     result = verdict(puzzle, state)
     assert result.witness is not None
 

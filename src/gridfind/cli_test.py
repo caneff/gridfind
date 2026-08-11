@@ -2,8 +2,10 @@
 
 Each test hands `main` an argv and a stdin, captures stdout/stderr via capsys,
 and asserts the printed verdict, the rendered witness, and the exit code — never
-a private helper. The `found` and `broke` cases run the real `verdict` over the
-same by-construction corpus documents `population_test.py` uses.
+a private helper. The `found` and `broke` cases run the real `verdict` over
+plain document literals, materialized to a file with `_write_doc` when a test
+needs a real path (issue #246 — these used to be read from the retired
+by-construction `populations/` corpus).
 """
 
 import io
@@ -15,35 +17,71 @@ import pytest
 from lzstring import LZString
 
 from gridfind import cli
+from gridfind.conftest import FOUND_4X4_DOC
 from gridfind.verdict import Verdict
 
-POPULATIONS_DIR = Path(__file__).parent / "populations"
-FOUND_DOC = (
-    POPULATIONS_DIR
-    / "board-rows-distinct-cols-distinct-regions-distinct"
-    / "found-legal-classic-sudoku-partial.json"
-)
-BROKE_DOC = (
-    POPULATIONS_DIR
-    / "board-rows-distinct-cols-distinct-regions-distinct"
-    / "broke-duplicate-digit-in-box.json"
-)
-FOUND_6X6_DOC = (
-    POPULATIONS_DIR
-    / "board-rows-distinct-cols-distinct-regions-distinct"
-    / "found-legal-6x6-sudoku-partial.json"
-)
-FOUND_4X4_DOC = (
-    POPULATIONS_DIR
-    / "board-rows-distinct-cols-distinct-regions-distinct"
-    / "found-legal-4x4-sudoku-partial.json"
-)
+FOUND_DOC: dict[str, object] = {
+    "puzzle": {
+        "board": {"size": 9},
+        "constraints": [
+            {"type": "rows-distinct"},
+            {"type": "cols-distinct"},
+            {"type": "regions-distinct"},
+        ],
+        "givens": [
+            {"address": "R1C1", "digit": 1},
+            {"address": "R1C4", "digit": 2},
+            {"address": "R4C1", "digit": 3},
+            {"address": "R4C4", "digit": 4},
+        ],
+    },
+    "working_state": {
+        "places": [{"address": "R5C5", "digit": 5}],
+        "candidates": [{"address": "R6C6", "digits": [5, 6, 7]}],
+    },
+}
+BROKE_DOC: dict[str, object] = {
+    "puzzle": {
+        "board": {"size": 9},
+        "constraints": [
+            {"type": "rows-distinct"},
+            {"type": "cols-distinct"},
+            {"type": "regions-distinct"},
+        ],
+        "givens": [
+            {"address": "R1C1", "digit": 5},
+            {"address": "R2C2", "digit": 5},
+        ],
+    },
+    "working_state": {"places": [], "candidates": []},
+}
+FOUND_6X6_DOC: dict[str, object] = {
+    "puzzle": {
+        "board": {"size": 6},
+        "constraints": [
+            {"type": "rows-distinct"},
+            {"type": "cols-distinct"},
+            {"type": "regions-distinct"},
+        ],
+        "givens": [
+            {"address": "R1C1", "digit": 1},
+            {"address": "R4C4", "digit": 2},
+        ],
+    },
+    "working_state": {"places": [], "candidates": []},
+}
+
+
+def _write_doc(tmp_path: Path, name: str, doc: dict[str, object]) -> Path:
+    path = tmp_path / name
+    path.write_text(json.dumps(doc))
+    return path
 
 
 def test_found_prints_verdict_then_witness_grid(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
-    code = cli.main([str(FOUND_DOC)], io.StringIO())
+    code = cli.main([str(_write_doc(tmp_path, "found.json", FOUND_DOC))], io.StringIO())
 
     out = capsys.readouterr().out
     lines = out.split("\n")
@@ -67,12 +105,13 @@ def test_found_prints_verdict_then_witness_grid(
 )
 def test_found_prints_rows_with_box_aware_spacing(
     capsys: pytest.CaptureFixture[str],
-    doc: Path,
+    tmp_path: Path,
+    doc: dict[str, object],
     size: int,
     box_rows: int,
     box_cols: int,
 ) -> None:
-    code = cli.main([str(doc)], io.StringIO())
+    code = cli.main([str(_write_doc(tmp_path, "doc.json", doc))], io.StringIO())
 
     out = capsys.readouterr().out
     lines = out.rstrip("\n").split("\n")
@@ -272,7 +311,7 @@ def test_file_path_containing_sudokumaker_app_is_still_read_as_a_file(
     # path that merely contains `sudokumaker.app/` must read as a document.
     doc = tmp_path / "sudokumaker.app" / "found.json"
     doc.parent.mkdir()
-    doc.write_text(FOUND_DOC.read_text())
+    doc.write_text(json.dumps(FOUND_DOC))
 
     code = cli.main([str(doc)], io.StringIO())
 
@@ -280,8 +319,10 @@ def test_file_path_containing_sudokumaker_app_is_still_read_as_a_file(
     assert capsys.readouterr().out.split("\n")[0] == "found"
 
 
-def test_broke_prints_word_alone(capsys: pytest.CaptureFixture[str]) -> None:
-    code = cli.main([str(BROKE_DOC)], io.StringIO())
+def test_broke_prints_word_alone(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    code = cli.main([str(_write_doc(tmp_path, "broke.json", BROKE_DOC))], io.StringIO())
 
     assert code == 1
     assert capsys.readouterr().out == "broke\n"
@@ -290,19 +331,21 @@ def test_broke_prints_word_alone(capsys: pytest.CaptureFixture[str]) -> None:
 def test_reads_the_same_document_from_stdin(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    code = cli.main([], io.StringIO(FOUND_DOC.read_text()))
+    code = cli.main([], io.StringIO(json.dumps(FOUND_DOC)))
 
     assert code == 0
     assert capsys.readouterr().out.split("\n")[0] == "found"
 
 
 def test_unknown_prints_word_alone(
-    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     # Classic 9x9 always decides fast, so `unknown` can't be produced through
     # the real solver at this seam; stub the verdict to force the branch.
     monkeypatch.setattr(cli, "verdict", lambda *a, **k: Verdict(kind="unknown"))
-    code = cli.main([str(FOUND_DOC)], io.StringIO())
+    code = cli.main([str(_write_doc(tmp_path, "found.json", FOUND_DOC))], io.StringIO())
 
     assert code == 1
     assert capsys.readouterr().out == "unknown\n"
