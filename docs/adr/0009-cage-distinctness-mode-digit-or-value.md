@@ -37,6 +37,13 @@ resolve on model coherence alone.
    The cage never hand-rolls a `10·d0 + d1`; that would be a second, divergent
    definition of a value a layer already owns.
 
+   Reading the value through the seam is the **default for every constraint that
+   reads a cell**, not a cage specialty: a constraint takes a cell's *value*
+   unless it has a specific reason to read raw digits. The digits-distinct
+   no-repeats rule is that exception — the classic killer forbids a repeated
+   placed *symbol*, so it reads digit slots directly (decision 1). Every other
+   reader, the killer sum included (decision 6), takes the value.
+
 3. **Same value collides — always, with no exception.** Two cells clash exactly
    when their values are the same number. A doubler worth 18 and an S-cell that
    reads 18 collide, because a value is a number and 18 equals 18. There is no
@@ -62,10 +69,16 @@ resolve on model coherence alone.
    the cell. The combination arrives with the rest of doubler-plus-S-cell
    coexistence, not here.
 
-6. **The killer sum is unaffected by the mode.** A cage's sum already folds
-   modifiers unconditionally (ADR-0008): a doubler counts as `2·d0` whatever the
-   `distinct-over` mode, because the doubler exists to change the total. Only the
-   no-repeats half answers to `distinct-over`.
+6. **The killer sum reads each cell's value through the same seam.** A cage's
+   sum emits `sum(cells) == value` where each cell contributes its `value_expr`
+   — a doubler's `2·d0`, an S-cell's combined `s_value`, else its plain digit —
+   and raises on a doubled S-cell (decision 5), exactly as the values-distinct
+   half reads. It never hand-rolls a sum-only encoding (decision 2), so an
+   S-cell counts as its one combined value, not a private digit sum. The sum
+   folds modifiers whatever the `distinct-over` mode (ADR-0008): the doubler
+   exists to change the total, and only the no-repeats half answers to
+   `distinct-over`. Sum and no-repeats are independent rules, but both read the
+   cell's one value.
 
 7. **`distinct-over` is an internal param with no decoder yet.** No SudokuMaker
    link we have carries a distinctness mode. The cage constraint accepts the key
