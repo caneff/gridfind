@@ -31,14 +31,18 @@ S-cell.
 An optional `name` param is accepted and reserved for future killer keying;
 unread today.
 
-A killer sum (S-aware): an optional `value`
-param, when present and `> 0`, additionally emits `sum(cells) == value` —
-each cell contributing its one digit, or, on a cell an S-cell pin has
-widened, both of its digits. The per-cell contribution is gated on `is_s`
-(`_cage_sum_term`), the same structure-registry fact the no-repeats half
-above tolerates the absence of, so a cage with no `schrodinger` layer in the
-stack sums each cell's sole content variable directly. Absent `value` or
-`value == 0` (SudokuMaker's own no-sum cage) stays region-only.
+A killer sum (S-aware and modifier-aware): an optional `value` param, when
+present and `> 0`, additionally emits `sum(cells) == value`. Each cell
+contributes, in order: its `modifier_value` (a discovered doubler's `2·d0`)
+when the modifier layer reified one for that cell; else, once an S-cell pin
+has widened it, both of its digits; else its one raw digit. The fold always
+runs regardless of `distinct-over` (ADR-0008 decision 4, ADR-0009 decision
+6) — the killer sum and the no-repeats mode answer to different rules.
+`_cage_sum_term` reads `modifier_value` and `is_s`, the same
+structure-registry facts the no-repeats half above tolerates the absence
+of, so a cage with neither `doubler` nor `schrodinger` in the stack sums
+each cell's sole content variable directly. Absent `value` or `value == 0`
+(SudokuMaker's own no-sum cage) stays region-only.
 """
 
 from __future__ import annotations
@@ -52,13 +56,19 @@ from gridfind.engine import Engine, MalformedPuzzleError
 
 
 def _cage_sum_term(
-    engine: Engine, address: str, is_s: dict[str, cp_model.IntVar] | None
+    engine: Engine,
+    address: str,
+    is_s: dict[str, cp_model.IntVar] | None,
+    modifier_value: dict[str, cp_model.IntVar],
 ) -> cp_model.IntVar | cp_model.LinearExprT:
-    """This cage cell's contribution to a killer sum: its one digit, or, once
-    an S-cell pin has widened it, both — reified on `is_s` since which case
-    applies is a solve-time fact, not something `emit` can branch on
-    directly. A cell `schrodinger` never widened stays a plain content
-    read."""
+    """This cage cell's contribution to a killer sum: its `modifier_value`
+    (a discovered doubler's `2·d0`) when the modifier layer reified one for
+    this cell; else its one digit, or, once an S-cell pin has widened it,
+    both — reified on `is_s` since which case applies is a solve-time fact,
+    not something `emit` can branch on directly. A cell neither `doubler`
+    nor `schrodinger` ever touched stays a plain content read."""
+    if address in modifier_value:
+        return modifier_value[address]
     contents = engine.contents(address)
     if len(contents) == 1:
         return contents[0]
@@ -85,6 +95,9 @@ class Cage:
 
     def emit(self, engine: Engine) -> None:
         is_s = engine.is_s()
+        modifier_value = cast(
+            "dict[str, cp_model.IntVar]", engine.structures.get("modifier_value", {})
+        )
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object), narrowed by cast.
             # `name`, if present, is reserved and unread.
@@ -107,5 +120,8 @@ class Cage:
             value = clue.params.get("value")
             if value:
                 total = cast("int", value)
-                terms = [_cage_sum_term(engine, address, is_s) for address in addresses]
+                terms = [
+                    _cage_sum_term(engine, address, is_s, modifier_value)
+                    for address in addresses
+                ]
                 engine.model.add(sum(terms) == total)

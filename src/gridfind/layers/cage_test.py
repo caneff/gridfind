@@ -12,6 +12,12 @@ emits are also read back directly, and the cross-slot repeat a
 Schrödinger-widened cage must catch is pinned directly the way
 `schrodinger_test.py` does, since gridfind has no setter-facing S-cell pin
 yet.
+
+A killer sum's modifier fold is tested at the engine seam with `doubler` in
+the stack, the same differential shape `pair_sum_test.py` uses: force
+`is_modifier` and check the sum only balances through the fold, force it off
+and check the raw-digit sum is infeasible, and leave it free to prove the
+sum forces discovery on its own.
 """
 
 from typing import cast
@@ -362,6 +368,67 @@ def test_a_cage_sum_over_a_non_s_cell_is_unchanged_on_a_schrodinger_board() -> N
     status = cp_model.CpSolver().solve(engine.model)
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+# --- modifier-aware killer sum ----------------------------------------------
+
+
+def test_a_cage_sum_reads_the_doubled_value_when_a_cell_is_the_modifier() -> None:
+    # 19 exceeds two distinct plain digits' max (9 + 8 = 17) but is reachable
+    # once one cell doubles (2*9 + 1). Forcing R1C1 to be the modifier isolates
+    # the claim: the sum only balances if the cage read R1C1's folded value,
+    # not its raw digit.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _cage(("R1C1", "R1C2"), value=19)),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert 2 * solver.value(engine.d0("R1C1")) + solver.value(engine.d0("R1C2")) == 19
+
+
+def test_a_cage_sum_forces_discovery_when_only_reachable_doubled() -> None:
+    # With nothing pinned: 19 exceeds two distinct plain digits' max (9 + 8 =
+    # 17), so a free solve can only satisfy the clue by discovering the
+    # modifier on R1C1 or R1C2 — the clue forces the discovery.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _cage(("R1C1", "R1C2"), value=19)),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(is_modifier["R1C1"]) + solver.value(is_modifier["R1C2"]) == 1
+
+
+def test_a_cage_sum_falls_back_to_the_digit_when_the_cell_is_not_the_modifier() -> None:
+    # Forcing both cage cells off the modifier leaves only the raw-digit sum,
+    # and 19 is unreachable by two distinct plain digits (max 9 + 8 = 17).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _cage(("R1C1", "R1C2"), value=19)),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 0)
+    engine.model.add(is_modifier["R1C2"] == 0)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
 
 
 # --- per-cage distinctness mode --------------------------------------------
