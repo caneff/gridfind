@@ -28,6 +28,7 @@ from gridfind.layers.distinct import (
     regions_from,
     rows,
 )
+from gridfind.layers.doubler import Doubler
 from gridfind.layers.group_sum import GroupSum
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_difference import differs_by
@@ -61,6 +62,7 @@ LAYER_REGISTRY = {
     "pair-ratio": PairRelation("pair-ratio", relation=ratio_of),
     "schrodinger": Schrodinger(),
     "cage": Cage(),
+    "doubler": Doubler(),
     "group-sum": GroupSum(),
     "thermo": Thermo(),
 }

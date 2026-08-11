@@ -90,8 +90,18 @@ class ValueElement:
     seam's atom (spec #232, #217). A cell's value is an ordered sequence of
     these, one per content slot; the identity element (default) reads a
     slot's digit back unchanged, so an unmodified cell's value is `[digit]`.
-    A doubler maps every element to `ValueElement(a=2)` (future issue #237);
-    affine-only by decision — a cipher/lookup value is out of scope."""
+    Affine-only by decision — a cipher/lookup value is out of scope.
+
+    `doubler` (issue #237) does *not* register elements here. `a`/`b` are
+    plain ints, fixed before any solve, but a doubler's coefficient depends
+    on `is_modifier` — a decision variable the solver hasn't resolved while
+    the model is still being built (arithmetic clues must react to discovery
+    during solving, not just report it after). `layers/doubler.py` builds its
+    own reified `"modifier_value"` structure instead of this one; see its
+    module docstring for the full reasoning. This seam remains the read for
+    a value-element whose coefficient *is* known without solving — a future
+    report-time read, or #239's doubled-S-cell composition once #237's value
+    is itself a settled fact."""
 
     a: int = 1
     b: int = 0
@@ -228,10 +238,14 @@ class Engine:
         """A cell's value-elements, one per content slot (spec #232, #217).
         Default is the identity element per slot — an unmodified cell's value
         is `[digit]` (width 1) or `[d0, d1]` (a widened S-cell) — unless a
-        modifier layer has registered this address's coefficients under the
-        `"value_elements"` structure (a doubler's `x2`, future issue #237),
-        the structure-registry channel every other late-bound fact rides
-        (ADR-0004)."""
+        layer has registered this address's coefficients under the
+        `"value_elements"` structure, the structure-registry channel every
+        other late-bound fact rides (ADR-0004). No production layer
+        registers this yet: `doubler` (issue #237) needs a coefficient that
+        depends on `is_modifier`, a decision variable not resolved until
+        solve time, so it reifies its own `"modifier_value"` channel instead
+        of this static per-address override — see `ValueElement`'s
+        docstring and `layers/doubler.py`."""
         overrides = cast(
             "dict[str, list[ValueElement]]", self.structures.get("value_elements", {})
         )

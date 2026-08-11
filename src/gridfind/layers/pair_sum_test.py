@@ -7,9 +7,17 @@ a pair-sum of 5 and an `x` clue a pair-sum of 10.
 The rules the layer emits are read back directly (issue #100), which is the one
 claim a solve cannot make: that a clue emitted its *own* rule rather than being
 satisfied by accident.
+
+Two more tests read at the engine seam (issue #237, spec #232): with `doubler`
+in the stack, a pair-sum reads a named cell's `"modifier_value"` instead of its
+raw digit — proven the same differential way as the two seams above, by
+forcing `is_modifier` and checking the sum only balances through the fold.
 """
 
+from typing import cast
+
 import pytest
+from ortools.sat.python import cp_model
 
 from gridfind.engine import MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
@@ -148,3 +156,60 @@ def test_an_alias_clue_that_also_states_its_own_sum_is_refused(kind: str) -> Non
 
     with pytest.raises(MalformedPuzzleError, match=f"{kind!r}.*sum"):
         verdict(puzzle)
+
+
+def test_pair_sum_reads_the_doubled_value_when_a_cell_is_the_modifier() -> None:
+    # 19 is unreachable by two plain 1-9 digits (max 18) but reachable once
+    # one cell doubles (2*9 + 1). Forcing R1C1 to be the modifier isolates
+    # the claim: the sum only balances if pair-sum read R1C1's folded value,
+    # not its raw digit.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _pair_sum(("R1C1", "R1C2"), 19)),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert 2 * solver.value(engine.d0("R1C1")) + solver.value(engine.d0("R1C2")) == 19
+
+
+def test_a_sum_only_reachable_when_doubled_forces_discovery_in_the_pair() -> None:
+    # AC2, with nothing pinned: one-per-house puts exactly one modifier in row 1,
+    # and 19 exceeds two plain 1-9 digits (max 18), so a free solve can satisfy
+    # the clue only by discovering that modifier on R1C1 or R1C2. The clue forces
+    # the discovery — the assertion reads the solver's choice, not a fixture's.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _pair_sum(("R1C1", "R1C2"), 19)),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(is_modifier["R1C1"]) + solver.value(is_modifier["R1C2"]) == 1
+
+
+def test_pair_sum_falls_back_to_the_digit_when_the_cell_is_not_the_modifier() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _pair_sum(("R1C1", "R1C2"), 19)),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 0)
+    engine.model.add(is_modifier["R1C2"] == 0)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
