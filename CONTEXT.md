@@ -311,6 +311,14 @@ forces a cell to become an S-cell.
 - **cage** — the constraint and the rule it emits: `{type: cage, cells:
   [...], name?}`. `name` is reserved for future killer keying, unused today.
 
+- **cosmetic cage** — a cage a setter draws for display, carrying its sum as a
+  label rather than as an enforced killer constraint. SudokuMaker forces one
+  whenever a killer sum runs out of standard-digit range — the case a **doubler**
+  inside a cage creates — because its killer tool refuses to store that sum.
+  gridfind reads a cosmetic cage whose label is a number **as a killer cage**; it
+  is the only channel an out-of-range sum arrives through (ADR-0008). A cage
+  whose label is non-numeric stays inert.
+
 ---
 
 ## `group-sum` layer
@@ -334,6 +342,25 @@ This is purely additive: `pair-sum` and `cage` are unchanged, each still its
 own canonical type. `pair-sum` folding into `group-sum` as an XV-only alias,
 and a killer cage recomposing as `group-sum` + uniqueness, are separate,
 later changes (spec #240).
+
+---
+
+## Modifiers
+
+A cell whose placed digit enters constraint arithmetic changed rather than raw.
+The value seam reads a cell's **value**, which is its digit for a plain cell and
+its modified amount for a modifier cell — so a sum, difference, or cage total
+folds the modifier without the constraint layer knowing one is present.
+
+- **modifier** — a cell that transforms its own digit for arithmetic. Its
+  **position is declared** by the setter (a color-marked cell in a SudokuMaker
+  link, ADR-0008), while a plain puzzle discovers modifier positions by the
+  one-per-house transversal (issue #237). The distinction is placement, not
+  value.
+
+- **doubler** — the built modifier: its value is `2·d0`, twice its digit. A
+  doubler inside a **cage** is what drives a sum out of standard-digit range and
+  forces the setter to a **cosmetic cage**.
 
 ---
 
