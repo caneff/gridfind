@@ -1,93 +1,105 @@
-# ADR-0009: a cage's no-repeats mode is digit or value; the killer sum always folds
+# ADR-0009: a cage's no-repeats mode is digit or value; a value is what the value methods say
 
 - **Status:** Accepted
 - **Date:** 2026-08-11
-- **Decides:** what "distinct" means in a cage that holds a **modifier** — over
-  the placed digits or over the folded values — and why the choice sits only on
-  the no-repeats half, never the killer sum (parent
-  [#232](https://github.com/caneff/gridfind/issues/232),
+- **Decides:** what "distinct" means in a cage that holds a cell whose value is
+  not its digit — a **doubler** or a **Schrödinger cell** — and where that value
+  comes from (parent [#232](https://github.com/caneff/gridfind/issues/232),
   ticket [#236](https://github.com/caneff/gridfind/issues/236)).
 
 ## Context
 
-A cage forbids its cells from repeating. Put a **doubler** in the cage and
-"repeating" splits in two: a doubler showing 3 has value 6, so does it clash
-with a plain cell showing 6 (same value) or a plain cell showing 3 (same
-digit)? Both readings are real killer variants, and gridfind has to pick which
-a given cage means.
+A cage forbids its cells from repeating. Once a cell can be worth something other
+than its face digit, "repeating" splits in two. A **doubler** showing 3 is worth
+6. An **S-cell** holds two digits at once, say 2 and 3. So does a cage forbid a
+repeated *digit* or a repeated *value*, and what is the value of a cell that
+holds two digits?
 
-ISS is no guide here — it has no doublers, no modifiers, and no Schrödinger
-cells, so its cage is a fixed digit-distinct `AllDifferent` with nothing to
-toggle. gridfind carries all three, so it has a distinction ISS cannot express
-and must resolve on model coherence alone.
-
-The pieces already in place: a doubler's folded value is the reified
-`modifier_value` structure (`d0` normally, `2·d0` when the cell is the
-discovered modifier), which `pair-sum` already reads; the cage's no-repeats
-half reads raw content slots (digit-distinct); and the cage's killer sum
-already folds modifiers unconditionally (ADR-0008).
+ISS is no guide — it has no doublers, no modifiers, and no Schrödinger cells, so
+its cage is a fixed digit-distinct `AllDifferent` with nothing to toggle.
+gridfind carries all three, so it has a distinction ISS cannot express and must
+resolve on model coherence alone.
 
 ## Decision
 
 1. **A cage carries a `distinct-over` mode: `digit` (default) or `value`.** A
-   **digits-distinct** cage forbids a repeated digit — today's rule, unchanged.
-   A **values-distinct** cage forbids a repeated folded value. The default
-   preserves the classic killer convention, so every existing cage keeps its
-   verdict.
+   **digits-distinct** cage forbids a repeated digit — today's rule, unchanged,
+   and the classic killer convention, so every existing cage keeps its verdict.
+   A **values-distinct** cage forbids a repeated value.
 
-2. **Values-distinct folds modifiers only; an S-cell stays two digits.** A cell
-   contributes its folded slots to one `add_all_different`: a doubler its single
-   `modifier_value` (`2·d0`), a plain cell its digit, an S-cell both of its
-   digits unchanged. An S-cell is a superposition of two digits, not a
-   value-modified cell — every other distinctness rule already treats its two
-   digits as two house members, and values-distinct keeps that. On a plain
-   puzzle no cell has a `modifier_value`, so the set is every raw slot and
-   values-distinct *is* digits-distinct — the regression holds by construction,
-   not by a parallel code path.
+2. **A cell's value is what the value methods return — the cage does not define
+   its own.** The value seam (ADR-0004) is the single definition of a cell's
+   value: a plain cell's value is its digit, a doubler's is its doubled amount
+   (the `modifier_value` a modifier layer reifies), an S-cell's is its two
+   digits folded. A values-distinct cage reads each cell's value through that
+   seam and puts it in one `add_all_different`. It does not hand-roll a fold of
+   its own — a bespoke `10·d0 + d1` in the cage would be a second, divergent
+   definition of the same thing.
 
-3. **The killer sum always folds; only the no-repeats half toggles.** A cage's
-   sum counts a doubler as `2·d0` whatever the `distinct-over` mode — the
-   doubler exists to change the total. The two halves answer to different
-   conventions on purpose: a killer sum is arithmetic, so it is always
-   value-based; killer distinctness is over placed symbols, so it defaults to
-   digit and opts into value.
+3. **Same value collides — always, with no exception.** Two cells clash exactly
+   when their values are the same number. A doubler worth 18 and an S-cell that
+   folds to 18 collide, because a value is a number and 18 equals 18. There is no
+   offset, no separate band, no rule that a "doubled 18" and a "folded 18" are
+   different — they are the same value, so they repeat. An earlier draft proposed
+   offsetting the two encodings apart; that was wrong, and it would have let two
+   equal values sit in one cage.
 
-4. **`distinct-over` is an internal param with no decoder yet.** No SudokuMaker
+4. **How an S-cell folds is a puzzle-wide property, owned by the Schrödinger
+   layer.** Two digits become one value by a **fold** — `sum` (2 + 3 = 5) or
+   `concat` (2, 3 → 23). Which one is a property of the whole puzzle, not of the
+   cage or the cell, and the Schrödinger layer owns it: it is the layer that
+   widens a cell to two digits, so it names how those two digits read as one
+   value. Every values-distinct read of an S-cell in that puzzle uses the same
+   fold.
+
+5. **A doubled S-cell stays deferred.** A cell that is both a doubler and an
+   S-cell has no defined value yet — no link can encode both marks (they share
+   the red color bit, ADR-0008) and nothing models the combination. The cage
+   asserts a modifier cell is width-1, so the unconstructable state fails loudly
+   instead of silently mis-valuing the cell. The combination arrives with the
+   rest of doubler-plus-S-cell coexistence, not here.
+
+6. **The killer sum is unaffected by the mode.** A cage's sum already folds
+   modifiers unconditionally (ADR-0008): a doubler counts as `2·d0` whatever the
+   `distinct-over` mode, because the doubler exists to change the total. Only the
+   no-repeats half answers to `distinct-over`.
+
+7. **`distinct-over` is an internal param with no decoder yet.** No SudokuMaker
    link we have carries a distinctness mode. The cage constraint accepts the key
    (its params are an open dict) and defaults to `digit`; the wire decoder stays
    untouched until a real values-distinct link shows which bit carries the mode.
 
-5. **A doubled S-cell is deferred and guarded.** A cell that is both a doubler
-   and an S-cell would fold to `[2·d0, 2·d1]`, but no link can encode both marks
-   (they share the red color bit — ADR-0008) and nothing models the combination.
-   Values-distinct asserts a modifier cell is width-1, so the unconstructable
-   state fails loudly instead of silently dropping the cell's second digit from
-   the distinctness set. The full two-slot fold arrives with the rest of
-   doubler-plus-S-cell coexistence, not here.
-
 ## Considered options
 
-- **One compound value per cell** — a plain cell is `d0`, a doubler `2·d0`, an
-  S-cell the positional `10·d0 + d1` (the "23" an S-cell reads as). Rejected: it
-  invents a compound-value notion no other rule uses, and since `23` can never
-  equal a single digit, an S-cell in such a cage collides with nothing — the
-  distinctness rule stops constraining it at all. It matched one acceptance-
-  criteria example and nothing deeper.
-- **Fold the distinctness and the sum together** — one mode governs both halves.
-  Rejected: it forces a killer sum to stop counting a doubler double whenever the
-  setter wants digit-distinctness, which breaks the doubler's whole purpose.
-- **Build the doubled-S-cell fold now.** Rejected as YAGNI with a sharp edge: the
-  state cannot be decoded or constructed today, so the fold would be untested
-  code shaping a verdict; the width-1 assertion is the cheap correct stand-in.
+- **Axis separation (a prior version of this ADR, now reversed).** An S-cell
+  contributes *both* digits as two `add_all_different` members — the same as
+  digits-distinct — and values-distinct differs from digits-distinct *only* for
+  a modifier cell. Rejected: it contradicts issue #236's acceptance criteria,
+  which always read an S-cell as one folded value ("a `23`-valued S-cell
+  coexists with a plain 2 or 3"), and it splits "value" into two mechanisms —
+  a folded value for doublers, a two-member expansion for S-cells — where the
+  seam already gives one folded value for both. The domain owner's model is the
+  single folded value, and the value methods already express it.
+
+- **Offset the two encodings apart** so a doubler's value and an S-cell's folded
+  value never share an integer key. Rejected: two cells with the same value are
+  supposed to collide; offsetting them apart defeats the mode. `18` is `18`.
+
+- **Fix the fold at `concat`.** Rejected: the fold is genuinely sometimes a sum
+  and sometimes a concatenation, so it must be a declared property, and the
+  Schrödinger layer is its owner.
 
 ## Consequences
 
-- A cosmetic cage honored as a killer cage (ADR-0008) and a values-distinct cage
-  are the two ways a modifier reaches a cage's arithmetic; together they let one
-  doubler puzzle solve soundly.
-- The `distinct-over` param is live in the model but dead on the wire until a
-  link needs it — a reader of the decoder will find no path that sets it, by
-  design.
+- The value seam becomes the one place a cell's value is defined, for the killer
+  sum and the values-distinct rule alike. A values-distinct cage that reads the
+  seam rather than its own fold is the same read a modifier-aware distinctness
+  needs, so folding the doubler in falls out of the seam, not a special case in
+  the cage.
+- Sourcing the fold from the Schrödinger layer, and reading a doubler's value at
+  model-build time, both touch the value seam — the same ground issue #255 is
+  working (whether the seam subsumes discovered modifiers). This decision names
+  the cage's needs; the seam's shape is settled there.
 - The width-1 assertion is a deliberate ceiling on doubled S-cells, recorded so a
   future reader lifts it through the coexistence path rather than reading the
   guard as an accident.
