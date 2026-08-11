@@ -61,7 +61,7 @@ class ModifierPlacement:
         is_modifier = cast(
             "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
         )
-        grid = cast("list[list[str]]", engine.structures["grid"])
+        grid = engine.grid()
         for partition in _HOUSE_PARTITIONS:
             for group in partition(grid):
                 addresses = list(group)

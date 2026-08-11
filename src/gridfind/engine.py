@@ -178,6 +178,17 @@ class Engine:
     def register_structure(self, name: str, value: object) -> None:
         self.structures[name] = value
 
+    def is_s(self) -> dict[str, cp_model.IntVar] | None:
+        """The schrödinger layer's per-cell S-cell indicators, or None when the
+        stack has no schrödinger layer — read through `.get`, so a reader
+        tolerates its absence (ADR-0004). The one typed home for the cast every
+        S-aware reader would otherwise repeat."""
+        return cast("dict[str, cp_model.IntVar] | None", self.structures.get("is_s"))
+
+    def grid(self) -> list[list[str]]:
+        """The board's addresses laid out row-major, registered by `board`."""
+        return cast("list[list[str]]", self.structures["grid"])
+
     def values(self, solver: cp_model.CpSolver, address: str) -> tuple[int, ...]:
         """A cell's placed content sequence after a solve — the plural read
         (issue #140), replacing the scalar `value`. A width-1 cell hands back

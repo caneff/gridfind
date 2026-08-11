@@ -20,7 +20,7 @@ module, named, rather than ~100 lines apiece wearing the classifier's clothes.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Literal
 
 from ortools.sat.python import cp_model
 
@@ -75,13 +75,13 @@ def verdict(
     status = solver.solve(engine.model)
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        is_s = cast("dict[str, cp_model.IntVar] | None", engine.structures.get("is_s"))
+        is_s = engine.is_s()
         assignment: dict[str, tuple[int, ...]] = {}
         for address in engine.cells:
             content = engine.values(solver, address)
             is_this_s = is_s is not None and bool(solver.value(is_s[address]))
             assignment[address] = content if is_this_s else content[:1]
-        grid = cast("list[list[str]]", engine.structures["grid"])
+        grid = engine.grid()
         region_map = region_map_for_constraints(canonical, puzzle.board.size)
         witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
         return Verdict(kind="found", witness=witness)
