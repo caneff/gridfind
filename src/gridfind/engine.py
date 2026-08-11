@@ -189,6 +189,22 @@ class Engine:
         S-aware reader would otherwise repeat."""
         return cast("dict[str, cp_model.IntVar] | None", self.structures.get("is_s"))
 
+    def is_modifier(self) -> dict[str, cp_model.IntVar] | None:
+        """`modifier-placement`'s per-cell discovered-modifier indicators, or
+        None when the stack has no modifier layer — read through `.get`, the
+        same absence-tolerant idiom as `is_s` (ADR-0004)."""
+        return cast(
+            "dict[str, cp_model.IntVar] | None", self.structures.get("is_modifier")
+        )
+
+    def modifier_type(self) -> str | None:
+        """The puzzle's one declared modifier type name (e.g. `\"doubler\"`),
+        or None when the stack has no modifier layer. Registered by the
+        concrete modifier layer itself (`doubler` and any future sibling) —
+        `modifier-placement` stays type-blind, so this name comes from
+        nowhere else."""
+        return cast("str | None", self.structures.get("modifier_type"))
+
     def grid(self) -> list[list[str]]:
         """The board's addresses laid out row-major, registered by `board`."""
         return cast("list[list[str]]", self.structures["grid"])

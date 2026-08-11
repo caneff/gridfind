@@ -362,6 +362,18 @@ folds the modifier without the constraint layer knowing one is present.
   doubler inside a **cage** is what drives a sum out of standard-digit range and
   forces the setter to a **cosmetic cage**.
 
+A **found** verdict's **witness** reports which cells the solver discovered as
+modifiers on a `modifiers: dict[str, str]` field, address to the puzzle's
+declared modifier type (`"doubler"`) — the modifier analog of `assignment`,
+populated from the discovered `is_modifier` structure the same way `assignment`
+is gated on `is_s`. The witness's digit `assignment` still carries the raw
+digit, never the folded value: a **given** on a modified cell pins the digit
+only (the existing `restrict → d0`), and the value derives from it. Discovered
+modifier-ness also gets its own **working-state directive channel**,
+`modifier_directives`, mirroring `s_directives` rather than folding into
+given/candidate/placement — a modifier's position is discovered, not a digit
+fact those channels state (spec #232 decision #218).
+
 ---
 
 ## `quad-rank` layer
