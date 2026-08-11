@@ -26,7 +26,7 @@ from typing import Literal, Protocol, cast
 
 from ortools.sat.python import cp_model
 
-# The engine->layer contract's named surface (issue #28, ADR-0001). Layers code
+# The engine->layer contract's named surface (ADR-0001). Layers code
 # against these; everything else in the module is implementation detail.
 __all__ = [
     "Cell",
@@ -42,7 +42,7 @@ __all__ = [
 ]
 
 Fold = Literal["sum", "positional"]
-"""A named reduction over a cell's value-elements (spec #232, #216): `sum`
+"""A named reduction over a cell's value-elements: `sum`
 adds them; `positional` reads them base-10 with the first element (`d0`)
 most-significant. The starter fold library — `keep-pair` is deferred until
 renban lands."""
@@ -57,14 +57,12 @@ class MalformedPuzzleError(GridfindError):
 
     Covers input that contradicts itself (an alias fixing a parameter it also
     states) and input that names what the board never offered — a digit
-    outside the board's values, or an address the board doesn't have (a
-    given, placement, or candidate naming a cell that isn't on the grid;
-    issue #107).
+    outside the board's values, or an address the board doesn't have (a given,
+    placement, or candidate naming a cell that isn't on the grid).
 
     Raised, never returned. The answer vocabulary stays found / broke /
     unknown — a malformed puzzle simply never reaches an answer, because
-    **broke** is a consistency claim and malformed input has not earned it
-    (issue #99, amendments).
+    **broke** is a consistency claim and malformed input has not earned it.
     """
 
 
@@ -83,12 +81,12 @@ class Cell:
 @dataclass(frozen=True)
 class ValueElement:
     """One affine term `a·x + b` over a single content slot — the value
-    seam's atom (spec #232, #217). A cell's value is an ordered sequence of
+    seam's atom. A cell's value is an ordered sequence of
     these, one per content slot; the identity element (default) reads a
     slot's digit back unchanged, so an unmodified cell's value is `[digit]`.
     Affine-only by decision — a cipher/lookup value is out of scope.
 
-    `doubler` (issue #237) does *not* register elements here. `a`/`b` are
+    `doubler` does *not* register elements here. `a`/`b` are
     plain ints, fixed before any solve, but a doubler's coefficient depends
     on `is_modifier` — a decision variable the solver hasn't resolved while
     the model is still being built (arithmetic clues must react to discovery
@@ -96,8 +94,8 @@ class ValueElement:
     own reified `"modifier_value"` structure instead of this one; see its
     module docstring for the full reasoning. This seam remains the read for
     a value-element whose coefficient *is* known without solving — a future
-    report-time read, or #239's doubled-S-cell composition once #237's value
-    is itself a settled fact."""
+    report-time read, or the doubled-S-cell composition once the doubler's
+    value is itself a settled fact."""
 
     a: int = 1
     b: int = 0
@@ -114,12 +112,12 @@ class Constraint(Protocol):
     that constraint's own settings: a killer cage's cells and target sum, a
     thermo's path. A layer pulls every constraint of its type with
     `constraints_of` and loops them, so one stateless layer serves a puzzle's
-    many cages (issue #65).
+    many cages.
 
-    `params` is the open JSON boundary (spec #45), so its values are `object` —
+    `params` is the open JSON boundary, so its values are `object` —
     a layer narrows each to the shape it expects.
 
-    The engine stays puzzle-agnostic (spec #4, decision 31): it knows this
+    The engine stays puzzle-agnostic (decision 31): it knows this
     read-only view — `type` and `params` — never the `Constraint` dataclass
     behind it. A layer reads a constraint; it never writes one back.
     """
@@ -133,7 +131,7 @@ class Constraint(Protocol):
 
 class BoardShape(Protocol):
     """A puzzle's board shape facts, riding on the engine opaquely beside
-    `constraints` (issue #77) — size and digit values. The same read-only
+    `constraints` — size and digit values. The same read-only
     decoupling this module's `Constraint` protocol gives `puzzle.Constraint`:
     the engine knows this view, never the concrete `Board` it is."""
 
@@ -196,7 +194,7 @@ class Engine:
         return cast("list[list[str]]", self.structures["grid"])
 
     def values(self, solver: cp_model.CpSolver, address: str) -> tuple[int, ...]:
-        """A cell's placed content sequence after a solve (issue #140). A
+        """A cell's placed content sequence after a solve. A
         width-1 cell hands back a length-1 sequence, so a caller that wants a
         single digit folds it itself; a width-2 (S-cell) read is
         `schrodinger`'s to fold."""
@@ -204,13 +202,13 @@ class Engine:
 
     def contents(self, address: str) -> list[cp_model.IntVar]:
         """A cell's raw content sequence, for a layer building an expression
-        over it (issue #140). A width-1 cell hands back a length-1 sequence."""
+        over it. A width-1 cell hands back a length-1 sequence."""
         return self._cell(address).content
 
     def value(self, solver: cp_model.CpSolver, address: str) -> int:
         """A not-yet-widened cell's one placed digit after a solve — the
         singular read for a rule that doesn't handle Schrödinger cells.
-        Raises on a widened S-cell (issue #141); an S-aware reader takes the
+        Raises on a widened S-cell; an S-aware reader takes the
         whole sequence through `values`."""
         return sole(self.values(solver, address))
 
@@ -223,20 +221,20 @@ class Engine:
 
     def d0(self, address: str) -> cp_model.IntVar:
         """A cell's first content variable — d0, which `schrodinger` keeps
-        always a real digit (issue #141). Unlike `content` it never raises on
+        always a real digit. Unlike `content` it never raises on
         a widened S-cell: d0 is well-defined for both, so a read that wants
         the cell's real digit and nothing about its S-cell axis takes d0
         whatever the width. A width-1 cell's d0 is its only slot."""
         return self._cell(address).content[0]
 
     def elements(self, address: str) -> list[ValueElement]:
-        """A cell's value-elements, one per content slot (spec #232, #217).
+        """A cell's value-elements, one per content slot.
         Default is the identity element per slot — an unmodified cell's value
         is `[digit]` (width 1) or `[d0, d1]` (a widened S-cell) — unless a
         layer has registered this address's coefficients under the
         `"value_elements"` structure, the structure-registry channel every
         other late-bound fact rides (ADR-0004). No production layer
-        registers this yet: `doubler` (issue #237) needs a coefficient that
+        registers this yet: `doubler` needs a coefficient that
         depends on `is_modifier`, a decision variable not resolved until
         solve time, so it reifies its own `"modifier_value"` channel instead
         of this static per-address override — see `ValueElement`'s
@@ -248,7 +246,7 @@ class Engine:
         return overrides.get(address, [ValueElement() for _ in range(width)])
 
     def folded_value(self, solver: cp_model.CpSolver, address: str, fold: Fold) -> int:
-        """The one folding-read (spec #232, #216): a cell's value-elements,
+        """The one folding-read: a cell's value-elements,
         applied to its placed digits and reduced under a named `fold`. A
         width-1 cell with no registered elements folds to the digit itself
         under either fold — its one identity element applied to its one
@@ -271,12 +269,12 @@ class Engine:
 
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
-        solver domain rather than from the two ends of it (issue #104).
+        solver domain rather than from the two ends of it.
 
         A solver variable states its domain as flat pairs of closed
         intervals. Every board gridfind builds today gives a cell one
         unbroken interval, so the multi-interval path is decoded but not yet
-        exercised; issue #102, which holds a cell to a stepped digit set, is
+        exercised; a constraint that holds a cell to a stepped digit set is
         what will exercise it.
         """
         domain = list(self.d0(address).proto.domain)
@@ -288,7 +286,7 @@ class Engine:
 
     def restrict(self, address: str, digits: Iterable[int]) -> None:
         """Fix a cell to a set of digits — a given or placement is a
-        singleton set, a candidate a subset, both one operation (issue #72).
+        singleton set, a candidate a subset, both one operation.
         Each digit is checked against the board's own declared values, the
         one authority on what a cell may hold, not a domain re-derived from
         the solver variable — an unknown address raises separately."""
@@ -310,7 +308,7 @@ class Engine:
         both need it: the layer emit-helpers (`emit_distinct_count`,
         `emit_house`) fold it into house rules, and `verdict` ORs it across a
         cell's slots for a half-S-cell's "digit appears among the two slots"
-        membership (issue #154). `layers._base` is layers-internal, so a shared
+        membership. `layers._base` is layers-internal, so a shared
         helper cannot live there."""
         holds_digit = []
         for i, slot in enumerate(slots):
@@ -329,12 +327,11 @@ class Engine:
 
 
 def sole[Read](reads: Sequence[Read]) -> Read:
-    """The one element of a not-yet-widened cell's content or value sequence
-    (issue #140's plural seam). Raises when the cell was widened to an S-cell:
-    a rule that folds with `sole` has not been taught Schrödinger cells yet
-    (issue #141), and silently taking the first slot would drop the second.
-    Where a rule *does* handle S-cells it reads the sequence whole, never
-    through `sole`."""
+    """The one element of a not-yet-widened cell's content or value sequence.
+    Raises when the cell was widened to an S-cell: a rule that folds with
+    `sole` has not been taught Schrödinger cells yet, and silently taking the
+    first slot would drop the second. Where a rule *does* handle S-cells it
+    reads the sequence whole, never through `sole`."""
     if len(reads) != 1:
         msg = (
             f"expected a width-1 cell, got a length-{len(reads)} content — "
@@ -350,15 +347,15 @@ def build_engine(
     *,
     board: BoardShape,
 ) -> Engine:
-    """The two-phase build (spec #4, decision 10): order-insensitive.
+    """The two-phase build (decision 10): order-insensitive.
 
     Phase 1 — every layer registers its cells and structures.
     Phase 2 — every layer emits its rules against the now-final structures.
 
     The puzzle's `constraints` ride on the engine so both phases can query
-    them by type (issue #65) — available before phase 1, which is what lets a
+    them by type — available before phase 1, which is what lets a
     future Schrödinger-style layer widen named cells at register time. `board`
-    rides beside them (issue #77): the `board` layer reads its size and values
+    rides beside them: the `board` layer reads its size and values
     to size the grid and bound cells, rather than a fixed constant.
 
     A layer's declared dependency is a validity check, not a build-order

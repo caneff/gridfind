@@ -1,14 +1,14 @@
 """The `gridfind` command: a working state in, a verdict out.
 
-Milestone 1 (#56) reads one combined `{puzzle, working_state}` document (the
-corpus shape) from a file or stdin; Milestone 2 (#60) also takes a SudokuMaker
+Milestone 1 reads one combined `{puzzle, working_state}` document (the
+corpus shape) from a file or stdin; Milestone 2 also takes a SudokuMaker
 share link, sniffed and decoded via `decode_link`. Either way it calls
 `verdict` and prints the outcome: the verdict word, plus a rendered witness
 grid on `found`. All logic lives in `main(argv, stdin) -> int` so tests drive
 it with an argv and a stdin and read back stdout and the exit code;
 `console_main` only wires `sys` for the `[project.scripts]` entry point.
 
-`--schrodinger` and `--reading` (issue #143) declare a SudokuMaker link as a
+`--schrodinger` and `--reading` declare a SudokuMaker link as a
 Schrödinger puzzle and name its S-cell reading, threading straight through to
 `decode_link`; they are meaningless for a `{puzzle, working_state}` document
 and simply carried unused in that branch.
@@ -37,8 +37,8 @@ from gridfind.verdict import Verdict, verdict
 
 def _is_link(value: str) -> bool:
     """A SudokuMaker share link, not a file path or a JSON document (a document
-    starts with `{`, so the two never collide). Matches the two shapes #60
-    enumerates: the canonical host prefix, or an embedded `?puzzle=` payload."""
+    starts with `{`, so the two never collide). Matches two shapes: the
+    canonical host prefix, or an embedded `?puzzle=` payload."""
     value = value.strip()
     return (
         value.startswith("https://sudokumaker.app/")

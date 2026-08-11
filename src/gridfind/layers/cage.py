@@ -1,5 +1,4 @@
-"""The `cage` layer: no-repeats over a named cell set, no cover pressure
-(issue #157, spec #156 decision #150).
+"""The `cage` layer: no-repeats over a named cell set, no cover pressure.
 
 A cage clue names a set of cells and forbids a digit repeat among them —
 unlike a region (`rows-distinct`, `cols-distinct`, `regions-distinct`), a
@@ -23,7 +22,7 @@ a cell to become an S-cell.
 An optional `name` param is accepted and reserved for future killer keying;
 unread today.
 
-A killer sum (issue #196, S-aware per issue #235): an optional `value`
+A killer sum (S-aware): an optional `value`
 param, when present and `> 0`, additionally emits `sum(cells) == value` —
 each cell contributing its one digit, or, on a cell an S-cell pin has
 widened, both of its digits. The per-cell contribution is gated on `is_s`

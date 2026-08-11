@@ -17,7 +17,7 @@ import pytest
 # A connected tetromino partition of a 4x4 board — deliberately not box
 # tiling (which would be four 2x2 quadrants). `verdict_test.py` and
 # `witness_validator_test.py` both need a regions-distinct partition a
-# box-tiling fallback could not produce by accident (issue #207); sharing
+# box-tiling fallback could not produce by accident; sharing
 # one definition keeps them from silently drifting into the box shape a
 # typo could produce.
 JIGSAW_TETROMINOES = [
@@ -31,8 +31,8 @@ JIGSAW_TETROMINOES = [
 # two givens, no working-state placements. `cli_test` materializes it as a
 # file to drive the file-path/stdin front door; `witness_validator_test`
 # builds the `Puzzle`/`WorkingState` directly to exercise `validate_witness`'s
-# box-aware rendering path (issue #207). Shared so the two can't drift into
-# testing subtly different 4x4 boards (issue #246).
+# box-aware rendering path. Shared so the two can't drift into
+# testing subtly different 4x4 boards.
 FOUND_4X4_DOC: dict[str, object] = {
     "puzzle": {
         "board": {"size": 4},
@@ -52,7 +52,7 @@ FOUND_4X4_DOC: dict[str, object] = {
 
 @pytest.fixture
 def classic_link() -> str:
-    """The confirmed §4a classic link (issue #54).
+    """The confirmed §4a classic link.
 
     One link carries the whole positive corpus: given R1C6/R4C3/R7C2/R7C6, a
     placement at R1C1, a multi-digit center mark at R2C9 (`candidates 518 =

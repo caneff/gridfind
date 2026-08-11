@@ -1,5 +1,5 @@
-"""The `pair-difference` relation: the second explicit-pair variant (#42
-decision 5), a `PairRelation` (issue #225) relation-emitter.
+"""The `pair-difference` relation: the second explicit-pair variant (decision 5), a
+`PairRelation` relation-emitter.
 
 A pair-difference clue names two cells whose contents must differ, in
 absolute value, by a target `k` — kropki-white / consecutive is the `k = 1`
@@ -8,9 +8,9 @@ relation-emitter `LAYER_REGISTRY["pair-difference"]` builds its `PairRelation`
 with: given a clue's params, it reads the target `diff` and returns the
 `rel` that pins one pair to it.
 
-Deliberately narrow, mirroring `pair-sum` (#66): the constraint names both
+Deliberately narrow, mirroring `pair-sum`: the constraint names both
 cells outright — a **pair**, not a **domino** — and the relation never asks
-whether they are adjacent (that geometry is #43). Positive-only: only named
+whether they are adjacent. Positive-only: only named
 pairs are constrained. The relation is absolute, not directed — either cell
 may hold the larger value — encoded with CP-SAT's native `add_abs_equality`
 rather than a hand-built disjunction or a truth table, per the ISS-deviation

@@ -1,4 +1,4 @@
-"""The Schrödinger working-state directive codec (issue #211, ADR-0006).
+"""The Schrödinger working-state directive codec (ADR-0006).
 
 `WorkingState.s_directives` (`puzzle.py`) is a tuple of five small tagged
 dataclasses — `SingletonPin`, `SCellPin`, `BareSingleton`, `BareSCell`,

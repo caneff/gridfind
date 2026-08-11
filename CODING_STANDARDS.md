@@ -76,11 +76,18 @@ to the reviewer of the diff that produced it. Write what the code *does* and
 - **State the invariant, not the change.** "A cage with no `schrodinger` layer
   sums each cell's sole content variable" earns its place; "keeps summing…
   byte-identical to before" does not. Same fact, minus the backward glance.
-- **A bare issue/spec/ADR tag is a citation, not a comment.** `(issue #235)`
-  after a sentence that explains something is a fine pointer. A line whose
-  *only* content is `(decision #150)` — or a changelog of merge order ("202
-  first, 301 next, 200 after") — carries no information; drop it or replace it
-  with the fact it was standing in for.
+- **Cite the durable doc, not the closed ticket.** A citation earns its place
+  only when a reader would open it and find *more* than the comment already
+  says. That test passes for the in-repo design record — `ADR-NNNN`
+  (`docs/adr/`), `CONTEXT.md`, `(map #1, decision N)` — which points forward to
+  reasoning that still lives somewhere navigable. It fails for a bare
+  `(issue #NNN)` trailer: the issue closed when the work merged, its conclusion
+  is already in the code and the comment beside it, and the number just
+  duplicates what `git blame` gives for free. So write `(ADR-0004)`, not
+  `(issue #157)`. Keep an `issue #`/`spec #` cite only where the sentence
+  explicitly sends the reader there for something not restated — "the full
+  field map is in `docs/research/sudoku-link-formats.md` §4a." A changelog of
+  merge order ("202 first, 301 next, 200 after") is never a citation; cut it.
 - **When you change code, delete the comment that describes the old shape.**
   A stale comment is worse than none — it actively lies. If the edit made a
   docstring's claim false, fix the docstring in the same diff.

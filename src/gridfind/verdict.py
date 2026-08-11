@@ -2,16 +2,16 @@
 
 Races a broke-proof against a witness-find by handing CP-SAT's portfolio
 solver a pure-satisfaction model — whichever is decidable first is what the
-single `solve` call returns (spec #4, decisions 15, 15a, 32).
+single `solve` call returns (decisions 15, 15a, 32).
 
-The input is the structured `Puzzle` + `WorkingState` (spec #45, issue #48):
-the puzzle's constraints resolve to layers (issue #47), its board supplies
+The input is the structured `Puzzle` + `WorkingState`:
+the puzzle's constraints resolve to layers, its board supplies
 the grid, and givens/placements/candidates fix the model. Each call rebuilds the
 engine from scratch — the build is ~1% of a solve, and no caller races many
 working states over one puzzle, so no build-once/race-many API is offered
 (ADR-0002).
 
-`verdict()` keeps only assemble-solve-classify (issue #208): applying the
+`verdict()` keeps only assemble-solve-classify: applying the
 working state onto the model is `gridfind.applier.apply`, and the broke-path
 diagnosis is `gridfind.layers.regions.reason`.
 """
@@ -38,8 +38,8 @@ DEFAULT_NUM_WORKERS = 8
 
 @dataclass(frozen=True)
 class Verdict:
-    """`reason` is the broke witness's one explanation (issue #126, extended
-    #158): set when a region in the resolved partition falls outside the
+    """`reason` is the broke witness's one explanation: set when a region in the
+    resolved partition falls outside the
     cover feasibility band — outgrows the digit domain (`cells > domain`) or
     is too small to cover it even with Schrodinger S-cells (`domain >
     2*cells`) — either a fact that alone proves no completion exists. `None`
@@ -63,7 +63,7 @@ def verdict(
     # canonical constraints (so a layer's constraints_of(name) matches the
     # canonical types dispatch resolved on — an `x`/`v` clue reaches its
     # `pair-sum` layer as a sum-10/5 constraint) and the stack, compulsory
-    # `board` layer already in it (issue #101).
+    # `board` layer already in it.
     canonical, layer_stack = build_stack(puzzle.constraints, size=puzzle.board.size)
     engine = build_engine(layer_stack, tuple(canonical), board=puzzle.board)
     apply(engine, puzzle, working_state)
