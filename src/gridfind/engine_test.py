@@ -354,7 +354,14 @@ def test_folded_value_of_a_singleton_is_byte_identical_to_value(
     assert folded == engine.value(solver, "x") == digit
 
 
-def test_sum_fold_adds_a_two_element_values_terms() -> None:
+@pytest.mark.parametrize(
+    ("fold", "expected"),
+    [
+        pytest.param("sum", 8, id="sum-adds-the-terms"),
+        pytest.param("positional", 35, id="positional-reads-10-times-d0-plus-d1"),
+    ],
+)
+def test_fold_reads_a_two_element_value(fold: Fold, expected: int) -> None:
     engine = build_engine([], board=BOARD)
     cell = engine.add_cell("s", low=1, high=9, width=2)
     engine.model.add(cell.content[0] == 3)
@@ -362,18 +369,7 @@ def test_sum_fold_adds_a_two_element_values_terms() -> None:
     solver = cp_model.CpSolver()
     solver.solve(engine.model)
 
-    assert engine.folded_value(solver, "s", "sum") == 8
-
-
-def test_positional_fold_reads_10_times_d0_plus_d1() -> None:
-    engine = build_engine([], board=BOARD)
-    cell = engine.add_cell("s", low=1, high=9, width=2)
-    engine.model.add(cell.content[0] == 3)
-    engine.model.add(cell.content[1] == 5)
-    solver = cp_model.CpSolver()
-    solver.solve(engine.model)
-
-    assert engine.folded_value(solver, "s", "positional") == 35
+    assert engine.folded_value(solver, "s", fold) == expected
 
 
 @given(a=st.integers(-5, 5), b=st.integers(-5, 5), digit=st.integers(1, 9))
