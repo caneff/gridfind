@@ -31,18 +31,17 @@ S-cell.
 An optional `name` param is accepted and reserved for future killer keying;
 unread today.
 
-A killer sum (S-aware and modifier-aware): an optional `value` param, when
-present and `> 0`, additionally emits `sum(cells) == value`. Each cell
-contributes, in order: its `modifier_value` (a discovered doubler's `2·d0`)
-when the modifier layer reified one for that cell; else, once an S-cell pin
-has widened it, both of its digits; else its one raw digit. The fold always
-runs regardless of `distinct-over` (ADR-0008 decision 4, ADR-0009 decision
-6) — the killer sum and the no-repeats mode answer to different rules.
-`_cage_sum_term` reads `modifier_value` and `is_s`, the same
-structure-registry facts the no-repeats half above tolerates the absence
-of, so a cage with neither `doubler` nor `schrodinger` in the stack sums
-each cell's sole content variable directly. Absent `value` or `value == 0`
-(SudokuMaker's own no-sum cage) stays region-only.
+A killer sum through the same seam: an optional `value` param, when present
+and `> 0`, additionally emits `sum(cells) == value`, each cell contributing
+its `Engine.value_expr` — a doubler's `2·d0`, an S-cell's combined `s_value`,
+else its plain digit. That is the one value the seam defines for every reader,
+so the sum and the values-distinct half read a cell the same way and never a
+second hand-rolled encoding (ADR-0009 decision 2). The sum runs regardless of
+`distinct-over` (ADR-0008 decision 4, ADR-0009 decision 6) — sum and no-repeats
+answer to different rules but share the one value. A doubled S-cell has no
+defined value, so `value_expr` raises rather than sum it (ADR-0009 decision 5).
+Absent `value` or `value == 0` (SudokuMaker's own no-sum cage) stays
+region-only.
 """
 
 from __future__ import annotations
@@ -50,39 +49,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from ortools.sat.python import cp_model
-
 from gridfind.engine import Engine, MalformedPuzzleError
-
-
-def _cage_sum_term(
-    engine: Engine,
-    address: str,
-    is_s: dict[str, cp_model.IntVar] | None,
-    modifier_value: dict[str, cp_model.IntVar],
-) -> cp_model.IntVar | cp_model.LinearExprT:
-    """This cage cell's contribution to a killer sum: its `modifier_value`
-    (a discovered doubler's `2·d0`) when the modifier layer reified one for
-    this cell; else its one digit, or, once an S-cell pin has widened it,
-    both — reified on `is_s` since which case applies is a solve-time fact,
-    not something `emit` can branch on directly. A cell neither `doubler`
-    nor `schrodinger` ever touched stays a plain content read."""
-    if address in modifier_value:
-        return modifier_value[address]
-    contents = engine.contents(address)
-    if len(contents) == 1:
-        return contents[0]
-    d0, d1 = contents
-    # A width-2 cell only exists when schrodinger widened it, so is_s is present
-    # here — width-1 cells (no schrodinger) never reach this line.
-    s = cast("dict[str, cp_model.IntVar]", is_s)[address]
-    board = engine.board
-    term = engine.model.new_int_var(
-        min(board.values), 2 * max(board.values), f"{address}.cage-sum-term"
-    )
-    engine.model.add(term == d0 + d1).only_enforce_if(s)
-    engine.model.add(term == d0).only_enforce_if(s.negated())
-    return term
 
 
 @dataclass
@@ -94,10 +61,6 @@ class Cage:
         pass
 
     def emit(self, engine: Engine) -> None:
-        is_s = engine.is_s()
-        modifier_value = cast(
-            "dict[str, cp_model.IntVar]", engine.structures.get("modifier_value", {})
-        )
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object), narrowed by cast.
             # `name`, if present, is reserved and unread.
@@ -120,8 +83,5 @@ class Cage:
             value = clue.params.get("value")
             if value:
                 total = cast("int", value)
-                terms = [
-                    _cage_sum_term(engine, address, is_s, modifier_value)
-                    for address in addresses
-                ]
+                terms = [engine.value_expr(address) for address in addresses]
                 engine.model.add(sum(terms) == total)

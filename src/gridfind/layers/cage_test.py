@@ -308,42 +308,47 @@ def test_a_cage_sum_that_cannot_be_met_resolves_broke() -> None:
     assert result.witness is None
 
 
-def test_a_cage_sum_over_an_s_cell_adds_both_of_its_digits() -> None:
-    # R1C1 is forced S with digits {0, 1}; R1C2 is a singleton at 2. The sum
-    # only balances (0 + 1 + 2 == 3) if the S-cell contributes both digits.
+def test_a_cage_sum_reads_an_s_cells_combined_value() -> None:
+    # R1C1 is forced S with digits {1, 2}: its value is the two combined under
+    # the puzzle's `combine` rule — concat by default, so 12, not the digit sum
+    # 3. R1C2 is a singleton at 3. The cage total balances only at the combined
+    # value: 12 + 3 == 15. Digits {1, 2} (not {0, 1}) make concat differ from
+    # the digit sum, so this proves the seam, not a coincidence.
     engine = build_engine(
         [GridCells(), Schrodinger(), Cage()],
-        (_cage(("R1C1", "R1C2"), value=3),),
+        (_cage(("R1C1", "R1C2"), value=15),),
         board=Board(size=4, values=range(5)),
     )
     is_s = _is_s(engine)
     r1c1 = engine.contents("R1C1")
     engine.model.add(is_s["R1C1"] == 1)
-    engine.model.add(r1c1[0] == 0)
-    engine.model.add(r1c1[1] == 1)
+    engine.model.add(r1c1[0] == 1)
+    engine.model.add(r1c1[1] == 2)
     engine.model.add(is_s["R1C2"] == 0)
-    engine.model.add(engine.d0("R1C2") == 2)
+    engine.model.add(engine.d0("R1C2") == 3)
 
     status = cp_model.CpSolver().solve(engine.model)
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 
 
-def test_a_cage_sum_over_an_s_cell_rejects_a_total_matching_only_one_digit() -> None:
-    # Same S-cell pinning as above, but a target that only balances if the
-    # S-cell contributed one digit, not both (0 + 2 == 2, not 3).
+def test_a_cage_sum_over_an_s_cell_rejects_the_digit_sum_total() -> None:
+    # Same pinning as above. The old digit-adding model would balance at
+    # 1 + 2 + 3 == 6; the value seam reads the S-cell as its combined 12, so a
+    # target of 6 is unreachable — proving the sum reads the cell's value, not
+    # its raw digits.
     engine = build_engine(
         [GridCells(), Schrodinger(), Cage()],
-        (_cage(("R1C1", "R1C2"), value=2),),
+        (_cage(("R1C1", "R1C2"), value=6),),
         board=Board(size=4, values=range(5)),
     )
     is_s = _is_s(engine)
     r1c1 = engine.contents("R1C1")
     engine.model.add(is_s["R1C1"] == 1)
-    engine.model.add(r1c1[0] == 0)
-    engine.model.add(r1c1[1] == 1)
+    engine.model.add(r1c1[0] == 1)
+    engine.model.add(r1c1[1] == 2)
     engine.model.add(is_s["R1C2"] == 0)
-    engine.model.add(engine.d0("R1C2") == 2)
+    engine.model.add(engine.d0("R1C2") == 3)
 
     status = cp_model.CpSolver().solve(engine.model)
 
@@ -411,6 +416,24 @@ def test_a_cage_sum_forces_discovery_when_only_reachable_doubled() -> None:
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
     assert solver.value(is_modifier["R1C1"]) + solver.value(is_modifier["R1C2"]) == 1
+
+
+def test_a_cage_sum_over_a_doubled_s_cell_raises() -> None:
+    # A cell in both the modifier_value and s_value channels is a doubled
+    # S-cell with no defined value (ADR-0009 decision 5). The killer sum reads
+    # the same seam as the values-distinct cage, so building it fails loudly
+    # rather than silently summing one channel over the other.
+    engine = build_engine([], constraints=(_cage(("R1C1",), value=6),), board=BOARD)
+    engine.add_cell("R1C1", low=1, high=9)
+    modifier_value = engine.model.new_int_var(0, 18, "R1C1.modifier_value")
+    s_value = engine.model.new_int_var(0, 99, "R1C1.s_value")
+    engine.register_structure("modifier_value", {"R1C1": modifier_value})
+    engine.register_structure("s_value", {"R1C1": s_value})
+    cage = Cage()
+    cage.register(engine)
+
+    with pytest.raises(MalformedPuzzleError, match="doubled S-cell"):
+        cage.emit(engine)
 
 
 def test_a_cage_sum_falls_back_to_the_digit_when_the_cell_is_not_the_modifier() -> None:
