@@ -1,12 +1,11 @@
-"""The `thermo` layer: gridfind's first line type (spec #251, issues
-#253/#254).
+"""The `thermo` layer: gridfind's first line type.
 
 A thermo clue names an **ordered** path of cells, bulb first, and holds each
 consecutive pair to a directed inequality: strict `a < b` for a normal
 thermo, non-strict `a <= b` for a slow one (repeats allowed, so a slow line
 has no length ceiling). A two-cell path is a single directed edge — the
 degenerate inequality case falls out for free, no separate primitive needed
-(spec #251's "inequality is the degenerate length-2 thermo").
+("inequality is the degenerate length-2 thermo").
 
 Positive-only, distinctness-free: the rule never asks whether a path's cells
 share a house, and states no implied `add_all_different` — that is `cage`'s
@@ -22,8 +21,7 @@ nothing generic now." A second line type (whisper, renban) can still lift a
 shared walk out later if one actually needs it.
 
 The `slow` flag rides on every clue's params (decoded by `sudokumaker.py`)
-and picks the edge relation: `≤` when true, `<` otherwise (issue #254's
-delta on this same layer).
+and picks the edge relation: `≤` when true, `<` otherwise.
 """
 
 from __future__ import annotations

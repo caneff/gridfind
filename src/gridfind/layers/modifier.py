@@ -1,5 +1,5 @@
 """The general modifier-placement layer: `is_modifier`, one-per-house,
-distinct-digit transversal (spec #232 decision #222, issue #234).
+distinct-digit transversal.
 
 Registers a per-cell free boolean `is_modifier` and states the placement
 rule every discovered-modifier puzzle shares: exactly one modifier per row,
@@ -28,8 +28,8 @@ Reuses `distinct`'s `rows`/`cols`/`regions` partition functions to group the
 board's own cell addresses (the `grid` structure `board` registers) — the
 same partitions `rows-distinct`/`cols-distinct`/`regions-distinct` cut over
 cell content, run here over cell addresses instead. `regions` is the classic
-box tiling (issue #77); a board size with no box convention refuses there,
-not here (issue #79 ruling).
+box tiling; a board size with no box convention refuses there,
+not here.
 """
 
 from __future__ import annotations

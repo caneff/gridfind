@@ -1,25 +1,24 @@
-"""The `pair-sum` layer: the first real data-bearing variant (issue #66).
+"""The `pair-sum` layer: the first real data-bearing variant.
 
 A pair-sum clue names two cells whose contents must add to a target. One
 stateless `pair-sum` instance pulls every such constraint via `constraints_of`
 and emits one sum-rule per clue, so a puzzle's many clues resolve to this
-single layer (issue #65). The XV variant is spelled on top of it as an alias: an X clue
+single layer. The XV variant is spelled on top of it as an alias: an X clue
 is a pair-sum of 10, a V clue a pair-sum of 5 (expanded in `layers/__init__`).
 
-Deliberately narrow (issue #66): the constraint names both cells outright — a
+Deliberately narrow: the constraint names both cells outright — a
 **pair**, not a **domino**. The layer sums the named pair and never asks whether
-its cells are adjacent (that geometry is #43). Positive-only: only named pairs
+its cells are adjacent. Positive-only: only named pairs
 are constrained; the negative rule forbidding *unmarked* adjacent pairs from
 summing to 5 or 10 needs board-wide adjacency and is out of scope. The rule
-emits through the shared `emit_over_pairs` helper (#42 decision 5), its target
+emits through the shared `emit_over_pairs` helper (decision 5), its target
 sum riding in via the `rel` closure.
 
-Arithmetic reads value, not digit (spec #232 decision #216): with a modifier
-layer (`doubler`, issue #237) in the stack, a named cell's `"modifier_value"`
+Arithmetic reads value, not digit: with a modifier
+layer (`doubler`) in the stack, a named cell's `"modifier_value"`
 structure — the digit, or the puzzle's declared fold when the solver discovers
 that cell as the modifier — stands in for its raw digit. Absent that structure
-(no modifier layer), the sum reads `content()` exactly as before, so a plain
-puzzle's model is unchanged.
+(no modifier layer), the sum reads each cell's `content()` — the raw digit.
 """
 
 from __future__ import annotations

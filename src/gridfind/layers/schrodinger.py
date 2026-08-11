@@ -1,5 +1,5 @@
 """The `schrodinger` layer: an S-cell's second digit, discovered by solving
-(spec #139, decisions #131/#133; CONTEXT.md `schrodinger` layer).
+(CONTEXT.md `schrodinger` layer).
 
 Widens every grid cell to a length-2 content sequence `[d0, d1]`: `d0` is
 always a real digit; `d1` is a real digit or a per-cell sentinel above every

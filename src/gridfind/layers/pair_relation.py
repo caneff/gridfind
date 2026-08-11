@@ -1,11 +1,11 @@
 """`PairRelation`: the shared engine behind every binary pair-relation layer
-(#225, a prefactor for #195's `pair-ratio` and a reserved `pair-inequality`).
+(a prefactor for `pair-ratio` and a reserved `pair-inequality`).
 
 A pair-relation clue names two cells and holds them to some binary relation
 — difference today, ratio and inequality later. One `PairRelation` instance,
 built with a **relation-emitter** closure, pulls every constraint of its own
 `name` via `constraints_of` and emits one rule per clue through the shared
-`emit_over_pairs` walk (#42 decision 5) — exactly what `pair-difference` did
+`emit_over_pairs` walk (decision 5) — exactly what `pair-difference` did
 on its own before this extraction.
 
 The relation-emitter is the seam: given a clue's own `params`, it returns
@@ -16,7 +16,7 @@ clue's `diff`, a future ratio clue's own key), so a new relation costs one
 registry row plus one emitter function, not a change here.
 
 Sum stays out of this family: it is an N-ary group reduction (`pair-sum`,
-`cage`), not a binary relation (spec #195).
+`cage`), not a binary relation.
 """
 
 from __future__ import annotations

@@ -1,20 +1,20 @@
-"""The `doubler` layer: the concrete `{type: doubler}` modifier (spec #232
-decision #222, issue #237). Composes `ModifierPlacement`'s discovery and
-placement unchanged (#234) — one modifier per house, a distinct-digit
+"""The `doubler` layer: the concrete `{type: doubler}` modifier. Composes
+`ModifierPlacement`'s discovery and
+placement unchanged — one modifier per house, a distinct-digit
 transversal over `d0` — and supplies only this type's own value fold: a
-discovered doubler's value is `2·d0` (spec #217). `ModifierPlacement` itself
+discovered doubler's value is `2·d0`. `ModifierPlacement` itself
 stays doubler-blind; this layer is the one place doubler-ness (the `2·d0`
 coefficient) appears.
 
 The fold is enforced at the model level, not only reported after a solve:
-`Engine.folded_value` (#233) is a post-solve read, but discovery here is a
+`Engine.folded_value` is a post-solve read, but discovery here is a
 decision variable (`is_modifier`) an arithmetic clue must react to while the
-model is still being built — issue #237's "a clue that only balances if a
+model is still being built — the demand that "a clue that only balances if a
 cell is doubled forces that cell to be a doubler" needs the CP-SAT model
-itself to carry the doubled value, not just report it afterwards (#216
-decision 7: "the fold owns is_S conditionality... each consumer builds a
-reified expression" — generalized here from `is_s` to `is_modifier`, the
-same idiom). Each cell's folded value is a reified `IntVar`: the digit when
+itself to carry the doubled value, not just report it afterwards (decision 7: "the fold
+owns is_S conditionality... each consumer builds a reified expression" — generalized
+here from `is_s` to `is_modifier`, the same idiom). Each cell's folded value is a
+reified `IntVar`: the digit when
 not discovered as the modifier, `2·digit` when it is — registered under
 `"modifier_value"`, a name that says nothing about doubling so a future
 modifier type (a negator) can register the same channel with its own

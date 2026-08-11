@@ -1,5 +1,5 @@
 """An independent check of a rendered witness grid against the puzzle that
-produced it (spec #185, issue #186; extended #187 for Schrödinger S-cells).
+produced it.
 
 Test-only support, not public API: imported solely by the e2e suite, and kept
 out of the shipped wheel via `source-exclude` in pyproject.toml.
@@ -13,13 +13,13 @@ output) but never calls `verdict()` and never touches `Witness` or its
 witness that merely *looks* right to the same code that produced it.
 
 The parse below reads against `grid_text.py`'s line/token shape, not against
-`witness.py` itself (issue #210) — that contract is the one place both sides
+`witness.py` itself — that contract is the one place both sides
 cite, so a layout drift in `render()` fails this parse loudly (`None`, then
 `False`) instead of silently reading the wrong cells.
 
 Regions come straight off the puzzle's own `regions-distinct` constraint, via
-`region_map_for_constraints` (issue #207's one door: bare resolves to the
-board's box tiling, jigsaw to `params["regions"]`) — the same shapes
+`region_map_for_constraints` (one door: bare resolves to the board's box tiling, jigsaw
+to `params["regions"]`) — the same shapes
 `decode_link` itself ever emits, so this stays in lockstep with the decoder.
 That resolver is the same one the witness render path crosses, so a
 render → validate round-trip proves both sides agree on one partition
@@ -32,7 +32,7 @@ individual digits before comparing against the domain — for an all-singleton
 group that is exactly the digit list itself, so a classic puzzle's check is
 unchanged; for a Schrödinger group, a house's digit slots (`d0` always, `d1`
 for its one S-cell) must land on each domain digit exactly once
-(`emit_house`, spec #139/#141), so the same "flatten, then must equal the
+(`emit_house`), so the same "flatten, then must equal the
 domain with no repeats" check covers both without a schrodinger branch.
 """
 
@@ -84,11 +84,11 @@ def _is_permutation(group: list[Cell], domain: frozenset[int]) -> bool:
 
 def _parse_grid(rendered: str, size: int) -> list[list[Cell]] | None:
     """The rendered box-drawing grid, read back into a `size`x`size` array of
-    cells, against `grid_text.py`'s named line/token contract (issue #210):
+    cells, against `grid_text.py`'s named line/token contract:
     `grid_text.line_count(size)` total lines, cell tokens on
     `grid_text.cell_line_indices(size)`. Each cell token is either a bare
-    digit or a Schrödinger S-cell pair `{a b}` (issue #141's
-    `grid_text.format_cell`); `grid_text.CELL_PATTERN` matches the pair whole
+    digit or a Schrödinger S-cell pair `{a b}` (`grid_text.format_cell`);
+    `grid_text.CELL_PATTERN` matches the pair whole
     so its two digits are never mistaken for two separate cells. `None` when
     the text doesn't have that many lines, or a cell line doesn't hold
     exactly `size` cell tokens — a shape mismatch, including a `render()`

@@ -2,27 +2,27 @@
 
 One word each way: **region** is the concept, **box** is the classic default
 that fills it. So the general names here say region and the tiling generators
-say box — a jigsaw region is not a box, which is what #30 will prove.
+say box — a jigsaw region is not a box.
 
 The box partition lives here, not in `_base`: it is region-specific, not
-shared infrastructure (issue #17). The `regions-distinct` rule itself is one
-instance of the shared `DistinctOverGroups` layer (issue #37), whose `regions`
+shared infrastructure. The `regions-distinct` rule itself is one
+instance of the shared `DistinctOverGroups` layer, whose `regions`
 partition maps this address partition onto the live grid.
 
-`BOX_SHAPE` (issue #77) is the convention that gives a board its box shape:
+`BOX_SHAPE` is the convention that gives a board its box shape:
 a 6x6 tiles as six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3 — never a
 6x6 as four 3x3 mini-grids (the *quattro quadri* the old single-board-size
 partition produced). `box_regions` is the one generator: it serves every
 board size, including the classic 9x9 the SudokuMaker decoder reads through
-`region_map_for` (issue #105).
+`region_map_for`.
 
-`region_map_for` is the one door onto all of it (issue #79 ruling): the
+`region_map_for` is the one door onto all of it: the
 setter's own map when given, the box tiling by convention when not. The
-table itself, `BOX_SHAPE`, also feeds the witness's own render (issue #105) —
+table itself, `BOX_SHAPE`, also feeds the witness's own render —
 the verdict reads it when it builds a witness, so the box shape travels with
 the grid rather than being re-derived by whoever prints it.
 
-`region_map_from_labels` (issue #123) reads the other supplied shape: a
+`region_map_from_labels` reads the other supplied shape: a
 setter's `regions-distinct` constraint carries `params["regions"]` as a flat,
 row-major array of one integer label per cell — SudokuMaker's own jigsaw wire
 shape, not a `RegionMap`. It converts and validates in one step: the matrix
@@ -31,7 +31,7 @@ beyond length and entry type. An over-large region (more cells than the
 digit domain) is not this function's concern — that is a satisfiability fact
 the solver reports as broke, never a validator's judgment.
 
-`region_map_for_constraints` (issue #207) is the one door onto a whole
+`region_map_for_constraints` is the one door onto a whole
 constraint list rather than a single already-found constraint: it scans for
 `regions-distinct` and picks jigsaw vs. box tiling exactly as `region_map_for`
 would, but also owns the third case neither of the above two decide alone —
@@ -41,7 +41,7 @@ covering the whole board. `build_stack`, the witness render path, and
 the same three-way branch, which is what let them quietly resolve
 different partitions.
 
-`reason` (issue #208) is the broke-verdict diagnosis living beside the
+`reason` is the broke-verdict diagnosis living beside the
 region layers it reasons about, rather than inside `verdict.py`'s
 found/broke/unknown classifier: it asks this module's own
 `region_map_for_constraints` door, the same one `verdict.py` and
@@ -60,14 +60,14 @@ from gridfind.puzzle import Constraint, Puzzle
 RegionMap = list[list[tuple[int, int]]]
 
 # N -> (box_rows, box_cols): the classic box convention this board size tiles
-# by. A size absent here has no classic box convention (issue #77) —
+# by. A size absent here has no classic box convention —
 # `region_map_for` refuses rather than guessing one.
 BOX_SHAPE: dict[int, tuple[int, int]] = {4: (2, 2), 6: (2, 3), 9: (3, 3)}
 
 
 def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
     """The box partition of a `size`x`size` board tiled by `box_rows` x
-    `box_cols` boxes (issue #77): row/col bands read left-to-right,
+    `box_cols` boxes: row/col bands read left-to-right,
     top-to-bottom. The one box-tiling generator — `box_regions(9, 3, 3)` is
     the classic 3x3 partition, no separate 9x9-only formula needed.
     """
@@ -86,8 +86,8 @@ def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
 
 def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
     """The region map a `size`x`size` board runs on: the setter's own map when
-    given, the board's box tiling by convention when not (issue #79 ruling).
-    One consumer, one shape, two sources — a setter-supplied map (#30) is not
+    given, the board's box tiling by convention when not.
+    One consumer, one shape, two sources — a setter-supplied map is not
     a second path beside the box tiling, it supplies what the tiling would
     otherwise compute.
 
@@ -106,9 +106,9 @@ def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
 def region_map_from_labels(size: int, labels: object) -> RegionMap:
     """Convert a setter's flat, row-major label array into a `RegionMap`,
     grouping cells by label — ids need not be contiguous, and group sizes
-    need not be equal (issue #123). Anything other than exactly `size**2`
+    need not be equal. Anything other than exactly `size**2`
     integer entries is not this shape at all, so it raises
-    `MalformedPuzzleError` (the #107 convergence) rather than being coerced.
+    `MalformedPuzzleError` rather than being coerced.
     """
     if not isinstance(labels, list) or len(labels) != size * size:
         msg = f"regions must be a list of {size * size} labels, got {labels!r}"
@@ -126,8 +126,8 @@ def region_map_from_labels(size: int, labels: object) -> RegionMap:
 def region_map_for_constraints(
     constraints: Iterable[Constraint], size: int
 ) -> RegionMap:
-    """The region map a `size`x`size` board's own constraints imply (issue
-    #207): the setter's jigsaw matrix when the `regions-distinct` constraint
+    """The region map a `size`x`size` board's own constraints imply: the setter's jigsaw
+    matrix when the `regions-distinct` constraint
     carries `params["regions"]`, the board's box tiling by convention when
     it's bare, or one region covering the whole board when no
     `regions-distinct` constraint is present — a Latin square draws no
@@ -143,16 +143,15 @@ def region_map_for_constraints(
 
 
 def reason(puzzle: Puzzle) -> str | None:
-    """The broke witness's region-blame (issue #208, extracted from
-    `verdict._region_reason`): the first region in the resolved partition
-    outside the feasibility band `cells <= domain <= 2*cells` (spec #156
-    decision #151), named by its 1-based position and cell count against the
+    """The broke witness's region-blame: the first region in the resolved partition
+    outside the feasibility band `cells <= domain <= 2*cells`, named by its 1-based
+    position and cell count against the
     domain size. Two symmetric violations:
 
-    - **Over-sized** (`cells > domain`, issue #126): a forced repeat by
+    - **Over-sized** (`cells > domain`): a forced repeat by
       pigeonhole. Holds regardless of Schrodinger widening — a region's
       `d0` slots alone already outnumber the domain.
-    - **Under-coverable** (`domain > 2*cells`, issue #158): too few slots
+    - **Under-coverable** (`domain > 2*cells`): too few slots
       to cover the domain even with every cell doubled up as an S-cell.
       Only a real cause of infeasibility when `schrodinger` is in play — a
       region with no cover pressure just forbids repeats, and `domain >

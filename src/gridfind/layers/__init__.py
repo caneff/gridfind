@@ -1,19 +1,19 @@
-"""Composition point for the layers package (issue #17).
+"""Composition point for the layers package.
 
 Assembles the layer registry from the per-layer modules as an explicit list —
 no decorator, no import-side-effect auto-discovery — and holds the one door
 from a puzzle's constraints to a layer stack (`build_stack`, `canonical_identity`,
-`UnknownLayerError`) that `verdict.py` consumes (issue #101).
+`UnknownLayerError`) that `verdict.py` consumes.
 
-`gridfind.layers` is **internal-only** — no external or plugin callers (issues
-#18, #24). Its committed public surface is exactly `__all__` below: the constraint
+`gridfind.layers` is **internal-only** — no external or plugin callers. Its committed
+public surface is exactly `__all__` below: the constraint
 dispatch API `verdict.py` consumes. Everything else here — the registry, and the
 layer classes imported to build them — is implementation detail: used in-tree,
 not part of the committed surface, and free to change. Tests reach the layer
 classes through their own submodules (e.g. `gridfind.layers.regions`).
 
 The engine->layer contract a layer author codes against (`Layer`, `add_cell`,
-`register_structure`) is a separate surface, tracked in issue #26.
+`register_structure`) is a separate surface.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ LAYER_REGISTRY = {
     "thermo": Thermo(),
 }
 
-# Two mechanisms expand a constraint at load (spec #45, issue #47), and they
+# Two mechanisms expand a constraint at load, and they
 # are not the same shape — one type becoming many is a preset, one type
 # becoming another is an alias.
 #
@@ -80,7 +80,7 @@ PRESET_REGISTRY: dict[str, list[str]] = {
 
 # An **alias** renames one type to another and fixes one param, carrying its
 # own params through. X and V are pair-sum clues whose target is spelled in
-# the name — an X pair sums to 10, a V to 5 (issue #66).
+# the name — an X pair sums to 10, a V to 5.
 ALIAS_REGISTRY: dict[str, tuple[str, dict[str, JsonValue]]] = {
     "x": ("pair-sum", {"sum": 10}),
     "v": ("pair-sum", {"sum": 5}),
@@ -128,8 +128,8 @@ def build_stack(
     *,
     size: int,
 ) -> tuple[list[Constraint], list[Layer]]:
-    """The one door from a puzzle's constraints to its layer stack (issue
-    #101): expand presets and aliases exactly once, then dispatch each
+    """The one door from a puzzle's constraints to its layer stack: expand presets and
+    aliases exactly once, then dispatch each
     distinct canonical `type` through the registry, and return both the
     canonical constraints and the resulting stack.
 
@@ -140,12 +140,12 @@ def build_stack(
     setter naming it anyway costs one layer, not two.
 
     Two constraints of one type otherwise resolve to a single layer that loops
-    its own constraints (issue #65) — the layer, not the layer twice. An
+    its own constraints — the layer, not the layer twice. An
     unrecognized `type` is rejected.
 
-    A `regions-distinct` constraint carrying `params["regions"]` (issue #123)
+    A `regions-distinct` constraint carrying `params["regions"]`
     is the one type-directed exception: the door resolves it through the
-    shared `region_map_for_constraints` (issue #207) rather than
+    shared `region_map_for_constraints` rather than
     re-deriving the jigsaw-vs-box branch inline, and builds a fresh
     `DistinctOverGroups` closed over that partition instead of dispatching
     to the registry's box-tiling default. The layer itself stays
@@ -176,13 +176,12 @@ def build_stack(
 def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
     """A puzzle's identity: its expanded constraint set, alphabetically
     normalized. The preset spelling and the explicit spelling compare equal
-    (the #33 duplicate-detection rule, over constraints instead of a stack
-    string).
+    (the duplicate-detection rule, over constraints instead of a stack string).
 
     ponytail: keys on constraint `type` only — right for the sudoku family (all
-    bare constraints). Data-bearing constraints collide: killer cages (#196) on
+    bare constraints). Data-bearing constraints collide: killer cages on
     `value`, and now the value seam's affine modifiers (`+N`, coefficients) on
-    their params — two puzzles differing only there compare identical (#219).
+    their params — two puzzles differing only there compare identical.
     Left alone: the only caller is a pytest-id label in this module's own test
     suite, not a runtime dedup, and folding params in would make that id worse
     (`killercage:24` noise), not better. Discovered modifiers (doubler) declare

@@ -1,5 +1,5 @@
-"""The `pair-ratio` relation: black kropki (spec #195, issue #226), the
-third explicit-pair variant expressed as a `PairRelation` (issue #225)
+"""The `pair-ratio` relation: black kropki, the
+third explicit-pair variant expressed as a `PairRelation`
 relation-emitter.
 
 A pair-ratio clue names two cells whose contents stand in a fixed integer
@@ -15,8 +15,8 @@ reified bool, mirroring the `schrodinger` layer's precedent
 hand-built disjunction or a truth table.
 
 Deliberately narrow, mirroring `pair-difference`: a **pair**, not a
-**domino** — the relation never asks whether the cells are adjacent (that
-geometry is #43) — and positive-only, carrying no implied distinctness (that
+**domino** — the relation never asks whether the cells are adjacent — and positive-only,
+carrying no implied distinctness (that
 is `cage`'s job). A `k == 1` clue forces `a == b`, which resolves `broke`
 under distinctness as a natural consequence of the rest of the stack, not a
 case special-cased here.

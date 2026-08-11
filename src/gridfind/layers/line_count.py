@@ -11,7 +11,7 @@ from gridfind.layers._base import emit_distinct_count, grid_content
 @dataclass
 class LineCountDistinct:
     """somedoku's rule: row *n* holds exactly *n* distinct digits, repeats
-    allowed (spec #4, decision 7 — line-count-distinct; issue #10). Rides on
+    allowed (decision 7 — line-count-distinct). Rides on
     `board`'s `grid` structure exactly like `rows-distinct` — registers
     nothing new in phase 1, only emits in phase 2.
     """

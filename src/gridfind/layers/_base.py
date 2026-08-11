@@ -1,4 +1,4 @@
-"""Helpers shared across layer modules (spec #4).
+"""Helpers shared across layer modules.
 
 Three levels meet in this file, told apart by how many of each there are. A
 **constraint** is one typed statement in a puzzle; it emits many **rules**,
@@ -11,7 +11,7 @@ a vendor (CONTEXT.md, map #1 decision 13).
 
 `grid_content` and `emit_distinct_count` are package-internal APIs imported by
 `rows`, `cols`, `regions`, and `line_count`. They live here, not in any one
-layer file, because more than one layer needs them (issue #17).
+layer file, because more than one layer needs them.
 """
 
 from __future__ import annotations
@@ -25,18 +25,16 @@ from gridfind.engine import Engine
 
 def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
     """The grid's cells as their raw content sequences, resolved at call time
-    in phase 2 (issue #19). Named for *content*, the decided word, rather
+    in phase 2. Named for *content*, the decided word, rather
     than for the CP-SAT variables it happens to return — "variable" is an
     implementation word kept out of the spoken vocabulary (CONTEXT.md).
 
     `board` stores the grid as cell *addresses*, not content, on purpose: a
     Schrödinger layer can widen a cell's content to length 2 in phase 1, so
     resolving an address to its content must wait until here. Hands back
-    each cell's raw sequence, never a folded scalar (issue #140) — a
+    each cell's raw sequence, never a folded scalar — a
     width-1 cell's sequence has length 1, so a caller that wants one
-    variable per cell folds it itself. The one cast lives in this helper —
-    `structures` stays generic so every layer shares one channel; only this
-    consumer needs the concrete type.
+    variable per cell folds it itself.
     """
     grid = engine.grid()
     return [[engine.contents(address) for address in row] for row in grid]
@@ -46,7 +44,7 @@ def emit_distinct_count(
     engine: Engine, cells: list[cp_model.IntVar], *, target: int, label: str
 ) -> None:
     """Rule: exactly `target` distinct values appear across `cells`, repeats
-    allowed — a counting rule, unlike an AllDifferent (issue #10). For each
+    allowed — a counting rule, unlike an AllDifferent. For each
     candidate digit, a reified "present" bool tracks whether any cell holds
     it; the digit count is the sum of those bools.
 
@@ -71,7 +69,7 @@ def emit_house(
     slot across `cells` — `d0` always, `d1` too where it holds a real digit
     (an S-cell's second digit). No separate is_S gate is needed: a
     non-S-cell's `d1` sits on its own sentinel, always above every real
-    digit, so it can never equal one (issue #141, spec #139).
+    digit, so it can never equal one.
 
     No-repeats and cover collapse into this one rule: a house of `len(cells)`
     cells offers `sum(len(content) for content in cells)` real-or-sentinel
@@ -91,8 +89,8 @@ def emit_over_pairs(
     rel: Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None],
 ) -> None:
     """Rule: `rel(engine, a, b)` holds for every pair in `pairs` — the shared
-    walk behind every explicit-pair variant (pair-sum today, a second variant
-    at #42 decision 5).
+    walk behind every explicit-pair variant (pair-sum today, a second variant at
+    decision 5).
 
     A callback rather than a relation-as-data table: the relation a pair-sum
     or pair-difference clue wants (a sum, an absolute difference) is native

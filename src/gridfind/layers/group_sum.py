@@ -1,5 +1,4 @@
-"""The `group-sum` layer: sum as an N-ary reduction, total only (issue #241,
-spec #240).
+"""The `group-sum` layer: sum as an N-ary reduction, total only.
 
 A group-sum clue names any number of cells (N >= 2) whose contents must add
 to a target. One stateless `group-sum` instance pulls every such constraint

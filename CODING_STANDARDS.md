@@ -60,3 +60,34 @@ this doc covers the parts a linter can't.
   meaningful prefix just to shorten one line — a bare `loads` or `connect`
   hides its source and collides with the next module that exports the same
   name.
+
+## Comments describe the code, not its history
+
+A comment or docstring speaks to the reader in front of the current code, not
+to the reviewer of the diff that produced it. Write what the code *does* and
+*why*; never what it *used to do*.
+
+- **No history narration.** Cut the diff-against-a-version-nobody-can-see:
+  "used to raise," "is retired," "no longer," "replacing the scalar X," "split
+  out of Y," "byte-identical to before," "exactly as before," "has always
+  emitted," "no-regression." The reader never saw the old code, so the
+  comparison lands as noise. Git already holds that story with the diff
+  attached; a comment that repeats it does the job worse.
+- **State the invariant, not the change.** "A cage with no `schrodinger` layer
+  sums each cell's sole content variable" earns its place; "keeps summing…
+  byte-identical to before" does not. Same fact, minus the backward glance.
+- **Cite the durable doc, not the closed ticket.** A citation earns its place
+  only when a reader would open it and find *more* than the comment already
+  says. That test passes for the in-repo design record — `ADR-NNNN`
+  (`docs/adr/`), `CONTEXT.md`, `(map #1, decision N)` — which points forward to
+  reasoning that still lives somewhere navigable. It fails for a bare
+  `(issue #NNN)` trailer: the issue closed when the work merged, its conclusion
+  is already in the code and the comment beside it, and the number just
+  duplicates what `git blame` gives for free. So write `(ADR-0004)`, not
+  `(issue #157)`. Keep an `issue #`/`spec #` cite only where the sentence
+  explicitly sends the reader there for something not restated — "the full
+  field map is in `docs/research/sudoku-link-formats.md` §4a." A changelog of
+  merge order ("202 first, 301 next, 200 after") is never a citation; cut it.
+- **When you change code, delete the comment that describes the old shape.**
+  A stale comment is worse than none — it actively lies. If the edit made a
+  docstring's claim false, fix the docstring in the same diff.

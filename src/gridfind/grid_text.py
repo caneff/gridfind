@@ -1,5 +1,5 @@
 """GridText: the bordered text format shared by `Witness.render()`
-(`witness.py`) and `witness_validator`'s parser (issue #210).
+(`witness.py`) and `witness_validator`'s parser.
 
 Before this module, the shape — "N+1 border lines interleave with N cell
 lines, one token per cell, starting and ending on a border line" — lived
@@ -10,14 +10,14 @@ out from under the validator's assumptions with no test to catch it. This
 module is that contract's one home: both sides cite it instead of each
 re-deriving it.
 
-Neither renderer nor validator import each other (spec #185) — the
+Neither renderer nor validator import each other — the
 validator must never grade the renderer's homework using the renderer's own
 code. This module is a spec the two sides share, not an implementation
 either owns; it has no opinion on *why* a grid looks the way it does, only
 on the token/line shape both must agree on.
 
 A cell prints as a bare digit (`"5"`) for a singleton, or a curly pair
-(`"{0 5}"`, unordered) for a Schrödinger S-cell (issue #141, decision #135).
+(`"{0 5}"`, unordered) for a Schrödinger S-cell.
 The whole grid is `line_count(size)` text lines: a border line (junctions
 and edges, no cell tokens), then a cell line, alternating, starting and
 ending on a border line.
@@ -32,8 +32,7 @@ CELL_PATTERN = re.compile(r"\{(\d+) (\d+)\}|(\d+)")
 
 def format_cell(content: tuple[int, ...]) -> str:
     """A cell's assignment tuple as a GridText token: a bare digit for a
-    singleton, `{a b}` for a Schrödinger S-cell's unordered pair (issue
-    #141, decision #135)."""
+    singleton, `{a b}` for a Schrödinger S-cell's unordered pair."""
     if len(content) == 1:
         return str(content[0])
     a, b = content
@@ -51,8 +50,7 @@ def parse_cell(match: re.Match[str]) -> tuple[int, ...]:
 
 def line_count(size: int) -> int:
     """How many text lines a `size`x`size` GridText grid holds: `size + 1`
-    border lines interleaved with `size` cell lines (issue #124's render
-    shape)."""
+    border lines interleaved with `size` cell lines."""
     return 2 * size + 1
 
 

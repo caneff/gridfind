@@ -1,4 +1,4 @@
-"""The read side of `emit`, shared by the layers package's tests (issue #100).
+"""The read side of `emit`, shared by the layers package's tests.
 
 A layer emits **rules**, and one rule may cost many **solver constraints**
 (`_base` documents the three levels). Nothing read those rules back, so a layer
@@ -54,9 +54,9 @@ def _sums(engine: Engine) -> Iterator[tuple[list[int], int]]:
 
 def cell_values(engine: Engine, address: str) -> list[int]:
     """A cell's own bounds, ascending, read through `Engine.domain` — the one
-    home for decoding a cell's solver domain (issue #104).
+    home for decoding a cell's solver domain.
 
-    Not the declared value set itself: a stepped `Board.values` (issue #102)
+    Not the declared value set itself: a stepped `Board.values`
     is made authoritative by `restrict`'s AllowedAssignments table, a
     constraint alongside the variable rather than a rewrite of its domain, so
     a cell's bounds stay the two ends even when the values between them are

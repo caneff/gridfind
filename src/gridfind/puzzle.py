@@ -4,14 +4,14 @@ gridfind's one user-facing input is a `Puzzle` (the setter's definition: a
 board, a list of typed constraints, and the givens) paired with a
 `WorkingState` (the solver's evolving placements and candidates). Both are
 frozen dataclasses that serialize to JSON and read back to an *equal* object — JSON is
-the one durable on-disk form (spec #45, issue #46).
+the one durable on-disk form.
 
 This module is schema only: nothing here calls `verdict` or builds a model.
 It reaches into `gridfind.engine` for `MalformedPuzzleError` itself — the
-shared refusal for a document that is not a well-formed puzzle (issue #107),
+shared refusal for a document that is not a well-formed puzzle,
 so a caller catches one class regardless of which module noticed — and into
-`gridfind.s_directives` for the Schrödinger directive codec and pair guard
-(issue #211): the five directive dataclasses below are bare schema, but
+`gridfind.s_directives` for the Schrödinger directive codec and pair guard:
+the five directive dataclasses below are bare schema, but
 reading/writing them and validating an S-cell pin's pair is real logic named
 in its own module, not hidden here among the plain structs.
 """
@@ -32,7 +32,7 @@ JsonValue = object
 # "no values given, derive them from size" — matched by identity, so it is
 # this one object and not merely any empty range. A sentinel rather than
 # `None` keeps `Board.values` a plain `range` for every reader, instead of a
-# `range | None` each one has to narrow (issue #91).
+# `range | None` each one has to narrow.
 _UNSET_VALUES = range(0)
 
 # A serialized non-default `values` is [start, stop, step].
@@ -47,7 +47,7 @@ def _values_from_size(size: int) -> range:
 @dataclass(frozen=True)
 class Board:
     """The grid the puzzle is played on: its size, and the digit values a cell
-    may hold (issue #77). `values` is a `range` so one object serves every
+    may hold. `values` is a `range` so one object serves every
     consumer — bounds via its ends, the digit set via iteration, membership
     via `in`. It is a real field, not a derived one: a setter may hand in
     values decoupled from size (an offset, a non-1 start), and only leaving
@@ -155,7 +155,8 @@ class HalfSCell:
 
 
 # The Schrödinger working-state directives, hard-coded not registered
-# (ADR-0006). A closed union: a second directive-bearing layer is #26's seam.
+# (ADR-0006). A closed union: a second directive-bearing layer would need its
+# own seam.
 SDirective = SingletonPin | SCellPin | BareSingleton | BareSCell | HalfSCell
 
 
@@ -168,9 +169,9 @@ class Constraint:
     """
 
     type: str
-    # ponytail: dict makes Constraint unhashable; #47 needs canonical identity
-    # and will freeze params then. #46 only compares equality, which dicts do
-    # fine.
+    # ponytail: dict makes Constraint unhashable, but only equality is compared
+    # today, which dicts do fine; a future canonical identity would freeze
+    # params then.
     params: dict[str, JsonValue] = field(default_factory=dict)
 
 
