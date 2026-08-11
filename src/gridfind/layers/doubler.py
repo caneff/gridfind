@@ -22,10 +22,11 @@ off the registry (tolerating its absence, like every other late-bound
 structure) instead of the raw digit. The schrödinger layer's `"s_value"` is the
 same shape for an S-cell.
 
-Also registers `"modifier_type"` as this layer's own name (`"doubler"`) — the
-one place a discovered-modifier location can be named, since
-`ModifierPlacement` itself carries no type. `Engine.modifier_type` and
-`verdict.py`'s witness read it back.
+Also registers `"modifier_type"` as a per-cell map naming this layer's own
+cells (`"doubler"`) — the one place a discovered-modifier location can be
+named, since `ModifierPlacement` itself carries no type. The map is keyed per
+cell so the witness names each discovered cell from its own entry.
+`Engine.modifier_types` and `verdict.py`'s witness read it back.
 """
 
 from __future__ import annotations
@@ -50,7 +51,9 @@ class Doubler:
 
     def emit(self, engine: Engine) -> None:
         self._placement.emit(engine)
-        engine.register_structure("modifier_type", self.name)
+        engine.register_structure(
+            "modifier_type", dict.fromkeys(engine.cells, self.name)
+        )
         is_modifier = cast(
             "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
         )

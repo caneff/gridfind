@@ -34,6 +34,14 @@ def _engine(size: int = 4) -> Engine:
     return build_engine([GridCells(), Doubler()], board=Board(size=size))
 
 
+def test_registers_modifier_type_per_cell_not_one_global_name() -> None:
+    # The witness source is per-cell: every cell the layer governs maps to its
+    # own declared name, keyed by address rather than one puzzle-wide value.
+    engine = _engine()
+    types = engine.modifier_types()
+    assert types == dict.fromkeys(engine.cells, "doubler")
+
+
 def test_doubler_requires_board() -> None:
     with pytest.raises(MissingDependencyError):
         build_engine([Doubler()], board=Board(size=4))
