@@ -30,6 +30,7 @@ from gridfind.layers.distinct import (
 )
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.pair_difference import differs_by
+from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.pair_sum import PairSum
 from gridfind.layers.regions import region_map_for_constraints
@@ -55,6 +56,7 @@ LAYER_REGISTRY = {
     "line-count-distinct": LineCountDistinct(),
     "pair-sum": PairSum(),
     "pair-difference": PairRelation("pair-difference", relation=differs_by),
+    "pair-ratio": PairRelation("pair-ratio", relation=ratio_of),
     "schrodinger": Schrodinger(),
     "cage": Cage(),
 }
