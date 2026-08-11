@@ -300,6 +300,28 @@ def test_group_sum_reads_the_doubled_value_when_a_cell_is_the_modifier() -> None
     assert 2 * solver.value(engine.d0("R1C1")) + solver.value(engine.d0("R1C2")) == 19
 
 
+def test_group_sum_reads_the_doubled_value_when_the_clue_precedes_the_doubler() -> None:
+    # The fold must not depend on layer order: with the group-sum clue declared
+    # *before* the doubler (the order a decoded link produces — the doubler
+    # constraint synthesized last), the sum still reads the folded value. This
+    # holds only because `modifier_value` is a phase-1 structure every reader
+    # sees, not a phase-2 rule the emit order could miss.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_group_sum(("R1C1", "R1C2"), 19), Constraint(type="doubler")),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert 2 * solver.value(engine.d0("R1C1")) + solver.value(engine.d0("R1C2")) == 19
+
+
 def test_a_sum_only_reachable_when_doubled_forces_discovery_in_the_group() -> None:
     # With nothing pinned: one-per-house puts exactly one modifier in row 1,
     # and 19 exceeds two plain 1-9 digits (max 18), so a free solve can satisfy

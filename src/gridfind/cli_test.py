@@ -287,6 +287,61 @@ def test_non_schrodinger_link_without_flag_is_unaffected(
     assert capsys.readouterr().out.split("\n")[0] == "found"
 
 
+def _classic_doubler_solution_link(cage_value: int) -> str:
+    """A synthesised 4x4 doubler link mirroring ADR-0008's ChinStrap puzzle: a
+    solved grid with four declared doublers (one per row/column/box, distinct
+    digits) and a cosmetic cage (type 2001, graduated to a killer sum by its
+    numeric value) over R1C1 (digit 3), the R1C2 doubler (digit 2, folded to
+    4), and R1C3 (digit 4). The folded sum is `3 + 2*2 + 4 = 11` — out of range
+    for a plain 3-cell cage (max 4+3+2=9), the case cosmetic cages exist for.
+    The caller picks the declared total, so 11 solves and any other total
+    breaks."""
+    solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
+    doublers = {1, 6, 11, 12}
+    regions = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
+    cells: list[dict[str, object]] = [
+        {"colors": 2} if i in doublers else {"given": True, "value": solution[i]}
+        for i in range(16)
+    ]
+    puzzle = {
+        "cells": cells,
+        "size": 4,
+        "constraints": [
+            {"type": 0},
+            {"type": 1, "regions": regions},
+            {"type": 2001, "cells": [0, 1, 2], "value": str(cage_value)},
+        ],
+    }
+    doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
+    payload = LZString.compressToEncodedURIComponent(json.dumps(doc))
+    return f"https://sudokumaker.app/?puzzle={payload}"
+
+
+def test_doubler_flag_folds_the_declared_doubler_into_the_cage_sum(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = _classic_doubler_solution_link(cage_value=11)
+
+    code = cli.main(["--doubler", link], io.StringIO())
+
+    assert code == 0
+    assert capsys.readouterr().out.split("\n")[0] == "found"
+
+
+def test_without_the_doubler_flag_the_red_cells_are_ignored(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The same link without --doubler reads the red cells as plain digits, so
+    # the cage sums 3 + 2 + 4 = 9, never reaching its declared total of 11 —
+    # broke. The gap is exactly the doubling the flag would have applied.
+    link = _classic_doubler_solution_link(cage_value=11)
+
+    code = cli.main([link], io.StringIO())
+
+    assert code == 1
+    assert capsys.readouterr().out.split("\n")[0] == "broke"
+
+
 def test_non_classic_link_exits_two_with_stderr(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

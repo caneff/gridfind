@@ -22,6 +22,7 @@ from gridfind.puzzle import (
     Constraint,
     Given,
     HalfSCell,
+    ModifierDirective,
     Placement,
     Puzzle,
     SCellPin,
@@ -29,6 +30,7 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import (
+    _RED_BIT,
     _edge_to_pair,
     decode_document,
     decode_link,
@@ -1189,3 +1191,63 @@ def test_disabled_or_empty_block_decodes_to_nothing_quietly(
 
     assert all(c.type not in decoded_types for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
+
+
+# --- doubler decode (declared modifier cells) ---------------------------
+
+# A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major.
+_REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
+_DOUBLER_WIRE_CONSTRAINTS = [{"type": 0}, {"type": 1, "regions": _REGIONS_4X4}]
+
+
+def _doubler_link(cells: list[dict[str, object]]) -> str:
+    """A synthesised 4x4 doubler-flavored link: the standard 4x4 boxes and a
+    caller-supplied cells array. A doubler cell is marked with the red bit,
+    the same `colors` bit an S-cell uses."""
+    return _encode(
+        {"cells": cells, "size": 4, "constraints": _DOUBLER_WIRE_CONSTRAINTS}
+    )
+
+
+def test_doubler_link_reads_a_red_cell_into_a_declared_modifier() -> None:
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells[0] = {"colors": _RED_BIT}
+    payload = _doubler_link(cells)
+
+    puzzle, state = decode_link(payload, doubler=True)
+
+    assert Constraint("doubler") in puzzle.constraints
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+
+
+def test_doubler_red_bit_is_orthogonal_to_the_digit_a_doubler_holds() -> None:
+    # A doubler holds one digit worth twice its value — unlike an S-cell, a red
+    # cell may carry a given. The red bit adds the modifier mark; the given
+    # still lands.
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells[5] = {"colors": _RED_BIT, "given": True, "value": 3}
+    payload = _doubler_link(cells)
+
+    puzzle, state = decode_link(payload, doubler=True)
+
+    assert Given("R2C2", 3) in puzzle.givens
+    assert ModifierDirective("R2C2", is_modifier=True) in state.modifier_directives
+
+
+def test_without_the_doubler_flag_the_red_mark_is_ignored() -> None:
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells[0] = {"colors": _RED_BIT}
+    payload = _doubler_link(cells)
+
+    puzzle, state = decode_link(payload)
+
+    assert Constraint("doubler") not in puzzle.constraints
+    assert state.modifier_directives == ()
+
+
+def test_a_link_declaring_both_schrodinger_and_doubler_is_refused() -> None:
+    # The two variants share the red bit, so a single link is one or the other.
+    payload = _doubler_link([{} for _ in range(16)])
+
+    with pytest.raises(ValueError, match="both"):
+        decode_link(payload, schrodinger=True, doubler=True)

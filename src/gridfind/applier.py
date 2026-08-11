@@ -12,6 +12,7 @@ from gridfind.puzzle import (
     BareSCell,
     BareSingleton,
     HalfSCell,
+    ModifierDirective,
     Placement,
     Puzzle,
     SDirective,
@@ -29,7 +30,9 @@ def apply(engine: Engine, puzzle: Puzzle, working_state: WorkingState) -> None:
     digit landing on a Schrödinger S-cell's upper half — see
     `_apply_placement`. Directives apply last, restricting the two axes
     `engine.restrict` can't reach (S-cell-ness and the second content slot)
-    — see `_apply_s_directives`."""
+    — see `_apply_s_directives`. Declared-modifier directives (a doubler's red
+    bit) apply last of all, pinning the modifier layer's `is_modifier` — see
+    `_apply_modifier_directives`."""
     for given in puzzle.givens:
         engine.restrict(given.address, {given.digit})
     for placement in working_state.places:
@@ -37,6 +40,7 @@ def apply(engine: Engine, puzzle: Puzzle, working_state: WorkingState) -> None:
     for candidate in working_state.candidates:
         engine.restrict(candidate.address, candidate.digits)
     _apply_s_directives(engine, working_state.s_directives)
+    _apply_modifier_directives(engine, working_state.modifier_directives)
 
 
 def _apply_placement(engine: Engine, placement: Placement) -> None:
@@ -106,6 +110,30 @@ def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> N
             engine.model.add(content[0] == low)
             engine.model.add(content[1] == high)
             engine.model.add(is_s[address] == 1)
+
+
+def _apply_modifier_directives(
+    engine: Engine, directives: tuple[ModifierDirective, ...]
+) -> None:
+    """Apply the declared-modifier directives (a doubler read off a link's red
+    bit) by pinning `is_modifier` — the free per-cell boolean the modifier
+    layer discovers. Each directive fixes one cell to modifier or not; the
+    layer's one-per-house and distinct-digit transversal then verify the
+    declared set, so an ill-placed declaration solves to broke.
+
+    Mirrors `_apply_s_directives`: a directive on a stack with no modifier
+    layer to honor it is malformed, refused here before the solve. An off-board
+    address raises through `engine.contents` first, the same content guard
+    every other directive reaches."""
+    if not directives:
+        return
+    is_modifier = engine.is_modifier()
+    if is_modifier is None:
+        msg = "a modifier directive needs a modifier layer, but the stack has none"
+        raise MalformedPuzzleError(msg)
+    for directive in directives:
+        engine.contents(directive.address)  # off-board raises here
+        engine.model.add(is_modifier[directive.address] == int(directive.is_modifier))
 
 
 def _require_in_domain(engine: Engine, address: str, digits: tuple[int, ...]) -> None:
