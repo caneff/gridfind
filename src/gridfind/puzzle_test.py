@@ -13,6 +13,7 @@ from gridfind.puzzle import (
     Constraint,
     Given,
     HalfSCell,
+    ModifierDirective,
     Placement,
     Puzzle,
     SCellPin,
@@ -83,11 +84,15 @@ HALF_S_CELLS = st.builds(HalfSCell, address=ADDRESSES, digit=DIGITS)
 S_DIRECTIVES = st.one_of(
     SINGLETON_PINS, S_CELL_PINS, BARE_SINGLETONS, BARE_S_CELLS, HALF_S_CELLS
 )
+MODIFIER_DIRECTIVES = st.builds(
+    ModifierDirective, address=ADDRESSES, is_modifier=st.booleans()
+)
 WORKING_STATES = st.builds(
     WorkingState,
     places=st.lists(PLACES, max_size=4).map(tuple),
     candidates=st.lists(CANDIDATES, max_size=4).map(tuple),
     s_directives=st.lists(S_DIRECTIVES, max_size=4).map(tuple),
+    modifier_directives=st.lists(MODIFIER_DIRECTIVES, max_size=4).map(tuple),
 )
 
 
@@ -266,6 +271,32 @@ def test_from_json_treats_an_unknown_directive_kind_as_broken_json() -> None:
 
     with pytest.raises(KeyError):
         WorkingState.from_json(text)
+
+
+def test_working_state_round_trips_a_modifier_directive_on_its_own_channel() -> None:
+    # The modifier directive channel is its own field, not folded into
+    # given/candidate/placement (spec #232 decision #218).
+    state = WorkingState(
+        modifier_directives=(
+            ModifierDirective(address="R1C1", is_modifier=True),
+            ModifierDirective(address="R2C2", is_modifier=False),
+        )
+    )
+
+    restored = WorkingState.from_json(state.to_json())
+
+    assert restored == state
+    assert restored.places == ()
+    assert restored.candidates == ()
+
+
+def test_working_state_with_no_modifier_directives_key_reads_an_empty_tuple() -> None:
+    # Pre-grammar JSON (written before the modifier channel existed) still
+    # parses: the missing key defaults to an empty tuple, mirroring
+    # s_directives (ADR-0006).
+    text = json.dumps({"places": [], "candidates": []})
+
+    assert WorkingState.from_json(text).modifier_directives == ()
 
 
 def test_working_state_with_no_s_directives_key_reads_an_empty_tuple() -> None:
