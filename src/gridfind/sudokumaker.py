@@ -24,7 +24,7 @@ unvalidated — a malformed matrix surfaces as
 
 Every wire type gridfind decodes or otherwise recognizes — givens, regions,
 and each opt-in variant decoder (XV, white-kropki, black-kropki, killer-cage,
-thermo) — is one row in `DECODER_REGISTRY`: `decode_link`'s
+thermo, cosmetic-cage) — is one row in `DECODER_REGISTRY`: `decode_link`'s
 dispatch, the
 dropped-constraint warning path, and `has_live_data`'s active/inert check all
 read that one table instead of each restating "type N is decoded" by hand.
@@ -129,6 +129,13 @@ _KROPKI_BLACK_TYPE = 201
 # positive `value` is the killer sum, honored by the `cage` layer
 # — 0 is SudokuMaker's own no-sum cage, region-only exactly as `value` absent.
 _CAGE_TYPE = 301
+
+# type 2001 is a cosmetic-cage block: `{value: str, cells: [...]}`, one cage
+# per block — SudokuMaker's decoration tool, not the killer-cage tool
+# (ADR-0008). A numeric string `value` graduates it to a real killer sum, the
+# only channel an out-of-range cage sum (a doubler inside a cage) reaches
+# gridfind through, since the killer-cage tool refuses to store one.
+_COSMETIC_CAGE_TYPE = 2001
 
 # type 300 is a thermometer block: `slow: bool,
 # thermometers: [[cell indices, ordered, bulb first], …]`. Each path becomes
@@ -553,6 +560,30 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
     return decoded
 
 
+def _cosmetic_cage_constraints(
+    puzzle_data: dict[str, object], size: int
+) -> list[Constraint]:
+    """The `type 2001` cosmetic-cage blocks graduated to `cage` `Constraint`s
+    (ADR-0008): each block's raw `cells` indices map row-major to addresses,
+    same as `type 301`. A numeric string `value` is the killer sum, honored
+    onto the `cage` layer's `value` param. A non-numeric or empty `value`
+    names a genuinely decorative cage — it drops inert, adding nothing. A
+    `disabled` block is skipped entirely."""
+    decoded: list[Constraint] = []
+    for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
+        value = block.get("value")
+        if not isinstance(value, str) or not value.strip():
+            continue
+        try:
+            total = int(value)
+        except ValueError:
+            continue
+        cells = cast("list[int]", block.get("cells", []))
+        addresses = [cell_address(i // size + 1, i % size + 1) for i in cells]
+        decoded.append(Constraint("cage", params={"cells": addresses, "value": total}))
+    return decoded
+
+
 def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
     """The `type 300` thermometers as `thermo` `Constraint`s: each path's raw indices
     map row-major to addresses, order
@@ -613,6 +644,9 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
     _CAGE_TYPE: DecodedType(
         handler=_cage_constraints, live_keys=("cages",), name="killer-cage"
     ),
+    _COSMETIC_CAGE_TYPE: DecodedType(
+        handler=_cosmetic_cage_constraints, live_keys=(), name="cosmetic-cage"
+    ),
     _THERMO_TYPE: DecodedType(
         handler=_thermo_constraints, live_keys=("thermometers",), name="thermo"
     ),
@@ -632,9 +666,10 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     computed under a smaller ruleset than the link states.
 
     Types in `DECODER_REGISTRY` — 0 givens, 1 regions, 200
-    white-kropki, 201 black-kropki, 202 XV, 300 thermo, 301 killer-cage — are
-    modeled elsewhere and pass through. A `disabled` constraint is skipped
-    first with no warning: the setter switched it off, so it is not part of
+    white-kropki, 201 black-kropki, 202 XV, 300 thermo, 301 killer-cage, 2001
+    cosmetic-cage — are modeled elsewhere and pass through. A `disabled`
+    constraint is skipped first with no warning: the setter switched it off,
+    so it is not part of
     the puzzle even for a type gridfind knows how to decode. A remaining
     enabled unmodeled constraint is inert (empty or cosmetic-only payload) and
     dropped quietly, or active (a live clue/negative list or a populated
