@@ -76,6 +76,7 @@ from gridfind.puzzle import (
     Constraint,
     Given,
     HalfSCell,
+    ModifierDirective,
     Placement,
     Puzzle,
     SCellPin,
@@ -163,7 +164,11 @@ def decode_document(link: str) -> dict[str, object]:
 
 
 def decode_link(
-    link: str, *, schrodinger: bool = False, reading: str = _CLASSIC_READING
+    link: str,
+    *,
+    schrodinger: bool = False,
+    reading: str = _CLASSIC_READING,
+    doubler: bool = False,
 ) -> tuple[Puzzle, WorkingState]:
     """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a square-N
     `Puzzle` + `WorkingState`, sizing the board and domain from the link
@@ -177,9 +182,21 @@ def decode_link(
     each cell's red bit + center marks into a Schrödinger working-state
     directive instead of a plain placement/candidate. `reading` names the
     S-cell interpretation; only `"classic"` is built, so any other value is
-    refused."""
+    refused.
+
+    `doubler` **declares** the SudokuMaker-doubler variant, likewise never
+    inferred. A red cell (`colors` bit 2 — the same bit an S-cell uses) is a
+    declared doubler: its address rides out as a `ModifierDirective` pinning
+    `is_modifier`, and a bare `{type: doubler}` constraint stands the modifier
+    layer up. The red bit is orthogonal to the cell's digit — unlike an S-cell,
+    a doubler holds one digit worth twice its value, so a red cell's given or
+    placement still lands. Schrödinger and doubler share the red bit, so a link
+    declares one or the other, never both."""
     if schrodinger and reading != _CLASSIC_READING:
         msg = f"unsupported schrodinger reading: {reading!r}"
+        raise ValueError(msg)
+    if schrodinger and doubler:
+        msg = "a link is Schrödinger or doubler, not both — they share the red bit"
         raise ValueError(msg)
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
@@ -190,6 +207,7 @@ def decode_link(
     places: list[Placement] = []
     candidates: list[Candidate] = []
     s_directives: list[SDirective] = []
+    modifier_directives: list[ModifierDirective] = []
     domain = (
         _schrodinger_domain(puzzle_data, size)
         if schrodinger
@@ -201,7 +219,10 @@ def decode_link(
             _decode_schrodinger_cell(
                 cell, address, domain, givens, s_directives, candidates
             )
-        elif "value" in cell:
+            continue
+        if doubler and cell.get("colors", 0) & _RED_BIT:
+            modifier_directives.append(ModifierDirective(address, is_modifier=True))
+        if "value" in cell:
             if cell.get("given"):
                 givens.append(Given(address, cell["value"]))
             else:
@@ -209,7 +230,8 @@ def decode_link(
         elif "candidates" in cell:
             digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
             candidates.append(Candidate(address, digits))
-        # cornerPencilMarks, colors, and {} carry nothing gridfind can represent.
+        # cornerPencilMarks, non-red colors, and {} carry nothing gridfind can
+        # represent.
 
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
@@ -220,12 +242,15 @@ def decode_link(
     board = Board(size=size, values=domain)
     if schrodinger:
         constraints.append(Constraint("schrodinger"))
+    if doubler:
+        constraints.append(Constraint("doubler"))
 
     puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=tuple(givens))
     state = WorkingState(
         places=tuple(places),
         candidates=tuple(candidates),
         s_directives=tuple(s_directives),
+        modifier_directives=tuple(modifier_directives),
     )
     return puzzle, state
 

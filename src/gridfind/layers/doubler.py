@@ -47,10 +47,12 @@ class Doubler:
     _placement: ModifierPlacement = field(default_factory=ModifierPlacement, repr=False)
 
     def register(self, engine: Engine) -> None:
+        # Register the value structures in phase 1, like schrodinger's
+        # `s_value`, so every phase-2 reader (a killer `group-sum`, a
+        # values-distinct `cage`) sees `modifier_value` no matter its own emit
+        # order — a decoded link synthesizes the `doubler` constraint last, so a
+        # phase-2 registration would arrive after those readers had already run.
         self._placement.register(engine)
-
-    def emit(self, engine: Engine) -> None:
-        self._placement.emit(engine)
         engine.register_structure(
             "modifier_type", dict.fromkeys(engine.cells, self.name)
         )
@@ -76,3 +78,6 @@ class Doubler:
             )
             modifier_value[address] = value
         engine.register_structure("modifier_value", modifier_value)
+
+    def emit(self, engine: Engine) -> None:
+        self._placement.emit(engine)

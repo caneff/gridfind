@@ -9,9 +9,10 @@ and a stdin and read back stdout and the exit code;
 `console_main` only wires `sys` for the `[project.scripts]` entry point.
 
 `--schrodinger` and `--reading` declare a SudokuMaker link as a
-Schrödinger puzzle and name its S-cell reading, threading straight through to
-`decode_link`; they are meaningless for a `{puzzle, working_state}` document
-and simply carried unused in that branch.
+Schrödinger puzzle and name its S-cell reading, and `--doubler` declares it a
+doubler puzzle (a red cell marks a declared doubler); all thread straight
+through to `decode_link`. They are meaningless for a `{puzzle, working_state}`
+document and simply carried unused in that branch.
 
 Example:
     $ gridfind puzzle.json      # or:  gridfind < puzzle.json
@@ -77,6 +78,12 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         help="the Schrödinger S-cell reading to apply with --schrodinger "
         "(default: classic; only value built so far)",
     )
+    parser.add_argument(
+        "--doubler",
+        action="store_true",
+        help="declare a SudokuMaker link as a doubler puzzle (a red cell marks "
+        "a declared doubler); ignored for a {puzzle, working_state} document",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -95,7 +102,12 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         return 2
 
     try:
-        result = _verdict_of(text, schrodinger=args.schrodinger, reading=args.reading)
+        result = _verdict_of(
+            text,
+            schrodinger=args.schrodinger,
+            reading=args.reading,
+            doubler=args.doubler,
+        )
     except (
         json.JSONDecodeError,
         KeyError,
@@ -113,11 +125,17 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 
 
 def _verdict_of(
-    text: str, *, schrodinger: bool = False, reading: str = "classic"
+    text: str,
+    *,
+    schrodinger: bool = False,
+    reading: str = "classic",
+    doubler: bool = False,
 ) -> Verdict:
     stripped = text.strip()
     if _is_link(stripped):
-        puzzle, state = decode_link(stripped, schrodinger=schrodinger, reading=reading)
+        puzzle, state = decode_link(
+            stripped, schrodinger=schrodinger, reading=reading, doubler=doubler
+        )
     else:
         doc = json.loads(stripped)
         puzzle = Puzzle.from_dict(doc["puzzle"])
