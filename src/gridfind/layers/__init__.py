@@ -171,12 +171,14 @@ def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
     string).
 
     ponytail: keys on constraint `type` only — right for the sudoku family (all
-    bare constraints). Killer cages (issue #196) already collide on this: two
-    cages differing only by `value` compare identical here. Left alone —
-    `canonical_identity` has zero non-test callers, and the same collision
-    already existed for cage `cells` before the sum landed, so folding only
-    `value` in would be an inconsistent half-fix for a consumer that doesn't
-    exist yet. Fold params in (thermo too) when a real caller needs it.
+    bare constraints). Data-bearing constraints collide: killer cages (#196) on
+    `value`, and now the value seam's affine modifiers (`+N`, coefficients) on
+    their params — two puzzles differing only there compare identical (#219).
+    Left alone: the only caller is a pytest-id label (population_test), not a
+    runtime dedup, and folding params in would make that id worse
+    (`killercage:24` noise), not better. Discovered modifiers (doubler) declare
+    a rule with no cell data, so `type` already tells them apart. Fold params
+    in when a real dedup caller needs it.
     """
     return tuple(
         sorted({constraint.type for constraint in expand_constraints(constraints)})
