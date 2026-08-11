@@ -81,12 +81,12 @@ def verdict(
             is_this_s = is_s is not None and bool(solver.value(is_s[address]))
             assignment[address] = content if is_this_s else content[:1]
         is_modifier = engine.is_modifier()
-        modifier_type = engine.modifier_type()
+        modifier_types = engine.modifier_types()
         modifiers: dict[str, str] = {}
-        if is_modifier is not None and modifier_type is not None:
+        if is_modifier is not None and modifier_types is not None:
             for address in engine.cells:
                 if bool(solver.value(is_modifier[address])):
-                    modifiers[address] = modifier_type
+                    modifiers[address] = modifier_types[address]
         grid = engine.grid()
         region_map = region_map_for_constraints(canonical, puzzle.board.size)
         witness = Witness(

@@ -171,13 +171,14 @@ class Engine:
             "dict[str, cp_model.IntVar] | None", self.structures.get("is_modifier")
         )
 
-    def modifier_type(self) -> str | None:
-        """The puzzle's one declared modifier type name (e.g. `\"doubler\"`),
+    def modifier_types(self) -> dict[str, str] | None:
+        """Per-cell declared modifier type names (address → e.g. `\"doubler\"`),
         or None when the stack has no modifier layer. Registered by the
-        concrete modifier layer itself (`doubler` and any future sibling) —
-        `modifier-placement` stays type-blind, so this name comes from
-        nowhere else."""
-        return cast("str | None", self.structures.get("modifier_type"))
+        concrete modifier layers themselves (`doubler` and any future sibling) —
+        `modifier-placement` stays type-blind, so these names come from nowhere
+        else. The map is keyed per cell, so the witness names each discovered
+        cell from its own entry."""
+        return cast("dict[str, str] | None", self.structures.get("modifier_type"))
 
     def grid(self) -> list[list[str]]:
         """The board's addresses laid out row-major, registered by `board`."""
