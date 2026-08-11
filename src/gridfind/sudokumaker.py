@@ -138,6 +138,21 @@ _CAGE_TYPE = 301
 _THERMO_TYPE = 300
 
 
+def decode_document(link: str) -> dict[str, object]:
+    """A SudokuMaker `?puzzle=` link (or a bare payload) decompressed to its
+    full `formatVersion 1.5.0` document — `formatVersion` plus its `puzzle`
+    block. The exact reverse of `encode_link`, and `decode_link`'s own first
+    step: strip the `?puzzle=` prefix, unquote, lz-string-decompress, parse
+    the JSON. `decode_link` keeps only the `puzzle` block; a re-encoder needs
+    the whole document to preserve every field the app renders."""
+    payload = link.split("?puzzle=", 1)[-1]
+    raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
+    # Decoded JSON is an untyped external boundary — a local `Any` is deliberate
+    # (CODING_STANDARDS: reach for Any only at genuine boundaries).
+    document: Any = json.loads(raw)
+    return document
+
+
 def decode_link(
     link: str, *, schrodinger: bool = False, reading: str = _CLASSIC_READING
 ) -> tuple[Puzzle, WorkingState]:
@@ -157,11 +172,7 @@ def decode_link(
     if schrodinger and reading != _CLASSIC_READING:
         msg = f"unsupported schrodinger reading: {reading!r}"
         raise ValueError(msg)
-    payload = link.split("?puzzle=", 1)[-1]
-    raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
-    # Decoded JSON is an untyped external boundary — a local `Any` is deliberate
-    # (CODING_STANDARDS: reach for Any only at genuine boundaries).
-    puzzle_data: Any = json.loads(raw)["puzzle"]
+    puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
 
@@ -281,6 +292,16 @@ def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
     `k = 1` extra digit the classic Schrödinger rule derives, not reads."""
     min_digit = _as_int(puzzle_data.get("minDigit", 1), "minDigit")
     return range(min_digit, min_digit + size + 1)
+
+
+def write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:
+    """Write an S-cell's two-digit pin into `cell` on the wire channel
+    `_decode_schrodinger_cell` reads a `SCellPin` back from: set the `_RED_BIT`
+    in `colors` (S-cell-ness, OR-ed in so any decorative colors survive) and
+    set both digits in the `candidates` bitmask (the two center marks). The
+    inverse of that decode's pin branch."""
+    cell["colors"] = cell.get("colors", 0) | _RED_BIT
+    cell["candidates"] = (1 << a) | (1 << b)
 
 
 def _decode_schrodinger_cell(

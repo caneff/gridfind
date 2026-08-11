@@ -15,37 +15,16 @@ prints `broke` and no URL, since there is no witness to show.
 from __future__ import annotations
 
 import json
-import urllib.parse
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
-from lzstring import LZString
-
 from gridfind.layers.board import cell_address
-from gridfind.sudokumaker import decode_link, encode_link
+from gridfind.sudokumaker import decode_document, decode_link, encode_link, write_s_cell
 from gridfind.verdict import verdict
 from gridfind.witness import Witness
 
 LINKS_DIR = Path(__file__).parent.parent / "src" / "gridfind" / "links"
-
-# SudokuMaker's S-cell color bit, matching `gridfind.sudokumaker._RED_BIT` —
-# the channel `decode_link` reads a Schrödinger S-cell's pair back from.
-_RED_BIT = 2
-
-
-def _decode_document(link: str) -> dict[str, object]:
-    """The full decoded link JSON (`formatVersion` plus its `puzzle` block),
-    mirroring `decode_link`'s own payload step — kept local since
-    `decode_link` returns a `Puzzle`, not the document `encode_link` needs
-    back to preserve every field a real link carries."""
-    payload = link.split("?puzzle=", 1)[-1]
-    raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
-    # Decoded JSON is an untyped external boundary — a local `Any` is
-    # deliberate (CODING_STANDARDS: reach for `Any` only at genuine
-    # boundaries).
-    data: Any = json.loads(raw)
-    return data
 
 
 def fill_witness(
@@ -55,15 +34,13 @@ def fill_witness(
     addressed by the same row-major `i // size`, `i % size` scheme
     `decode_link` reads cells with. A singleton digit becomes an ordinary
     given (`given: True, value: d`), read back through `decode_link`'s
-    `given` branch. A Schrödinger S-cell's pair `(a, b)` is written through
-    the red-color + candidate-bitmask channel `decode_link` reads it back
-    from — the `_RED_BIT` bit set in `colors`, both digits set in
-    `candidates` — the inverse of that decode. Every other field of
-    `document` rides through untouched, so `size`/`type` survive and the
-    emitted link opens as the same puzzle."""
+    `given` branch. A Schrödinger S-cell's pair `(a, b)` is written by
+    `write_s_cell`, the inverse of the decoder's pin branch. Every other
+    field of `document` rides through untouched, so `size`/`type` survive and
+    the emitted link opens as the same puzzle."""
     filled: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", filled["puzzle"])
-    cells = cast("list[dict[str, object]]", puzzle_data["cells"])
+    cells = cast("list[dict[str, Any]]", puzzle_data["cells"])
     for i, cell in enumerate(cells):
         address = cell_address(i // size + 1, i % size + 1)
         content = witness[address]
@@ -72,8 +49,7 @@ def fill_witness(
             cell["value"] = content[0]
         else:
             a, b = content
-            cell["colors"] = cast("int", cell.get("colors", 0)) | _RED_BIT
-            cell["candidates"] = (1 << a) | (1 << b)
+            write_s_cell(cell, a, b)
     return filled
 
 
@@ -89,7 +65,7 @@ def verify_link(argv: Sequence[str]) -> str:
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
         return "broke"
-    document = _decode_document(link)
+    document = decode_document(link)
     filled = fill_witness(document, result.witness, puzzle.board.size)
     return encode_link(filled)
 
