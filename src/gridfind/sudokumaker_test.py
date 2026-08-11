@@ -28,7 +28,13 @@ from gridfind.puzzle import (
     SingletonPin,
     WorkingState,
 )
-from gridfind.sudokumaker import _edge_to_pair, decode_link, encode_link
+from gridfind.sudokumaker import (
+    _edge_to_pair,
+    decode_document,
+    decode_link,
+    encode_link,
+    write_s_cell,
+)
 
 # All three constraints, in the order the decoder emits them.
 _CLASSIC_CONSTRAINTS = (
@@ -103,6 +109,35 @@ def test_encode_link_round_trips_a_classic_document() -> None:
         givens=(Given("R1C1", 7),),
     )
     assert state == WorkingState()
+
+
+def test_decode_document_is_the_inverse_of_encode_link() -> None:
+    # decode_document returns the whole document — formatVersion plus the
+    # puzzle block — so a document survives encode_link then decode_document
+    # unchanged. decode_link keeps only the puzzle block; this is the seam a
+    # re-encoder needs to preserve every field the app renders.
+    cells: list[dict[str, object]] = [{} for _ in range(81)]
+    cells[0] = {"given": True, "value": 7}
+    document: dict[str, object] = {
+        "formatVersion": "1.5.0",
+        "puzzle": {"cells": cells, "constraints": _WIRE_CONSTRAINTS},
+    }
+
+    assert decode_document(encode_link(document)) == document
+
+
+def test_write_s_cell_round_trips_a_schrodinger_pin() -> None:
+    # write_s_cell is the inverse of the decoder's SCellPin branch: writing a
+    # pair into a cell, then decoding under --schrodinger, returns that pin.
+    cells = list(_EMPTY_CELLS)
+    cell: dict[str, object] = {}
+    write_s_cell(cell, 2, 7)
+    cells[0] = cell
+    payload = _schrodinger_link(cells)
+
+    _, state = decode_link(payload, schrodinger=True)
+
+    assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
 
 
 def test_colors_and_corner_marks_leave_the_state_empty() -> None:

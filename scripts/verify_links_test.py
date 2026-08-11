@@ -13,16 +13,13 @@ is checked without touching the real `links/` corpus.
 
 from __future__ import annotations
 
-import json
-
 from hypothesis import given
 from hypothesis import strategies as st
-from lzstring import LZString
 from verify_links import fill_witness, verify_link
 
 from gridfind.layers.board import cell_address
 from gridfind.puzzle import Given, SCellPin, WorkingState
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import decode_link, encode_link
 from gridfind.witness import Witness
 
 _WIRE_CONSTRAINTS = [{"type": 0}]
@@ -38,9 +35,7 @@ def _document(size: int) -> dict[str, object]:
 
 def _encode(puzzle_data: dict[str, object]) -> str:
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle_data}
-    return "https://sudokumaker.app/?puzzle=" + LZString.compressToEncodedURIComponent(
-        json.dumps(doc)
-    )
+    return encode_link(doc)
 
 
 def _grid(size: int) -> list[list[str]]:
@@ -70,9 +65,7 @@ def test_fill_witness_round_trips_singleton_digits(
 
     filled = fill_witness(document, witness, size)
 
-    url = "https://sudokumaker.app/?puzzle=" + LZString.compressToEncodedURIComponent(
-        json.dumps(filled)
-    )
+    url = encode_link(filled)
     puzzle, state = decode_link(url)
 
     assert state == WorkingState()
@@ -112,9 +105,7 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
 
     filled = fill_witness(document, witness, size)
 
-    url = "https://sudokumaker.app/?puzzle=" + LZString.compressToEncodedURIComponent(
-        json.dumps(filled)
-    )
+    url = encode_link(filled)
     puzzle, state = decode_link(url, schrodinger=True)
 
     assert SCellPin(s_cell_address, frozenset({a, b})) in state.s_directives
