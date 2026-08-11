@@ -14,7 +14,7 @@ from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import (
     distinct_count_targets,
     pair_difference_rules,
-    pair_sum_rules,
+    sum_rules,
 )
 from gridfind.puzzle import Board
 
@@ -48,8 +48,8 @@ def test_emit_distinct_count_keeps_each_labelled_rule_separate() -> None:
 
 def test_a_counting_rule_and_a_sum_over_cells_are_told_apart() -> None:
     """Both rules state themselves as a sum fixed to one value. What they add
-    up is the difference: a counting rule sums per-digit markers, a pair-sum
-    sums cell content. Neither read side may pick up the other's rule.
+    up is the difference: a counting rule sums per-digit markers, a bare sum
+    rule sums cell content. Neither read side may pick up the other's rule.
     """
     engine = _board_engine()
     pair = [engine.cells[address].content[0] for address in ("R1C1", "R1C2")]
@@ -57,7 +57,7 @@ def test_a_counting_rule_and_a_sum_over_cells_are_told_apart() -> None:
     engine.model.add(sum(pair) == 5)
     emit_distinct_count(engine, pair, target=2, label="pair")
 
-    assert pair_sum_rules(engine) == [(["R1C1", "R1C2"], 5)]
+    assert sum_rules(engine) == [(["R1C1", "R1C2"], 5)]
     assert distinct_count_targets(engine) == {"pair": 2}
 
 
@@ -97,7 +97,7 @@ def test_emit_over_pairs_applies_rel_to_each_pair() -> None:
 
     emit_over_pairs(engine, [first, second], _sums_to_five)
 
-    assert pair_sum_rules(engine) == [
+    assert sum_rules(engine) == [
         (["R1C1", "R1C2"], 5),
         (["R2C1", "R2C2"], 5),
     ]
@@ -108,7 +108,7 @@ def test_emit_over_pairs_does_nothing_for_no_pairs() -> None:
 
     emit_over_pairs(engine, [], _sums_to_five)
 
-    assert pair_sum_rules(engine) == []
+    assert sum_rules(engine) == []
 
 
 def test_emit_house_forces_the_extra_digit_into_the_width_two_cells_second_slot() -> (

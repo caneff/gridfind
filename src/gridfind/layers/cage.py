@@ -5,7 +5,7 @@ region (`rows-distinct`, `cols-distinct`, `regions-distinct`), a cage does not
 have to cover the whole digit domain, so a 7-cell cage on a 9-digit board is
 legal. One stateless `cage` instance pulls every such constraint via
 `constraints_of` and emits one no-repeats rule per clue, structured like
-`pair-sum` (a clue-looping layer), not like the partition-driven
+`group-sum` (a clue-looping layer), not like the partition-driven
 `DistinctOverGroups` — no shared base with it.
 
 A `distinct-over: "digit" | "value"` param picks what a repeat means, `"digit"`

@@ -8,9 +8,9 @@ relation-emitter `LAYER_REGISTRY["pair-difference"]` builds its `PairRelation`
 with: given a clue's params, it reads the target `diff` and returns the
 `rel` that pins one pair to it.
 
-Deliberately narrow, mirroring `pair-sum`: the constraint names both
-cells outright — a **pair**, not a **domino** — and the relation never asks
-whether they are adjacent. Positive-only: only named
+Deliberately narrow, mirroring `group-sum`'s two-cell case: the constraint
+names both cells outright — a **pair**, not a **domino** — and the relation
+never asks whether they are adjacent. Positive-only: only named
 pairs are constrained. The relation is absolute, not directed — either cell
 may hold the larger value — encoded with CP-SAT's native `add_abs_equality`
 rather than a hand-built disjunction or a truth table, per the ISS-deviation

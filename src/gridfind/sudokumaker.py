@@ -98,9 +98,9 @@ _RED_BIT = 2
 _SCELL_PIN_MARKS = 2
 
 # type 202 is XV: `clues: [{value, edge}], negative:
-# [...]`. `value` selects the existing pair-sum alias — 10 is X, 5 is V
+# [...]`. `value` selects the existing group-sum alias — 10 is X, 5 is V
 # — never a raw `sum`, so a puzzle carrying both an XV clue and
-# a literal pair-sum on the same cells still hits the alias's own
+# a literal group-sum on the same cells still hits the alias's own
 # fixed-param conflict check in `expand_constraints`. Read off
 # `gridfind.layers.ALIAS_REGISTRY` rather than restated here — the
 # sum each alias fixes is stated once, in the registry that also builds it.
@@ -108,7 +108,7 @@ _XV_TYPE = 202
 _XV_ALIASES: dict[int, str] = {
     cast("int", fixed["sum"]): alias
     for alias, (canonical, fixed) in ALIAS_REGISTRY.items()
-    if canonical == "pair-sum" and "sum" in fixed
+    if canonical == "group-sum" and "sum" in fixed
 }
 
 # type 200 is white-kropki: `clues: [{value, edge}],
@@ -471,7 +471,7 @@ def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
 
 
 def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
-    """The `type 202` XV clues as aliased pair-sum `Constraint`s: each clue's `value`
+    """The `type 202` XV clues as aliased group-sum `Constraint`s: each clue's `value`
     selects the existing `x`/`v` alias (10/5) and
     its `edge` decodes to the adjacent cell pair via `_edge_to_pair`. A
     `disabled` block is skipped entirely; a non-empty `negative` list is

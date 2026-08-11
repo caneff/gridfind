@@ -1190,14 +1190,14 @@ def test_verdict_found_witness_reports_every_discovered_doubler_as_doubler() -> 
 
 
 def test_verdict_found_witness_names_the_cell_a_sum_forces_to_discover() -> None:
-    # 19 exceeds the max of two plain 1-9 digits (18), so the pair-sum clue
+    # 19 exceeds the max of two plain 1-9 digits (18), so the group-sum clue
     # is only reachable by discovering a doubler in R1C1 or R1C2 (mirrors
-    # pair_sum_test.py's engine-seam version of this same forcing).
+    # group_sum_test.py's engine-seam version of this same forcing).
     puzzle = Puzzle(
         board=BOARD,
         constraints=(
             Constraint(type="doubler"),
-            Constraint(type="pair-sum", params={"cells": ["R1C1", "R1C2"], "sum": 19}),
+            Constraint(type="group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 19}),
         ),
     )
 
@@ -1212,7 +1212,7 @@ def test_verdict_found_witness_names_the_cell_a_sum_forces_to_discover() -> None
 
 def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None:
     # A given writes d0 = 5 (never the value); 15 is only reachable if that
-    # digit is discovered as a doubler and read as 10 by the pair-sum, so
+    # digit is discovered as a doubler and read as 10 by the group-sum, so
     # R1C2 must land on 5 (10 + 5), not 10 (5 + 10 is off the board anyway).
     # This proves the clue read the *derived* value while the given kept the
     # witness's own digit untouched (spec #232 decision #218).
@@ -1220,7 +1220,7 @@ def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None
         board=BOARD,
         constraints=(
             Constraint(type="doubler"),
-            Constraint(type="pair-sum", params={"cells": ["R1C1", "R1C2"], "sum": 15}),
+            Constraint(type="group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 15}),
         ),
         givens=(Given(address="R1C1", digit=5),),
     )

@@ -1,6 +1,6 @@
 """pair-difference behaviour, tested at two seams.
 
-Mirrors `pair_sum_test.py`: verdict-seam behaviour (a clue's effect on the
+Mirrors `group_sum_test.py`: verdict-seam behaviour (a clue's effect on the
 completion) plus the direct rule readback, the one claim a solve
 cannot make on its own — that a clue emitted its *own* rule rather than being
 satisfied by accident.
@@ -128,11 +128,11 @@ def test_the_relation_is_absolute_either_cell_may_hold_the_larger_value() -> Non
     assert result.witness["R1C2"][0] == 5
 
 
-def test_a_puzzle_mixing_pair_sum_and_pair_difference_resolves_correctly() -> None:
+def test_a_puzzle_mixing_group_sum_and_pair_difference_resolves_correctly() -> None:
     puzzle = Puzzle(
         board=BOARD,
         constraints=(
-            Constraint(type="pair-sum", params={"cells": ["R1C1", "R1C2"], "sum": 5}),
+            Constraint(type="group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 5}),
             _pair_difference(("R3C3", "R3C4"), 2),
         ),
         givens=(Given(address="R1C1", digit=1), Given(address="R3C3", digit=6)),

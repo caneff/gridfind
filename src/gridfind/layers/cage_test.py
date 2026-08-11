@@ -2,19 +2,19 @@
 
 A cage names a set of cells and forbids repeats among them, adding no cover
 pressure — unlike a region, it need not use every domain digit and never
-forces a cell to become an S-cell. Structured like `pair-sum`: one
+forces a cell to become an S-cell. Structured like `group-sum`: one
 stateless layer loops every `cage` constraint via `constraints_of` and emits
 one no-repeats rule per clue.
 
 Most of it is behaviour at the top seam — `verdict` — mirroring
-`pair_sum_test.py`: a clue's effect on the completion. The rules the layer
+`group_sum_test.py`: a clue's effect on the completion. The rules the layer
 emits are also read back directly, and the cross-slot repeat a
 Schrödinger-widened cage must catch is pinned directly the way
 `schrodinger_test.py` does, since gridfind has no setter-facing S-cell pin
 yet.
 
 A killer sum's modifier fold is tested at the engine seam with `doubler` in
-the stack, the same differential shape `pair_sum_test.py` uses: force
+the stack, the same differential shape `group_sum_test.py` uses: force
 `is_modifier` and check the sum only balances through the fold, force it off
 and check the raw-digit sum is infeasible, and leave it free to prove the
 sum forces discovery on its own.
@@ -37,7 +37,7 @@ from gridfind.layers.cage import Cage
 from gridfind.layers.conftest import (
     all_different_groups,
     distinct_count_targets,
-    pair_sum_rules,
+    sum_rules,
 )
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
@@ -267,7 +267,7 @@ def test_a_cage_sum_rule_is_emitted_only_for_a_positive_value(
     canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
     engine = build_engine(layers, tuple(canonical), board=BOARD)
 
-    assert pair_sum_rules(engine) == expected
+    assert sum_rules(engine) == expected
 
 
 def test_a_cage_sum_still_emits_its_no_repeats_rule() -> None:

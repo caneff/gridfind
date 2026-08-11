@@ -710,7 +710,7 @@ def _constraint_link(constraint: dict[str, object]) -> str:
     ],
     ids=["x-vertical", "v-vertical", "x-horizontal"],
 )
-def test_xv_clue_decodes_to_aliased_pair_sum(
+def test_xv_clue_decodes_to_aliased_group_sum(
     value: int, edge: int, alias: str, cells: list[str]
 ) -> None:
     payload = _constraint_link({"type": 202, "clues": [{"value": value, "edge": edge}]})
@@ -1123,12 +1123,12 @@ def test_disabled_thermo_block_decodes_to_nothing_quietly(
     [
         pytest.param(
             {"type": 202, "clues": [{"value": 10, "edge": 70}], "disabled": True},
-            ("x", "v", "pair-sum"),
+            ("x", "v", "group-sum"),
             id="xv-disabled",
         ),
         pytest.param(
             {"type": 202, "clues": [], "negative": []},
-            ("x", "v", "pair-sum"),
+            ("x", "v", "group-sum"),
             id="xv-empty",
         ),
         pytest.param(

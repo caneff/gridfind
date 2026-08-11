@@ -82,7 +82,7 @@ Where gridfind deviates: **many constraints of one type resolve to one stateless
 layer, not to one handler each** (#65). ISS's builder instantiates a handler per
 spec; `resolve_constraints` dedups by `type`, and the layer pulls its own clues
 back out via `engine.constraints_of(name)` and loops them in `emit`
-(`pair_sum.py`). ISS needs per-instance handlers because each one owns
+(`group_sum.py`). ISS needs per-instance handlers because each one owns
 propagation state across the search; a gridfind layer owns none, so one instance
 serves every clue of its type.
 
@@ -107,7 +107,7 @@ Python's dict-of-instances *is* that registry. Same chokepoint idea, lazier
 mechanism.
 
 One pass sits in front of dispatch: `expand_constraints` resolves **presets**
-(`sudoku` → the three bare distinct constraints) and **aliases** (`x` → `pair-sum`
+(`sudoku` → the three bare distinct constraints) and **aliases** (`x` → `group-sum`
 with `sum: 10`) before any type reaches the registry, so dispatch and identity
 (4.2) both see canonical constraints.
 
@@ -177,21 +177,20 @@ encoding if a `Puzzle` ever carries a *setter-defined* relation as data (it
 doesn't today — `type` fixes the relation).
 
 Timing held to the rule: the helper waited for the **second** two-cell variant,
-not the first. `pair-sum` (#66) shipped alone and deliberately emitted its sum
-rule directly rather than invent a shared helper for a single caller; when
-`pair-difference` arrived the helper was extracted and `pair-sum` retrofitted onto
-it (see below). The tracker issue [#42] is still open pending a formal close, but
+not the first. gridfind's first data-bearing variant (#66) shipped alone and
+deliberately emitted its sum rule directly rather than invent a shared helper
+for a single caller; when `pair-difference` arrived the helper was extracted
+(see below). The tracker issue [#42] is still open pending a formal close, but
 the fork itself is resolved — the deviation is built, not merely proposed. Of the
 remaining OPEN rows, 1.4, 1.6 and 5.4 are deferrals with no filed issue, waiting
 until gridfind meets the problem at all.
 
 **Deviation held.** The second two-cell variant, `pair-difference` (#129,
 spec #127), landed on exactly this shape: `emit_over_pairs(engine, pairs,
-rel)` (extracted at #128, with `pair-sum` retrofitted onto it) and a `rel`
-that calls CP-SAT's native `add_abs_equality` directly — no truth table, no
-allowed-assignments encoding. `pair_difference.py` is the callback-parameterized
-helper's second caller, confirming the DEVIATE call rather than merely
-proposing it.
+rel)` (extracted at #128) and a `rel` that calls CP-SAT's native
+`add_abs_equality` directly — no truth table, no allowed-assignments
+encoding. `pair_difference.py` is the callback-parameterized helper's second
+caller, confirming the DEVIATE call rather than merely proposing it.
 
 ## 1.6 Sequential / line constraints via NFA
 
@@ -420,8 +419,8 @@ key on the expansion** (its `SudokuParser` normalizes before build;
 passes, so keying sees canonical constraints.
 
 **Watch item.** `canonical_identity` keys on constraint `type` only, and its own
-`ponytail:` note says to fold params in "when data-bearing variants land." `pair-sum`
-(#66) has landed and carries `cells` + `sum`, so two pair-sum puzzles differing only
+`ponytail:` note says to fold params in "when data-bearing variants land." `group-sum`
+(#241) has landed and carries `cells` + `sum`, so two group-sum puzzles differing only
 by their clues share an identity. Harmless today — the sole caller is corpus
 grouping in `population_test.py`, where same-stack-same-bucket is the intent — but
 the stated trigger has fired, so re-read the note before identity gains a second

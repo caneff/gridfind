@@ -14,7 +14,7 @@ relation owns its own params key and rule shape behind that one closure —
 clue's `diff`, a future ratio clue's own key), so a new relation costs one
 registry row plus one emitter function, not a change here.
 
-Sum stays out of this family: it is an N-ary group reduction (`pair-sum`,
+Sum stays out of this family: it is an N-ary group reduction (`group-sum`,
 `cage`), not a binary relation.
 """
 

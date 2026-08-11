@@ -153,5 +153,5 @@ def test_alias_with_only_its_own_params_still_expands() -> None:
     canonical, _ = build_stack((constraint,), size=9)
 
     assert canonical == [
-        Constraint(type="pair-sum", params={"cells": ["R1C1", "R1C2"], "sum": 10})
+        Constraint(type="group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 10})
     ]
