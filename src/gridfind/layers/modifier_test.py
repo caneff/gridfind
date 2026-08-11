@@ -111,7 +111,7 @@ def test_forcing_two_modifiers_onto_the_same_digit_is_infeasible() -> None:
 
 
 def test_composes_with_schrodinger_and_stays_feasible() -> None:
-    # Regression for the AC3 bug: an `== 1` per-digit transversal count is a
+    # Regression: an `== 1` per-digit transversal count is a
     # bijection with `board.values`, which only matches the one-per-house
     # modifier count (== board.size) when `len(values) == size`. schrodinger
     # always widens `values` past `size`, so that bijection made every

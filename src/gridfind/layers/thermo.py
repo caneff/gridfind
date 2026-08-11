@@ -56,9 +56,7 @@ class Thermo:
 
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object) — narrow to this
-            # clue's shape: an ordered path of cell addresses plus the
-            # normal/slow flavor flag.
+            # params is the open JSON boundary (object), narrowed by cast.
             path = cast("list[str]", clue.params["path"])
             slow = cast("bool", clue.params["slow"])
             pairs = [(engine.content(a), engine.content(b)) for a, b in pairwise(path)]

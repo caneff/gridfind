@@ -55,8 +55,7 @@ class PairSum:
             "dict[str, cp_model.IntVar]", engine.structures.get("modifier_value", {})
         )
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object) — narrow to this clue's
-            # shape: a pair of cell addresses and its target sum.
+            # params is the open JSON boundary (object), narrowed by cast.
             addresses = cast("list[str]", clue.params["cells"])
             total = cast("int", clue.params["sum"])
             a, b = (

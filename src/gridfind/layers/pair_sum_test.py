@@ -180,7 +180,7 @@ def test_pair_sum_reads_the_doubled_value_when_a_cell_is_the_modifier() -> None:
 
 
 def test_a_sum_only_reachable_when_doubled_forces_discovery_in_the_pair() -> None:
-    # AC2, with nothing pinned: one-per-house puts exactly one modifier in row 1,
+    # With nothing pinned: one-per-house puts exactly one modifier in row 1,
     # and 19 exceeds two plain 1-9 digits (max 18), so a free solve can satisfy
     # the clue only by discovering that modifier on R1C1 or R1C2. The clue forces
     # the discovery — the assertion reads the solver's choice, not a fixture's.

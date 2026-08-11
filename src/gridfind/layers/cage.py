@@ -77,8 +77,7 @@ class Cage:
     def emit(self, engine: Engine) -> None:
         is_s = engine.is_s()
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object) — narrow to this
-            # clue's shape: the cage's cells, and an optional killer sum.
+            # params is the open JSON boundary (object), narrowed by cast.
             # `name`, if present, is reserved and unread.
             addresses = cast("list[str]", clue.params["cells"])
             slots = [slot for address in addresses for slot in engine.contents(address)]

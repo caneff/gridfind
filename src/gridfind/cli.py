@@ -1,11 +1,11 @@
 """The `gridfind` command: a working state in, a verdict out.
 
-Milestone 1 reads one combined `{puzzle, working_state}` document (the
-corpus shape) from a file or stdin; Milestone 2 also takes a SudokuMaker
-share link, sniffed and decoded via `decode_link`. Either way it calls
-`verdict` and prints the outcome: the verdict word, plus a rendered witness
-grid on `found`. All logic lives in `main(argv, stdin) -> int` so tests drive
-it with an argv and a stdin and read back stdout and the exit code;
+Reads either a combined `{puzzle, working_state}` document (the corpus
+shape) from a file or stdin, or a SudokuMaker share link, sniffed and
+decoded via `decode_link`. Either way it calls `verdict` and prints the
+outcome: the verdict word, plus a rendered witness grid on `found`. All
+logic lives in `main(argv, stdin) -> int` so tests drive it with an argv
+and a stdin and read back stdout and the exit code;
 `console_main` only wires `sys` for the `[project.scripts]` entry point.
 
 `--schrodinger` and `--reading` declare a SudokuMaker link as a
@@ -80,7 +80,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
     args = parser.parse_args(argv)
 
     try:
-        if _is_link(args.file):  # a link argument, not a file path to read
+        if _is_link(args.file):
             text = args.file
         elif args.file == "-":
             text = stdin.read()
