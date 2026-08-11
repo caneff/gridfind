@@ -58,6 +58,8 @@ def _cage_sum_term(
     if len(contents) == 1:
         return contents[0]
     d0, d1 = contents
+    # A width-2 cell only exists when schrodinger widened it, so is_s is present
+    # here — width-1 cells (no schrodinger) never reach this line.
     s = cast("dict[str, cp_model.IntVar]", is_s)[address]
     board = engine.board
     term = engine.model.new_int_var(
@@ -77,7 +79,7 @@ class Cage:
         pass
 
     def emit(self, engine: Engine) -> None:
-        is_s = cast("dict[str, cp_model.IntVar] | None", engine.structures.get("is_s"))
+        is_s = engine.is_s()
         for clue in engine.constraints_of(self.name):
             # params is the open JSON boundary (object) — narrow to this
             # clue's shape: the cage's cells, and an optional killer sum.

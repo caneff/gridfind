@@ -10,10 +10,6 @@ entry point.
 
 from __future__ import annotations
 
-from typing import cast
-
-from ortools.sat.python import cp_model
-
 from gridfind.engine import Engine, MalformedPuzzleError
 from gridfind.puzzle import (
     BareSCell,
@@ -87,7 +83,7 @@ def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> N
     refuses when the layer is absent."""
     if not directives:
         return
-    is_s = cast("dict[str, cp_model.IntVar] | None", engine.structures.get("is_s"))
+    is_s = engine.is_s()
     if is_s is None:
         msg = "a Schrödinger pin needs a schrodinger layer, but the stack has none"
         raise MalformedPuzzleError(msg)

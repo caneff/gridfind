@@ -17,7 +17,6 @@ layer file, because more than one layer needs them (issue #17).
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import cast
 
 from ortools.sat.python import cp_model
 
@@ -39,7 +38,7 @@ def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
     `structures` stays generic so every layer shares one channel; only this
     consumer needs the concrete type.
     """
-    grid = cast("list[list[str]]", engine.structures["grid"])
+    grid = engine.grid()
     return [[engine.contents(address) for address in row] for row in grid]
 
 
