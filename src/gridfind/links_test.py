@@ -19,12 +19,16 @@ addopts; run on demand with `just e2e`.
 """
 
 import io
+import json
+import urllib.parse
 from pathlib import Path
+from typing import Any
 
 import pytest
+from lzstring import LZString
 
 from gridfind import cli
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import DECODER_REGISTRY, decode_link, has_live_data
 from gridfind.witness_validator import validate_witness
 
 LINKS_DIR = Path(__file__).parent / "links"
@@ -66,3 +70,102 @@ def test_link_case_matches_its_filename_verdict(
         assert validate_witness("\n".join(lines[1:]), puzzle)
     else:
         assert code == 1
+
+
+# Wire types 0 (givens) and 1 (regions) are excluded from the one-to-one
+# DECODER_REGISTRY loop below: 0 names no variant of its own, and 1 is shared
+# by two variants (classic vs jigsaw, told apart by regions shape, not wire
+# type) — both handled by the explicit list beside it instead (ADR-0007,
+# spec #244).
+_NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
+
+# The link-reachable variants that don't map one-to-one onto a DECODER_REGISTRY
+# wire type: classic and jigsaw both ride wire type 1 (told apart by their
+# decoded regions shape) and Schrödinger arrives by the `--schrodinger` flag,
+# never a wire type (ADR-0007).
+_EXPLICIT_VARIANTS = ("classic", "jigsaw", "schrodinger")
+
+
+def _wire_payload(link: str) -> dict[str, Any]:
+    """The raw SudokuMaker puzzle JSON behind a link, mirroring
+    `scripts/inspect_link.py`'s `_decode_payload` — kept local for the same
+    reason: the coverage gate classifies by raw wire *type*, which
+    `decode_link`'s `Puzzle` no longer carries once XV/kropki are rewritten
+    onto their own aliased constraint names."""
+    payload = link.split("?puzzle=", 1)[-1]
+    raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
+    data: Any = json.loads(raw)["puzzle"]
+    return data
+
+
+def _active_wire_types(link: str) -> set[int]:
+    """The `DECODER_REGISTRY` wire types this link carries a live rule for —
+    an enabled, non-disabled constraint block whose payload `has_live_data`
+    (the same predicate the decoder itself drops unmodeled constraints by)."""
+    blocks = _wire_payload(link).get("constraints", [])
+    if not isinstance(blocks, list):
+        return set()
+    return {
+        block["type"]
+        for block in blocks
+        if isinstance(block, dict)
+        and block.get("disabled") is not True
+        and has_live_data(block)
+    }
+
+
+def _variant_tags(argv: list[str]) -> set[int | str]:
+    """Every link-reachable variant one case file exercises: the explicit
+    classic/jigsaw/schrodinger bucket, plus any DECODER_REGISTRY wire type
+    whose payload carries a live rule. Schrödinger is declared by the
+    `--schrodinger` flag, never inferred; classic vs jigsaw is told apart by
+    whether the decoded regions-distinct constraint carries a custom
+    `regions` matrix."""
+    link = argv[-1]
+    schrodinger = "--schrodinger" in argv
+    tags: set[int | str] = {"schrodinger"} if schrodinger else set()
+    if not schrodinger:
+        puzzle, _ = decode_link(link, schrodinger=False)
+        jigsaw = any(
+            c.type == "regions-distinct" and "regions" in c.params
+            for c in puzzle.constraints
+        )
+        tags.add("jigsaw" if jigsaw else "classic")
+    tags |= _active_wire_types(link)
+    return tags
+
+
+@pytest.mark.e2e
+def test_coverage_floor_every_link_reachable_variant_has_found_and_broke() -> None:
+    """The gate from spec #244/T4: every link-reachable variant — the
+    one-to-one DECODER_REGISTRY wire types (driven off the registry itself,
+    never hand-listed) plus the explicit classic/jigsaw/schrodinger cases —
+    owes a `found-*` and a `broke-*` file under `links/`. Adding a new
+    decoder without its two links must turn this red."""
+    coverage: dict[int | str, dict[str, bool]] = {}
+    for path in _CASES:
+        kind, _, _ = path.stem.partition("-")
+        argv = path.read_text().split()
+        for tag in _variant_tags(argv):
+            slot = coverage.setdefault(tag, {"found": False, "broke": False})
+            slot[kind] = True
+
+    missing: list[str] = []
+    for wire_type, decoded in DECODER_REGISTRY.items():
+        if wire_type in _NON_VARIANT_WIRE_TYPES:
+            continue
+        slot = coverage.get(wire_type, {"found": False, "broke": False})
+        missing += [
+            f"{decoded.name} (wire type {wire_type}): missing {kind}-*"
+            for kind in ("found", "broke")
+            if not slot[kind]
+        ]
+    for variant in _EXPLICIT_VARIANTS:
+        slot = coverage.get(variant, {"found": False, "broke": False})
+        missing += [
+            f"{variant}: missing {kind}-*"
+            for kind in ("found", "broke")
+            if not slot[kind]
+        ]
+
+    assert not missing, "coverage-floor gaps under links/: " + "; ".join(missing)
