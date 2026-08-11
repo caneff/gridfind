@@ -62,7 +62,7 @@ def test_a_satisfiable_pair_resolves_found() -> None:
 
 
 def test_a_pair_that_cannot_meet_its_ratio_resolves_broke() -> None:
-    # Both cells pinned to 5 — neither 5 == 2*5 nor 5 == 2*5 holds.
+    # Both cells pinned to 5 — neither can be twice the other.
     puzzle = Puzzle(
         board=BOARD,
         constraints=(_pair_ratio(("R1C1", "R1C2"), 2),),

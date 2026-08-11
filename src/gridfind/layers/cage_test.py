@@ -235,9 +235,6 @@ def test_a_cage_holding_a_proper_subset_of_the_domain_is_found() -> None:
     assert len(set(digits)) == len(digits)
 
 
-# --- killer sum ------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     ("value", "expected"),
     [(5, [(["R1C1", "R1C2"], 5)]), (0, []), (None, [])],

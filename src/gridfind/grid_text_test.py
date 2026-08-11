@@ -21,7 +21,6 @@ def test_format_cell_and_parse_cell_round_trip(
 
 
 def test_line_count_interleaves_one_more_border_line_than_cell_lines() -> None:
-    # 4 cell lines need 5 border lines bracketing/between them.
     assert grid_text.line_count(4) == 9
 
 

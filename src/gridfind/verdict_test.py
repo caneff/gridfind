@@ -784,8 +784,8 @@ def test_verdict_rejects_an_unknown_constraint_type() -> None:
 
 
 # A stepped range (step >= 2) so the board's values genuinely have gaps
-# between them — the regression's shape, generalized over start/count/step
-# rather than fixed at 2, 4, 6, 8.
+# between them — generalized over start/count/step rather than fixed at
+# 2, 4, 6, 8.
 STEPPED_VALUES = st.builds(
     lambda start, count, step: range(start, start + count * step, step),
     st.integers(1, 5),
