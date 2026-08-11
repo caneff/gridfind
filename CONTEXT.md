@@ -83,13 +83,17 @@ Four words name four levels, told apart by how many of each there are: one
 handled by one **layer**.
 
 - **variant** — a rule family: XV, killer, thermo, Schrödinger. What a setter
-  names when they say what kind of puzzle this is. One variant is served by one
-  layer.
+  names when they say what kind of puzzle this is. Usually one variant is
+  served by one layer; killer is the exception, composing two orthogonal
+  capabilities — `cage` (uniqueness) and `group-sum` (the total) — rather than
+  bundling them into one (spec #240).
 
-- **constraint** — one typed statement in a puzzle: a killer cage with its cells
-  and its sum, an X clue naming its pair, or a bare `sudoku` naming a family that
+- **constraint** — one typed statement in a puzzle: a killer cage's cells named
+  to a `cage` constraint and, separately, to a `group-sum` constraint carrying
+  its total; an X clue naming its pair; or a bare `sudoku` naming a family that
   carries no data of its own. The level a setter writes and gridfind serializes.
-  Many constraints per variant — two X clues are two constraints of one variant.
+  Many constraints per variant — two X clues are two constraints of one variant,
+  and a killer cage is itself two constraints over the same cells.
 
 - **rule** — one atomic relation a layer emits over cell content (an AllDifferent,
   a sum, an equality). Many rules per constraint. _Constraint_ is retired at
@@ -313,17 +317,21 @@ forces a cell to become an S-cell.
   an **S-cell**'s is its `s_value` (its two digits under the **combine** rule).
   Two cells clash whenever those values are the same number — a doubler worth 18
   and an S-cell reading 18 collide, since a value is just a number. On a plain puzzle
-  every value is a digit, so values-distinct reduces to digits-distinct. A cage's
-  killer **sum** is unaffected by the mode — it always folds modifiers
-  (ADR-0008); only the no-repeats half answers to `distinct-over`.
+  every value is a digit, so values-distinct reduces to digits-distinct.
+
+- **killer cage** — a `cage` (no-repeats) composed with a `group-sum` (the
+  total) over the same cells, not one bundled layer (spec #240). The two
+  capabilities carry their own Schrödinger semantics: the cage's no-repeats
+  half is S-ready, the sum is S-blind — "not Schrödinger-ready yet" over a
+  named S-cell comes from `group-sum`, never the cage.
 
 - **cosmetic cage** — a cage a setter draws for display, carrying its sum as a
   label rather than as an enforced killer constraint. SudokuMaker forces one
   whenever a killer sum runs out of standard-digit range — the case a **doubler**
   inside a cage creates — because its killer tool refuses to store that sum.
-  gridfind reads a cosmetic cage whose label is a number **as a killer cage**; it
-  is the only channel an out-of-range sum arrives through (ADR-0008). A cage
-  whose label is non-numeric stays inert.
+  gridfind reads a cosmetic cage whose label is a number **as a killer cage**
+  (a `cage` plus a `group-sum`); it is the only channel an out-of-range sum
+  arrives through (ADR-0008). A cage whose label is non-numeric stays inert.
 
 ---
 
@@ -331,17 +339,16 @@ forces a cell to become an S-cell.
 
 Sum as an N-ary reduction (issue #241, spec #240): a clue names any number of
 cells (N >= 2, two is just its smallest case) and a target; the layer sums
-their content to it, one rule per clue. Structured like the killer-sum half
-of `cage` (a clue-looping layer pulling every `group-sum` constraint via the
-dispatch), emitting only the total — never an `add_all_different`, so a bare
-group-sum carries no implied uniqueness: a target of 10 over a non-house
-pair may be met as 5+5. Where a setter wants distinctness too, it composes
-alongside this layer rather than folding into it. S-blind by decision,
-matching the cage's killer sum: reads the singular `content()` seam and
-raises "not Schrödinger-ready yet" over a named S-cell rather than guessing
-which of its two digits counts. Its arithmetic still reads a modifier
-cell's `modifier_value` in place of the raw digit, so a discovered doubler
-folds into the total.
+their content to it, one rule per clue. A clue-looping layer structured like
+`cage` (pulling every `group-sum` constraint via the dispatch), emitting
+only the total — never an `add_all_different`, so a bare group-sum carries
+no implied uniqueness: a target of 10 over a non-house pair may be met as
+5+5. Where a setter wants distinctness too, it composes alongside this layer
+rather than folding into it. S-blind by decision: reads the singular
+`content()` seam and raises "not Schrödinger-ready yet" over a named S-cell
+rather than guessing which of its two digits counts. Its arithmetic still
+reads a modifier cell's `modifier_value` in place of the raw digit, so a
+discovered doubler folds into the total.
 
 - **group-sum** — the constraint and the rule it emits: `{type: group-sum,
   cells: [...], sum}`. The canonical form every XV clue expands to.
@@ -349,8 +356,8 @@ folds into the total.
   target is named rather than written: an **X clue** is a group-sum of 10, a
   **V clue** a group-sum of 5.
 
-A killer cage recomposing as `group-sum` + uniqueness is a separate, later
-change (spec #240).
+A **killer cage** recomposes as `group-sum` (the total) + `cage` (uniqueness)
+over the same cells (issue #243, spec #240) — see the `cage` layer section.
 
 ---
 

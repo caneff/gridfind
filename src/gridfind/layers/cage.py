@@ -31,17 +31,9 @@ S-cell.
 An optional `name` param is accepted and reserved for future killer keying;
 unread today.
 
-A killer sum through the same seam: an optional `value` param, when present
-and `> 0`, additionally emits `sum(cells) == value`, each cell contributing
-its `Engine.value_expr` — a doubler's `2·d0`, an S-cell's combined `s_value`,
-else its plain digit. That is the one value the seam defines for every reader,
-so the sum and the values-distinct half read a cell the same way and never a
-second hand-rolled encoding (ADR-0009 decision 2). The sum runs regardless of
-`distinct-over` (ADR-0008 decision 4, ADR-0009 decision 6) — sum and no-repeats
-answer to different rules but share the one value. A doubled S-cell has no
-defined value, so `value_expr` raises rather than sum it (ADR-0009 decision 5).
-Absent `value` or `value == 0` (SudokuMaker's own no-sum cage) stays
-region-only.
+A killer cage's total is not this layer's concern: it is a `group-sum` over
+the same cells, composed alongside a `cage` rather than bundled into one
+(spec #240). This layer states no sum and reads no `value` param.
 """
 
 from __future__ import annotations
@@ -80,8 +72,3 @@ class Cage:
                     f"{distinct_over!r}"
                 )
                 raise MalformedPuzzleError(msg)
-            value = clue.params.get("value")
-            if value:
-                total = cast("int", value)
-                terms = [engine.value_expr(address) for address in addresses]
-                engine.model.add(sum(terms) == total)

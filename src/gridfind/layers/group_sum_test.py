@@ -1,9 +1,9 @@
 """group-sum behaviour, tested at two seams.
 
 group-sum is purely additive: an N-ary sum reduction over a named set of
-cells, S-blind, carrying no implied uniqueness. `cage` is untouched here —
-this only proves this layer's own behaviour, mirroring the killer-sum half
-of `cage_test.py`.
+cells, S-blind, carrying no implied uniqueness. This file proves this
+layer's own behaviour; a killer cage composing it with `cage`'s no-repeats
+rule is tested at the `verdict` seam in `verdict_test.py`.
 
 The `x`/`v` aliases resolve onto this layer too, each fixing a two-cell
 group-sum's total (10 for X, 5 for V) and passing the clue's own cells

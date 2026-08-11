@@ -41,8 +41,12 @@ nor the cage — unsound for this puzzle.
    `value` becomes the killer sum; a non-numeric or empty label stays inert and
    drops as before. This is the only channel an out-of-range cage sum reaches
    gridfind through, since SudokuMaker cannot store it as a real killer cage.
-4. **The cage killer-sum folds modifiers.** A doubled cell contributes `2·d0`
-   via the `modifier_value` structure (#237's pattern), not its raw content.
+4. **The killer sum folds modifiers.** A doubled cell contributes `2·d0` via
+   the `modifier_value` structure (#237's pattern), not its raw content. The
+   killer cage later recomposed as `cage` (uniqueness) plus `group-sum` (the
+   total), each a separate constraint over the same cells (spec #240, issue
+   #243); the fold this decision names is `group-sum`'s today, the cage
+   stating no sum of its own.
 
 ## Considered options
 

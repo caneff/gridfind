@@ -698,6 +698,74 @@ def test_quattroquadri_breaks_on_a_digit_repeated_within_one_box() -> None:
     )
 
 
+def _killer_cage(cells: tuple[str, ...], total: int) -> tuple[Constraint, Constraint]:
+    """A killer cage's recomposition (spec #240): a no-repeats `cage` plus the
+    total as a `group-sum`, both over the same cells."""
+    return (
+        Constraint(type="cage", params={"cells": list(cells)}),
+        Constraint(type="group-sum", params={"cells": list(cells), "sum": total}),
+    )
+
+
+def test_killer_cage_satisfiable_resolves_found() -> None:
+    cells = ("R1C1", "R1C2", "R1C3")
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_killer_cage(cells, 6),
+        givens=(Given(address="R1C1", digit=1),),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    digits = [result.witness[address][0] for address in cells]
+    assert sum(digits) == 6
+    assert len(set(digits)) == len(digits)
+
+
+def test_killer_cage_forced_repeat_resolves_broke() -> None:
+    # 1 + 1 meets the total but repeats a digit — the cage's no-repeats half
+    # breaks it even though the sum alone would be satisfied, proving the
+    # two composed rules both bind.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_killer_cage(("R1C1", "R1C2"), 2),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=1)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_killer_cage_unreachable_total_resolves_broke() -> None:
+    # Two distinct 1-9 digits reach at most 17; 30 is unreachable.
+    puzzle = Puzzle(board=BOARD, constraints=_killer_cage(("R1C1", "R1C2"), 30))
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_killer_cage_sum_over_an_s_cell_raises_from_group_sum() -> None:
+    # The S-blind "not Schrödinger-ready yet" refusal now comes from
+    # group-sum, not the cage — the cage's own no-repeats half stays S-ready
+    # (it never raises here; the exception is group-sum's, at build time).
+    puzzle = Puzzle(
+        board=Board(size=4, values=range(5)),
+        constraints=(
+            Constraint(type="schrodinger"),
+            *_killer_cage(("R1C1", "R1C2"), 3),
+        ),
+    )
+
+    with pytest.raises(GridfindError, match="not Schrödinger-ready"):
+        verdict(puzzle)
+
+
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
     # A contradiction unrelated to region sizing (two conflicting givens on
     # one cell) must not get blamed on a region that is well within the
