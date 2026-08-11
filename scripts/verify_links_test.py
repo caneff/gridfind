@@ -13,6 +13,7 @@ is checked without touching the real `links/` corpus.
 
 from __future__ import annotations
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from verify_links import fill_witness, verify_link
@@ -153,3 +154,53 @@ def test_verify_link_reports_broke_for_a_broke_case() -> None:
     link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
 
     assert verify_link([link]) == "broke"
+
+
+# A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major.
+_REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
+_RED_BIT = 2
+
+
+def _doubler_cage_link() -> str:
+    """A fully-given valid 4x4 Latin square with a killer cage summing
+    R1C1+R1C2 to 4 and R1C1 flagged a doubler (red bit). The verdict hinges
+    on the `--doubler` flag: as a plain cage the two givens sum 1+2=3, which
+    breaks the cage; with the doubler active R1C1 counts twice, 2·1+2=4, which
+    satisfies it. So the flag flips broke↔found, and a verifier that drops it
+    reports the wrong one."""
+    rows = [[1, 2, 3, 4], [3, 4, 1, 2], [2, 1, 4, 3], [4, 3, 2, 1]]
+    cells: list[dict[str, object]] = [
+        {"given": True, "value": digit} for row in rows for digit in row
+    ]
+    cells[0]["colors"] = _RED_BIT
+    return _encode(
+        {
+            "cells": cells,
+            "size": 4,
+            "constraints": [
+                {"type": 0},
+                {"type": 1, "regions": _REGIONS_4X4},
+                {"type": 301, "cages": [{"cells": [0, 1], "value": 4}]},
+            ],
+        }
+    )
+
+
+def test_verify_link_threads_the_doubler_flag() -> None:
+    link = _doubler_cage_link()
+
+    # Without --doubler the cage sums the raw givens, 1+2=3 ≠ 4: broke.
+    assert verify_link([link]) == "broke"
+
+    # With --doubler R1C1's digit counts twice, 2·1+2=4: found, so the
+    # emitter reports a solution-link rather than `broke`.
+    solution_link = verify_link(["--doubler", link])
+    assert solution_link.startswith("https://sudokumaker.app/?puzzle=")
+
+
+def test_verify_link_threads_the_reading_flag() -> None:
+    # --reading rides with --schrodinger into decode_link, which refuses any
+    # reading but "classic"; a verifier that drops the flag would silently
+    # decode as classic instead of raising.
+    with pytest.raises(ValueError, match="reading"):
+        verify_link(["--schrodinger", "--reading", "martian", "irrelevant-link"])

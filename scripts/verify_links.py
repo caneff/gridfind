@@ -60,8 +60,12 @@ def verify_link(argv: Sequence[str]) -> str:
     found/broke by filename, so an off-corpus `unknown` reports the same as
     `broke` rather than implying a witness that was never computed."""
     schrodinger = "--schrodinger" in argv
+    doubler = "--doubler" in argv
+    reading = argv[argv.index("--reading") + 1] if "--reading" in argv else "classic"
     link = argv[-1]
-    puzzle, state = decode_link(link, schrodinger=schrodinger)
+    puzzle, state = decode_link(
+        link, schrodinger=schrodinger, reading=reading, doubler=doubler
+    )
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
         return "broke"
