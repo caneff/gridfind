@@ -204,25 +204,58 @@ def _strict_less_pairs(engine: Engine) -> list[tuple[int, int]]:
     return pairs
 
 
+def _non_strict_less_pairs(engine: Engine) -> list[tuple[int, int]]:
+    """Every non-strict `a <= b` solver constraint (a slow thermo edge), as
+    its two operand variable indices, in emission order.
+
+    Read structurally off the compiled linear form CP-SAT's `add(a <= b)`
+    produces: the same `[1, -1]` two-var shape as a strict `<` edge
+    (`_strict_less_pairs`), but with its domain closed at `0` (`a - b <= 0`)
+    rather than `-1` — the one bit that tells a slow edge from a normal one
+    structurally, never by variable name.
+    """
+    pairs: list[tuple[int, int]] = []
+    for constraint in engine.model.proto.constraints:
+        if not constraint.has_linear():
+            continue
+        if list(constraint.enforcement_literal):
+            continue
+        lin = constraint.linear
+        variables = list(lin.vars)
+        domain = list(lin.domain)
+        if list(lin.coeffs) == [1, -1] and domain[-1:] == [0]:
+            pairs.append((variables[0], variables[1]))
+    return pairs
+
+
 def thermo_rules(engine: Engine) -> list[list[tuple[str, str]]]:
     """Every thermo rule, grouped by clue, as each consecutive pair's
     addresses in path order.
 
-    Reads the strict edges structurally (`_strict_less_pairs`), then regroups
-    them by each clue's own path length in emission order — `Thermo.emit`
-    walks `constraints_of` in order and emits exactly one solver constraint
-    per consecutive pair, so counting off each path's edge count recovers the
-    per-clue grouping without depending on variable names.
+    Reads the strict (`_strict_less_pairs`) and non-strict
+    (`_non_strict_less_pairs`) edge streams structurally, then regroups by
+    each clue's own path length and `slow` flag in emission order —
+    `Thermo.emit` walks `constraints_of` in order and emits exactly one
+    solver constraint per consecutive pair, into whichever stream its `slow`
+    flag picks, so counting off each path's edge count against the matching
+    stream recovers the per-clue grouping without depending on variable
+    names.
     """
     address_of = _cell_addresses(engine)
-    edges = _strict_less_pairs(engine)
+    strict_edges = _strict_less_pairs(engine)
+    slow_edges = _non_strict_less_pairs(engine)
     grouped: list[list[tuple[str, str]]] = []
-    cursor = 0
+    strict_cursor = 0
+    slow_cursor = 0
     for clue in engine.constraints_of("thermo"):
         edge_count = len(cast("list[str]", clue.params["path"])) - 1
-        clue_edges = edges[cursor : cursor + edge_count]
+        if cast("bool", clue.params["slow"]):
+            clue_edges = slow_edges[slow_cursor : slow_cursor + edge_count]
+            slow_cursor += edge_count
+        else:
+            clue_edges = strict_edges[strict_cursor : strict_cursor + edge_count]
+            strict_cursor += edge_count
         grouped.append([(address_of[a], address_of[b]) for a, b in clue_edges])
-        cursor += edge_count
     return grouped
 
 

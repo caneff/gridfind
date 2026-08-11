@@ -1,8 +1,9 @@
-"""`thermo` behaviour, tested at two seams (spec #251, issue #253).
+"""`thermo` behaviour, tested at two seams (spec #251, issues #253/#254).
 
 Mirrors `pair_difference_test.py`: the direct rule readback (issue #100) —
-that a clue emitted its own strict edges, not that a solve happened to
-satisfy them — plus verdict-seam behaviour (found/broke).
+that a clue emitted its own edges (strict for normal, non-strict for slow),
+not that a solve happened to satisfy them — plus verdict-seam behaviour
+(found/broke).
 """
 
 import pytest
@@ -18,6 +19,10 @@ BOARD = Board(size=9)
 
 def _thermo(path: tuple[str, ...]) -> Constraint:
     return Constraint("thermo", params={"path": list(path), "slow": False})
+
+
+def _slow_thermo(path: tuple[str, ...]) -> Constraint:
+    return Constraint("thermo", params={"path": list(path), "slow": True})
 
 
 @pytest.mark.parametrize(
@@ -38,10 +43,27 @@ def _thermo(path: tuple[str, ...]) -> Constraint:
             ),
             [[("R1C1", "R1C2"), ("R1C2", "R1C3")], [("R3C3", "R3C4")]],
         ),
+        (
+            (_slow_thermo(("R1C1", "R1C2", "R1C3")),),
+            [[("R1C1", "R1C2"), ("R1C2", "R1C3")]],
+        ),
+        (
+            (
+                _thermo(("R1C1", "R1C2", "R1C3")),
+                _slow_thermo(("R3C3", "R3C4")),
+            ),
+            [[("R1C1", "R1C2"), ("R1C2", "R1C3")], [("R3C3", "R3C4")]],
+        ),
     ],
-    ids=["three-cell path", "two-cell path is one edge", "two clues"],
+    ids=[
+        "three-cell path",
+        "two-cell path is one edge",
+        "two clues",
+        "slow path",
+        "normal clue and slow clue together",
+    ],
 )
-def test_thermo_emits_one_strict_edge_per_consecutive_pair(
+def test_thermo_emits_one_edge_per_consecutive_pair(
     constraints: tuple[Constraint, ...],
     expected: list[list[tuple[str, str]]],
 ) -> None:
@@ -111,3 +133,47 @@ def test_two_clues_each_constrain_their_own_path_independently() -> None:
     assert a < b < c
     d, e = (result.witness[address][0] for address in ("R3C3", "R3C4"))
     assert d < e
+
+
+def test_a_slow_thermo_with_equal_neighbors_resolves_found() -> None:
+    # Both cells pinned equal — a normal thermo would break here, but a slow
+    # thermo's non-strict <= allows the repeat.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_slow_thermo(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=5), Given(address="R1C2", digit=5)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, b = (result.witness[address][0] for address in ("R1C1", "R1C2"))
+    assert a == b == 5
+
+
+def test_a_slow_thermo_forced_to_descend_resolves_broke() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_slow_thermo(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=5), Given(address="R1C2", digit=3)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_slow_thermo_longer_than_the_grid_still_resolves_found() -> None:
+    # Repeats are allowed, so a slow path has no length ceiling, unlike a
+    # normal thermo — a 10-cell flat line on a 9x9 board is fine.
+    path = (*(f"R1C{c}" for c in range(1, 10)), "R2C1")
+    puzzle = Puzzle(board=BOARD, constraints=(_slow_thermo(path),))
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    values = [result.witness[address][0] for address in path]
+    assert values == sorted(values)

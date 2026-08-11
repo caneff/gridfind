@@ -920,7 +920,7 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
 
 
-# --- type 300 thermo decode (spec #251, issue #253) -----------------------
+# --- type 300 thermo decode (spec #251, issues #253/#254) -----------------
 
 
 def test_normal_thermo_decodes_to_ordered_path_constraint() -> None:
@@ -955,6 +955,17 @@ def test_multiple_thermo_paths_each_decode_to_their_own_constraint() -> None:
     )
     assert (
         Constraint("thermo", params={"path": ["R2C1", "R3C1", "R4C1"], "slow": False})
+        in puzzle.constraints
+    )
+
+
+def test_slow_thermo_decodes_with_slow_true_on_the_constraint() -> None:
+    payload = _constraint_link({"type": 300, "slow": True, "thermometers": [[0, 1, 2]]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": True})
         in puzzle.constraints
     )
 
