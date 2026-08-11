@@ -342,23 +342,30 @@ def test_values_distinct_cage_reads_a_modifier_value_not_the_raw_digit() -> None
     assert status == cp_model.INFEASIBLE
 
 
-def test_values_distinct_cage_rejects_a_doubled_s_cell() -> None:
-    # A cell in both the modifier_value and s_value channels is a doubled
-    # S-cell — no defined value yet (ADR-0009 decision 5), so building the rule
-    # fails loudly rather than picking one channel over the other.
+def test_values_distinct_cage_collides_a_doubled_s_cell_at_twice_its_s_value() -> None:
+    # A cell in both channels is a doubled S-cell, worth 2·s_value (ADR-0010):
+    # value_expr folds modifier_value over s_value, so the cage reads 6 (=2·3),
+    # not the bare s_value 3. A plain cell valued 6 clashes with it — the cage
+    # reads the folded value.
     engine = build_engine(
-        [], constraints=(_cage(("R1C1",), distinct_over="value"),), board=BOARD
+        [], constraints=(_cage(("R1C1", "R1C2"), distinct_over="value"),), board=BOARD
     )
     engine.add_cell("R1C1", low=1, high=9)
-    modifier_value = engine.model.new_int_var(0, 18, "R1C1.modifier_value")
-    s_value = engine.model.new_int_var(0, 99, "R1C1.s_value")
-    engine.register_structure("modifier_value", {"R1C1": modifier_value})
+    engine.add_cell("R1C2", low=1, high=9)
+    s_value = engine.model.new_int_var(0, 18, "R1C1.s_value")
+    modifier_value = engine.model.new_int_var(0, 36, "R1C1.modifier_value")
+    engine.model.add(s_value == 3)
+    engine.model.add(modifier_value == 2 * s_value)
     engine.register_structure("s_value", {"R1C1": s_value})
+    engine.register_structure("modifier_value", {"R1C1": modifier_value})
+    engine.model.add(engine.d0("R1C2") == 6)
     cage = Cage()
     cage.register(engine)
+    cage.emit(engine)
 
-    with pytest.raises(MalformedPuzzleError, match="doubled S-cell"):
-        cage.emit(engine)
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
 
 
 @pytest.mark.parametrize(

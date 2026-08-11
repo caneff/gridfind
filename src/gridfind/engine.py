@@ -217,38 +217,32 @@ class Engine:
         whatever the width. A width-1 cell's d0 is its only slot."""
         return self._cell(address).content[0]
 
+    def base_value(self, address: str) -> cp_model.IntVar:
+        """A cell's value beneath any modifier — its `s_value` when the
+        schrödinger layer reified one (its two digits combined under the
+        puzzle's `combine` rule), else its digit. This is the value a modifier
+        layer maps: the doubler reads it and reifies twice it (ADR-0010), so
+        the `2·` never has to name the schrödinger channel. `value_expr` layers
+        the modifier's mapped value on top of it."""
+        s_value = cast("dict[str, cp_model.IntVar]", self.structures.get("s_value", {}))
+        if address in s_value:
+            return s_value[address]
+        return self.content(address)
+
     def value_expr(self, address: str) -> cp_model.LinearExprT:
         """A cell's value as a model-build-time expression, for a constraint
         that must put a cell's *value* (not its raw digit) into a CP rule, such
-        as a values-distinct cage (ADR-0009). It reads whichever value channel
-        a layer registered for the cell, the same way each layer owns and
-        reifies its own value:
-
-        - a **modifier** cell's value is its `modifier_value` (a doubler's
-          `2·d0`, reified on discovery);
-        - an **S-cell**'s value is its `s_value` (its two digits combined under
-          the puzzle's `combine` rule, reified on `is_s`);
-        - a **plain** cell's value is its digit.
-
-        A cell in both channels is a doubled S-cell — no defined value yet
-        (ADR-0009 decision 5) — so this raises rather than pick one."""
+        as a values-distinct cage (ADR-0009). A modifier maps the value beneath
+        it, so the value is the `modifier_value` a modifier reified for the cell
+        — a doubler's `2·d0`, or `2·s_value` for a doubled S-cell (ADR-0010) —
+        else the unmodified `base_value`. Each reader stays blind to which
+        layer built the value it gets."""
         modifier_value = cast(
             "dict[str, cp_model.IntVar]", self.structures.get("modifier_value", {})
         )
-        s_value = cast("dict[str, cp_model.IntVar]", self.structures.get("s_value", {}))
-        in_modifier = address in modifier_value
-        in_s = address in s_value
-        if in_modifier and in_s:
-            msg = (
-                f"cell {address!r} is both a modifier and an S-cell; a doubled "
-                "S-cell has no defined value (ADR-0009)"
-            )
-            raise MalformedPuzzleError(msg)
-        if in_modifier:
+        if address in modifier_value:
             return modifier_value[address]
-        if in_s:
-            return s_value[address]
-        return self.content(address)
+        return self.base_value(address)
 
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending, decoded from its
