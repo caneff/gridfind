@@ -61,7 +61,10 @@ resolve on model coherence alone.
    rule, a property of the whole puzzle that this layer holds, not the cage or
    the cell.
 
-5. **A doubled S-cell stays deferred.** A cell that is both a doubler and an
+5. **A doubled S-cell stays deferred.** *(Superseded by
+   [ADR-0010](0010-doubled-schrodinger-cell-value.md): the cell is worth
+   `2·s_value`, and `value_expr` no longer raises for it. The reasoning below
+   records the original deferral.)* A cell that is both a doubler and an
    S-cell has no defined value yet — no link can encode both marks (they share
    the red color bit, ADR-0008) and nothing models the combination. Such a cell
    sits in both value channels at once, so `value_expr` raises rather than pick
@@ -75,13 +78,12 @@ resolve on model coherence alone.
    value-seam reading rather than a private encoding. The killer cage later
    recomposed as `cage` (uniqueness) plus `group-sum` (the total), two
    constraints over the same cells, not one bundled layer (spec #240, issue
-   #243). `group-sum` folds a modifier's `modifier_value` (ADR-0008 decision 4)
-   but is **S-blind by its own, separate decision**: it raises "not
-   Schrödinger-ready yet" over a named S-cell rather than reading `s_value`,
-   so decision 6's value-seam reading for an S-cell no longer holds anywhere
-   — the cage states no sum to hold it, and `group-sum` never reaches an
-   S-cell's value at all. `distinct-over` still answers only for the cage's
-   own no-repeats half, which is unaffected by this recomposition.
+   #243). `group-sum` reads each cell's value through `value_expr`, so it folds
+   a modifier's `modifier_value` and an S-cell's combined `s_value` alike; issue
+   #235 retired an earlier refusal that raised "not Schrödinger-ready yet" over a
+   named S-cell. So the value-seam reading decision 6 first placed on the cage
+   now lives on `group-sum` instead. `distinct-over` still answers only for the
+   cage's own no-repeats half, which is unaffected by this recomposition.
 
 7. **`distinct-over` is an internal param with no decoder yet.** No SudokuMaker
    link we have carries a distinctness mode. The cage constraint accepts the key
