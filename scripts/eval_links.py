@@ -38,6 +38,11 @@ APPROVED_PATH = Path(__file__).parent / ".eval-approved.json"
 # Gitignored alongside the approval log; flags accumulate and never hide a card.
 FLAGGED_PATH = Path(__file__).parent / ".eval-flagged.json"
 
+# Where flags land once a wayfinder map is made from them, stamped with the map's
+# issue number so they aren't re-proposed. `/gridfind-flags-to-map` passes this to
+# `archive_flags` after filing a map; gitignored alongside the flag log.
+FLAGGED_ARCHIVE_PATH = Path(__file__).parent / ".eval-flagged-archive.json"
+
 
 def load_approved(path: Path) -> set[str]:
     """The set of link stems recorded as approved, or an empty set when the
