@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
 LANGUAGE: python
 PYTHON_VERSION: '3.14'
-_commit: sandcastle-template/v7
+_commit: sandcastle-template/v8
 _src_path: https://github.com/caneff/agent-skills.git
