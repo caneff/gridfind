@@ -502,72 +502,77 @@ def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
     raise ValueError(msg)
 
 
-def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
-    """The `type 202` XV clues as aliased group-sum `Constraint`s: each clue's `value`
-    selects the existing `x`/`v` alias (10/5) and
-    its `edge` decodes to the adjacent cell pair via `_edge_to_pair`. A
-    `disabled` block is skipped entirely; a non-empty `negative` list is
-    warn-and-dropped to stderr while its positive clues still
-    decode."""
+def _edge_clue_constraints(
+    puzzle_data: dict[str, object],
+    size: int,
+    type_: int,
+    build_clue: Callable[[object, str, str], Constraint],
+) -> list[Constraint]:
+    """The shared decode walk behind the edge-clue types — XV, white-kropki,
+    black-kropki — which share one wire shape (`clues: [{value, edge}],
+    negative: [...]`). Every enabled `type_` block: each clue's `edge` decodes
+    to its orthogonally-adjacent pair via `_edge_to_pair`, then
+    `build_clue(value, a, b)` turns the clue's raw `value` and that pair into
+    one `Constraint`. A `disabled` block is skipped entirely; a non-empty
+    `negative` list is warn-and-dropped to stderr while its positive clues
+    still decode. `build_clue` carries the single per-type variation — an
+    alias lookup, a `diff`, a ratio `k`."""
     decoded: list[Constraint] = []
-    for block in _enabled_blocks(puzzle_data, _XV_TYPE):
+    for block in _enabled_blocks(puzzle_data, type_):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
         for clue in clues:
-            value = clue["value"]
-            alias = _XV_ALIASES.get(value)
-            if alias is None:
-                msg = (
-                    f"non-classic link: XV clue value {value!r} is neither "
-                    "X (10) nor V (5)"
-                )
-                raise ValueError(msg)
             a, b = _edge_to_pair(clue["edge"], size)
-            decoded.append(Constraint(alias, params={"cells": [a, b]}))
-        _warn_dropped_negative(block, DECODER_REGISTRY[_XV_TYPE].name)
+            decoded.append(build_clue(clue["value"], a, b))
+        _warn_dropped_negative(block, DECODER_REGISTRY[type_].name)
     return decoded
+
+
+def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+    """The `type 202` XV clues as aliased group-sum `Constraint`s: `value`
+    selects the existing `x`/`v` alias (10/5), or the link is refused — no
+    other value names an XV sum. See `_edge_clue_constraints` for the walk."""
+
+    def build(value: object, a: str, b: str) -> Constraint:
+        # The XV wire value is a JSON number; the cast satisfies the int-keyed
+        # lookup, and a non-int value simply misses it and raises below.
+        alias = _XV_ALIASES.get(cast("int", value))
+        if alias is None:
+            msg = (
+                f"non-classic link: XV clue value {value!r} is neither X (10) nor V (5)"
+            )
+            raise ValueError(msg)
+        return Constraint(alias, params={"cells": [a, b]})
+
+    return _edge_clue_constraints(puzzle_data, size, _XV_TYPE, build)
 
 
 def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
     """The `type 200` white-kropki clues as `pair-difference` `Constraint`s:
-    each clue's `edge` decodes to the adjacent cell pair via
-    `_edge_to_pair`, and its `value` is the target difference passed verbatim
-    as `diff` — a labelled non-1 dot is honored at that value, never coerced to
-    the consecutive default. Only `type 200` (white/difference) decodes here;
-    `type 201` (black/ratio) has its own `_black_kropki_constraints` handler.
-    A `disabled` block is skipped entirely; a non-empty `negative` list is
-    warn-and-dropped to stderr while its positive clues still
-    decode."""
-    decoded: list[Constraint] = []
-    for block in _enabled_blocks(puzzle_data, _KROPKI_WHITE_TYPE):
-        clues = cast("list[dict[str, Any]]", block.get("clues", []))
-        for clue in clues:
-            a, b = _edge_to_pair(clue["edge"], size)
-            params = {"cells": [a, b], "diff": clue["value"]}
-            decoded.append(Constraint("pair-difference", params=params))
-        _warn_dropped_negative(block, DECODER_REGISTRY[_KROPKI_WHITE_TYPE].name)
-    return decoded
+    `value` is the target difference passed verbatim as `diff` — a labelled
+    non-1 dot is honored at that value, never coerced to the consecutive
+    default. `type 201` (black/ratio) has its own handler. See
+    `_edge_clue_constraints` for the walk."""
+
+    def build(value: object, a: str, b: str) -> Constraint:
+        return Constraint("pair-difference", params={"cells": [a, b], "diff": value})
+
+    return _edge_clue_constraints(puzzle_data, size, _KROPKI_WHITE_TYPE, build)
 
 
 def _black_kropki_constraints(
     puzzle_data: dict[str, object], size: int
 ) -> list[Constraint]:
-    """The `type 201` black-kropki clues as `pair-ratio` `Constraint`s: each clue's
-    `edge` decodes to the adjacent cell pair
-    via `_edge_to_pair`, and its `value` is the target integer ratio `k`,
-    honored verbatim — a labelled non-2 dot is never coerced to 2. `value`
-    must be an int (`_as_int`); a non-integer ratio raises `ValueError` at
-    decode rather than modeling a wrong verdict. A `disabled` block is
-    skipped entirely; a non-empty `negative` list is warn-and-dropped to
-    stderr while its positive clues still decode."""
-    decoded: list[Constraint] = []
-    for block in _enabled_blocks(puzzle_data, _KROPKI_BLACK_TYPE):
-        clues = cast("list[dict[str, Any]]", block.get("clues", []))
-        for clue in clues:
-            a, b = _edge_to_pair(clue["edge"], size)
-            k = _as_int(clue["value"], "black-kropki value")
-            decoded.append(Constraint("pair-ratio", params={"cells": [a, b], "k": k}))
-        _warn_dropped_negative(block, DECODER_REGISTRY[_KROPKI_BLACK_TYPE].name)
-    return decoded
+    """The `type 201` black-kropki clues as `pair-ratio` `Constraint`s: `value`
+    is the target integer ratio `k`, honored verbatim — a labelled non-2 dot
+    is never coerced to 2. `value` must be an int (`_as_int`); a non-integer
+    ratio raises `ValueError` at decode rather than modeling a wrong verdict.
+    See `_edge_clue_constraints` for the walk."""
+
+    def build(value: object, a: str, b: str) -> Constraint:
+        k = _as_int(value, "black-kropki value")
+        return Constraint("pair-ratio", params={"cells": [a, b], "k": k})
+
+    return _edge_clue_constraints(puzzle_data, size, _KROPKI_BLACK_TYPE, build)
 
 
 def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:

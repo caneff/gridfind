@@ -756,6 +756,15 @@ def test_xv_negative_list_warns_but_keeps_positive_clues(
     assert "negative" in capsys.readouterr().err
 
 
+def test_xv_value_that_is_neither_x_nor_v_is_refused() -> None:
+    # X (10) and V (5) are the only XV sums; any other labelled value names no
+    # alias, so the link is refused rather than modeled as a wrong sum.
+    payload = _constraint_link({"type": 202, "clues": [{"value": 7, "edge": 70}]})
+
+    with pytest.raises(ValueError, match="neither"):
+        decode_link(payload)
+
+
 # --- type 200 white-kropki decode --------------
 
 
