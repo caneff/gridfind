@@ -203,55 +203,18 @@ def test_flagging_a_stem_leaves_it_pending_next_run(tmp_path: Path) -> None:
     assert pending == ["a", "b", "c"]  # the flagged "b" is still there
 
 
-def test_render_page_shows_both_links_and_an_approve_control_for_a_found_card() -> None:
-    view = LinkView(
-        kind="found",
-        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
-        witness_grid="grid",
-        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
-    )
-
-    html = render_page([("found-cage-4x4", view)])
-
-    assert 'href="https://sudokumaker.app/?puzzle=PUZZLE"' in html
-    assert 'href="https://sudokumaker.app/?puzzle=SOLUTION"' in html
-    assert "found-cage-4x4" in html
-    assert "<button" in html
-
-
-def test_render_page_shows_a_comment_field_flag_control_and_count_badge() -> None:
-    view = LinkView(
-        kind="found",
-        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
-        witness_grid="grid",
-        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
-    )
-
-    html = render_page([("found-cage-4x4", view)], counts={"found-cage-4x4": 2})
-
-    assert "<textarea" in html  # a place to jot the note
-    assert "flag(" in html  # the Flag control carries the stem
-    assert "found-cage-4x4" in html
-    assert "2 flagged" in html  # the current flag count badge
-
-
-def test_render_page_keeps_the_button_onclick_attribute_intact() -> None:
-    # The stem argument sits inside a double-quoted onclick attribute, so its
-    # own quotes must be HTML-escaped — a raw `"` closes the attribute early
-    # and the handler never fires when clicked.
-    view = LinkView(
-        kind="found",
-        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
-        witness_grid="grid",
-        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
-    )
-
-    html = render_page([("found-cage-4x4", view)])
-
-    assert 'onclick="flag(this, &quot;found-cage-4x4&quot;)"' in html
-    assert 'onclick="approve(this, &quot;found-cage-4x4&quot;)"' in html
-    # the broken shape — a bare quote that terminates the attribute — is gone
-    assert 'flag(this, "found-cage-4x4"' not in html
+_FOUND = LinkView(
+    kind="found",
+    puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
+    witness_grid="grid",
+    solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
+)
+_BROKE = LinkView(
+    kind="broke",
+    puzzle_link="https://sudokumaker.app/?puzzle=BROKE",
+    witness_grid=None,
+    solution_link=None,
+)
 
 
 def _flag_js(page: str) -> str:
@@ -261,55 +224,83 @@ def _flag_js(page: str) -> str:
     return page[start : page.index("</script>", start)]
 
 
-def test_render_page_flag_removes_its_card_on_a_successful_flag() -> None:
-    # A flag hides the card for this session (it returns next run), so on
-    # success flag() removes the card and refreshes the count — the same visible
-    # acknowledgement approve() gives — with a disable while the POST is in
-    # flight so the click plainly registers.
-    view = LinkView(
-        kind="found",
-        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
-        witness_grid="grid",
-        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
-    )
+def test_render_page_shows_one_active_slide_and_a_progress_counter() -> None:
+    # The page is a slideshow: every link is its own slide, but only the first
+    # is active on load, and a counter tracks position within the total.
+    html = render_page([("a", _BROKE), ("b", _FOUND), ("c", _BROKE)])
 
-    flag_js = _flag_js(render_page([("found-cage-4x4", view)]))
+    assert html.count('<section class="slide') == 3  # one slide per link
+    assert html.count('class="slide active"') == 1  # exactly one is shown
+    assert 'class="slide active" data-slide="0"' in html  # and it is the first
+    assert '<span id="pos">1</span>' in html  # starting position
+    assert '<span id="total">3</span>' in html  # of the total
+
+
+def test_render_page_mounts_the_puzzle_lazily_not_eagerly() -> None:
+    # A SudokuMaker iframe boots its whole app the moment it gets a src, even
+    # when hidden — so the puzzle link rides in data-src and the JS assigns src
+    # only when the slide becomes active. An eager src would boot every slide.
+    html = render_page([("found-cage-4x4", _FOUND)])
+
+    assert 'data-src="https://sudokumaker.app/?puzzle=PUZZLE"' in html
+    # a leading space marks an eager `src=` — `data-src=` is preceded by `-`
+    assert ' src="https://sudokumaker.app/?puzzle=PUZZLE"' not in html
+
+
+def test_render_page_found_slide_carries_the_solution_iframe() -> None:
+    html = render_page([("found-cage-4x4", _FOUND)])
+
+    assert 'data-src="https://sudokumaker.app/?puzzle=SOLUTION"' in html
+
+
+def test_render_page_broke_slide_shows_no_solution_pane() -> None:
+    html = render_page([("broke-xv-4x4", _BROKE)])
+
+    assert "no solution — broke case" in html  # the right pane says so
+    # the puzzle is still there to judge, but there is no solution to mount
+    assert 'data-src="https://sudokumaker.app/?puzzle=BROKE"' in html
+    assert "puzzle=SOLUTION" not in html
+
+
+def test_render_page_keeps_the_button_onclick_attribute_intact() -> None:
+    # The stem argument sits inside a double-quoted onclick attribute, so its
+    # own quotes must be HTML-escaped — a raw `"` closes the attribute early
+    # and the handler never fires when clicked.
+    html = render_page([("found-cage-4x4", _FOUND)])
+
+    assert 'onclick="flag(this, &quot;found-cage-4x4&quot;)"' in html
+    assert 'onclick="approve(this, &quot;found-cage-4x4&quot;)"' in html
+    # the broken shape — a bare quote that terminates the attribute — is gone
+    assert 'flag(this, "found-cage-4x4"' not in html
+
+
+def test_render_page_slide_has_note_and_action_controls() -> None:
+    html = render_page([("found-cage-4x4", _FOUND)])
+
+    assert "<textarea" in html  # a place to jot the flag note
+    assert "approve(this," in html  # the Approve control
+    assert "flag(this," in html  # the Flag control
+
+
+def test_render_page_flag_advances_on_a_successful_flag() -> None:
+    # Act-to-advance: a successful flag moves to the next slide, the same way
+    # approve does, with a disable while the POST is in flight.
+    flag_js = _flag_js(render_page([("found-cage-4x4", _FOUND)]))
 
     assert "btn.disabled = true" in flag_js  # disabled while the flag is sent
-    assert 'document.getElementById("card-" + stem).remove()' in flag_js
-    assert "flagged ✓" not in flag_js  # no bump-and-keep; the card leaves
+    assert "advance()" in flag_js  # success moves to the next slide
 
 
-def test_render_page_offers_a_finish_control() -> None:
-    # A person can end the run from the page itself, not only with Ctrl+C.
-    view = LinkView(
-        kind="broke",
-        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
-        witness_grid=None,
-        solution_link=None,
-    )
+def test_render_page_offers_a_finish_and_an_end_state() -> None:
+    # A person can end the run from the page (Finish), and after the last slide
+    # an end-state offers a Close that posts to the same finish endpoint.
+    html = render_page([("found-cage-4x4", _FOUND)])
 
-    html = render_page([("broke-xv-4x4", view)])
-
-    assert "finish()" in html  # a control that calls the finish handler
     assert "async function finish(" in html  # the handler that ends the run
     assert "/finish" in html  # it posts to the finish endpoint
-
-
-def test_render_page_omits_the_solution_link_for_a_broke_card() -> None:
-    view = LinkView(
-        kind="broke",
-        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
-        witness_grid=None,
-        solution_link=None,
-    )
-
-    html = render_page([("broke-xv-4x4", view)])
-
-    assert 'href="https://sudokumaker.app/?puzzle=PUZZLE"' in html
-    assert "broke-xv-4x4" in html
-    assert "<button" in html  # still approvable
-    assert "solution" not in html.lower()
+    assert "function advance(" in html  # the show-next handler
+    assert 'id="done"' in html  # the end-state screen
+    assert ">Close</button>" in html  # its Close control
 
 
 def test_finish_endpoint_stops_the_server() -> None:
