@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from verify_links import fill_witness, verify_link
+from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.layers.board import cell_address
 from gridfind.puzzle import Given, SCellPin, WorkingState
@@ -30,7 +30,7 @@ def _document(size: int) -> dict[str, object]:
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
     return {
         "formatVersion": "1.5.0",
-        "puzzle": {"cells": cells, "constraints": _WIRE_CONSTRAINTS},
+        "puzzle": {"cells": cells, "size": size, "constraints": _WIRE_CONSTRAINTS},
     }
 
 
@@ -127,7 +127,7 @@ def test_verify_link_reports_a_solution_link_for_a_found_case() -> None:
         {"given": True, "value": 2},
         {"given": True, "value": 1},
     ]
-    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
+    link = _encode({"cells": cells, "size": 2, "constraints": _WIRE_CONSTRAINTS})
 
     solution_link = verify_link([link])
 
@@ -151,9 +151,31 @@ def test_verify_link_reports_broke_for_a_broke_case() -> None:
         {},
         {},
     ]
-    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
+    link = _encode({"cells": cells, "size": 2, "constraints": _WIRE_CONSTRAINTS})
 
     assert verify_link([link]) == "broke"
+
+
+def test_emit_solution_link_stamps_the_board_size() -> None:
+    # A source document that omits `size`: the emitted solution link must carry
+    # the known board size, or it would open at SudokuMaker's 9x9 default. A
+    # sizeless link does not decode (ADR-0011), so a stamped size is what lets
+    # `decode_link` recover this 2x2 at all.
+    size = 2
+    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
+    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})  # no size
+    grid = _grid(size)
+    addresses = [address for row in grid for address in row]
+    witness = Witness(
+        grid=grid,
+        assignment=dict.fromkeys(addresses, (1,)),
+        region_map=[],
+    )
+
+    solution = emit_solution_link(link, witness, size)
+
+    puzzle, _ = decode_link(solution)
+    assert puzzle.board.size == size
 
 
 # A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major.

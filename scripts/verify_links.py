@@ -101,9 +101,14 @@ def emit_solution_link(link: str, witness: Witness, size: int) -> str:
     solution-link: the link's own decoded document with every cell filled from
     the witness (`fill_witness`), re-encoded. The one home for the fill+encode
     step, shared by the verify oracle and the eval view so a caller holding a
-    witness need not solve the puzzle again to show its answer."""
+    witness need not solve the puzzle again to show its answer.
+
+    The board `size` is stamped explicitly so the link opens at the right
+    dimensions even when the source omitted it — SudokuMaker reads a sizeless
+    link as its 9x9 default (§4b, ADR-0011)."""
     document = decode_document(link)
     filled = fill_witness(document, witness, size)
+    cast("dict[str, object]", filled["puzzle"])["size"] = size
     return encode_link(filled)
 
 
