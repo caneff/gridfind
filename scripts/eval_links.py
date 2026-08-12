@@ -29,7 +29,7 @@ from typing import NamedTuple
 
 from verify_links import LINKS_DIR, emit_solution_link
 
-from gridfind.sudokumaker import LinkVariant, decode_link
+from gridfind.sudokumaker import decode_link
 from gridfind.verdict import verdict
 
 # The durable approval log: link stems a person has eyeballed and accepted.
@@ -131,7 +131,7 @@ def eval_link(argv: Sequence[str]) -> LinkView:
     solution link (via `emit_solution_link`, the one source of the fill+encode
     step); anything else carries the puzzle link alone."""
     link = argv[-1]
-    puzzle, state = decode_link(link, LinkVariant.from_argv(argv))
+    puzzle, state = decode_link(link)
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
         return LinkView(result.kind, link, witness_grid=None, solution_link=None)

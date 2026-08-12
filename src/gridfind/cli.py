@@ -34,7 +34,7 @@ from typing import TextIO
 
 from gridfind.engine import GridfindError
 from gridfind.puzzle import Puzzle, WorkingState
-from gridfind.sudokumaker import LinkVariant, decode_link
+from gridfind.sudokumaker import decode_link
 from gridfind.verdict import Verdict, verdict
 
 
@@ -69,24 +69,6 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         "to read stdin",
     )
     parser.add_argument(
-        "--schrodinger",
-        action="store_true",
-        help="declare a SudokuMaker link as a Schrödinger puzzle (a red cell "
-        "marks an S-cell); ignored for a {puzzle, working_state} document",
-    )
-    parser.add_argument(
-        "--reading",
-        default="classic",
-        help="the Schrödinger S-cell reading to apply with --schrodinger "
-        "(default: classic; only value built so far)",
-    )
-    parser.add_argument(
-        "--doubler",
-        action="store_true",
-        help="declare a SudokuMaker link as a doubler puzzle (a red cell marks "
-        "a declared doubler); ignored for a {puzzle, working_state} document",
-    )
-    parser.add_argument(
         "--ignore-unknown-named-cages",
         action="store_true",
         help="strip and honor a cosmetic cage named something other than "
@@ -112,9 +94,6 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
     try:
         result = _verdict_of(
             text,
-            schrodinger=args.schrodinger,
-            reading=args.reading,
-            doubler=args.doubler,
             ignore_unknown_named_cages=args.ignore_unknown_named_cages,
         )
     except (
@@ -136,17 +115,12 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 def _verdict_of(
     text: str,
     *,
-    schrodinger: bool = False,
-    reading: str = "classic",
-    doubler: bool = False,
     ignore_unknown_named_cages: bool = False,
 ) -> Verdict:
     stripped = text.strip()
     if _is_link(stripped):
-        variant = LinkVariant(schrodinger=schrodinger, reading=reading, doubler=doubler)
         puzzle, state = decode_link(
             stripped,
-            variant,
             ignore_unknown_named_cages=ignore_unknown_named_cages,
         )
     else:
