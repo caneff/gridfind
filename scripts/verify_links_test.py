@@ -19,7 +19,7 @@ from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.layers.board import cell_address
-from gridfind.puzzle import Given, SCellPin, WorkingState
+from gridfind.puzzle import Given, ModifierDirective, SCellPin, WorkingState
 from gridfind.sudokumaker import LinkVariant, decode_link, encode_link
 from gridfind.witness import Witness
 
@@ -115,6 +115,29 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
         for address, digit in assignment.items()
         if address != s_cell_address
     }
+
+
+def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
+    # A cell the solver found to be a modifier round-trips as a doubler: the
+    # emitted solution carries the red bit, so opening the link shows where the
+    # doubler landed. Cells the witness never flagged stay ordinary givens.
+    size = 4
+    grid = _grid(size)
+    addresses = [address for row in grid for address in row]
+    modifier_address = addresses[6]
+    witness = Witness(
+        grid=grid,
+        assignment=dict.fromkeys(addresses, (1,)),
+        region_map=[],
+        modifiers={modifier_address: "doubler"},
+    )
+
+    filled = fill_witness(_document(size), witness, size)
+
+    _, state = decode_link(encode_link(filled), LinkVariant(doubler=True))
+    assert state.modifier_directives == (
+        ModifierDirective(modifier_address, is_modifier=True),
+    )
 
 
 def test_verify_link_reports_a_solution_link_for_a_found_case() -> None:
