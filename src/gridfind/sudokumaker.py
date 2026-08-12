@@ -59,7 +59,7 @@ from __future__ import annotations
 import json
 import sys
 import urllib.parse
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -152,6 +152,56 @@ _COSMETIC_CAGE_TYPE = 2001
 _THERMO_TYPE = 300
 
 
+@dataclass(frozen=True)
+class LinkVariant:
+    """Which SudokuMaker variant a link is decoded as — always **declared**,
+    never sniffed from the link. Carries the three flags the decoder threads
+    (`schrodinger`, its `reading`, and `doubler`) and owns their invariants, so
+    a caller cannot hand the decoder a contradictory declaration: Schrödinger
+    and doubler share the red `colors` bit, so a link is one or the other, and
+    only the classic S-cell `reading` is built. The checks fire at construction,
+    the one home for them — every caller (the CLI, the verify oracle, the eval
+    view) builds one value and the decoder trusts it.
+
+    `reading` is meaningful only under `schrodinger`; a value carried without it
+    rides along unread and unvalidated, matching the decoder's own leniency."""
+
+    schrodinger: bool = False
+    reading: str = _CLASSIC_READING
+    doubler: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schrodinger and self.reading != _CLASSIC_READING:
+            msg = f"unsupported schrodinger reading: {self.reading!r}"
+            raise ValueError(msg)
+        if self.schrodinger and self.doubler:
+            msg = "a link is Schrödinger or doubler, not both — they share the red bit"
+            raise ValueError(msg)
+
+    @classmethod
+    def from_argv(cls, argv: Sequence[str]) -> LinkVariant:
+        """The variant a case file's argv (flags then the link) declares — the
+        one parser the raw-argv scripts (`verify_links`, `eval_links`) share, so
+        the oracle and the eval view never diverge from a hand-copied flag read.
+        The CLI fills the same value from its own argparse instead."""
+        reading = (
+            argv[argv.index("--reading") + 1]
+            if "--reading" in argv
+            else _CLASSIC_READING
+        )
+        return cls(
+            schrodinger="--schrodinger" in argv,
+            reading=reading,
+            doubler="--doubler" in argv,
+        )
+
+
+# The plain-link default, hoisted to a module singleton so `decode_link`'s
+# signature reads a name rather than calling the constructor in its defaults
+# (ruff B008). Safe to share: `LinkVariant` is frozen.
+_DEFAULT_VARIANT = LinkVariant()
+
+
 def decode_document(link: str) -> dict[str, object]:
     """A SudokuMaker `?puzzle=` link (or a bare payload) decompressed to its
     full `formatVersion 1.5.0` document — `formatVersion` plus its `puzzle`
@@ -169,39 +219,29 @@ def decode_document(link: str) -> dict[str, object]:
 
 def decode_link(
     link: str,
-    *,
-    schrodinger: bool = False,
-    reading: str = _CLASSIC_READING,
-    doubler: bool = False,
+    variant: LinkVariant = _DEFAULT_VARIANT,
 ) -> tuple[Puzzle, WorkingState]:
     """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a square-N
     `Puzzle` + `WorkingState`, sizing the board and domain from the link
     itself. Raises `ValueError` on a link gridfind can't answer.
 
-    `schrodinger` **declares** the SudokuMaker-Schrödinger variant — it is never
-    inferred from the link. It reads the link's
-    `minDigit` into `Board.values` under the classic reading (`k = 1` extra
-    digit: `range(minDigit, minDigit + size + 1)`), relaxes the classic-only
-    guard, synthesizes a bare `{type: schrodinger}` constraint, and decodes
-    each cell's red bit + center marks into a Schrödinger working-state
-    directive instead of a plain placement/candidate. `reading` names the
-    S-cell interpretation; only `"classic"` is built, so any other value is
-    refused.
+    `variant` **declares** the SudokuMaker variant — it is never inferred from
+    the link, and its `LinkVariant` value has already enforced its own
+    invariants (Schrödinger xor doubler, a legal reading).
 
-    `doubler` **declares** the SudokuMaker-doubler variant, likewise never
-    inferred. A red cell (`colors` bit 2 — the same bit an S-cell uses) is a
-    declared doubler: its address rides out as a `ModifierDirective` pinning
-    `is_modifier`, and a bare `{type: doubler}` constraint stands the modifier
-    layer up. The red bit is orthogonal to the cell's digit — unlike an S-cell,
-    a doubler holds one digit worth twice its value, so a red cell's given or
-    placement still lands. Schrödinger and doubler share the red bit, so a link
-    declares one or the other, never both."""
-    if schrodinger and reading != _CLASSIC_READING:
-        msg = f"unsupported schrodinger reading: {reading!r}"
-        raise ValueError(msg)
-    if schrodinger and doubler:
-        msg = "a link is Schrödinger or doubler, not both — they share the red bit"
-        raise ValueError(msg)
+    A `schrodinger` variant reads the link's `minDigit` into `Board.values`
+    under the classic reading (`k = 1` extra digit:
+    `range(minDigit, minDigit + size + 1)`), relaxes the classic-only guard,
+    synthesizes a bare `{type: schrodinger}` constraint, and decodes each cell's
+    red bit + center marks into a Schrödinger working-state directive instead of
+    a plain placement/candidate.
+
+    A `doubler` variant reads a red cell (`colors` bit 2 — the same bit an
+    S-cell uses) as a declared doubler: its address rides out as a
+    `ModifierDirective` pinning `is_modifier`, and a bare `{type: doubler}`
+    constraint stands the modifier layer up. The red bit is orthogonal to the
+    cell's digit — unlike an S-cell, a doubler holds one digit worth twice its
+    value, so a red cell's given or placement still lands."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
@@ -214,17 +254,17 @@ def decode_link(
     modifier_directives: list[ModifierDirective] = []
     domain = (
         _schrodinger_domain(puzzle_data, size)
-        if schrodinger
+        if variant.schrodinger
         else _digit_domain(puzzle_data, size)
     )
     for i, cell in enumerate(cells):
         address = _address(i, size)
-        if schrodinger:
+        if variant.schrodinger:
             _decode_schrodinger_cell(
                 cell, address, domain, givens, s_directives, candidates
             )
             continue
-        if doubler and cell.get("colors", 0) & _RED_BIT:
+        if variant.doubler and cell.get("colors", 0) & _RED_BIT:
             modifier_directives.append(ModifierDirective(address, is_modifier=True))
         if "value" in cell:
             if cell.get("given"):
@@ -244,9 +284,9 @@ def decode_link(
         if decoded_type.handler is not None:
             constraints.extend(decoded_type.handler(puzzle_data, size))
     board = Board(size=size, values=domain)
-    if schrodinger:
+    if variant.schrodinger:
         constraints.append(Constraint("schrodinger"))
-    if doubler:
+    if variant.doubler:
         constraints.append(Constraint("doubler"))
 
     puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=tuple(givens))
