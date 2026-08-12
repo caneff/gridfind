@@ -144,6 +144,13 @@ _CAGE_TYPE = 301
 # since the killer-cage tool refuses to store one.
 _COSMETIC_CAGE_TYPE = 2001
 
+# A cosmetic-cage block's top-level `name` (§4c, spec #324): case-insensitive,
+# trimmed, these labels mark a real killer cage decorated with a display name
+# rather than a position marker — the name is discarded, the cage decodes as
+# ordinary. Doubler/S-cell marker names join this table in a later ticket
+# (spec #324 tickets 2/3); until then any other name is unrecognized.
+_NAMED_KILLER_CAGE_LABELS = frozenset({"sum", "killer"})
+
 # type 300 is a thermometer block: `slow: bool,
 # thermometers: [[cell indices, ordered, bulb first], …]`. Each path becomes
 # its own `thermo` Constraint; `slow` rides through onto every path in the
@@ -256,6 +263,8 @@ def decode_document(link: str) -> dict[str, object]:
 def decode_link(
     link: str,
     variant: LinkVariant = _DEFAULT_VARIANT,
+    *,
+    ignore_unknown_named_cages: bool = False,
 ) -> tuple[Puzzle, WorkingState]:
     """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a square-N
     `Puzzle` + `WorkingState`, sizing the board and domain from the link
@@ -264,6 +273,12 @@ def decode_link(
     `variant` **declares** the SudokuMaker variant — it is never inferred from
     the link, and its `LinkVariant` value has already enforced its own
     invariants (Schrödinger xor doubler, a legal reading).
+
+    A `type 2001` cosmetic-cage block whose top-level `name` names a
+    recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
+    decodes as an ordinary killer cage with the name discarded; any other name
+    raises `ValueError` unless `ignore_unknown_named_cages` downgrades that
+    refusal to strip-and-honor (spec #324, issue #325).
 
     A `schrodinger` variant reads the link's `minDigit` into `Board.values`
     under the classic reading (`k = 1` extra digit:
@@ -295,9 +310,22 @@ def decode_link(
 
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
+    # The cosmetic-cage type alone takes a decode_link-scoped extra argument
+    # (the ignore flag), so it is dispatched by hand rather than through the
+    # registry's generic two-argument call.
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
-    for decoded_type in DECODER_REGISTRY.values():
-        if decoded_type.handler is not None:
+    for kind, decoded_type in DECODER_REGISTRY.items():
+        if decoded_type.handler is None:
+            continue
+        if kind == _COSMETIC_CAGE_TYPE:
+            constraints.extend(
+                _cosmetic_cage_constraints(
+                    puzzle_data,
+                    size,
+                    ignore_unknown_named_cages=ignore_unknown_named_cages,
+                )
+            )
+        else:
             constraints.extend(decoded_type.handler(puzzle_data, size))
     board = Board(size=size, values=domain)
     if variant.schrodinger:
@@ -735,8 +763,31 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
         return None
 
 
+def _check_cosmetic_cage_name(
+    block: dict[str, Any], *, ignore_unknown_named_cages: bool
+) -> None:
+    """Classify a `type 2001` block's top-level `name` (spec #324, issue #325):
+    absent or blank leaves the cage unchanged (today's behavior); a name
+    matching `_NAMED_KILLER_CAGE_LABELS` (case-insensitive, trimmed) is a
+    decorative label on a genuine cage and is silently discarded; any other
+    name is a link gridfind can't answer — refusing rather than computing a
+    verdict under a guessed ruleset — unless `ignore_unknown_named_cages`
+    downgrades the refusal to strip-and-honor as an ordinary killer cage."""
+    name = block.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return
+    if name.strip().lower() in _NAMED_KILLER_CAGE_LABELS:
+        return
+    if not ignore_unknown_named_cages:
+        msg = f"non-classic link: unrecognized named cage {name!r}"
+        raise ValueError(msg)
+
+
 def _cosmetic_cage_constraints(
-    puzzle_data: dict[str, object], size: int
+    puzzle_data: dict[str, object],
+    size: int,
+    *,
+    ignore_unknown_named_cages: bool = False,
 ) -> list[Constraint]:
     """The `type 2001` cosmetic cages graduated to killer-cage `Constraint`s
     (ADR-0008): cells and value nest under `cages`, the same wire shape as a
@@ -746,9 +797,17 @@ def _cosmetic_cage_constraints(
     total over the same cells (spec #240). A non-numeric, empty, or `"0"`
     `value` carries no sum, so the cage stands alone — the same shape a sumless
     `type 301` decodes to. A `disabled` block is skipped entirely; an empty
-    `cages` list adds nothing."""
+    `cages` list adds nothing.
+
+    A block's top-level `name` is classified first
+    (`_check_cosmetic_cage_name`) before its cages decode — an unrecognized
+    name refuses the whole block rather than decoding some cages under an
+    unsound reading."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
+        _check_cosmetic_cage_name(
+            block, ignore_unknown_named_cages=ignore_unknown_named_cages
+        )
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         for cage in cages:
             addresses = _addresses(cage["cells"], size)

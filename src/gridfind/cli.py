@@ -11,8 +11,10 @@ and a stdin and read back stdout and the exit code;
 `--schrodinger` and `--reading` declare a SudokuMaker link as a
 Schrödinger puzzle and name its S-cell reading, and `--doubler` declares it a
 doubler puzzle (a red cell marks a declared doubler); all thread straight
-through to `decode_link`. They are meaningless for a `{puzzle, working_state}`
-document and simply carried unused in that branch.
+through to `decode_link`. `--ignore-unknown-named-cages` downgrades an
+unrecognized named cosmetic cage from a refusal to strip-and-honor. All are
+meaningless for a `{puzzle, working_state}` document and simply carried
+unused in that branch.
 
 Example:
     $ gridfind puzzle.json      # or:  gridfind < puzzle.json
@@ -84,6 +86,12 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         help="declare a SudokuMaker link as a doubler puzzle (a red cell marks "
         "a declared doubler); ignored for a {puzzle, working_state} document",
     )
+    parser.add_argument(
+        "--ignore-unknown-named-cages",
+        action="store_true",
+        help="strip and honor a cosmetic cage named something other than "
+        "Sum/Killer as an ordinary killer cage, instead of refusing the link",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -107,6 +115,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
             schrodinger=args.schrodinger,
             reading=args.reading,
             doubler=args.doubler,
+            ignore_unknown_named_cages=args.ignore_unknown_named_cages,
         )
     except (
         json.JSONDecodeError,
@@ -130,11 +139,16 @@ def _verdict_of(
     schrodinger: bool = False,
     reading: str = "classic",
     doubler: bool = False,
+    ignore_unknown_named_cages: bool = False,
 ) -> Verdict:
     stripped = text.strip()
     if _is_link(stripped):
         variant = LinkVariant(schrodinger=schrodinger, reading=reading, doubler=doubler)
-        puzzle, state = decode_link(stripped, variant)
+        puzzle, state = decode_link(
+            stripped,
+            variant,
+            ignore_unknown_named_cages=ignore_unknown_named_cages,
+        )
     else:
         doc = json.loads(stripped)
         puzzle = Puzzle.from_dict(doc["puzzle"])
