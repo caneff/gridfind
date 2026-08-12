@@ -10,10 +10,14 @@ touching the real `links/` corpus.
 
 from __future__ import annotations
 
+import threading
+import urllib.request
+from http.server import HTTPServer
 from pathlib import Path
 
 from eval_links import (
     LinkView,
+    _ApprovalHandler,
     archive_flags,
     eval_link,
     load_approved,
@@ -186,6 +190,19 @@ def test_pending_stems_show_all_keeps_everything() -> None:
     assert pending == ["a", "b", "c"]
 
 
+def test_flagging_a_stem_leaves_it_pending_next_run(tmp_path: Path) -> None:
+    # A flag hides a link only for the live session; unlike an approval it must
+    # come back next run. Pending is filtered by the approved log alone, so a
+    # flagged-but-unapproved stem stays pending — flagging must never approve.
+    flag_log = tmp_path / "flagged.json"
+    record_flag(flag_log, "b", "looks off")
+
+    approved = load_approved(tmp_path / "approved.json")  # nothing approved
+    pending = pending_stems(["a", "b", "c"], approved, show_all=False)
+
+    assert pending == ["a", "b", "c"]  # the flagged "b" is still there
+
+
 def test_render_page_shows_both_links_and_an_approve_control_for_a_found_card() -> None:
     view = LinkView(
         kind="found",
@@ -237,10 +254,18 @@ def test_render_page_keeps_the_button_onclick_attribute_intact() -> None:
     assert 'flag(this, "found-cage-4x4"' not in html
 
 
-def test_render_page_flag_button_acknowledges_a_click() -> None:
-    # Clicking Flag must visibly change the button so a person sees the click
-    # landed — a disable while the request is in flight and a confirmation on
-    # success, not a silent badge bump.
+def _flag_js(page: str) -> str:
+    """The body of the page's `flag()` handler, sliced out so assertions bind
+    to it rather than to the identically-shaped `approve()`."""
+    start = page.index("async function flag(")
+    return page[start : page.index("</script>", start)]
+
+
+def test_render_page_flag_removes_its_card_on_a_successful_flag() -> None:
+    # A flag hides the card for this session (it returns next run), so on
+    # success flag() removes the card and refreshes the count — the same visible
+    # acknowledgement approve() gives — with a disable while the POST is in
+    # flight so the click plainly registers.
     view = LinkView(
         kind="found",
         puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
@@ -248,10 +273,27 @@ def test_render_page_flag_button_acknowledges_a_click() -> None:
         solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
     )
 
-    html = render_page([("found-cage-4x4", view)])
+    flag_js = _flag_js(render_page([("found-cage-4x4", view)]))
 
-    assert "btn.disabled = true" in html  # goes disabled while the flag is sent
-    assert "flagged ✓" in html  # the on-success confirmation the button shows
+    assert "btn.disabled = true" in flag_js  # disabled while the flag is sent
+    assert 'document.getElementById("card-" + stem).remove()' in flag_js
+    assert "flagged ✓" not in flag_js  # no bump-and-keep; the card leaves
+
+
+def test_render_page_offers_a_finish_control() -> None:
+    # A person can end the run from the page itself, not only with Ctrl+C.
+    view = LinkView(
+        kind="broke",
+        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
+        witness_grid=None,
+        solution_link=None,
+    )
+
+    html = render_page([("broke-xv-4x4", view)])
+
+    assert "finish()" in html  # a control that calls the finish handler
+    assert "async function finish(" in html  # the handler that ends the run
+    assert "/finish" in html  # it posts to the finish endpoint
 
 
 def test_render_page_omits_the_solution_link_for_a_broke_card() -> None:
@@ -268,3 +310,30 @@ def test_render_page_omits_the_solution_link_for_a_broke_card() -> None:
     assert "broke-xv-4x4" in html
     assert "<button" in html  # still approvable
     assert "solution" not in html.lower()
+
+
+def test_finish_endpoint_stops_the_server() -> None:
+    # POST /finish must end the run: the handler answers 200, then shuts the
+    # server down from a side thread so serve_forever() returns on its own.
+    _ApprovalHandler.page = render_page([])
+    _ApprovalHandler.known = frozenset()
+    server = HTTPServer(("127.0.0.1", 0), _ApprovalHandler)
+    port = server.server_address[1]
+    serve = threading.Thread(target=server.serve_forever)
+    serve.start()
+    try:
+        resp = urllib.request.urlopen(
+            urllib.request.Request(
+                f"http://127.0.0.1:{port}/finish", method="POST", data=b""
+            ),
+            timeout=5,
+        )
+        status = resp.status
+        serve.join(timeout=5)  # serve_forever returns once shutdown lands
+    finally:
+        server.shutdown()
+        server.server_close()
+        serve.join(timeout=5)
+
+    assert status == 200
+    assert not serve.is_alive()  # the server really stopped
