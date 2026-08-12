@@ -30,7 +30,7 @@ def test_eval_link_shows_witness_and_solution_for_a_found_case() -> None:
         {"given": True, "value": 2},
         {"given": True, "value": 1},
     ]
-    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
+    link = _encode({"cells": cells, "size": 2, "constraints": _WIRE_CONSTRAINTS})
 
     view = eval_link([link])
 
@@ -52,7 +52,7 @@ def test_eval_link_shows_only_the_puzzle_for_a_broke_case() -> None:
         {},
         {},
     ]
-    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
+    link = _encode({"cells": cells, "size": 2, "constraints": _WIRE_CONSTRAINTS})
 
     view = eval_link([link])
 

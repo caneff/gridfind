@@ -5,7 +5,7 @@ strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 `formatVersion 1.5.0` JSON to the model per the confirmed field-by-field map in
 `docs/research/sudoku-link-formats.md` §4a/§4b. Size, digit
 domain, and regions are read from the link's own fields — `width`/`size` (else
-`isqrt(len(cells))`), `minDigit`/`maxDigit` (else `1..N`), and the `type 1`
+the classic `9`), `minDigit`/`maxDigit` (else `1..N`), and the `type 1`
 regions matrix — so any square N decodes; a classic 9x9 link takes
 the size/domain fallbacks and carries its boxes as an explicit `type 1`. A link
 gridfind can't answer — non-square, a
@@ -61,7 +61,6 @@ import sys
 import urllib.parse
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from math import isqrt
 from typing import Any, cast
 
 from lzstring import LZString
@@ -88,6 +87,10 @@ from gridfind.puzzle import (
 # The only reading built so far — sum- and
 # concat-valued are future values of the same flag, refused until then.
 _CLASSIC_READING = "classic"
+
+# The default board a link describes when it states no `size`/`width`:
+# SudokuMaker omits those headers only on the classic 9x9 (§4b, ADR-0011).
+_CLASSIC_SIZE = 9
 
 # `colors` is an OR of palette-color bits; red — SudokuMaker's S-cell
 # convention — is bit value 2, never `colors == 2`
@@ -270,10 +273,12 @@ def encode_link(document: dict[str, object]) -> str:
 def _board_size(puzzle_data: dict[str, object]) -> int:
     """The board's size `N` read from the link, most specific first (§4b): a
     `width` (with `height`, else derived from the cell count), else a `size`,
-    else `isqrt(len(cells))` — the classic link, which omits all three, lands
-    on `isqrt(81) = 9`. The shape must be square (`rows == cols`) and its cell
-    count must match (`rows * cols == len(cells)`); a non-square link or a
-    size/count mismatch is refused with its own reason."""
+    else the classic default `9` — SudokuMaker omits `size`/`width` only when
+    the board is the default 9x9, so an absent header means 9, never an
+    inference from the cell count (ADR-0011). The shape must be square
+    (`rows == cols`) and its cell count must match (`rows * cols == len(cells)`);
+    a non-square link, a size/count mismatch, or a sizeless non-81-cell link
+    (a real 4x4/6x6 carries its `size`) is refused with its own reason."""
     cells = puzzle_data.get("cells")
     if not isinstance(cells, list):
         msg = "non-classic link: puzzle carries no cells array"
@@ -286,7 +291,7 @@ def _board_size(puzzle_data: dict[str, object]) -> int:
     elif "size" in puzzle_data:
         rows = cols = _as_int(puzzle_data["size"], "size")
     else:
-        rows = cols = isqrt(count)
+        rows = cols = _CLASSIC_SIZE
     if rows != cols:
         msg = f"non-square link: {rows}x{cols} is not a square grid"
         raise ValueError(msg)

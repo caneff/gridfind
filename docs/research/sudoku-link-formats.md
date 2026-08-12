@@ -181,7 +181,8 @@ past the classic path, which the classic decoder should reject.
 | `{cornerPencilMarks:mask}` | **ignored** (see below) |
 | `{colors:…}` / `{}` | ignored / empty cell |
 
-`Board(size)` = `isqrt(len(cells))` (= 9).
+`Board(size)` = the stated `size`/`width`, else the classic `9` (this §4a link
+omits `size`, so it lands on the default 9 — see §4b).
 
 **Digit bitmasks are `2^digit`, indexed by digit value directly.** Verified:
 `candidates 518 = 2^1 + 2^2 + 2^9` → `{1,2,9}`; `cornerPencilMarks 8 = 2^3` → `{3}`.
@@ -223,7 +224,11 @@ classic link because a classic link is all-defaults.
 1. `width` present → `cols = width`; `rows = height` if present, else
    `len(cells) // width` (the 6×9 case: `54 // 6 = 9`).
 2. else `size` present → square `size × size` (the 6×6 case).
-3. else → square `isqrt(len(cells))` (the classic case).
+3. else → the classic default `9 × 9` — SudokuMaker omits `size`/`width` only
+   on the default board, so an absent header means 9, **not** an inference
+   from the cell count. A sizeless link whose cells aren't 81 is malformed (a
+   real 4×4/6×6 carries its `size`) and is rejected, not silently resized
+   (ADR-0011).
 
 Cross-check `rows * cols == len(cells)`. **A link can be genuinely non-square**
 (the 6×9 above) — `width` + cell count is what tells you the shape, exactly as a

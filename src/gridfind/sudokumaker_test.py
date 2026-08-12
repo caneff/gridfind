@@ -179,6 +179,12 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
             {"cells": _EMPTY_CELLS, "size": 6, "constraints": [{"type": 0}]},
             "do not match size",
         ),
+        # No size at all: an absent size defaults to the classic 9x9 (ADR-0011),
+        # not isqrt(16)=4, so a 16-cell link is malformed rather than a 4x4.
+        (
+            {"cells": [{} for _ in range(16)], "constraints": [{"type": 0}]},
+            "do not match size",
+        ),
         # A domain that doesn't span the board: 0..5 is six digits for a 9x9.
         (
             {
@@ -194,6 +200,7 @@ _JIGSAW_REGIONS = [8, *_STANDARD_REGIONS[1:]]  # R1C1 moved out of its box
         "wrong-cell-count",
         "non-square",
         "size-mismatch",
+        "sizeless-non-classic-count",
         "bad-domain-span",
     ],
 )
