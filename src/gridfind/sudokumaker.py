@@ -278,7 +278,7 @@ def decode_link(
     recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
     decodes as an ordinary killer cage with the name discarded; any other name
     raises `ValueError` unless `ignore_unknown_named_cages` downgrades that
-    refusal to strip-and-honor (spec #324, issue #325).
+    refusal to strip-and-honor (spec #324).
 
     A `schrodinger` variant reads the link's `minDigit` into `Board.values`
     under the classic reading (`k = 1` extra digit:
@@ -766,7 +766,7 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
 def _check_cosmetic_cage_name(
     block: dict[str, Any], *, ignore_unknown_named_cages: bool
 ) -> None:
-    """Classify a `type 2001` block's top-level `name` (spec #324, issue #325):
+    """Classify a `type 2001` block's top-level `name` (spec #324):
     absent or blank leaves the cage unchanged (today's behavior); a name
     matching `_NAMED_KILLER_CAGE_LABELS` (case-insensitive, trimmed) is a
     decorative label on a genuine cage and is silently discarded; any other

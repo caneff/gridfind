@@ -1062,7 +1062,7 @@ def test_named_sum_or_killer_cage_decodes_as_an_ordinary_killer_cage(
 ) -> None:
     # A cage named `Sum`/`Killer` (any case, surrounding whitespace) is a
     # decorative label on a genuine cage, not a marker — honored exactly as an
-    # unnamed cage, the name discarded (spec #324, issue #325).
+    # unnamed cage, the name discarded (spec #324).
     payload = _constraint_link(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
