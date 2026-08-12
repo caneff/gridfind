@@ -14,8 +14,10 @@ from pathlib import Path
 
 from eval_links import (
     LinkView,
+    archive_flags,
     eval_link,
     load_approved,
+    load_archive,
     load_flags,
     pending_stems,
     record_approval,
@@ -120,6 +122,52 @@ def test_record_flag_accumulates_several_flags_on_one_stem(tmp_path: Path) -> No
         {"stem": "found-cage-4x4", "comment": "first note"},
         {"stem": "found-cage-4x4", "comment": "second note"},
     ]
+
+
+def test_archive_flags_moves_covered_stems_stamped_and_leaves_the_rest(
+    tmp_path: Path,
+) -> None:
+    flagged = tmp_path / "flagged.json"
+    archive = tmp_path / "archive.json"
+    record_flag(flagged, "found-cage-4x4", "witness off")
+    record_flag(flagged, "broke-xv-4x4", "leave me")
+
+    archive_flags(flagged, archive, {"found-cage-4x4"}, issue_number=312)
+
+    # The covered stem left the store, stamped with the map it fed...
+    assert load_archive(archive) == [
+        {"stem": "found-cage-4x4", "comment": "witness off", "issue": 312}
+    ]
+    # ...and the uncovered stem stayed put, untouched.
+    assert load_flags(flagged) == [{"stem": "broke-xv-4x4", "comment": "leave me"}]
+
+
+def test_archive_flags_accumulates_across_calls(tmp_path: Path) -> None:
+    flagged = tmp_path / "flagged.json"
+    archive = tmp_path / "archive.json"
+    record_flag(flagged, "a", "first batch")
+    record_flag(flagged, "b", "second batch")
+
+    archive_flags(flagged, archive, {"a"}, issue_number=1)
+    archive_flags(flagged, archive, {"b"}, issue_number=2)
+
+    # The earlier archived batch survives the later one.
+    assert load_archive(archive) == [
+        {"stem": "a", "comment": "first batch", "issue": 1},
+        {"stem": "b", "comment": "second batch", "issue": 2},
+    ]
+    assert load_flags(flagged) == []
+
+
+def test_archive_flags_with_no_stems_moves_nothing(tmp_path: Path) -> None:
+    flagged = tmp_path / "flagged.json"
+    archive = tmp_path / "archive.json"
+    record_flag(flagged, "a", "stay")
+
+    archive_flags(flagged, archive, set(), issue_number=9)
+
+    assert load_archive(archive) == []
+    assert load_flags(flagged) == [{"stem": "a", "comment": "stay"}]
 
 
 def test_pending_stems_hides_approved_by_default() -> None:
