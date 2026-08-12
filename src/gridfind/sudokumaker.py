@@ -59,7 +59,7 @@ from __future__ import annotations
 import json
 import sys
 import urllib.parse
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -217,7 +217,7 @@ def decode_link(
         else _digit_domain(puzzle_data, size)
     )
     for i, cell in enumerate(cells):
-        address = cell_address(i // size + 1, i % size + 1)
+        address = _address(i, size)
         if schrodinger:
             _decode_schrodinger_cell(
                 cell, address, domain, givens, s_directives, candidates
@@ -575,26 +575,45 @@ def _black_kropki_constraints(
     return _edge_clue_constraints(puzzle_data, size, _KROPKI_BLACK_TYPE, build)
 
 
+def _address(index: int, size: int) -> str:
+    """The row-major address of a raw cell `index` on a `size`-wide board: index
+    `18` on a 9-board is R3C1. The single home for SudokuMaker's `i // N`, `i % N`
+    scheme, shared by givens, cages, and thermometers."""
+    return cell_address(index // size + 1, index % size + 1)
+
+
+def _addresses(indices: Iterable[int], size: int) -> list[str]:
+    """`_address` mapped over a cell-index list, order preserved — so a thermo
+    path keeps bulb-first order and a cage's cells read row-major."""
+    return [_address(i, size) for i in indices]
+
+
+def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
+    """A killer cage over `addresses`: always a no-repeats `cage`, plus a
+    `group-sum` carrying `total` when a total is present (spec #240). A zero or
+    `None` total is no total — the cage stands alone."""
+    decoded = [Constraint("cage", params={"cells": addresses})]
+    if total:
+        decoded.append(
+            Constraint("group-sum", params={"cells": addresses, "sum": total})
+        )
+    return decoded
+
+
 def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
     """The `type 301` killer cages as `Constraint`s: each cage's raw `cells`
-    indices map row-major to addresses — the same `i // N`, `i % N` scheme
-    givens use — so `[18, 19]` on a 9-board is R3C1/R3C2. Every cage decodes
-    to a no-repeats `cage` constraint; a positive `value` additionally
-    decodes a `group-sum` over the same cells carrying that total as its
-    `sum` param (spec #240) — `0` (SudokuMaker's own no-sum cage) decodes to
-    `cage` alone, exactly as an absent `value`. A `disabled` block is skipped
-    entirely; an empty `cages` list adds nothing."""
+    indices map row-major to addresses (`_addresses`), so `[18, 19]` on a
+    9-board is R3C1/R3C2. Every cage decodes to a no-repeats `cage`; a positive
+    `value` additionally decodes a `group-sum` over the same cells (spec #240) —
+    `0` (SudokuMaker's own no-sum cage) decodes to `cage` alone, exactly as an
+    absent `value`. A `disabled` block is skipped entirely; an empty `cages`
+    list adds nothing."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         for cage in cages:
-            cells = [cell_address(i // size + 1, i % size + 1) for i in cage["cells"]]
-            decoded.append(Constraint("cage", params={"cells": cells}))
-            value = cage.get("value", 0)
-            if value > 0:
-                decoded.append(
-                    Constraint("group-sum", params={"cells": cells, "sum": value})
-                )
+            addresses = _addresses(cage["cells"], size)
+            decoded.extend(_killer_cage(addresses, cage.get("value", 0)))
     return decoded
 
 
@@ -619,21 +638,16 @@ def _cosmetic_cage_constraints(
     """The `type 2001` cosmetic-cage blocks graduated to killer-cage
     `Constraint`s (ADR-0008): each block's raw `cells` indices map row-major
     to addresses, same as `type 301`. Every non-disabled block emits a
-    no-repeats `cage`; a numeric string `value` additionally decodes a
+    no-repeats `cage`; a numeric non-zero string `value` additionally decodes a
     `group-sum` carrying that total over the same cells (spec #240). A
-    non-numeric or empty `value` carries no sum, so the cage stands alone —
-    the same shape a sumless `type 301` decodes to. A `disabled` block is
-    skipped entirely."""
+    non-numeric, empty, or `"0"` `value` carries no sum, so the cage stands
+    alone — the same shape a sumless `type 301` decodes to. A `disabled` block
+    is skipped entirely."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
         cells = cast("list[int]", block.get("cells", []))
-        addresses = [cell_address(i // size + 1, i % size + 1) for i in cells]
-        decoded.append(Constraint("cage", params={"cells": addresses}))
-        total = _cosmetic_cage_killer_sum(block)
-        if total is not None:
-            decoded.append(
-                Constraint("group-sum", params={"cells": addresses, "sum": total})
-            )
+        addresses = _addresses(cells, size)
+        decoded.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(block)))
     return decoded
 
 
@@ -650,7 +664,7 @@ def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
         slow = bool(block.get("slow", False))
         paths = cast("list[list[int]]", block.get("thermometers", []))
         for path in paths:
-            addresses = [cell_address(i // size + 1, i % size + 1) for i in path]
+            addresses = _addresses(path, size)
             params: dict[str, object] = {"path": addresses, "slow": slow}
             decoded.append(Constraint("thermo", params=params))
     return decoded

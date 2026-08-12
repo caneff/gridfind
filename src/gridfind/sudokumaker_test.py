@@ -999,6 +999,18 @@ def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
     assert capsys.readouterr().err == ""
 
 
+def test_cosmetic_cage_with_a_zero_label_decodes_to_a_bare_cage() -> None:
+    # A `"0"` label carries no killer sum — a zero total is no total, the same
+    # rule a sumless `type 301` and a non-numeric label both decode to: a
+    # no-repeats `cage` with no `group-sum`.
+    payload = _constraint_link({"type": 2001, "value": "0", "cells": [0, 1]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert all(c.type != "group-sum" for c in puzzle.constraints)
+
+
 @pytest.mark.parametrize(
     "label",
     ["Total", ""],
