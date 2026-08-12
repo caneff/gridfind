@@ -80,6 +80,32 @@ def flag_counts(flags: Sequence[dict[str, str]]) -> dict[str, int]:
     return counts
 
 
+def load_archive(path: Path) -> list[dict[str, str | int]]:
+    """The archived flags in order — each an `{stem, comment, issue}` entry — or
+    an empty list when the archive doesn't exist yet."""
+    if not path.exists():
+        return []
+    return json.loads(path.read_text())["archived"]
+
+
+def archive_flags(
+    flagged_path: Path, archive_path: Path, stems: set[str], issue_number: int
+) -> None:
+    """Move every flag whose stem is in `stems` out of the flag store and into
+    the archive, stamping each moved entry with `issue_number` (the
+    `wayfinder:map` it fed). Flags whose stem is not in `stems` stay in the
+    store; the archive accumulates across calls."""
+    flags = load_flags(flagged_path)
+    moved = [{**flag, "issue": issue_number} for flag in flags if flag["stem"] in stems]
+    if not moved:
+        return  # nothing covered — a true no-op, leaving both files untouched
+    kept = [flag for flag in flags if flag["stem"] not in stems]
+    archived = load_archive(archive_path)
+    archived.extend(moved)
+    archive_path.write_text(json.dumps({"archived": archived}, indent=2) + "\n")
+    flagged_path.write_text(json.dumps({"flagged": kept}, indent=2) + "\n")
+
+
 class LinkView(NamedTuple):
     """One case file's argv reduced to what a person needs to verify the
     verdict by eye. `witness_grid` and `solution_link` are set only for a
