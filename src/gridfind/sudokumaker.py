@@ -600,10 +600,10 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
 
 def _cosmetic_cage_killer_sum(block: dict[Any, Any]) -> int | None:
     """The killer sum a `type 2001` cosmetic-cage block graduates to (ADR-0008),
-    or `None` when its `value` label is non-numeric/empty and the cage is
-    genuinely decorative. Shared by the decoder and `has_live_data`'s liveness
-    check, so which cages are "active" can never drift from which ones the
-    decoder actually graduates."""
+    or `None` when its `value` label is non-numeric/empty and the cage carries
+    no sum. `None` governs only the `group-sum`: a sumless cosmetic cage still
+    emits its no-repeats `cage`, so this is not a liveness gate — every
+    non-disabled block with cells is a rule."""
     value = block.get("value")
     if not isinstance(value, str) or not value.strip():
         return None
@@ -618,22 +618,22 @@ def _cosmetic_cage_constraints(
 ) -> list[Constraint]:
     """The `type 2001` cosmetic-cage blocks graduated to killer-cage
     `Constraint`s (ADR-0008): each block's raw `cells` indices map row-major
-    to addresses, same as `type 301`. A numeric string `value` is the killer
-    sum, decoded to a no-repeats `cage` plus a `group-sum` carrying that
-    total over the same cells (spec #240). A non-numeric or empty `value`
-    names a genuinely decorative cage — it drops inert, adding nothing. A
-    `disabled` block is skipped entirely."""
+    to addresses, same as `type 301`. Every non-disabled block emits a
+    no-repeats `cage`; a numeric string `value` additionally decodes a
+    `group-sum` carrying that total over the same cells (spec #240). A
+    non-numeric or empty `value` carries no sum, so the cage stands alone —
+    the same shape a sumless `type 301` decodes to. A `disabled` block is
+    skipped entirely."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
-        total = _cosmetic_cage_killer_sum(block)
-        if total is None:
-            continue
         cells = cast("list[int]", block.get("cells", []))
         addresses = [cell_address(i // size + 1, i % size + 1) for i in cells]
         decoded.append(Constraint("cage", params={"cells": addresses}))
-        decoded.append(
-            Constraint("group-sum", params={"cells": addresses, "sum": total})
-        )
+        total = _cosmetic_cage_killer_sum(block)
+        if total is not None:
+            decoded.append(
+                Constraint("group-sum", params={"cells": addresses, "sum": total})
+            )
     return decoded
 
 
@@ -665,16 +665,17 @@ class DecodedType:
     `_regions_constraints` like every other handler), `live_keys` are the
     payload keys that mark this type's wire shape as carrying a real rule
     (read by `has_live_data`, generalized to unmodeled types too), `name`
-    labels it in the decoder's own warnings, and `live_scalar` is an optional
-    override for a type whose liveness hinges on a scalar field `live_keys`'
-    non-empty-list check can't express (a cosmetic cage's numeric-string
-    `value`) — when set, `has_live_data` defers to it instead of `live_keys`.
-    """
+    labels it in the decoder's own warnings, and `live_predicate` is an optional
+    override for a type whose liveness the global `live_keys` union can't
+    express — a cosmetic cage is live on its own `cells`, but `cells` is not
+    unique to the type, so scoping the check here keeps it from marking every
+    unmodeled `cells`-carrying block live. When set, `has_live_data` defers to
+    it instead of `live_keys`."""
 
     handler: Callable[[dict[str, object], int], list[Constraint]] | None
     live_keys: tuple[str, ...]
     name: str
-    live_scalar: Callable[[dict[Any, Any]], bool] | None = None
+    live_predicate: Callable[[dict[Any, Any]], bool] | None = None
 
 
 # The one table wire-type -> (handler, live-data payload keys, display name):
@@ -705,7 +706,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=_cosmetic_cage_constraints,
         live_keys=(),
         name="cosmetic-cage",
-        live_scalar=lambda block: _cosmetic_cage_killer_sum(block) is not None,
+        live_predicate=lambda block: bool(block.get("cells")),
     ),
     _THERMO_TYPE: DecodedType(
         handler=_thermo_constraints, live_keys=("thermometers",), name="thermo"
@@ -776,11 +777,12 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     the `clues` entry does for decoded XV (`type 202`): a decoded variant still
     carries a live rule the dev tool must not report as inert.
 
-    A type whose liveness isn't list-shaped (a `type 2001` cosmetic cage's
-    numeric-string `value`) registers a `live_scalar` predicate instead; when
-    the constraint's own `type` names such an entry, that predicate decides
-    liveness directly rather than falling through the list-key scan — a
-    graduated cosmetic cage is `active`, same as a populated killer cage.
+    A type whose liveness the global list-key scan can't scope (a `type 2001`
+    cosmetic cage is live on its own `cells`, but `cells` is not unique to the
+    type) registers a `live_predicate` instead; when the constraint's
+    own `type` names such an entry, that predicate decides liveness directly
+    rather than falling through the list-key scan — any non-disabled cosmetic
+    cage with cells is `active`, same as a populated killer cage.
 
     Public so `scripts/inspect_link.py` classifies constraints against the same
     predicate the decoder drops by. `Any` keeps the decoded-JSON
@@ -788,8 +790,8 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     does for `puzzle_data`."""
     kind = constraint.get("type")
     entry = DECODER_REGISTRY.get(kind) if isinstance(kind, int) else None
-    if entry is not None and entry.live_scalar is not None:
-        return entry.live_scalar(constraint)
+    if entry is not None and entry.live_predicate is not None:
+        return entry.live_predicate(constraint)
     for key in _LIVE_LIST_KEYS:
         value = constraint.get(key)
         if isinstance(value, list) and any(value):

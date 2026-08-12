@@ -999,27 +999,24 @@ def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
     assert capsys.readouterr().err == ""
 
 
-def test_cosmetic_cage_with_non_numeric_label_decodes_to_nothing_quietly(
+@pytest.mark.parametrize(
+    "label",
+    ["Total", ""],
+    ids=["non-numeric-label", "empty-label"],
+)
+def test_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
+    label: str,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # A non-numeric label is genuinely decorative, not a killer sum — drops
-    # inert, same as today, and warns nothing since the type is known.
-    payload = _constraint_link({"type": 2001, "value": "Total", "cells": [0, 1]})
+    # A label carrying no killer sum still leaves a rule: every non-disabled
+    # cosmetic cage is a killer cage, so it emits a no-repeats `cage` with no
+    # `group-sum`, exactly like a sumless `type 301`.
+    payload = _constraint_link({"type": 2001, "value": label, "cells": [0, 1]})
 
     puzzle, _ = decode_link(payload)
 
-    assert all(c.type != "cage" for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
-
-
-def test_cosmetic_cage_with_empty_label_decodes_to_nothing_quietly(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    payload = _constraint_link({"type": 2001, "value": "", "cells": [0, 1]})
-
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type != "cage" for c in puzzle.constraints)
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert all(c.type != "group-sum" for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
 
 
@@ -1177,11 +1174,6 @@ def test_disabled_thermo_block_decodes_to_nothing_quietly(
             {"type": 2001, "value": "7", "cells": [0, 1], "disabled": True},
             ("cage",),
             id="cosmetic-cage-disabled",
-        ),
-        pytest.param(
-            {"type": 2001, "value": "Total", "cells": [0, 1]},
-            ("cage",),
-            id="cosmetic-cage-non-numeric",
         ),
         pytest.param(
             {"type": 300, "slow": False, "thermometers": [[0, 1]], "disabled": True},
