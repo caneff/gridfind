@@ -61,7 +61,7 @@ import sys
 import urllib.parse
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from lzstring import LZString
 
@@ -773,7 +773,10 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
         return None
 
 
-def _cosmetic_cage_name_kind(name: object) -> str:
+_CosmeticCageNameKind = Literal["ordinary", "doubler", "unrecognized"]
+
+
+def _cosmetic_cage_name_kind(name: object) -> _CosmeticCageNameKind:
     """Classify a `type 2001` block's top-level `name` (spec #324) into one of
     three kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
     label on a genuine cage — `_NAMED_KILLER_CAGE_LABELS`), `"doubler"` (a
