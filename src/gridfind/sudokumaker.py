@@ -390,20 +390,27 @@ def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
     return range(min_digit, min_digit + size + 1)
 
 
-def write_cell(cell: dict[str, Any], content: tuple[int, ...]) -> None:
+def write_cell(
+    cell: dict[str, Any], content: tuple[int, ...], *, is_modifier: bool = False
+) -> None:
     """Write a witness cell's content onto the SudokuMaker wire channel
     `_decode_cell` reads it back from — the one wire-write seam, singleton and
     S-cell through one door, so a caller holding a witness never touches the
     cell's field shape. A length-1 content is a plain given
     (`given: True, value: d`), read back through the classic given branch. A
     length-2 content `(a, b)` is a Schrödinger S-cell pin, written via
-    `_write_s_cell` — the inverse of the decoder's `SCellPin` branch."""
+    `_write_s_cell` — the inverse of the decoder's `SCellPin` branch. An
+    `is_modifier` cell additionally carries the `_RED_BIT` in `colors`, the
+    inverse of `_decode_cell`'s doubler branch, so a solution link shows every
+    cell the solver found to be a modifier."""
     if len(content) == 1:
         cell["given"] = True
         cell["value"] = content[0]
     else:
         a, b = content
         _write_s_cell(cell, a, b)
+    if is_modifier:
+        cell["colors"] = cell.get("colors", 0) | _RED_BIT
 
 
 def _write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:

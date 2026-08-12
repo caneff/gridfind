@@ -179,7 +179,7 @@ past the classic path, which the classic decoder should reject.
 | `{value:v}` (no `given`) | `Placement(address, digit=v)` |
 | `{candidates:mask}` | `Candidate(address, digits={d : mask & (1<<d)})` |
 | `{cornerPencilMarks:mask}` | **ignored** (see below) |
-| `{colors:…}` / `{}` | ignored / empty cell |
+| `{colors:…}` / `{}` | ignored / empty cell — **except under `--schrodinger`, where the red bit marks an S-cell (§4c)** |
 
 `Board(size)` = the stated `size`/`width`, else the classic `9` (this §4a link
 omits `size`, so it lands on the default 9 — see §4b).
@@ -253,6 +253,77 @@ it is simply omitted on a default 1–9 domain.
 - Decisions #2/#3 hold in substance but should name the real fields before
   `/to-spec`: **size from `width`(+derived/explicit `height`) or `size`, isqrt
   fallback**; **domain from `minDigit`/`maxDigit` when present, else `1..size`**.
+
+### 4c. Schrödinger / S-cell wire encoding — the accepted definition (2026-08-12)
+
+§4a maps a **classic** link, where `colors` is cosmetic and dropped. A
+Schrödinger link reuses the same envelope but gives two fields new meaning, and
+gridfind reads them **only when the caller passes `--schrodinger`**. This is the
+whole accepted encoding, so a later session need not re-derive it from the
+decoder.
+
+**A Schrödinger cell (S-cell) is one cell that holds two digits.** The board's
+digit domain is widened by exactly one extra value, and the distinctness rule
+then forces a fixed count of S-cells per house (see "cover rule" below).
+
+**Domain — the extra digit is derived, not read.** A Schrödinger link carries
+`minDigit` (and `maxDigit`) on the wire, but under the flag the decoder reads
+**only `minDigit`** (default `1`) and sets the domain to
+`range(minDigit, minDigit + size + 1)` — `size + 1` values, the `+1` derived.
+A 4×4 with `minDigit:0` decodes to `{0,1,2,3,4}` (5 digits on a 4-wide board);
+`maxDigit` is **ignored** here. Without the flag the classic guard
+`max − min + 1 == size` fires and the same link is rejected
+(`"non-classic link: domain 0..4 is not 4 digits"`) — the domain has one more
+value than the board is wide, which is exactly what a Schrödinger board needs.
+
+**The red bit marks the S-cell axis.** `colors` is an **OR of palette bits**,
+not an enum; the S-cell marker is the red bit, `colors & 2` (`_RED_BIT = 2`).
+Test the bit, never `colors == 2` — a red cell may carry other colour bits too.
+(The doubler variant shares this red bit, so a link declares Schrödinger **or**
+doubler, never both.)
+
+**Per-cell decode under `--schrodinger`** (`_decode_schrodinger_cell`). The
+`candidates` bitmask uses the §4a convention (bit `d` = digit `d`, `2^d`; bit 0
+is live because `minDigit:0`):
+
+| SudokuMaker cell | gridfind directive |
+|---|---|
+| `{given:true, value:v}` | `Given(address, v)` — literal, as classic |
+| `{value:v}`, **not** red | `SingletonPin(address, v)` — a placed non-S-cell (`d0=v`, `is_s=0`) |
+| `{value:v}`, **red** | **rejected** (`ValueError`) — a red cell may not carry a value |
+| red, no value, **2** candidate marks | `SCellPin(address, {a,b})` — an S-cell pinned to that digit pair |
+| red, no value, **1** candidate mark | `HalfSCell(address, d)` — an S-cell known to contain `d` |
+| red, no value, **0 or ≥3** marks | `BareSCell(address)` — S-cell, digits free (any marks ride along as a `Candidate`) |
+| `{candidates:mask}`, **not** red | plain `Candidate(address, digits)` — a center pencilmark / domain restriction |
+
+**These directives live on `WorkingState.s_directives`, not on the `Puzzle`**
+(ADR-0006 — hard-coded, no registration seam). So the verdict path **must**
+thread the working state: `verdict(puzzle, working_state)`, not `verdict(puzzle)`.
+`verdict(puzzle)` alone silently drops every S-cell directive and gives a wrong
+answer — the one trap that separates Schrödinger from the other variants, whose
+givens ride on the `Puzzle`.
+
+**The `{type:2003}` constraint block is always inert.** It is not in
+`DECODER_REGISTRY` and ships an empty payload, so `has_live_data` is always
+`False` and it is dropped silently — both a live and a dead Schrödinger link
+print `inert: 2003`. The Schrödinger **layer** is synthesised from the
+`--schrodinger` flag (`Constraint("schrodinger")`), never from a wire block. So
+a link's Schrödinger-ness is a **flag**, not a wire signal, and the coverage
+floor tags it from `"--schrodinger" in argv`.
+
+**Cover rule (why an S-cell is load-bearing).** With a domain of `len(domain)`
+values on a `size`-wide board, each house must place every domain digit into
+exactly one content slot; a house of `size` cells has `2·size` slots, so exactly
+`k = len(domain) − size` cells are forced to their second slot — **k S-cells per
+house**. A 4×4 with 5 digits ⇒ `k = 1`. Force *two* S-cells into one house
+(e.g. two red `SCellPin`s in the same row) and the puzzle is `broke` purely from
+the Schrödinger budget; drop the red bit on those cells and it is `found`. That
+strip — red-bit on ⇒ `broke`, red-bit off ⇒ `found` — is the load-bearing
+demonstration for a Schrödinger fixture (the audit's structural strip test can't
+run, since removing the layer makes the widened domain reject). An S-cell's
+**value** is `s_value` = `d0 + d1` (sum, the default) or `d0·10 + d1` (concat),
+per ADR-0010 — the single combined value a cage or other constraint reads
+through `value_expr` (ADR-0009).
 
 ## 5. Python decode difficulty
 

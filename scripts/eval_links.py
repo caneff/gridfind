@@ -242,7 +242,7 @@ def _pane(view: LinkView) -> str:
     if view.solution_link is None:
         return '<div class="pane empty">no solution — broke case</div>'
     answer = html.escape(view.solution_link, quote=True)
-    return f'<iframe class="pane" data-src="{answer}"></iframe>'
+    return f'<iframe class="pane" allow="clipboard-write" data-src="{answer}"></iframe>'
 
 
 def _slide(index: int, stem: str, view: LinkView) -> str:
@@ -258,7 +258,7 @@ def _slide(index: int, stem: str, view: LinkView) -> str:
         f'<section class="slide{active}" data-slide="{index}">'
         f'<h2>{safe}<span class="verdict {view.kind}">{view.kind}</span></h2>'
         f'<div class="panes">'
-        f'<iframe class="pane" data-src="{puzzle}"></iframe>'
+        f'<iframe class="pane" allow="clipboard-write" data-src="{puzzle}"></iframe>'
         f"{_pane(view)}"
         f"</div>"
         f'<textarea id="note-{safe}" placeholder="note about this link"></textarea>'
