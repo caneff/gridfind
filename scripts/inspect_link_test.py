@@ -94,36 +94,31 @@ def test_display_size(data: dict[str, object], cell_count: int, expected: int) -
 
 
 @pytest.mark.parametrize(
-    ("argv", "links", "flags", "unknown"),
+    ("argv", "links", "unknown"),
     [
         pytest.param(
-            ["--doubler", "u1", "u2"],
             ["u1", "u2"],
-            {"--doubler"},
+            ["u1", "u2"],
             [],
-            id="doubler-flag-split-from-links",
-        ),
-        pytest.param(
-            ["--schrodinger", "u"],
-            ["u"],
-            {"--schrodinger"},
-            [],
-            id="schrodinger-still-recognised",
+            id="links-only",
         ),
         pytest.param(
             ["u", "--bogus"],
             ["u"],
-            set(),
             ["--bogus"],
             id="unknown-flag-not-a-link",
         ),
-        pytest.param([], [], set(), [], id="empty"),
+        pytest.param(
+            ["--doubler", "u"],
+            ["u"],
+            ["--doubler"],
+            id="retired-flag-is-unknown-now",
+        ),
+        pytest.param([], [], [], id="empty"),
     ],
 )
-def test_split_args(
-    argv: list[str], links: list[str], flags: set[str], unknown: list[str]
-) -> None:
-    assert _split_args(argv) == (links, flags, unknown)
+def test_split_args(argv: list[str], links: list[str], unknown: list[str]) -> None:
+    assert _split_args(argv) == (links, unknown)
 
 
 def test_main_reports_unknown_flag_without_decoding_it() -> None:
@@ -133,8 +128,9 @@ def test_main_reports_unknown_flag_without_decoding_it() -> None:
     assert code == 2  # nothing left to decode -> usage exit, not a crash
 
 
-def test_main_survives_bare_doubler_token() -> None:
-    # A recognised flag with no link behind it leaves nothing to decode, so it
-    # reaches the usage exit rather than the decoder (which raises on a non-link).
+def test_main_survives_a_bare_flag_token() -> None:
+    # A `--`-prefixed token with no link behind it leaves nothing to decode, so
+    # it reaches the usage exit rather than the decoder (which raises on a
+    # non-link).
     code = main(["--doubler"], io.StringIO(), stderr=io.StringIO())
     assert code == 2

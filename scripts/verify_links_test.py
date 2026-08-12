@@ -13,25 +13,35 @@ is checked without touching the real `links/` corpus.
 
 from __future__ import annotations
 
-import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.layers.board import cell_address
 from gridfind.puzzle import Given, ModifierDirective, SCellPin, WorkingState
-from gridfind.sudokumaker import LinkVariant, decode_link, encode_link
+from gridfind.sudokumaker import decode_link, encode_link
 from gridfind.witness import Witness
 
 _WIRE_CONSTRAINTS = [{"type": 0}]
 
 
-def _document(size: int) -> dict[str, object]:
+def _document(size: int, *marker_blocks: dict[str, object]) -> dict[str, object]:
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
     return {
         "formatVersion": "1.5.0",
-        "puzzle": {"cells": cells, "size": size, "constraints": _WIRE_CONSTRAINTS},
+        "puzzle": {
+            "cells": cells,
+            "size": size,
+            "constraints": [*_WIRE_CONSTRAINTS, *marker_blocks],
+        },
     }
+
+
+def _marker_block(name: str, index: int) -> dict[str, object]:
+    """A `type 2001` marker cage of `name` over the single cell `index` — how a
+    real link declares the S-cell or doubler that `fill_witness` then fills, so
+    a filled witness round-trips through the same channel the decoder reads."""
+    return {"name": name, "type": 2001, "cages": [{"cells": [index]}]}
 
 
 def _encode(puzzle_data: dict[str, object]) -> str:
@@ -102,12 +112,12 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
         address: (a, b) if address == s_cell_address else (1,) for address in addresses
     }
     witness = Witness(grid=grid, assignment=assignment, region_map=[])
-    document = _document(size)
+    document = _document(size, _marker_block("S-cell", s_cell_index))
 
     filled = fill_witness(document, witness, size)
 
     url = encode_link(filled)
-    puzzle, state = decode_link(url, LinkVariant(schrodinger=True))
+    puzzle, state = decode_link(url)
 
     assert SCellPin(s_cell_address, frozenset({a, b})) in state.s_directives
     assert set(puzzle.givens) == {
@@ -119,12 +129,14 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
 
 def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
     # A cell the solver found to be a modifier round-trips as a doubler: the
-    # emitted solution carries the red bit, so opening the link shows where the
-    # doubler landed. Cells the witness never flagged stay ordinary givens.
+    # source link's `Doubler` marker cage declares the cell, and the filled
+    # witness decodes back to its modifier directive. Cells the witness never
+    # flagged stay ordinary givens.
     size = 4
     grid = _grid(size)
     addresses = [address for row in grid for address in row]
-    modifier_address = addresses[6]
+    modifier_index = 6
+    modifier_address = addresses[modifier_index]
     witness = Witness(
         grid=grid,
         assignment=dict.fromkeys(addresses, (1,)),
@@ -132,9 +144,10 @@ def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
         modifiers={modifier_address: "doubler"},
     )
 
-    filled = fill_witness(_document(size), witness, size)
+    document = _document(size, _marker_block("Doubler", modifier_index))
+    filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(encode_link(filled), LinkVariant(doubler=True))
+    _, state = decode_link(encode_link(filled))
     assert state.modifier_directives == (
         ModifierDirective(modifier_address, is_modifier=True),
     )
@@ -203,49 +216,33 @@ def test_emit_solution_link_stamps_the_board_size() -> None:
 
 # A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major.
 _REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
-_RED_BIT = 2
 
 
-def _doubler_cage_link() -> str:
+def _doubler_cage_link(*, doubler: bool) -> str:
     """A fully-given valid 4x4 Latin square with a killer cage summing
-    R1C1+R1C2 to 4 and R1C1 flagged a doubler (red bit). The verdict hinges
-    on the `--doubler` flag: as a plain cage the two givens sum 1+2=3, which
-    breaks the cage; with the doubler active R1C1 counts twice, 2·1+2=4, which
-    satisfies it. So the flag flips broke↔found, and a verifier that drops it
-    reports the wrong one."""
+    R1C1+R1C2 to 4. With a `Doubler` marker cage over R1C1 its digit counts
+    twice, 2·1+2=4, satisfying the cage (found); without it the cage sums the
+    raw givens, 1+2=3 ≠ 4 (broke). So marker presence flips broke↔found, and
+    `verify_link` must decode the marker to report the right one."""
     rows = [[1, 2, 3, 4], [3, 4, 1, 2], [2, 1, 4, 3], [4, 3, 2, 1]]
     cells: list[dict[str, object]] = [
         {"given": True, "value": digit} for row in rows for digit in row
     ]
-    cells[0]["colors"] = _RED_BIT
-    return _encode(
-        {
-            "cells": cells,
-            "size": 4,
-            "constraints": [
-                {"type": 0},
-                {"type": 1, "regions": _REGIONS_4X4},
-                {"type": 301, "cages": [{"cells": [0, 1], "value": 4}]},
-            ],
-        }
-    )
+    constraints: list[dict[str, object]] = [
+        {"type": 0},
+        {"type": 1, "regions": _REGIONS_4X4},
+        {"type": 301, "cages": [{"cells": [0, 1], "value": 4}]},
+    ]
+    if doubler:
+        constraints.append(_marker_block("Doubler", 0))
+    return _encode({"cells": cells, "size": 4, "constraints": constraints})
 
 
-def test_verify_link_threads_the_doubler_flag() -> None:
-    link = _doubler_cage_link()
+def test_verify_link_decodes_a_doubler_marker() -> None:
+    # Without the marker the cage sums the raw givens, 1+2=3 ≠ 4: broke.
+    assert verify_link([_doubler_cage_link(doubler=False)]) == "broke"
 
-    # Without --doubler the cage sums the raw givens, 1+2=3 ≠ 4: broke.
-    assert verify_link([link]) == "broke"
-
-    # With --doubler R1C1's digit counts twice, 2·1+2=4: found, so the
+    # With the marker R1C1's digit counts twice, 2·1+2=4: found, so the
     # emitter reports a solution-link rather than `broke`.
-    solution_link = verify_link(["--doubler", link])
+    solution_link = verify_link([_doubler_cage_link(doubler=True)])
     assert solution_link.startswith("https://sudokumaker.app/?puzzle=")
-
-
-def test_verify_link_threads_the_reading_flag() -> None:
-    # --reading rides with --schrodinger into decode_link, which refuses any
-    # reading but "classic"; a verifier that drops the flag would silently
-    # decode as classic instead of raising.
-    with pytest.raises(ValueError, match="reading"):
-        verify_link(["--schrodinger", "--reading", "martian", "irrelevant-link"])

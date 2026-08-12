@@ -210,13 +210,14 @@ def _classic_schrodinger_solution_link() -> str:
     completed 1-9 Latin square (the well-known
     `(r*3 + r//3 + c) % 9 + 1` sudoku-by-formula construction, same shape as
     `_solvable_jigsaw_link`) with one cell per row/column/box promoted to an
-    S-cell pinned red with center marks `{0, base}` — 0 is the domain's tenth
+    S-cell pinned with center marks `{0, base}` — 0 is the domain's tenth
     digit and never appears among the ordinary givens, so every
     row/column/box ends up holding exactly the ten digits 0-9 once each. The
-    S-cell positions are picked by `stack = (band + k) % 3` (band = row // 3,
-    k = row % 3), a transversal that lands one S-cell in every row, column,
-    and box. Fully constrained (every cell a given or an exact S-cell pin),
-    so the default solve decides `found` instantly rather than searching."""
+    S-cell positions are declared by an `S-cell` marker cage (no color flag),
+    picked by `stack = (band + k) % 3` (band = row // 3, k = row % 3), a
+    transversal that lands one S-cell in every row, column, and box. Fully
+    constrained (every cell a given or an exact S-cell pin), so the default
+    solve decides `found` instantly rather than searching."""
     s_cells = {}
     for band in range(3):
         for k in range(3):
@@ -225,26 +226,37 @@ def _classic_schrodinger_solution_link() -> str:
             s_cells[(row, stack * 3 + band)] = True
 
     cells = []
+    s_cell_indices = []
     for row in range(9):
         for col in range(9):
             base = (row * 3 + row // 3 + col) % 9 + 1
             if (row, col) in s_cells:
-                cells.append({"colors": 2, "candidates": 1 | (1 << base)})
+                cells.append({"candidates": 1 | (1 << base)})
+                s_cell_indices.append(row * 9 + col)
             else:
                 cells.append({"given": True, "value": base})
 
-    puzzle = {"cells": cells, "minDigit": 0, "constraints": [{"type": 0}]}
+    puzzle = {
+        "cells": cells,
+        "minDigit": 0,
+        "constraints": [
+            {"type": 0},
+            {"name": "S-cell", "type": 2001, "cages": [{"cells": s_cell_indices}]},
+        ],
+    }
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
     payload = LZString.compressToEncodedURIComponent(json.dumps(doc))
     return f"https://sudokumaker.app/?puzzle={payload}"
 
 
-def test_schrodinger_link_with_flags_prints_found_and_s_cell_witness(
+def test_schrodinger_marker_link_prints_found_and_s_cell_witness(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # The link's S-cell marker cage declares the variant, so the CLI needs no
+    # flag — Schrödinger-ness is inferred from the link.
     link = _classic_schrodinger_solution_link()
 
-    code = cli.main(["--schrodinger", "--reading", "classic", link], io.StringIO())
+    code = cli.main([link], io.StringIO())
 
     out = capsys.readouterr().out
     lines = out.split("\n")
@@ -254,53 +266,40 @@ def test_schrodinger_link_with_flags_prints_found_and_s_cell_witness(
     assert "{0 1}" in out
 
 
-def test_schrodinger_flag_without_reading_defaults_to_classic(
-    capsys: pytest.CaptureFixture[str],
+@pytest.mark.parametrize(
+    "flag",
+    ["--schrodinger", "--doubler", "--reading"],
+    ids=["schrodinger", "doubler", "reading"],
+)
+def test_retired_variant_flags_are_rejected(
+    flag: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # The color channel is gone: the CLI no longer accepts the variant flags,
+    # so argparse refuses them (exit 2) rather than silently ignoring them.
     link = _classic_schrodinger_solution_link()
 
-    code = cli.main(["--schrodinger", link], io.StringIO())
+    with pytest.raises(SystemExit) as exc:
+        cli.main([flag, link], io.StringIO())
 
-    assert code == 0
-    assert capsys.readouterr().out.split("\n")[0] == "found"
-
-
-def test_unsupported_reading_exits_two_with_stderr(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    link = _classic_schrodinger_solution_link()
-
-    code = cli.main(["--schrodinger", "--reading", "sum-valued", link], io.StringIO())
-
-    captured = capsys.readouterr()
-    assert code == 2
-    assert captured.out == ""
-    assert captured.err.startswith("gridfind:")
-
-
-def test_non_schrodinger_link_without_flag_is_unaffected(
-    capsys: pytest.CaptureFixture[str], classic_link: str
-) -> None:
-    code = cli.main([classic_link], io.StringIO())
-
-    assert code == 0
-    assert capsys.readouterr().out.split("\n")[0] == "found"
+    assert exc.value.code == 2
 
 
 def _classic_doubler_solution_link(cage_value: int) -> str:
     """A synthesised 4x4 doubler link mirroring ADR-0008's ChinStrap puzzle: a
     solved grid with four declared doublers (one per row/column/box, distinct
-    digits) and a cosmetic cage (type 2001, graduated to a killer sum by its
-    numeric value) over R1C1 (digit 3), the R1C2 doubler (digit 2, folded to
-    4), and R1C3 (digit 4). The folded sum is `3 + 2*2 + 4 = 11` — out of range
-    for a plain 3-cell cage (max 4+3+2=9), the case cosmetic cages exist for.
-    The caller picks the declared total, so 11 solves and any other total
-    breaks."""
+    digits) declared by a `Doubler` marker cage, and a cosmetic cage (type
+    2001, graduated to a killer sum by its numeric value) over R1C1 (digit 3),
+    the R1C2 doubler (digit 2, folded to 4), and R1C3 (digit 4). The folded sum
+    is `3 + 2*2 + 4 = 11` — out of range for a plain 3-cell cage (max
+    4+3+2=9), the case cosmetic cages exist for. The caller picks the declared
+    total, so 11 solves and any other total breaks. The four doubler cells are
+    left blank for the solver to fill; every other cell is a given, so the
+    Latin constraints force them."""
     solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
-    doublers = {1, 6, 11, 12}
+    doublers = sorted({1, 6, 11, 12})
     regions = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
     cells: list[dict[str, object]] = [
-        {"colors": 2} if i in doublers else {"given": True, "value": solution[i]}
+        {} if i in doublers else {"given": True, "value": solution[i]}
         for i in range(16)
     ]
     puzzle = {
@@ -310,6 +309,7 @@ def _classic_doubler_solution_link(cage_value: int) -> str:
             {"type": 0},
             {"type": 1, "regions": regions},
             {"type": 2001, "cages": [{"cells": [0, 1, 2], "value": str(cage_value)}]},
+            {"name": "Doubler", "type": 2001, "cages": [{"cells": doublers}]},
         ],
     }
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
@@ -317,24 +317,25 @@ def _classic_doubler_solution_link(cage_value: int) -> str:
     return f"https://sudokumaker.app/?puzzle={payload}"
 
 
-def test_doubler_flag_folds_the_declared_doubler_into_the_cage_sum(
+def test_doubler_marker_folds_the_declared_doubler_into_the_cage_sum(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # The Doubler marker cage declares the variant, so the CLI needs no flag —
+    # the folded sum 3 + 2*2 + 4 = 11 solves.
     link = _classic_doubler_solution_link(cage_value=11)
 
-    code = cli.main(["--doubler", link], io.StringIO())
+    code = cli.main([link], io.StringIO())
 
     assert code == 0
     assert capsys.readouterr().out.split("\n")[0] == "found"
 
 
-def test_without_the_doubler_flag_the_red_cells_are_ignored(
+def test_a_wrong_declared_total_breaks_the_doubler_cage(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # The same link without --doubler reads the red cells as plain digits, so
-    # the cage sums 3 + 2 + 4 = 9, never reaching its declared total of 11 —
-    # broke. The gap is exactly the doubling the flag would have applied.
-    link = _classic_doubler_solution_link(cage_value=11)
+    # The doubling is what closes the gap: a declared total other than the
+    # folded 11 can't be met, so the link is broke.
+    link = _classic_doubler_solution_link(cage_value=9)
 
     code = cli.main([link], io.StringIO())
 

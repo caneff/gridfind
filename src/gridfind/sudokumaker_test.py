@@ -8,7 +8,6 @@ not app fidelity.
 """
 
 import json
-from typing import Any
 
 import pytest
 from hypothesis import given as hyp_given
@@ -27,12 +26,10 @@ from gridfind.puzzle import (
     Puzzle,
     SCellPin,
     SDirective,
-    SingletonPin,
     WorkingState,
 )
 from gridfind.sudokumaker import (
     _RED_BIT,
-    LinkVariant,
     _CellDecode,
     _decode_cell,
     _edge_to_pair,
@@ -140,20 +137,21 @@ def test_write_cell_writes_a_singleton_as_a_given() -> None:
     assert cell == {"given": True, "value": 5}
 
 
-def test_write_cell_round_trips_a_schrodinger_pin() -> None:
+def test_write_cell_writes_a_schrodinger_pin_as_red_two_mark() -> None:
     # A length-2 content is an S-cell pin: write_cell sets the red bit and the
-    # two center marks, so decoding under --schrodinger returns that pin — the
-    # inverse of the decoder's SCellPin branch, singleton and pair through one
-    # door.
-    cells = list(_EMPTY_CELLS)
+    # two center marks, SudokuMaker's own S-cell look, so a human opening the
+    # solution link sees the pinned pair in red.
     cell: dict[str, object] = {}
     write_cell(cell, (2, 7))
-    cells[0] = cell
-    payload = _schrodinger_link(cells)
+    assert cell == {"colors": _RED_BIT, "candidates": (1 << 2) | (1 << 7)}
 
-    _, state = decode_link(payload, LinkVariant(schrodinger=True))
 
-    assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
+def test_write_cell_marks_a_modifier_with_the_red_bit() -> None:
+    # An `is_modifier` given carries the red bit alongside its digit, so a
+    # solution link shows in red every cell the solver found to be a doubler.
+    cell: dict[str, object] = {}
+    write_cell(cell, (5,), is_modifier=True)
+    assert cell == {"given": True, "value": 5, "colors": _RED_BIT}
 
 
 def test_colors_and_corner_marks_leave_the_state_empty() -> None:
@@ -470,11 +468,12 @@ def test_jigsaw_regions_decode_into_constraint_params() -> None:
     assert regions_constraint.params == {"regions": _JIGSAW_REGIONS}
 
 
-# --- --schrodinger ingest ---------------------------------
+# --- S-cell marker ingest: cosmetic tolerance and domain -----------------
 
-# A schrodinger link's own cosmetic vocabulary: unknown types the decoder
-# must ignore (not reject) under --schrodinger, plus a disabled duplicate of
-# the classic type-1 regions matrix, which must lose to the enabled one.
+# A Schrödinger link's own cosmetic vocabulary: unknown types the decoder must
+# ignore (not reject) once a marker makes the link Schrödinger, plus a disabled
+# duplicate of the classic type-1 regions matrix, which must lose to the
+# enabled one.
 _SCHRODINGER_WIRE_CONSTRAINTS = [
     {"type": 0},
     {"type": 1, "regions": _STANDARD_REGIONS},
@@ -483,35 +482,39 @@ _SCHRODINGER_WIRE_CONSTRAINTS = [
     {"type": 303, "disabled": True},
 ]
 
+# The `S-cell` marker block that infers Schrödinger-ness, over cell 0.
+_S_CELL_MARKER = {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]}
+
 
 def _schrodinger_link(cells: list[dict[str, object]], *, min_digit: int = 0) -> str:
-    """A synthesised Schrödinger-flavored link: `minDigit`, the cosmetic
-    constraint mix a real link carries, and a caller-supplied `cells` array."""
+    """A synthesised Schrödinger link: an `S-cell` marker cage (which infers
+    Schrödinger-ness), `minDigit`, and the cosmetic constraint mix a real link
+    carries alongside a caller-supplied `cells` array."""
     return _encode(
         {
             "cells": cells,
             "minDigit": min_digit,
-            "constraints": _SCHRODINGER_WIRE_CONSTRAINTS,
+            "constraints": [*_SCHRODINGER_WIRE_CONSTRAINTS, _S_CELL_MARKER],
         }
     )
 
 
-def test_schrodinger_link_reads_domain_and_synthesizes_constraint() -> None:
+def test_schrodinger_marker_reads_domain_and_synthesizes_constraint() -> None:
     payload = _schrodinger_link(_EMPTY_CELLS, min_digit=0)
 
-    puzzle, _ = decode_link(payload, LinkVariant(schrodinger=True, reading="classic"))
+    puzzle, _ = decode_link(payload)
 
     assert puzzle.board == Board(size=9, values=range(10))
     assert Constraint("schrodinger") in puzzle.constraints
 
 
-def test_schrodinger_link_ignores_cosmetic_and_disabled_constraints() -> None:
-    # The real link's 13 constraints include cosmetic types the classic-only
-    # guard would otherwise reject outright, plus a disabled duplicate of the
-    # regions matrix — both ignored under --schrodinger.
+def test_schrodinger_marker_ignores_cosmetic_and_disabled_constraints() -> None:
+    # The real link's constraints include cosmetic types the classic-only guard
+    # would otherwise reject outright, plus a disabled duplicate of the regions
+    # matrix — both ignored once a marker makes the link Schrödinger.
     payload = _schrodinger_link(_EMPTY_CELLS)
 
-    puzzle, _ = decode_link(payload, LinkVariant(schrodinger=True))
+    puzzle, _ = decode_link(payload)
 
     regions_constraint = next(
         c for c in puzzle.constraints if c.type == "regions-distinct"
@@ -519,91 +522,11 @@ def test_schrodinger_link_ignores_cosmetic_and_disabled_constraints() -> None:
     assert regions_constraint == Constraint("regions-distinct")
 
 
-def test_schrodinger_min_digit_defaults_to_one_when_absent() -> None:
-    payload = _encode(
-        {"cells": _EMPTY_CELLS, "constraints": _SCHRODINGER_WIRE_CONSTRAINTS}
-    )
-
-    puzzle, _ = decode_link(payload, LinkVariant(schrodinger=True))
-
-    assert puzzle.board.values == range(1, 11)
-
-
-def test_unsupported_reading_is_refused() -> None:
-    payload = _schrodinger_link(_EMPTY_CELLS)
-
-    with pytest.raises(ValueError, match="reading"):
-        decode_link(payload, LinkVariant(schrodinger=True, reading="sum-valued"))
-
-
 def _mask(digits: set[int]) -> int:
     total = 0
     for d in digits:
         total |= 1 << d
     return total
-
-
-@pytest.mark.parametrize(
-    ("cell", "expected_s_directive", "expected_candidate"),
-    [
-        ({"given": True, "value": 4}, None, None),
-        ({"value": 3}, SingletonPin("R1C1", 3), None),
-        (
-            {"colors": 50, "candidates": _mask({2, 7})},  # red plus decoration
-            SCellPin("R1C1", frozenset({2, 7})),
-            None,
-        ),
-        (
-            {"colors": 2, "candidates": _mask({4})},
-            HalfSCell("R1C1", 4),
-            None,
-        ),
-        ({"colors": 2}, BareSCell("R1C1"), None),
-        (
-            {"colors": 2, "candidates": _mask({1, 2, 3})},
-            BareSCell("R1C1"),
-            Candidate("R1C1", frozenset({1, 2, 3})),
-        ),
-    ],
-    ids=[
-        "given",
-        "singleton-pin",
-        "s-cell-pin",
-        "half-s-cell",
-        "bare-s-cell",
-        "bare-s-cell-marks",
-    ],
-)
-def test_schrodinger_cell_encoding_table(
-    cell: dict[str, Any],
-    expected_s_directive: object,
-    expected_candidate: Candidate | None,
-) -> None:
-    cells = list(_EMPTY_CELLS)
-    cells[0] = cell
-    payload = _schrodinger_link(cells)
-
-    puzzle, state = decode_link(payload, LinkVariant(schrodinger=True))
-
-    if cell.get("given"):
-        assert Given("R1C1", cell["value"]) in puzzle.givens
-    if expected_s_directive is not None:
-        assert expected_s_directive in state.s_directives
-    else:
-        assert all(d.address != "R1C1" for d in state.s_directives)
-    if expected_candidate is not None:
-        assert expected_candidate in state.candidates
-    else:
-        assert all(c.address != "R1C1" for c in state.candidates)
-
-
-def test_red_cell_with_a_value_is_rejected() -> None:
-    cells = list(_EMPTY_CELLS)
-    cells[0] = {"colors": 2, "value": 9}
-    payload = _schrodinger_link(cells)
-
-    with pytest.raises(ValueError, match="R1C1"):
-        decode_link(payload, LinkVariant(schrodinger=True))
 
 
 # --- non-9 square-N decode --------------------------------
@@ -1203,27 +1126,21 @@ def test_doubler_marker_cell_with_a_given_still_decodes_both() -> None:
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
 
 
-def test_doubler_constraint_is_not_duplicated_when_marker_and_flag_coincide() -> None:
-    # A link may carry both the legacy red-bit doubler and a Doubler marker
-    # block at once; the synthesized `doubler` constraint must still appear
-    # exactly once.
-    cells = list(_EMPTY_CELLS)
-    cells[0] = {"colors": _RED_BIT}
+def test_doubler_constraint_is_synthesized_once_across_marker_blocks() -> None:
+    # A link may carry more than one Doubler marker block; the synthesized
+    # `doubler` constraint must still appear exactly once.
     payload = _encode(
         {
-            "cells": cells,
+            "cells": _EMPTY_CELLS,
             "constraints": [
                 *_WIRE_CONSTRAINTS,
-                {
-                    "name": "Doubler",
-                    "type": 2001,
-                    "cages": [{"value": "", "cells": [1]}],
-                },
+                {"name": "Doubler", "type": 2001, "cages": [{"cells": [0]}]},
+                {"name": "Doubler", "type": 2001, "cages": [{"cells": [1]}]},
             ],
         }
     )
 
-    puzzle, _ = decode_link(payload, LinkVariant(doubler=True))
+    puzzle, _ = decode_link(payload)
 
     assert puzzle.constraints.count(Constraint("doubler")) == 1
 
@@ -1342,10 +1259,11 @@ def test_s_cell_marker_on_a_settled_value_is_refused(cell: dict[str, object]) ->
         decode_link(payload)
 
 
-def test_s_cell_marker_and_flag_coincide_without_duplicating() -> None:
-    # A Schrödinger link may carry both the `--schrodinger` flag and an
-    # S-cell marker cage; the domain widens once and exactly one
-    # `schrodinger` constraint is synthesized.
+def test_s_cell_marker_synthesizes_schrodinger_once_amid_cosmetics() -> None:
+    # An S-cell marker cage alongside a real link's cosmetic constraint mix
+    # (including a `type 2003` block) widens the domain once and synthesizes
+    # exactly one `schrodinger` constraint, and the marked cell's pinned pair
+    # still decodes.
     cells = list(_EMPTY_CELLS)
     cells[0] = {"candidates": _mask({2, 7})}
     payload = _encode(
@@ -1359,7 +1277,7 @@ def test_s_cell_marker_and_flag_coincide_without_duplicating() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload, LinkVariant(schrodinger=True))
+    puzzle, state = decode_link(payload)
 
     assert puzzle.board == Board(size=9, values=range(10))
     assert puzzle.constraints.count(Constraint("schrodinger")) == 1
@@ -1526,7 +1444,7 @@ def test_disabled_or_empty_block_decodes_to_nothing_quietly(
     assert capsys.readouterr().err == ""
 
 
-# --- doubler decode (declared modifier cells) ---------------------------
+# --- color channel retired: a red cell is no longer a marker ------------
 
 # A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major.
 _REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
@@ -1534,40 +1452,17 @@ _DOUBLER_WIRE_CONSTRAINTS = [{"type": 0}, {"type": 1, "regions": _REGIONS_4X4}]
 
 
 def _doubler_link(cells: list[dict[str, object]]) -> str:
-    """A synthesised 4x4 doubler-flavored link: the standard 4x4 boxes and a
-    caller-supplied cells array. A doubler cell is marked with the red bit,
-    the same `colors` bit an S-cell uses."""
+    """A synthesised 4x4 link: the standard 4x4 boxes and a caller-supplied
+    cells array."""
     return _encode(
         {"cells": cells, "size": 4, "constraints": _DOUBLER_WIRE_CONSTRAINTS}
     )
 
 
-def test_doubler_link_reads_a_red_cell_into_a_declared_modifier() -> None:
-    cells: list[dict[str, object]] = [{} for _ in range(16)]
-    cells[0] = {"colors": _RED_BIT}
-    payload = _doubler_link(cells)
-
-    puzzle, state = decode_link(payload, LinkVariant(doubler=True))
-
-    assert Constraint("doubler") in puzzle.constraints
-    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
-
-
-def test_doubler_red_bit_is_orthogonal_to_the_digit_a_doubler_holds() -> None:
-    # A doubler holds one digit worth twice its value — unlike an S-cell, a red
-    # cell may carry a given. The red bit adds the modifier mark; the given
-    # still lands.
-    cells: list[dict[str, object]] = [{} for _ in range(16)]
-    cells[5] = {"colors": _RED_BIT, "given": True, "value": 3}
-    payload = _doubler_link(cells)
-
-    puzzle, state = decode_link(payload, LinkVariant(doubler=True))
-
-    assert Given("R2C2", 3) in puzzle.givens
-    assert ModifierDirective("R2C2", is_modifier=True) in state.modifier_directives
-
-
-def test_without_the_doubler_flag_the_red_mark_is_ignored() -> None:
+def test_a_red_cell_alone_is_not_a_doubler() -> None:
+    # The color channel is retired: declared doublers arrive only through a
+    # `Doubler` marker cage, so a bare red `colors` bit carries no meaning and
+    # stands up no `doubler` constraint or modifier directive.
     cells: list[dict[str, object]] = [{} for _ in range(16)]
     cells[0] = {"colors": _RED_BIT}
     payload = _doubler_link(cells)
@@ -1578,103 +1473,61 @@ def test_without_the_doubler_flag_the_red_mark_is_ignored() -> None:
     assert state.modifier_directives == ()
 
 
-def test_a_link_declaring_both_schrodinger_and_doubler_is_refused() -> None:
-    # The two variants share the red bit, so a single link is one or the other.
-    payload = _doubler_link([{} for _ in range(16)])
+def test_a_single_link_decodes_both_doubler_and_s_cell_markers() -> None:
+    # The retired color channel forced doubler xor S-cell (they shared the red
+    # bit); named marker cages carry the variant instead, so one link may hold
+    # both — a `Doubler` block and an `S-cell` block side by side, each decoded.
+    cells = list(_EMPTY_CELLS)
+    cells[0] = {"candidates": _mask({2, 7})}  # the S-cell's pinned pair
+    payload = _encode(
+        {
+            "cells": cells,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
+                {"name": "Doubler", "type": 2001, "cages": [{"cells": [1]}]},
+            ],
+        }
+    )
 
-    with pytest.raises(ValueError, match="both"):
-        decode_link(payload, LinkVariant(schrodinger=True, doubler=True))
+    puzzle, state = decode_link(payload)
 
-
-def test_link_variant_refuses_schrodinger_and_doubler_together() -> None:
-    # The invariant lives on the value: the two variants share the red bit, so
-    # a link is one or the other — refused at construction, before any decode.
-    with pytest.raises(ValueError, match="both"):
-        LinkVariant(schrodinger=True, doubler=True)
-
-
-def test_link_variant_refuses_a_non_classic_reading_under_schrodinger() -> None:
-    with pytest.raises(ValueError, match="reading"):
-        LinkVariant(schrodinger=True, reading="sum-valued")
-
-
-def test_link_variant_leaves_a_stray_reading_alone_without_schrodinger() -> None:
-    # reading is only meaningful under --schrodinger; a value carried without it
-    # is ignored, never validated, matching the decoder's own leniency.
-    assert LinkVariant(reading="sum-valued").reading == "sum-valued"
-
-
-@pytest.mark.parametrize(
-    ("argv", "expected"),
-    [
-        (["link"], LinkVariant()),
-        (["--schrodinger", "link"], LinkVariant(schrodinger=True)),
-        (["--doubler", "link"], LinkVariant(doubler=True)),
-        (
-            ["--schrodinger", "--reading", "classic", "link"],
-            LinkVariant(schrodinger=True, reading="classic"),
-        ),
-    ],
-    ids=["bare", "schrodinger", "doubler", "reading"],
-)
-def test_link_variant_from_argv_reads_the_flags(
-    argv: list[str], expected: LinkVariant
-) -> None:
-    # from_argv is the one parser the case-file scripts share, so the oracle and
-    # the eval view never diverge from a hand-copied flag read.
-    assert LinkVariant.from_argv(argv) == expected
-
-
-_PLAIN = LinkVariant()
+    assert Constraint("schrodinger") in puzzle.constraints
+    assert Constraint("doubler") in puzzle.constraints
+    assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
+    assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
+    # The S-cell marker widened the domain by the classic k=1 extra digit.
+    assert puzzle.board == Board(size=9, values=range(1, 11))
 
 
 @pytest.mark.parametrize(
-    ("cell", "variant", "domain", "expected"),
+    ("cell", "domain", "expected"),
     [
         (
             {"given": True, "value": 5},
-            _PLAIN,
             range(1, 10),
             _CellDecode(givens=(Given("R1C1", 5),)),
         ),
         (
             {"value": 5},
-            _PLAIN,
             range(1, 10),
             _CellDecode(places=(Placement("R1C1", 5),)),
         ),
         (
             {"candidates": (1 << 2) | (1 << 5)},
-            _PLAIN,
             range(1, 10),
             _CellDecode(candidates=(Candidate("R1C1", frozenset({2, 5})),)),
         ),
-        ({}, _PLAIN, range(1, 10), _CellDecode()),
-        (
-            {"colors": _RED_BIT, "given": True, "value": 3},
-            LinkVariant(doubler=True),
-            range(1, 10),
-            _CellDecode(
-                givens=(Given("R1C1", 3),),
-                modifier_directives=(ModifierDirective("R1C1", is_modifier=True),),
-            ),
-        ),
-        (
-            {"colors": _RED_BIT, "candidates": (1 << 2) | (1 << 7)},
-            LinkVariant(schrodinger=True),
-            range(1, 11),
-            _CellDecode(s_directives=(SCellPin("R1C1", frozenset({2, 7})),)),
-        ),
+        ({}, range(1, 10), _CellDecode()),
     ],
-    ids=["given", "placement", "candidate", "empty", "doubler", "schrodinger-pin"],
+    ids=["given", "placement", "candidate", "empty"],
 )
 def test_decode_cell_returns_one_cells_directives(
     cell: dict[str, object],
-    variant: LinkVariant,
     domain: range,
     expected: _CellDecode,
 ) -> None:
     # _decode_cell is the one home for per-cell decode: it returns the directives
-    # a single cell yields as one value, and the same function serves all three
-    # variants.
-    assert _decode_cell(cell, "R1C1", variant, domain) == expected
+    # a single cell yields as one value. A non-marker cell decodes its plain
+    # given/placement/candidate; the S-cell marker path is covered separately.
+    assert _decode_cell(cell, "R1C1", domain) == expected

@@ -62,7 +62,7 @@ from __future__ import annotations
 import json
 import sys
 import urllib.parse
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -83,21 +83,19 @@ from gridfind.puzzle import (
     Puzzle,
     SCellPin,
     SDirective,
-    SingletonPin,
     WorkingState,
 )
-
-# The only reading built so far — sum- and
-# concat-valued are future values of the same flag, refused until then.
-_CLASSIC_READING = "classic"
 
 # The default board a link describes when it states no `size`/`width`:
 # SudokuMaker omits those headers only on the classic 9x9 (§4b, ADR-0011).
 _CLASSIC_SIZE = 9
 
-# `colors` is an OR of palette-color bits; red — SudokuMaker's S-cell
-# convention — is bit value 2, never `colors == 2`
-# since a cell may carry other decorative colors too.
+# `colors` is an OR of palette-color bits; red is bit value 2, never
+# `colors == 2` since a cell may carry other decorative colors too. gridfind
+# no longer *reads* the red bit — declared doublers and S-cells arrive through
+# named marker cages (spec #324) — but the witness emitter still *writes* it, so
+# a solution link shows S-cells and modifiers in SudokuMaker's red as a human
+# opening the link expects.
 _RED_BIT = 2
 
 # An S-cell pin's center marks are exactly two digits; fewer or more are the
@@ -173,60 +171,16 @@ _THERMO_TYPE = 300
 
 
 @dataclass(frozen=True)
-class LinkVariant:
-    """Which SudokuMaker variant a link is decoded as — always **declared**,
-    never sniffed from the link. Carries the three flags the decoder threads
-    (`schrodinger`, its `reading`, and `doubler`) and owns their invariants, so
-    a caller cannot hand the decoder a contradictory declaration: Schrödinger
-    and doubler share the red `colors` bit, so a link is one or the other, and
-    only the classic S-cell `reading` is built. The checks fire at construction,
-    the one home for them — every caller (the CLI, the verify oracle, the eval
-    view) builds one value and the decoder trusts it.
-
-    `reading` is meaningful only under `schrodinger`; a value carried without it
-    rides along unread and unvalidated, matching the decoder's own leniency."""
-
-    schrodinger: bool = False
-    reading: str = _CLASSIC_READING
-    doubler: bool = False
-
-    def __post_init__(self) -> None:
-        if self.schrodinger and self.reading != _CLASSIC_READING:
-            msg = f"unsupported schrodinger reading: {self.reading!r}"
-            raise ValueError(msg)
-        if self.schrodinger and self.doubler:
-            msg = "a link is Schrödinger or doubler, not both — they share the red bit"
-            raise ValueError(msg)
-
-    @classmethod
-    def from_argv(cls, argv: Sequence[str]) -> LinkVariant:
-        """The variant a case file's argv (flags then the link) declares — the
-        one parser the raw-argv scripts (`verify_links`, `eval_links`) share, so
-        the oracle and the eval view never diverge from a hand-copied flag read.
-        The CLI fills the same value from its own argparse instead."""
-        reading = (
-            argv[argv.index("--reading") + 1]
-            if "--reading" in argv
-            else _CLASSIC_READING
-        )
-        return cls(
-            schrodinger="--schrodinger" in argv,
-            reading=reading,
-            doubler="--doubler" in argv,
-        )
-
-
-@dataclass(frozen=True)
 class _CellDecode:
     """The working-state directives one cell decodes to — the return of
     `_decode_cell`, which hands a cell's directives back as one value. A cell
-    touches only a few of the five channels: a plain
-    `given`, a `placement`, a `candidate` set, a Schrödinger `s_directive`
-    (optionally with a stray-marks candidate beside it), or — under the doubler
-    variant — a `modifier_directive` riding alongside its digit directive. All
-    empty is a cell that carries nothing gridfind represents.
+    touches only a few of the four channels: a plain
+    `given`, a `placement`, a `candidate` set, or a Schrödinger `s_directive`
+    (optionally with a stray-marks candidate beside it). All empty is a cell
+    that carries nothing gridfind represents. (A doubler's `modifier_directive`
+    rides on its marker cage, not the cell, so it is decoded there, not here.)
 
-    The five tuples mirror the five directive channels the decoder fills, so
+    The four tuples mirror the directive channels the decoder fills, so
     `concat` folds a board's worth of per-cell decodes into the lists
     `Puzzle`/`WorkingState` read."""
 
@@ -234,7 +188,6 @@ class _CellDecode:
     places: tuple[Placement, ...] = ()
     candidates: tuple[Candidate, ...] = ()
     s_directives: tuple[SDirective, ...] = ()
-    modifier_directives: tuple[ModifierDirective, ...] = ()
 
     @classmethod
     def concat(cls, decodes: Iterable[_CellDecode]) -> _CellDecode:
@@ -246,16 +199,7 @@ class _CellDecode:
             places=tuple(p for c in decodes for p in c.places),
             candidates=tuple(x for c in decodes for x in c.candidates),
             s_directives=tuple(s for c in decodes for s in c.s_directives),
-            modifier_directives=tuple(
-                m for c in decodes for m in c.modifier_directives
-            ),
         )
-
-
-# The plain-link default, hoisted to a module singleton so `decode_link`'s
-# signature reads a name rather than calling the constructor in its defaults
-# (ruff B008). Safe to share: `LinkVariant` is frozen.
-_DEFAULT_VARIANT = LinkVariant()
 
 
 def decode_document(link: str) -> dict[str, object]:
@@ -275,7 +219,6 @@ def decode_document(link: str) -> dict[str, object]:
 
 def decode_link(
     link: str,
-    variant: LinkVariant = _DEFAULT_VARIANT,
     *,
     ignore_unknown_named_cages: bool = False,
 ) -> tuple[Puzzle, WorkingState]:
@@ -283,9 +226,10 @@ def decode_link(
     `Puzzle` + `WorkingState`, sizing the board and domain from the link
     itself. Raises `ValueError` on a link gridfind can't answer.
 
-    `variant` **declares** the SudokuMaker variant — it is never inferred from
-    the link, and its `LinkVariant` value has already enforced its own
-    invariants (Schrödinger xor doubler, a legal reading).
+    Doublers and S-cells are **inferred from the link's named marker cages**,
+    never declared out of band — a `type 2001` cosmetic-cage block whose
+    top-level `name` reads as a marker stands up its variant on its own, and a
+    single link may carry both a `Doubler` and an `S-cell` block at once.
 
     A `type 2001` cosmetic-cage block whose top-level `name` names a
     recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
@@ -293,45 +237,29 @@ def decode_link(
     raises `ValueError` unless `ignore_unknown_named_cages` downgrades that
     refusal to strip-and-honor (spec #324).
 
-    A `schrodinger` variant reads the link's `minDigit` into `Board.values`
-    under the classic reading (`k = 1` extra digit:
-    `range(minDigit, minDigit + size + 1)`), relaxes the classic-only guard,
-    synthesizes a bare `{type: schrodinger}` constraint, and decodes each cell's
-    red bit + center marks into a Schrödinger working-state directive instead of
-    a plain placement/candidate.
-
-    A `doubler` variant reads a red cell (`colors` bit 2 — the same bit an
-    S-cell uses) as a declared doubler: its address rides out as a
-    `ModifierDirective` pinning `is_modifier`, and a bare `{type: doubler}`
-    constraint stands the modifier layer up. The red bit is orthogonal to the
-    cell's digit — unlike an S-cell, a doubler holds one digit worth twice its
-    value, so a red cell's given or placement still lands.
-
-    Independently of `variant`, a `type 2001` cosmetic-cage block named
-    `Doubler` (case-insensitive, trimmed) marks every cell it contains the
-    same way — one `ModifierDirective` per cell, no `cage`/`group-sum` for
-    that block — and is enough on its own to stand up the `doubler`
-    constraint with no `--doubler` flag: doubler-ness is inferred from marker
-    presence. The `doubler` constraint is synthesized once even when a marker
-    and the legacy flag both declare it (spec #324).
+    A `type 2001` block named `Doubler` (case-insensitive, trimmed) marks every
+    cell it contains a declared doubler — one `ModifierDirective` per cell, no
+    `cage`/`group-sum` for that block — and stands up the `doubler` constraint.
+    The marker is orthogonal to the cell's digit: a doubler holds one digit
+    worth twice its value, so a given or placement on a marked cell still lands.
 
     A `type 2001` block named `S-cell`/`Schrödinger` is the analogous S-cell
     marker: each contained cell is a declared S-cell reading its own center
-    marks (pin/half/bare, exactly as the red-bit path), no `cage`/`group-sum`,
-    and a settled value on a marked cell is refused. The marker widens the
-    domain and synthesizes the `schrodinger` constraint with no `--schrodinger`
-    flag, synthesized once even when a marker and the flag coincide."""
+    marks (pin/half/bare), no `cage`/`group-sum`, and a settled value on a
+    marked cell is refused. The marker widens the domain by the classic `k = 1`
+    extra digit (`range(minDigit, minDigit + size + 1)`), relaxes the
+    classic-only guard, and synthesizes the `schrodinger` constraint."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
 
     cells = puzzle_data["cells"]
     # An S-cell marker cage infers Schrödinger-ness on its own: its presence
-    # widens the domain and synthesizes the `schrodinger` constraint with no
-    # `--schrodinger` flag, and its addresses route those cells through the
-    # S-cell branch of the per-cell decode.
+    # widens the domain and synthesizes the `schrodinger` constraint, and its
+    # addresses route those cells through the S-cell branch of the per-cell
+    # decode.
     scell_addresses = _scell_marker_addresses(puzzle_data, size)
-    is_schrodinger = variant.schrodinger or bool(scell_addresses)
+    is_schrodinger = bool(scell_addresses)
     domain = (
         _schrodinger_domain(puzzle_data, size)
         if is_schrodinger
@@ -344,7 +272,6 @@ def decode_link(
             _decode_cell(
                 cell,
                 address,
-                variant,
                 domain,
                 is_scell_marker=address in scell_addresses,
             )
@@ -368,10 +295,8 @@ def decode_link(
         constraints.extend(decoded_type.handler(puzzle_data, size))
     board = Board(size=size, values=domain)
     if is_schrodinger:
-        # One `schrodinger` even when the flag and an S-cell marker both
-        # declare it — `is_schrodinger` already folded the two sources.
         constraints.append(Constraint("schrodinger"))
-    if variant.doubler or cosmetic_cage_decode.modifier_directives:
+    if cosmetic_cage_decode.modifier_directives:
         constraints.append(Constraint("doubler"))
 
     puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=decoded.givens)
@@ -379,8 +304,7 @@ def decode_link(
         places=decoded.places,
         candidates=decoded.candidates,
         s_directives=decoded.s_directives,
-        modifier_directives=decoded.modifier_directives
-        + cosmetic_cage_decode.modifier_directives,
+        modifier_directives=cosmetic_cage_decode.modifier_directives,
     )
     return puzzle, state
 
@@ -463,16 +387,15 @@ def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
 def write_cell(
     cell: dict[str, Any], content: tuple[int, ...], *, is_modifier: bool = False
 ) -> None:
-    """Write a witness cell's content onto the SudokuMaker wire channel
-    `_decode_cell` reads it back from — the one wire-write seam, singleton and
-    S-cell through one door, so a caller holding a witness never touches the
-    cell's field shape. A length-1 content is a plain given
-    (`given: True, value: d`), read back through the classic given branch. A
-    length-2 content `(a, b)` is a Schrödinger S-cell pin, written via
-    `_write_s_cell` — the inverse of the decoder's `SCellPin` branch. An
-    `is_modifier` cell additionally carries the `_RED_BIT` in `colors`, the
-    inverse of `_decode_cell`'s doubler branch, so a solution link shows every
-    cell the solver found to be a modifier."""
+    """Write a witness cell's content onto the SudokuMaker wire — the one
+    wire-write seam, singleton and S-cell through one door, so a caller holding
+    a witness never touches the cell's field shape. A length-1 content is a
+    plain given (`given: True, value: d`). A length-2 content `(a, b)` is a
+    Schrödinger S-cell pin, written via `_write_s_cell`. An `is_modifier` cell
+    additionally carries the `_RED_BIT` in `colors`. The red bit and the S-cell
+    marks are cosmetic on the emitted solution link — gridfind reads variants
+    from named marker cages, not colors — but SudokuMaker paints them red, so a
+    human opening the link sees the S-cells and modifiers the solver found."""
     if len(content) == 1:
         cell["given"] = True
         cell["value"] = content[0]
@@ -484,11 +407,10 @@ def write_cell(
 
 
 def _write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:
-    """Write an S-cell's two-digit pin into `cell` on the wire channel
-    `_decode_schrodinger_cell` reads a `SCellPin` back from: set the `_RED_BIT`
-    in `colors` (S-cell-ness, OR-ed in so any decorative colors survive) and
-    set both digits in the `candidates` bitmask (the two center marks). The
-    inverse of that decode's pin branch."""
+    """Write an S-cell's two-digit pin into `cell`: set the `_RED_BIT` in
+    `colors` (OR-ed in so any decorative colors survive) and set both digits in
+    the `candidates` bitmask (the two center marks) — SudokuMaker's own S-cell
+    look, so a human opening the solution link sees the pinned pair."""
     cell["colors"] = cell.get("colors", 0) | _RED_BIT
     cell["candidates"] = (1 << a) | (1 << b)
 
@@ -496,80 +418,31 @@ def _write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:
 def _decode_cell(
     cell: dict[str, Any],
     address: str,
-    variant: LinkVariant,
     domain: range,
     *,
     is_scell_marker: bool = False,
 ) -> _CellDecode:
     """One cell's working-state directives — the single home for per-cell
-    decode, dispatched by `variant` and the cell's marker membership. A cell in
-    an `S-cell` marker cage (`is_scell_marker`) is a declared S-cell: its
-    center marks pick the directive (`_s_cell_from_marks`), and a settled value
-    on it is the is-S-vs-settled contradiction, refused — this path wins even
-    under the flag, so a marker cell decodes the same whether or not
-    `--schrodinger` also declares it. A Schrödinger variant reads the red bit
-    and center marks into an S-directive (`_decode_schrodinger_cell`). The
-    classic and doubler paths read a `given`/`placement`/`candidate` the same
-    way; a doubler cell additionally pins a discovered modifier on its red bit,
-    orthogonal to whatever digit directive the cell also carries. A cell that
-    carries nothing gridfind represents — a cosmetic color, a corner mark, `{}`
-    — decodes to an empty `_CellDecode`."""
+    decode, dispatched by the cell's marker membership. A cell in an `S-cell`
+    marker cage (`is_scell_marker`) is a declared S-cell: its center marks pick
+    the directive (`_s_cell_from_marks`), and a settled value on it is the
+    is-S-vs-settled contradiction, refused. Every other cell reads a plain
+    `given`/`placement`/`candidate`; doubler-ness rides on the marker cage, not
+    the cell, so a marked doubler cell still decodes its digit here unchanged. A
+    cell that carries nothing gridfind represents — a cosmetic color, a corner
+    mark, `{}` — decodes to an empty `_CellDecode`."""
     if is_scell_marker:
         if "value" in cell:
             msg = f"non-classic link: S-cell {address} also holds a value"
             raise ValueError(msg)
         return _s_cell_from_marks(cell, address, domain)
-    if variant.schrodinger:
-        return _decode_schrodinger_cell(cell, address, domain)
-    modifiers: tuple[ModifierDirective, ...] = ()
-    if variant.doubler and cell.get("colors", 0) & _RED_BIT:
-        modifiers = (ModifierDirective(address, is_modifier=True),)
     if "value" in cell:
         if cell.get("given"):
-            return _CellDecode(
-                givens=(Given(address, cell["value"]),), modifier_directives=modifiers
-            )
-        return _CellDecode(
-            places=(Placement(address, cell["value"]),), modifier_directives=modifiers
-        )
-    if "candidates" in cell:
-        digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
-        return _CellDecode(
-            candidates=(Candidate(address, digits),), modifier_directives=modifiers
-        )
-    return _CellDecode(modifier_directives=modifiers)
-
-
-def _decode_schrodinger_cell(
-    cell: dict[str, Any], address: str, domain: range
-) -> _CellDecode:
-    """One cell's directive under the Schrödinger variant.
-    A given stays literal (`Given`, unchanged from classic). Otherwise a red
-    cell (`colors` bit 2) carries S-cell-ness; its center-mark count picks the
-    digit axis: exactly two marks is an S-cell pin, exactly one a half S-cell,
-    zero or three-plus a bare S-cell (any marks riding along as ordinary
-    candidates). A non-red cell holding a value is a singleton pin — the
-    Schrödinger analog of a placement, carrying the extra "not an S-cell"
-    claim. A red cell holding a value is a decode-time contradiction (is-S
-    and a settled singleton can't both hold) and is refused as `ValueError`,
-    not `MalformedPuzzleError` — this is the decoder finding a link it can't
-    represent, not `verdict` finding a puzzle it can't answer (module
-    doctrine)."""
-    if cell.get("given"):
-        return _CellDecode(givens=(Given(address, cell["value"]),))
-    red = bool(cell.get("colors", 0) & _RED_BIT)
-    if "value" in cell:
-        if red:
-            msg = f"non-classic link: red cell {address} also holds a value"
-            raise ValueError(msg)
-        return _CellDecode(s_directives=(SingletonPin(address, cell["value"]),))
-    if red:
-        return _s_cell_from_marks(cell, address, domain)
+            return _CellDecode(givens=(Given(address, cell["value"]),))
+        return _CellDecode(places=(Placement(address, cell["value"]),))
     if "candidates" in cell:
         digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
         return _CellDecode(candidates=(Candidate(address, digits),))
-    # cornerPencilMarks, non-red colors, and {} carry nothing gridfind can
-    # represent — same as the classic path.
     return _CellDecode()
 
 
@@ -579,9 +452,7 @@ def _s_cell_from_marks(
     """A declared S-cell's directive chosen by its own center-mark count:
     exactly two marks pin the pair, exactly one is a half S-cell, zero or
     three-plus is a bare S-cell (any marks riding along as ordinary
-    candidates). The digit-axis reading shared by the red-bit variant path
-    (`_decode_schrodinger_cell`) and the `S-cell` marker path (`_decode_cell`),
-    so both spell an S-cell's marks the same way."""
+    candidates)."""
     marks = frozenset(d for d in domain if cell.get("candidates", 0) & (1 << d))
     if len(marks) == _SCELL_PIN_MARKS:
         return _CellDecode(s_directives=(SCellPin(address, marks),))

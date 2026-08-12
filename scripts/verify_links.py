@@ -21,7 +21,6 @@ from typing import Any, cast
 
 from gridfind.layers.board import cell_address
 from gridfind.sudokumaker import (
-    LinkVariant,
     decode_document,
     decode_link,
     encode_link,
@@ -55,13 +54,13 @@ def fill_witness(
 
 
 def verify_link(argv: Sequence[str]) -> str:
-    """One case file's argv (flags then the link, matching `links_test.py`'s
-    loader) reduced to the emitter's report: a found link's solution-link, or
-    `broke` when the verdict is anything else — a link corpus is curated
-    found/broke by filename, so an off-corpus `unknown` reports the same as
-    `broke` rather than implying a witness that was never computed."""
+    """One case file's argv (the link is the last token, matching
+    `links_test.py`'s loader) reduced to the emitter's report: a found link's
+    solution-link, or `broke` when the verdict is anything else — a link corpus
+    is curated found/broke by filename, so an off-corpus `unknown` reports the
+    same as `broke` rather than implying a witness that was never computed."""
     link = argv[-1]
-    puzzle, state = decode_link(link, LinkVariant.from_argv(argv))
+    puzzle, state = decode_link(link)
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
         return "broke"

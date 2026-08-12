@@ -30,7 +30,6 @@ from lzstring import LZString
 from gridfind import cli
 from gridfind.sudokumaker import (
     DECODER_REGISTRY,
-    LinkVariant,
     decode_link,
     has_live_data,
 )
@@ -71,7 +70,7 @@ def test_link_case_matches_its_filename_verdict(
     if expected_kind == "found":
         assert code == 0
         link = argv[-1]
-        puzzle, _ = decode_link(link, LinkVariant.from_argv(argv))
+        puzzle, _ = decode_link(link)
         assert validate_witness("\n".join(lines[1:]), puzzle)
     else:
         assert code == 1
@@ -85,8 +84,9 @@ _NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
 
 # The link-reachable variants that don't map one-to-one onto a DECODER_REGISTRY
 # wire type: classic and jigsaw both ride wire type 1 (told apart by their
-# decoded regions shape), and Schrödinger and doubler each arrive by their own
-# flag (`--schrodinger`, `--doubler`), never a wire type (ADR-0007/0008).
+# decoded regions shape), and Schrödinger and doubler each arrive by a named
+# marker cage that synthesizes their constraint, never a wire type of their
+# own (ADR-0007/0008).
 _EXPLICIT_VARIANTS = ("classic", "jigsaw", "schrodinger", "doubler")
 
 
@@ -120,24 +120,24 @@ def _active_wire_types(link: str) -> set[int]:
 
 def _variant_tags(argv: list[str]) -> set[int | str]:
     """Every link-reachable variant one case file exercises: the explicit
-    classic/jigsaw/schrodinger bucket, plus any DECODER_REGISTRY wire type
-    whose payload carries a live rule. Schrödinger is declared by the
-    `--schrodinger` flag, never inferred; classic vs jigsaw is told apart by
-    whether the decoded regions-distinct constraint carries a custom
-    `regions` matrix."""
+    classic/jigsaw/schrodinger/doubler bucket, plus any DECODER_REGISTRY wire
+    type whose payload carries a live rule. Schrödinger and doubler are
+    inferred from the decoded puzzle's synthesized constraints (a marker cage
+    stands them up); classic vs jigsaw is told apart by whether the decoded
+    regions-distinct constraint carries a custom `regions` matrix."""
     link = argv[-1]
-    schrodinger = "--schrodinger" in argv
-    doubler = "--doubler" in argv
+    puzzle, _ = decode_link(link)
+    constraint_types = {c.type for c in puzzle.constraints}
+    schrodinger = "schrodinger" in constraint_types
+    doubler = "doubler" in constraint_types
     tags: set[int | str] = set()
     if schrodinger:
         tags.add("schrodinger")
     if doubler:
         tags.add("doubler")
-    # classic vs jigsaw is a flag-free link's own identity; a Schrödinger or
-    # doubler case declares its variant by flag and doesn't double as classic
-    # coverage.
+    # classic vs jigsaw is a plain link's own identity; a Schrödinger or doubler
+    # case carries its variant marker and doesn't double as classic coverage.
     if not schrodinger and not doubler:
-        puzzle, _ = decode_link(link)
         jigsaw = any(
             c.type == "regions-distinct" and "regions" in c.params
             for c in puzzle.constraints
