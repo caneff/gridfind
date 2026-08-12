@@ -29,16 +29,14 @@ dispatch, the
 dropped-constraint warning path, and `has_live_data`'s active/inert check all
 read that one table instead of each restating "type N is decoded" by hand.
 
-The `schrodinger`/`reading` keywords declare a
-SudokuMaker-Schrödinger link explicitly rather than sniffing one: they relax
-the `minDigit` guard to read the widened domain, decode each cell's red
-`colors` bit and center marks into a Schrödinger working-state directive
-(CONTEXT.md `schrodinger` layer). An `S-cell`/`Schrödinger`-named cosmetic
-cage infers the same Schrödinger reading with no keyword — declaring its cells
-S-cells, widening the domain, and synthesizing the constraint from marker
-presence alone. Every link — Schrödinger or not — ignores
-the unmodeled constraint types and `disabled` blocks a real link carries,
-warning to stderr only when a dropped one carried live data.
+Declared variants are inferred from named cosmetic cages, never sniffed from a
+color or declared out of band. An `S-cell`/`Schrödinger`-named cage relaxes the
+`minDigit` guard to read the widened domain, declares its cells S-cells, and
+synthesizes the `schrodinger` constraint from marker presence alone (CONTEXT.md
+`schrodinger` layer); a `Doubler`-named cage marks its cells modifiers and
+stands up the `doubler` constraint the same way. Every link — Schrödinger or
+not — ignores the unmodeled constraint types and `disabled` blocks a real link
+carries, warning to stderr only when a dropped one carried live data.
 
 Deliberately kept as `ValueError`, not folded into `MalformedPuzzleError`:
 every rejection here fires before a `Puzzle` exists at all — it
@@ -805,7 +803,7 @@ def _scell_marker_addresses(
     block named `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`) — the set the
     per-cell decode reads to route a cell through the S-cell branch, and whose
     non-emptiness infers Schrödinger-ness (domain widening + a synthesized
-    `schrodinger` constraint) with no `--schrodinger` flag. A `disabled` block
+    `schrodinger` constraint) from marker presence alone. A `disabled` block
     contributes nothing, exactly as its cage rule would not."""
     return frozenset(
         address

@@ -8,13 +8,11 @@ logic lives in `main(argv, stdin) -> int` so tests drive it with an argv
 and a stdin and read back stdout and the exit code;
 `console_main` only wires `sys` for the `[project.scripts]` entry point.
 
-`--schrodinger` and `--reading` declare a SudokuMaker link as a
-Schrödinger puzzle and name its S-cell reading, and `--doubler` declares it a
-doubler puzzle (a red cell marks a declared doubler); all thread straight
-through to `decode_link`. `--ignore-unknown-named-cages` downgrades an
-unrecognized named cosmetic cage from a refusal to strip-and-honor. All are
-meaningless for a `{puzzle, working_state}` document and simply carried
-unused in that branch.
+Variants (doubler, Schrödinger) are inferred from the link's named marker
+cages, so the CLI takes no variant flag. `--ignore-unknown-named-cages`
+downgrades an unrecognized named cosmetic cage from a refusal to
+strip-and-honor; it is meaningless for a `{puzzle, working_state}` document
+and simply carried unused in that branch.
 
 Example:
     $ gridfind puzzle.json      # or:  gridfind < puzzle.json
