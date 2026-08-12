@@ -33,3 +33,6 @@ __marimo__/
 
 # node
 node_modules/
+
+# eval-links personal approval log (scripts/eval_links.py)
+scripts/.eval-approved.json
