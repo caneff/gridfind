@@ -3,12 +3,13 @@
 answers "does the emitter agree with the front door", this one lays the raw
 material out for a person to check the verdict by eye.
 
-It serves a small localhost page: one card per link with the puzzle link (open
-it to see the clues), the solution link (a `found` case's witness filled back
-in — open it to see the answer), and an Approve button. Approving records the
-stem in a gitignored log (`.eval-approved.json`), so later runs show only the
-links not yet approved (`--all` shows every one). The board is solved once per
-shown link, so re-runs get cheaper as the log grows.
+It serves a small localhost page as a slideshow — one link at a time, the
+puzzle and its solution side by side in iframes (a `broke` case has no solution,
+so that pane says so). Approve or Flag records the verdict and advances to the
+next slide; a note field feeds the flag. Approving records the stem in a
+gitignored log (`.eval-approved.json`), so later runs show only the links not
+yet approved (`--all` shows every one). The board is solved once per shown link,
+so re-runs get cheaper as the log grows.
 
     uv run python scripts/eval_links.py        # then open the printed URL
 """
@@ -21,7 +22,7 @@ import html
 import json
 import threading
 import webbrowser
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import NamedTuple
@@ -36,7 +37,8 @@ from gridfind.verdict import verdict
 APPROVED_PATH = Path(__file__).parent / ".eval-approved.json"
 
 # The durable flag log: {stem, comment} notes a reviewer jotted while looking.
-# Gitignored alongside the approval log; flags accumulate and never hide a card.
+# Gitignored alongside the approval log; flags accumulate across runs (a flagged
+# link returns next run, unlike an approved one).
 FLAGGED_PATH = Path(__file__).parent / ".eval-flagged.json"
 
 # Where flags land once a wayfinder map is made from them, stamped with the map's
@@ -76,14 +78,6 @@ def record_flag(path: Path, stem: str, comment: str) -> None:
     flagged = load_flags(path)
     flagged.append({"stem": stem, "comment": comment})
     path.write_text(json.dumps({"flagged": flagged}, indent=2) + "\n")
-
-
-def flag_counts(flags: Sequence[dict[str, str]]) -> dict[str, int]:
-    """How many flags each stem carries, from a flag log."""
-    counts: dict[str, int] = {}
-    for flag in flags:
-        counts[flag["stem"]] = counts.get(flag["stem"], 0) + 1
-    return counts
 
 
 def load_archive(path: Path) -> list[dict[str, str | int]]:
@@ -159,31 +153,68 @@ _PAGE = """<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>gridfind link eval</title>
 <style>
-  body {{ font: 15px/1.5 system-ui, sans-serif; max-width: 46rem; margin: 2rem auto;
+  body {{ font: 15px/1.5 system-ui, sans-serif; max-width: 80rem; margin: 1.5rem auto;
          padding: 0 1rem; color: #1a1a1a; }}
-  h1 {{ font-size: 1.3rem; }}
-  .card {{ border: 1px solid #ccc; border-radius: 8px; padding: 1rem 1.2rem;
-          margin: 1rem 0; }}
-  .card h2 {{ font-size: 1.05rem; margin: 0 0 .6rem; }}
+  h1 {{ font-size: 1.2rem; }}
+  .slide {{ display: none; }}
+  .slide.active {{ display: block; }}
+  .slide h2 {{ font-size: 1.05rem; margin: 0 0 .6rem; }}
   .verdict {{ font-size: .8rem; padding: .1rem .5rem; border-radius: 999px;
              color: #fff; margin-left: .4rem; }}
   .found {{ background: #2e7d32; }}
   .broke {{ background: #b71c1c; }}
-  a {{ display: inline-block; margin-right: 1rem; }}
+  .panes {{ display: flex; gap: 1rem; }}
+  .pane {{ flex: 1; min-width: 0; height: 78vh; border: 1px solid #ccc;
+          border-radius: 6px; }}
+  .pane.empty {{ display: flex; align-items: center; justify-content: center;
+                color: #777; background: #fafafa; }}
+  @media (max-width: 60rem) {{ .panes {{ flex-direction: column; }}
+                              .pane {{ height: 60vh; }} }}
   button {{ margin-top: .8rem; margin-right: .5rem; padding: .35rem 1rem; border: 0;
            border-radius: 6px; background: #1565c0; color: #fff; cursor: pointer;
            font-size: .9rem; }}
   button.flag {{ background: #ef6c00; }}
   button:disabled {{ background: #999; cursor: default; }}
-  .badge {{ font-size: .75rem; color: #555; margin-left: .6rem; }}
   textarea {{ display: block; width: 100%; margin-top: .6rem; min-height: 2.4rem;
              font: inherit; box-sizing: border-box; }}
 </style></head>
 <body>
-<h1>gridfind link eval &mdash; <span id="count">{count}</span> to check</h1>
-<button onclick="finish()">Finish</button>
+<h1>gridfind link eval &mdash;
+  <span id="pos">1</span> of <span id="total">{count}</span>
+  <button onclick="finish()">Finish</button></h1>
 {body}
+<section id="done" hidden>
+  <h2>All reviewed &mdash; nice work.</h2>
+  <button onclick="finish()">Close</button>
+</section>
 <script>
+const total = {count};
+let current = 0;
+
+function slide(i) {{ return document.querySelector('[data-slide="' + i + '"]'); }}
+
+function mount(i) {{
+  const s = slide(i);
+  if (!s) return;
+  s.querySelectorAll("iframe.pane").forEach(f => {{ f.src = f.dataset.src; }});
+}}
+function unmount(i) {{
+  const s = slide(i);
+  if (!s) return;
+  s.querySelectorAll("iframe.pane").forEach(f => {{ f.removeAttribute("src"); }});
+}}
+
+function advance() {{
+  const shown = slide(current);
+  if (shown) shown.classList.remove("active");
+  unmount(current);
+  current++;
+  if (current >= total) {{ document.getElementById("done").hidden = false; return; }}
+  document.getElementById("pos").textContent = current + 1;
+  slide(current).classList.add("active");
+  mount(current);
+}}
+
 async function finish() {{
   await fetch("/finish", {{ method: "POST" }});
   document.body.innerHTML = "<h1>eval closed &mdash; you can close this tab</h1>";
@@ -191,11 +222,7 @@ async function finish() {{
 async function approve(btn, stem) {{
   btn.disabled = true;
   const r = await fetch("/approve", {{ method: "POST", body: stem }});
-  if (r.ok) {{
-    document.getElementById("card-" + stem).remove();
-    document.getElementById("count").textContent =
-      document.querySelectorAll(".card").length;
-  }} else {{ btn.disabled = false; btn.textContent = "retry"; }}
+  if (r.ok) {{ advance(); }} else {{ btn.disabled = false; btn.textContent = "retry"; }}
 }}
 async function flag(btn, stem) {{
   const note = document.getElementById("note-" + stem);
@@ -203,51 +230,56 @@ async function flag(btn, stem) {{
   const r = await fetch("/flag", {{
     method: "POST", body: JSON.stringify({{ stem: stem, comment: note.value }})
   }});
-  if (r.ok) {{
-    document.getElementById("card-" + stem).remove();
-    document.getElementById("count").textContent =
-      document.querySelectorAll(".card").length;
-  }} else {{ btn.disabled = false; btn.textContent = "retry"; }}
+  if (r.ok) {{ advance(); }} else {{ btn.disabled = false; btn.textContent = "retry"; }}
 }}
+
+if (total === 0) {{
+  document.getElementById("pos").textContent = "0";  // "0 of 0", not "1 of 0"
+  document.getElementById("done").hidden = false;
+}} else mount(0);
 </script>
 </body></html>
 """
 
 
-def _card(stem: str, view: LinkView, flags: int) -> str:
-    """One link's card: its stem and verdict, the puzzle link, the solution
-    link (found cases only), a comment field and Flag button carrying the stem
-    (with a badge of the flags it already carries), and an Approve button."""
-    puzzle = html.escape(view.puzzle_link, quote=True)
-    links = [f'<a href="{puzzle}" target="_blank" rel="noopener">Puzzle</a>']
-    if view.solution_link is not None:
-        answer = html.escape(view.solution_link, quote=True)
-        links.append(f'<a href="{answer}" target="_blank" rel="noopener">Solution</a>')
+def _pane(view: LinkView) -> str:
+    """The right pane of a slide: the solution in an iframe for a `found` case,
+    or a labelled empty pane when there is no solution to show."""
+    if view.solution_link is None:
+        return '<div class="pane empty">no solution — broke case</div>'
+    answer = html.escape(view.solution_link, quote=True)
+    return f'<iframe class="pane" data-src="{answer}"></iframe>'
+
+
+def _slide(index: int, stem: str, view: LinkView) -> str:
+    """One link as a slide: its stem and verdict, the puzzle and solution side
+    by side as lazily-mounted iframes (the puzzle link rides in `data-src` so a
+    hidden slide never boots the app), a note field, and Approve/Flag controls.
+    Only the first slide (`index == 0`) is active; the rest wait their turn."""
     safe = html.escape(stem, quote=True)
     js_stem = html.escape(json.dumps(stem), quote=True)
+    puzzle = html.escape(view.puzzle_link, quote=True)
+    active = " active" if index == 0 else ""
     return (
-        f'<article class="card" id="card-{safe}">'
-        f'<h2>{safe}<span class="verdict {view.kind}">{view.kind}</span>'
-        f'<span class="badge" id="badge-{safe}">{flags} flagged</span></h2>'
-        f"{''.join(links)}<br>"
+        f'<section class="slide{active}" data-slide="{index}">'
+        f'<h2>{safe}<span class="verdict {view.kind}">{view.kind}</span></h2>'
+        f'<div class="panes">'
+        f'<iframe class="pane" data-src="{puzzle}"></iframe>'
+        f"{_pane(view)}"
+        f"</div>"
         f'<textarea id="note-{safe}" placeholder="note about this link"></textarea>'
-        f"<br>"
         f'<button onclick="approve(this, {js_stem})">Approve</button>'
         f'<button class="flag" onclick="flag(this, {js_stem})">Flag</button>'
-        f"</article>"
+        f"</section>"
     )
 
 
-def render_page(
-    cards: Sequence[tuple[str, LinkView]],
-    counts: Mapping[str, int] | None = None,
-) -> str:
-    """The full approval page: one card per (stem, view), each showing its
-    current flag count (from `counts`, keyed by stem), or a done message when
-    nothing is pending."""
-    counts = counts or {}
-    body = "\n".join(_card(stem, view, counts.get(stem, 0)) for stem, view in cards)
-    return _PAGE.format(count=len(cards), body=body or "<p>Nothing to check.</p>")
+def render_page(cards: Sequence[tuple[str, LinkView]]) -> str:
+    """The full eval page: one slide per (stem, view), shown one at a time.
+    Acting on a slide advances to the next; when none are left, the end-state
+    takes over. An empty corpus renders straight to that end-state."""
+    body = "\n".join(_slide(i, stem, view) for i, (stem, view) in enumerate(cards))
+    return _PAGE.format(count=len(cards), body=body)
 
 
 class _ApprovalHandler(BaseHTTPRequestHandler):
@@ -339,7 +371,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     shown = pending_stems(list(by_stem), approved, show_all=args.all)
     cards = [(stem, eval_link(by_stem[stem].read_text().split())) for stem in shown]
 
-    _ApprovalHandler.page = render_page(cards, flag_counts(load_flags(FLAGGED_PATH)))
+    _ApprovalHandler.page = render_page(cards)
     _ApprovalHandler.known = frozenset(by_stem)
     _ApprovalHandler.approvals = APPROVED_PATH
     _ApprovalHandler.flags = FLAGGED_PATH
