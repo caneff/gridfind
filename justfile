@@ -47,3 +47,10 @@ e2e:
 # CP-SAT-slow, kept out of `just check` and `just e2e`.
 verify-links:
     uv run python scripts/verify_links.py
+
+# On-demand human-eval view (spec #244): for every link under
+# src/gridfind/links/, prints the verdict, the puzzle link, and — for a found
+# link — the witness grid and an openable solution-link, so a person can
+# verify the witness by eye. CP-SAT-slow, kept out of `just check`.
+eval-links:
+    uv run python scripts/eval_links.py
