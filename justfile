@@ -48,9 +48,9 @@ e2e:
 verify-links:
     uv run python scripts/verify_links.py
 
-# On-demand human-eval view (spec #244): for every link under
-# src/gridfind/links/, prints the verdict, the puzzle link, and — for a found
-# link — the witness grid and an openable solution-link, so a person can
-# verify the witness by eye. CP-SAT-slow, kept out of `just check`.
-eval-links:
-    uv run python scripts/eval_links.py
+# On-demand human-eval tool (spec #244): serves a localhost page with, per
+# link, the puzzle link, an openable solution-link (found), and an Approve
+# button. Approvals persist in a gitignored log so re-runs show only what's
+# left; `--all` shows every link. CP-SAT-slow, kept out of `just check`.
+eval-links *ARGS:
+    uv run python scripts/eval_links.py {{ARGS}}

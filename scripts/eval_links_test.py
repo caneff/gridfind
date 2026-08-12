@@ -10,7 +10,16 @@ touching the real `links/` corpus.
 
 from __future__ import annotations
 
-from eval_links import eval_link
+from pathlib import Path
+
+from eval_links import (
+    LinkView,
+    eval_link,
+    load_approved,
+    pending_stems,
+    record_approval,
+    render_page,
+)
 
 from gridfind.sudokumaker import encode_link
 
@@ -60,3 +69,73 @@ def test_eval_link_shows_only_the_puzzle_for_a_broke_case() -> None:
     assert view.puzzle_link == link
     assert view.witness_grid is None
     assert view.solution_link is None
+
+
+def test_load_approved_on_a_missing_file_is_empty(tmp_path: Path) -> None:
+    assert load_approved(tmp_path / "nope.json") == set()
+
+
+def test_record_approval_round_trips(tmp_path: Path) -> None:
+    store = tmp_path / "approved.json"
+
+    record_approval(store, "found-cage-4x4")
+
+    assert load_approved(store) == {"found-cage-4x4"}
+
+
+def test_record_approval_is_idempotent(tmp_path: Path) -> None:
+    store = tmp_path / "approved.json"
+
+    record_approval(store, "found-cage-4x4")
+    record_approval(store, "found-cage-4x4")
+    record_approval(store, "broke-xv-4x4")
+
+    assert load_approved(store) == {"found-cage-4x4", "broke-xv-4x4"}
+
+
+def test_pending_stems_hides_approved_by_default() -> None:
+    stems = ["a", "b", "c"]
+
+    pending = pending_stems(stems, approved={"b"}, show_all=False)
+
+    assert pending == ["a", "c"]  # order preserved, b dropped
+
+
+def test_pending_stems_show_all_keeps_everything() -> None:
+    stems = ["a", "b", "c"]
+
+    pending = pending_stems(stems, approved={"b"}, show_all=True)
+
+    assert pending == ["a", "b", "c"]
+
+
+def test_render_page_shows_both_links_and_an_approve_control_for_a_found_card() -> None:
+    view = LinkView(
+        kind="found",
+        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
+        witness_grid="grid",
+        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
+    )
+
+    html = render_page([("found-cage-4x4", view)])
+
+    assert 'href="https://sudokumaker.app/?puzzle=PUZZLE"' in html
+    assert 'href="https://sudokumaker.app/?puzzle=SOLUTION"' in html
+    assert "found-cage-4x4" in html
+    assert "<button" in html
+
+
+def test_render_page_omits_the_solution_link_for_a_broke_card() -> None:
+    view = LinkView(
+        kind="broke",
+        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
+        witness_grid=None,
+        solution_link=None,
+    )
+
+    html = render_page([("broke-xv-4x4", view)])
+
+    assert 'href="https://sudokumaker.app/?puzzle=PUZZLE"' in html
+    assert "broke-xv-4x4" in html
+    assert "<button" in html  # still approvable
+    assert "solution" not in html.lower()
