@@ -32,8 +32,11 @@ next. You cluster and draft; the reviewer approves before anything is filed.
    - `## Destination` — where this line of investigation is headed: the question
      the map exists to answer.
    - `## Notes` — the findings, each carrying its receipts: source stem(s),
-     verdict, comment(s), and link. A finding the flags do not resolve is written
-     as an explicit open question — never a fabricated conclusion.
+     verdict, and comment(s). Name the stem; do not paste the link — it already
+     lives in `src/gridfind/links/<stem>.txt`, and repeating it in the issue just
+     duplicates a long blob a reader can `cat`. A finding the flags do not
+     resolve is written as an explicit open question — never a fabricated
+     conclusion.
 
 5. **Show the draft.** Present each drafted map in full, and file it only after
    the reviewer approves it.
