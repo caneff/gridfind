@@ -147,9 +147,14 @@ _COSMETIC_CAGE_TYPE = 2001
 # A cosmetic-cage block's top-level `name` (§4c, spec #324): case-insensitive,
 # trimmed, these labels mark a real killer cage decorated with a display name
 # rather than a position marker — the name is discarded, the cage decodes as
-# ordinary. Doubler/S-cell marker names join this table in a later ticket
-# (spec #324 tickets 2/3); until then any other name is unrecognized.
+# ordinary. S-cell marker names join this table in a later ticket (spec #324
+# ticket 3); until then any other name is unrecognized.
 _NAMED_KILLER_CAGE_LABELS = frozenset({"sum", "killer"})
+
+# A cosmetic-cage block's top-level `name` (§4c, spec #324) that marks every
+# cell it contains as a declared doubler — a position marker, not a killer
+# cage.
+_DOUBLER_MARKER_LABELS = frozenset({"doubler"})
 
 # type 300 is a thermometer block: `slow: bool,
 # thermometers: [[cell indices, ordered, bulb first], …]`. Each path becomes
@@ -292,7 +297,15 @@ def decode_link(
     `ModifierDirective` pinning `is_modifier`, and a bare `{type: doubler}`
     constraint stands the modifier layer up. The red bit is orthogonal to the
     cell's digit — unlike an S-cell, a doubler holds one digit worth twice its
-    value, so a red cell's given or placement still lands."""
+    value, so a red cell's given or placement still lands.
+
+    Independently of `variant`, a `type 2001` cosmetic-cage block named
+    `Doubler` (case-insensitive, trimmed) marks every cell it contains the
+    same way — one `ModifierDirective` per cell, no `cage`/`group-sum` for
+    that block — and is enough on its own to stand up the `doubler`
+    constraint with no `--doubler` flag: doubler-ness is inferred from marker
+    presence. The `doubler` constraint is synthesized once even when a marker
+    and the legacy flag both declare it (spec #324)."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
@@ -311,26 +324,22 @@ def decode_link(
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
     # The cosmetic-cage type alone takes a decode_link-scoped extra argument
-    # (the ignore flag), so it is dispatched by hand rather than through the
-    # registry's generic two-argument call.
+    # (the ignore flag) and returns modifier directives alongside its
+    # constraints, so it is dispatched by hand rather than through the
+    # registry's generic two-argument, constraints-only call.
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
+    cosmetic_cage_decode = _cosmetic_cage_constraints(
+        puzzle_data, size, ignore_unknown_named_cages=ignore_unknown_named_cages
+    )
+    constraints.extend(cosmetic_cage_decode.constraints)
     for kind, decoded_type in DECODER_REGISTRY.items():
-        if decoded_type.handler is None:
+        if kind == _COSMETIC_CAGE_TYPE or decoded_type.handler is None:
             continue
-        if kind == _COSMETIC_CAGE_TYPE:
-            constraints.extend(
-                _cosmetic_cage_constraints(
-                    puzzle_data,
-                    size,
-                    ignore_unknown_named_cages=ignore_unknown_named_cages,
-                )
-            )
-        else:
-            constraints.extend(decoded_type.handler(puzzle_data, size))
+        constraints.extend(decoded_type.handler(puzzle_data, size))
     board = Board(size=size, values=domain)
     if variant.schrodinger:
         constraints.append(Constraint("schrodinger"))
-    if variant.doubler:
+    if variant.doubler or cosmetic_cage_decode.modifier_directives:
         constraints.append(Constraint("doubler"))
 
     puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=decoded.givens)
@@ -338,7 +347,8 @@ def decode_link(
         places=decoded.places,
         candidates=decoded.candidates,
         s_directives=decoded.s_directives,
-        modifier_directives=decoded.modifier_directives,
+        modifier_directives=decoded.modifier_directives
+        + cosmetic_cage_decode.modifier_directives,
     )
     return puzzle, state
 
@@ -763,24 +773,43 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
         return None
 
 
-def _check_cosmetic_cage_name(
-    block: dict[str, Any], *, ignore_unknown_named_cages: bool
-) -> None:
-    """Classify a `type 2001` block's top-level `name` (spec #324):
-    absent or blank leaves the cage unchanged (today's behavior); a name
-    matching `_NAMED_KILLER_CAGE_LABELS` (case-insensitive, trimmed) is a
-    decorative label on a genuine cage and is silently discarded; any other
-    name is a link gridfind can't answer — refusing rather than computing a
-    verdict under a guessed ruleset — unless `ignore_unknown_named_cages`
-    downgrades the refusal to strip-and-honor as an ordinary killer cage."""
-    name = block.get("name")
+def _cosmetic_cage_name_kind(name: object) -> str:
+    """Classify a `type 2001` block's top-level `name` (spec #324) into one of
+    three kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
+    label on a genuine cage — `_NAMED_KILLER_CAGE_LABELS`), `"doubler"` (a
+    `Doubler` position marker — `_DOUBLER_MARKER_LABELS`), or
+    `"unrecognized"` (a name `decode_link` cannot answer for). Matching is
+    case-insensitive and trimmed."""
     if not isinstance(name, str) or not name.strip():
-        return
-    if name.strip().lower() in _NAMED_KILLER_CAGE_LABELS:
-        return
-    if not ignore_unknown_named_cages:
-        msg = f"non-classic link: unrecognized named cage {name!r}"
-        raise ValueError(msg)
+        return "ordinary"
+    normalized = name.strip().lower()
+    if normalized in _NAMED_KILLER_CAGE_LABELS:
+        return "ordinary"
+    if normalized in _DOUBLER_MARKER_LABELS:
+        return "doubler"
+    return "unrecognized"
+
+
+@dataclass(frozen=True)
+class _CosmeticCageDecode:
+    """The `Constraint`s and `ModifierDirective`s one `type 2001` block
+    decodes to — an ordinary (unnamed, or `Sum`/`Killer`-labelled) block
+    contributes killer-cage constraints, a `Doubler`-marked block contributes
+    modifier directives instead, and `concat` folds a link's worth of blocks
+    into the two lists `decode_link` reads."""
+
+    constraints: tuple[Constraint, ...] = ()
+    modifier_directives: tuple[ModifierDirective, ...] = ()
+
+    @classmethod
+    def concat(cls, decodes: Iterable[_CosmeticCageDecode]) -> _CosmeticCageDecode:
+        decodes = list(decodes)
+        return cls(
+            constraints=tuple(c for d in decodes for c in d.constraints),
+            modifier_directives=tuple(
+                m for d in decodes for m in d.modifier_directives
+            ),
+        )
 
 
 def _cosmetic_cage_constraints(
@@ -788,31 +817,44 @@ def _cosmetic_cage_constraints(
     size: int,
     *,
     ignore_unknown_named_cages: bool = False,
-) -> list[Constraint]:
-    """The `type 2001` cosmetic cages graduated to killer-cage `Constraint`s
-    (ADR-0008): cells and value nest under `cages`, the same wire shape as a
-    `type 301` block, so each cage's raw `cells` indices map row-major to
-    addresses. Every non-disabled cage emits a no-repeats `cage`; a numeric
-    non-zero string `value` additionally decodes a `group-sum` carrying that
-    total over the same cells (spec #240). A non-numeric, empty, or `"0"`
-    `value` carries no sum, so the cage stands alone — the same shape a sumless
-    `type 301` decodes to. A `disabled` block is skipped entirely; an empty
-    `cages` list adds nothing.
-
-    A block's top-level `name` is classified first
-    (`_check_cosmetic_cage_name`) before its cages decode — an unrecognized
-    name refuses the whole block rather than decoding some cages under an
-    unsound reading."""
-    decoded: list[Constraint] = []
+) -> _CosmeticCageDecode:
+    """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
+    (`_cosmetic_cage_name_kind`, spec #324): an ordinary block graduates to
+    killer-cage `Constraint`s (ADR-0008) exactly as before — cells and value
+    nest under `cages`, the same wire shape as a `type 301` block, each cage's
+    raw `cells` indices mapping row-major to addresses, every non-disabled
+    cage emitting a no-repeats `cage` plus a `group-sum` when its numeric
+    non-zero string `value` carries a total (spec #240). A `Doubler`-marked
+    block instead emits one `ModifierDirective(is_modifier=True)` per cell it
+    contains and **no** `cage`/`group-sum` — the block's `cages` still supply
+    the cell list, just not a killer rule. An unrecognized name refuses the
+    whole block rather than decoding some cages under an unsound reading,
+    unless `ignore_unknown_named_cages` downgrades the refusal to
+    strip-and-honor as an ordinary cage. A `disabled` block is skipped
+    entirely; an empty `cages` list adds nothing."""
+    decoded: list[_CosmeticCageDecode] = []
     for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
-        _check_cosmetic_cage_name(
-            block, ignore_unknown_named_cages=ignore_unknown_named_cages
-        )
+        kind = _cosmetic_cage_name_kind(block.get("name"))
+        if kind == "unrecognized":
+            if not ignore_unknown_named_cages:
+                msg = f"non-classic link: unrecognized named cage {block['name']!r}"
+                raise ValueError(msg)
+            kind = "ordinary"
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
+        if kind == "doubler":
+            modifiers = tuple(
+                ModifierDirective(address, is_modifier=True)
+                for cage in cages
+                for address in _addresses(cage["cells"], size)
+            )
+            decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
+            continue
+        constraints: list[Constraint] = []
         for cage in cages:
             addresses = _addresses(cage["cells"], size)
-            decoded.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(cage)))
-    return decoded
+            constraints.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(cage)))
+        decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
+    return _CosmeticCageDecode.concat(decoded)
 
 
 def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
@@ -837,13 +879,15 @@ def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
 @dataclass(frozen=True)
 class DecodedType:
     """One SudokuMaker wire-type the decoder recognizes, one row wide: `handler` builds
-    this type's `Constraint`s from the link (`None`
-    for a structural type with nothing to build — a bare `type 0` is just the
-    unconditional rows/cols, and `type 1`'s regions live behind
-    `_regions_constraints` like every other handler), `live_keys` are the
-    payload keys that mark this type's wire shape as carrying a real rule
-    (read by `has_live_data`, generalized to unmodeled types too), and `name`
-    labels it in the decoder's own warnings."""
+    this type's `Constraint`s from the link (`None` for a type with nothing to
+    build through `decode_link`'s generic dispatch — a bare `type 0` is just
+    the unconditional rows/cols, and `type 2001` cosmetic cages are dispatched
+    by hand for their extra ignore-flag argument and richer
+    `_CosmeticCageDecode` return; `type 1`'s regions live behind
+    `_regions_constraints` like every other generically-dispatched handler),
+    `live_keys` are the payload keys that mark this type's wire shape as
+    carrying a real rule (read by `has_live_data`, generalized to unmodeled
+    types too), and `name` labels it in the decoder's own warnings."""
 
     handler: Callable[[dict[str, object], int], list[Constraint]] | None
     live_keys: tuple[str, ...]
@@ -875,7 +919,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=_cage_constraints, live_keys=("cages",), name="killer-cage"
     ),
     _COSMETIC_CAGE_TYPE: DecodedType(
-        handler=_cosmetic_cage_constraints, live_keys=("cages",), name="cosmetic-cage"
+        handler=None, live_keys=("cages",), name="cosmetic-cage"
     ),
     _THERMO_TYPE: DecodedType(
         handler=_thermo_constraints, live_keys=("thermometers",), name="thermo"

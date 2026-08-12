@@ -1132,6 +1132,101 @@ def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
     )
 
 
+def test_doubler_named_cage_emits_modifier_directives_and_no_cage() -> None:
+    # A `Doubler`-named cosmetic cage is a position marker, not a killer
+    # cage: every cell it contains decodes to a discovered-modifier
+    # directive, and the block emits no `cage`/`group-sum` at all (spec #324
+    # ticket 2/6).
+    payload = _constraint_link(
+        {"name": "Doubler", "type": 2001, "cages": [{"value": "", "cells": [0, 1]}]}
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+    assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+
+
+def test_doubler_marker_synthesizes_the_doubler_constraint_without_the_flag() -> None:
+    # Doubler-ness is inferred from marker presence — no `--doubler` flag
+    # required.
+    payload = _constraint_link(
+        {"name": "Doubler", "type": 2001, "cages": [{"value": "", "cells": [0]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("doubler") in puzzle.constraints
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Doubler", "doubler", "  DOUBLER  "],
+    ids=["titlecase", "lowercase", "padded-upper"],
+)
+def test_doubler_marker_name_is_case_insensitive_and_trimmed(name: str) -> None:
+    payload = _constraint_link(
+        {"name": name, "type": 2001, "cages": [{"value": "", "cells": [0]}]}
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+    assert Constraint("doubler") in puzzle.constraints
+
+
+def test_doubler_marker_cell_with_a_given_still_decodes_both() -> None:
+    # A doubler holds one digit worth twice its value — the marker and the
+    # digit are orthogonal, so a given on a marked cell still lands, exactly
+    # as the legacy red-bit path.
+    cells = list(_EMPTY_CELLS)
+    cells[0] = {"given": True, "value": 3}
+    payload = _encode(
+        {
+            "cells": cells,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {
+                    "name": "Doubler",
+                    "type": 2001,
+                    "cages": [{"value": "", "cells": [0]}],
+                },
+            ],
+        }
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert Given("R1C1", 3) in puzzle.givens
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+
+
+def test_doubler_constraint_is_not_duplicated_when_marker_and_flag_coincide() -> None:
+    # A link may carry both the legacy red-bit doubler and a Doubler marker
+    # block at once; the synthesized `doubler` constraint must still appear
+    # exactly once.
+    cells = list(_EMPTY_CELLS)
+    cells[0] = {"colors": _RED_BIT}
+    payload = _encode(
+        {
+            "cells": cells,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {
+                    "name": "Doubler",
+                    "type": 2001,
+                    "cages": [{"value": "", "cells": [1]}],
+                },
+            ],
+        }
+    )
+
+    puzzle, _ = decode_link(payload, LinkVariant(doubler=True))
+
+    assert puzzle.constraints.count(Constraint("doubler")) == 1
+
+
 # --- type 300 thermo decode -----------------
 
 
