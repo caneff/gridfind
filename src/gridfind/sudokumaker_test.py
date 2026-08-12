@@ -26,6 +26,7 @@ from gridfind.puzzle import (
     Placement,
     Puzzle,
     SCellPin,
+    SDirective,
     SingletonPin,
     WorkingState,
 )
@@ -1225,6 +1226,144 @@ def test_doubler_constraint_is_not_duplicated_when_marker_and_flag_coincide() ->
     puzzle, _ = decode_link(payload, LinkVariant(doubler=True))
 
     assert puzzle.constraints.count(Constraint("doubler")) == 1
+
+
+# --- type 2001 S-cell marker cage (§4c) ---------
+
+
+def test_s_cell_named_cage_declares_s_cells_and_emits_no_cage() -> None:
+    # An `S-cell`-named cosmetic cage is a position marker, not a killer
+    # cage: every cell it contains decodes to an S-cell working-state
+    # directive (an empty cell has no marks, so it is a bare S-cell), and
+    # the block emits no `cage`/`group-sum` at all.
+    payload = _constraint_link(
+        {"name": "S-cell", "type": 2001, "cages": [{"value": "", "cells": [0, 1]}]}
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert BareSCell("R1C1") in state.s_directives
+    assert BareSCell("R1C2") in state.s_directives
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+
+
+@pytest.mark.parametrize(
+    ("marks", "expected_s_directive", "expected_candidate"),
+    [
+        ({2, 7}, SCellPin("R1C1", frozenset({2, 7})), None),
+        ({4}, HalfSCell("R1C1", 4), None),
+        (set(), BareSCell("R1C1"), None),
+        ({1, 2, 3}, BareSCell("R1C1"), Candidate("R1C1", frozenset({1, 2, 3}))),
+    ],
+    ids=["pin", "half", "bare", "bare-with-stray-marks"],
+)
+def test_s_cell_marker_mark_count_selects_the_directive(
+    marks: set[int],
+    expected_s_directive: SDirective,
+    expected_candidate: Candidate | None,
+) -> None:
+    # A marked cell's own center-marks pick the directive exactly as the
+    # red-bit path does: 2 marks pin, 1 half, 0/3+ bare (stray marks riding
+    # as ordinary candidates) — no `--schrodinger` flag.
+    cells = list(_EMPTY_CELLS)
+    cells[0] = {"candidates": _mask(marks)} if marks else {}
+    payload = _encode(
+        {
+            "cells": cells,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
+            ],
+        }
+    )
+
+    _, state = decode_link(payload)
+
+    assert expected_s_directive in state.s_directives
+    if expected_candidate is not None:
+        assert expected_candidate in state.candidates
+    else:
+        assert all(c.address != "R1C1" for c in state.candidates)
+
+
+def test_s_cell_marker_widens_domain_and_synthesizes_schrodinger_without_flag() -> None:
+    # Schrödinger-ness is inferred from marker presence: the domain widens by
+    # the classic `k = 1` extra digit and a bare `schrodinger` constraint
+    # stands up, no `--schrodinger` flag required.
+    payload = _constraint_link(
+        {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert puzzle.board == Board(size=9, values=range(1, 11))
+    assert Constraint("schrodinger") in puzzle.constraints
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["S-cell", "s-cell", "Schrödinger", "Schrodinger", "  SCHRODINGER  "],
+    ids=["s-cell", "lowercase", "schrodinger-umlaut", "schrodinger-ascii", "padded"],
+)
+def test_s_cell_marker_name_is_recognized_case_insensitive_and_trimmed(
+    name: str,
+) -> None:
+    # Each S-cell alias joins the recognized-name set, so it declares S-cells
+    # rather than tripping the unknown-name refusal from ticket 1.
+    payload = _constraint_link({"name": name, "type": 2001, "cages": [{"cells": [0]}]})
+
+    puzzle, state = decode_link(payload)
+
+    assert BareSCell("R1C1") in state.s_directives
+    assert Constraint("schrodinger") in puzzle.constraints
+
+
+@pytest.mark.parametrize(
+    "cell",
+    [{"value": 5}, {"given": True, "value": 5}],
+    ids=["placement", "given"],
+)
+def test_s_cell_marker_on_a_settled_value_is_refused(cell: dict[str, object]) -> None:
+    # A marked cell is declared an S-cell; a settled digit on it is the
+    # is-S-vs-settled-singleton contradiction, refused at decode.
+    cells = list(_EMPTY_CELLS)
+    cells[0] = cell
+    payload = _encode(
+        {
+            "cells": cells,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
+            ],
+        }
+    )
+
+    with pytest.raises(ValueError, match="also holds a value"):
+        decode_link(payload)
+
+
+def test_s_cell_marker_and_flag_coincide_without_duplicating() -> None:
+    # A Schrödinger link may carry both the `--schrodinger` flag and an
+    # S-cell marker cage; the domain widens once and exactly one
+    # `schrodinger` constraint is synthesized.
+    cells = list(_EMPTY_CELLS)
+    cells[0] = {"candidates": _mask({2, 7})}
+    payload = _encode(
+        {
+            "cells": cells,
+            "minDigit": 0,
+            "constraints": [
+                *_SCHRODINGER_WIRE_CONSTRAINTS,
+                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
+            ],
+        }
+    )
+
+    puzzle, state = decode_link(payload, LinkVariant(schrodinger=True))
+
+    assert puzzle.board == Board(size=9, values=range(10))
+    assert puzzle.constraints.count(Constraint("schrodinger")) == 1
+    assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
 
 
 # --- type 300 thermo decode -----------------

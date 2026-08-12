@@ -33,7 +33,10 @@ The `schrodinger`/`reading` keywords declare a
 SudokuMaker-Schrödinger link explicitly rather than sniffing one: they relax
 the `minDigit` guard to read the widened domain, decode each cell's red
 `colors` bit and center marks into a Schrödinger working-state directive
-(CONTEXT.md `schrodinger` layer). Every link — Schrödinger or not — ignores
+(CONTEXT.md `schrodinger` layer). An `S-cell`/`Schrödinger`-named cosmetic
+cage infers the same Schrödinger reading with no keyword — declaring its cells
+S-cells, widening the domain, and synthesizing the constraint from marker
+presence alone. Every link — Schrödinger or not — ignores
 the unmodeled constraint types and `disabled` blocks a real link carries,
 warning to stderr only when a dropped one carried live data.
 
@@ -147,14 +150,19 @@ _COSMETIC_CAGE_TYPE = 2001
 # A cosmetic-cage block's top-level `name` (§4c, spec #324): case-insensitive,
 # trimmed, these labels mark a real killer cage decorated with a display name
 # rather than a position marker — the name is discarded, the cage decodes as
-# ordinary. S-cell marker names join this table in a later ticket (spec #324
-# ticket 3); until then any other name is unrecognized.
+# ordinary. Any name outside the three recognized sets is unrecognized.
 _NAMED_KILLER_CAGE_LABELS = frozenset({"sum", "killer"})
 
 # A cosmetic-cage block's top-level `name` (§4c, spec #324) that marks every
 # cell it contains as a declared doubler — a position marker, not a killer
 # cage.
 _DOUBLER_MARKER_LABELS = frozenset({"doubler"})
+
+# A cosmetic-cage block's top-level `name` (§4c, spec #324) that declares every
+# cell it contains a Schrödinger S-cell — a position marker, not a killer cage.
+# Both the umlaut spelling and its ASCII fold are recognized (a link may carry
+# either), matched case-insensitively and trimmed.
+_SCELL_MARKER_LABELS = frozenset({"s-cell", "schrödinger", "schrodinger"})
 
 # type 300 is a thermometer block: `slow: bool,
 # thermometers: [[cell indices, ordered, bulb first], …]`. Each path becomes
@@ -305,21 +313,43 @@ def decode_link(
     that block — and is enough on its own to stand up the `doubler`
     constraint with no `--doubler` flag: doubler-ness is inferred from marker
     presence. The `doubler` constraint is synthesized once even when a marker
-    and the legacy flag both declare it (spec #324)."""
+    and the legacy flag both declare it (spec #324).
+
+    A `type 2001` block named `S-cell`/`Schrödinger` is the analogous S-cell
+    marker: each contained cell is a declared S-cell reading its own center
+    marks (pin/half/bare, exactly as the red-bit path), no `cage`/`group-sum`,
+    and a settled value on a marked cell is refused. The marker widens the
+    domain and synthesizes the `schrodinger` constraint with no `--schrodinger`
+    flag, synthesized once even when a marker and the flag coincide."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
 
     cells = puzzle_data["cells"]
+    # An S-cell marker cage infers Schrödinger-ness on its own: its presence
+    # widens the domain and synthesizes the `schrodinger` constraint with no
+    # `--schrodinger` flag, and its addresses route those cells through the
+    # S-cell branch of the per-cell decode.
+    scell_addresses = _scell_marker_addresses(puzzle_data, size)
+    is_schrodinger = variant.schrodinger or bool(scell_addresses)
     domain = (
         _schrodinger_domain(puzzle_data, size)
-        if variant.schrodinger
+        if is_schrodinger
         else _digit_domain(puzzle_data, size)
     )
-    decoded = _CellDecode.concat(
-        _decode_cell(cell, _address(i, size), variant, domain)
-        for i, cell in enumerate(cells)
-    )
+    per_cell: list[_CellDecode] = []
+    for i, cell in enumerate(cells):
+        address = _address(i, size)
+        per_cell.append(
+            _decode_cell(
+                cell,
+                address,
+                variant,
+                domain,
+                is_scell_marker=address in scell_addresses,
+            )
+        )
+    decoded = _CellDecode.concat(per_cell)
 
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
@@ -337,7 +367,9 @@ def decode_link(
             continue
         constraints.extend(decoded_type.handler(puzzle_data, size))
     board = Board(size=size, values=domain)
-    if variant.schrodinger:
+    if is_schrodinger:
+        # One `schrodinger` even when the flag and an S-cell marker both
+        # declare it — `is_schrodinger` already folded the two sources.
         constraints.append(Constraint("schrodinger"))
     if variant.doubler or cosmetic_cage_decode.modifier_directives:
         constraints.append(Constraint("doubler"))
@@ -462,16 +494,31 @@ def _write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:
 
 
 def _decode_cell(
-    cell: dict[str, Any], address: str, variant: LinkVariant, domain: range
+    cell: dict[str, Any],
+    address: str,
+    variant: LinkVariant,
+    domain: range,
+    *,
+    is_scell_marker: bool = False,
 ) -> _CellDecode:
     """One cell's working-state directives — the single home for per-cell
-    decode, dispatched by `variant`. A Schrödinger variant reads the red bit
+    decode, dispatched by `variant` and the cell's marker membership. A cell in
+    an `S-cell` marker cage (`is_scell_marker`) is a declared S-cell: its
+    center marks pick the directive (`_s_cell_from_marks`), and a settled value
+    on it is the is-S-vs-settled contradiction, refused — this path wins even
+    under the flag, so a marker cell decodes the same whether or not
+    `--schrodinger` also declares it. A Schrödinger variant reads the red bit
     and center marks into an S-directive (`_decode_schrodinger_cell`). The
     classic and doubler paths read a `given`/`placement`/`candidate` the same
     way; a doubler cell additionally pins a discovered modifier on its red bit,
     orthogonal to whatever digit directive the cell also carries. A cell that
     carries nothing gridfind represents — a cosmetic color, a corner mark, `{}`
     — decodes to an empty `_CellDecode`."""
+    if is_scell_marker:
+        if "value" in cell:
+            msg = f"non-classic link: S-cell {address} also holds a value"
+            raise ValueError(msg)
+        return _s_cell_from_marks(cell, address, domain)
     if variant.schrodinger:
         return _decode_schrodinger_cell(cell, address, domain)
     modifiers: tuple[ModifierDirective, ...] = ()
@@ -517,20 +564,32 @@ def _decode_schrodinger_cell(
             raise ValueError(msg)
         return _CellDecode(s_directives=(SingletonPin(address, cell["value"]),))
     if red:
-        marks = frozenset(d for d in domain if cell.get("candidates", 0) & (1 << d))
-        if len(marks) == _SCELL_PIN_MARKS:
-            return _CellDecode(s_directives=(SCellPin(address, marks),))
-        if len(marks) == 1:
-            (digit,) = marks
-            return _CellDecode(s_directives=(HalfSCell(address, digit),))
-        stray = (Candidate(address, marks),) if marks else ()
-        return _CellDecode(s_directives=(BareSCell(address),), candidates=stray)
+        return _s_cell_from_marks(cell, address, domain)
     if "candidates" in cell:
         digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
         return _CellDecode(candidates=(Candidate(address, digits),))
     # cornerPencilMarks, non-red colors, and {} carry nothing gridfind can
     # represent — same as the classic path.
     return _CellDecode()
+
+
+def _s_cell_from_marks(
+    cell: dict[str, Any], address: str, domain: range
+) -> _CellDecode:
+    """A declared S-cell's directive chosen by its own center-mark count:
+    exactly two marks pin the pair, exactly one is a half S-cell, zero or
+    three-plus is a bare S-cell (any marks riding along as ordinary
+    candidates). The digit-axis reading shared by the red-bit variant path
+    (`_decode_schrodinger_cell`) and the `S-cell` marker path (`_decode_cell`),
+    so both spell an S-cell's marks the same way."""
+    marks = frozenset(d for d in domain if cell.get("candidates", 0) & (1 << d))
+    if len(marks) == _SCELL_PIN_MARKS:
+        return _CellDecode(s_directives=(SCellPin(address, marks),))
+    if len(marks) == 1:
+        (digit,) = marks
+        return _CellDecode(s_directives=(HalfSCell(address, digit),))
+    stray = (Candidate(address, marks),) if marks else ()
+    return _CellDecode(s_directives=(BareSCell(address),), candidates=stray)
 
 
 def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
@@ -773,14 +832,15 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
         return None
 
 
-_CosmeticCageNameKind = Literal["ordinary", "doubler", "unrecognized"]
+_CosmeticCageNameKind = Literal["ordinary", "doubler", "s-cell", "unrecognized"]
 
 
 def _cosmetic_cage_name_kind(name: object) -> _CosmeticCageNameKind:
     """Classify a `type 2001` block's top-level `name` (spec #324) into one of
-    three kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
+    four kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
     label on a genuine cage — `_NAMED_KILLER_CAGE_LABELS`), `"doubler"` (a
-    `Doubler` position marker — `_DOUBLER_MARKER_LABELS`), or
+    `Doubler` position marker — `_DOUBLER_MARKER_LABELS`), `"s-cell"` (an
+    `S-cell`/`Schrödinger` position marker — `_SCELL_MARKER_LABELS`), or
     `"unrecognized"` (a name `decode_link` cannot answer for). Matching is
     case-insensitive and trimmed."""
     if not isinstance(name, str) or not name.strip():
@@ -790,6 +850,8 @@ def _cosmetic_cage_name_kind(name: object) -> _CosmeticCageNameKind:
         return "ordinary"
     if normalized in _DOUBLER_MARKER_LABELS:
         return "doubler"
+    if normalized in _SCELL_MARKER_LABELS:
+        return "s-cell"
     return "unrecognized"
 
 
@@ -830,7 +892,10 @@ def _cosmetic_cage_constraints(
     non-zero string `value` carries a total (spec #240). A `Doubler`-marked
     block instead emits one `ModifierDirective(is_modifier=True)` per cell it
     contains and **no** `cage`/`group-sum` — the block's `cages` still supply
-    the cell list, just not a killer rule. An unrecognized name refuses the
+    the cell list, just not a killer rule. An `S-cell`/`Schrödinger`-marked
+    block emits nothing here: its cells become S-cell working-state directives
+    in the per-cell decode pass (`_scell_marker_addresses` gathers them), not a
+    cage rule. An unrecognized name refuses the
     whole block rather than decoding some cages under an unsound reading,
     unless `ignore_unknown_named_cages` downgrades the refusal to
     strip-and-honor as an ordinary cage. A `disabled` block is skipped
@@ -843,6 +908,8 @@ def _cosmetic_cage_constraints(
                 msg = f"non-classic link: unrecognized named cage {block['name']!r}"
                 raise ValueError(msg)
             kind = "ordinary"
+        if kind == "s-cell":
+            continue
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         if kind == "doubler":
             modifiers = tuple(
@@ -858,6 +925,24 @@ def _cosmetic_cage_constraints(
             constraints.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(cage)))
         decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
     return _CosmeticCageDecode.concat(decoded)
+
+
+def _scell_marker_addresses(
+    puzzle_data: dict[str, object], size: int
+) -> frozenset[str]:
+    """Every cell address declared an S-cell by a `type 2001` cosmetic-cage
+    block named `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`) — the set the
+    per-cell decode reads to route a cell through the S-cell branch, and whose
+    non-emptiness infers Schrödinger-ness (domain widening + a synthesized
+    `schrodinger` constraint) with no `--schrodinger` flag. A `disabled` block
+    contributes nothing, exactly as its cage rule would not."""
+    return frozenset(
+        address
+        for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE)
+        if _cosmetic_cage_name_kind(block.get("name")) == "s-cell"
+        for cage in cast("list[dict[str, Any]]", block.get("cages", []))
+        for address in _addresses(cage["cells"], size)
+    )
 
 
 def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
