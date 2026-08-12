@@ -17,37 +17,20 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, NamedTuple, cast
+from typing import Any, cast
 
 from gridfind.layers.board import cell_address
-from gridfind.sudokumaker import decode_document, decode_link, encode_link, write_s_cell
+from gridfind.sudokumaker import (
+    LinkVariant,
+    decode_document,
+    decode_link,
+    encode_link,
+    write_s_cell,
+)
 from gridfind.verdict import verdict
 from gridfind.witness import Witness
 
 LINKS_DIR = Path(__file__).parent.parent / "src" / "gridfind" / "links"
-
-
-class Flags(NamedTuple):
-    """The variant-declaring flags a case file's argv carries into
-    `decode_link` — the shape the CLI front door threads too. Never inferred
-    from the link: a doubler/Schrödinger link is declared here or decoded as
-    plain."""
-
-    schrodinger: bool
-    reading: str
-    doubler: bool
-
-
-def decode_flags(argv: Sequence[str]) -> Flags:
-    """The `--schrodinger` / `--doubler` / `--reading` flags a case file's
-    argv (flags then the link) declares, read the same way `cli.main` parses
-    them so the oracle and the front door never diverge."""
-    reading = argv[argv.index("--reading") + 1] if "--reading" in argv else "classic"
-    return Flags(
-        schrodinger="--schrodinger" in argv,
-        reading=reading,
-        doubler="--doubler" in argv,
-    )
 
 
 def fill_witness(
@@ -82,14 +65,8 @@ def verify_link(argv: Sequence[str]) -> str:
     `broke` when the verdict is anything else — a link corpus is curated
     found/broke by filename, so an off-corpus `unknown` reports the same as
     `broke` rather than implying a witness that was never computed."""
-    flags = decode_flags(argv)
     link = argv[-1]
-    puzzle, state = decode_link(
-        link,
-        schrodinger=flags.schrodinger,
-        reading=flags.reading,
-        doubler=flags.doubler,
-    )
+    puzzle, state = decode_link(link, LinkVariant.from_argv(argv))
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
         return "broke"

@@ -24,7 +24,12 @@ from typing import Any, TextIO
 from lzstring import LZString
 
 from gridfind.engine import GridfindError
-from gridfind.sudokumaker import constraint_name, decode_link, has_live_data
+from gridfind.sudokumaker import (
+    LinkVariant,
+    constraint_name,
+    decode_link,
+    has_live_data,
+)
 from gridfind.verdict import verdict
 
 _KNOWN_TYPES = (0, 1)
@@ -77,7 +82,7 @@ def _verdict_word(link: str, *, schrodinger: bool) -> str:
     """The verdict word for a link, or `rejected (<reason>)` when the decoder
     refuses it — so one bad link reports itself instead of killing the batch."""
     try:
-        puzzle, state = decode_link(link, schrodinger=schrodinger)
+        puzzle, state = decode_link(link, LinkVariant(schrodinger=schrodinger))
     except (ValueError, GridfindError) as exc:
         return f"rejected ({exc})"
     return verdict(puzzle, state).kind

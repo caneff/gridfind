@@ -32,7 +32,7 @@ from typing import TextIO
 
 from gridfind.engine import GridfindError
 from gridfind.puzzle import Puzzle, WorkingState
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import LinkVariant, decode_link
 from gridfind.verdict import Verdict, verdict
 
 
@@ -133,9 +133,8 @@ def _verdict_of(
 ) -> Verdict:
     stripped = text.strip()
     if _is_link(stripped):
-        puzzle, state = decode_link(
-            stripped, schrodinger=schrodinger, reading=reading, doubler=doubler
-        )
+        variant = LinkVariant(schrodinger=schrodinger, reading=reading, doubler=doubler)
+        puzzle, state = decode_link(stripped, variant)
     else:
         doc = json.loads(stripped)
         puzzle = Puzzle.from_dict(doc["puzzle"])

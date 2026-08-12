@@ -20,7 +20,7 @@ from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.layers.board import cell_address
 from gridfind.puzzle import Given, SCellPin, WorkingState
-from gridfind.sudokumaker import decode_link, encode_link
+from gridfind.sudokumaker import LinkVariant, decode_link, encode_link
 from gridfind.witness import Witness
 
 _WIRE_CONSTRAINTS = [{"type": 0}]
@@ -107,7 +107,7 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
     filled = fill_witness(document, witness, size)
 
     url = encode_link(filled)
-    puzzle, state = decode_link(url, schrodinger=True)
+    puzzle, state = decode_link(url, LinkVariant(schrodinger=True))
 
     assert SCellPin(s_cell_address, frozenset({a, b})) in state.s_directives
     assert set(puzzle.givens) == {

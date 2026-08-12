@@ -31,6 +31,7 @@ from gridfind.puzzle import (
 )
 from gridfind.sudokumaker import (
     _RED_BIT,
+    LinkVariant,
     _edge_to_pair,
     decode_document,
     decode_link,
@@ -137,7 +138,7 @@ def test_write_s_cell_round_trips_a_schrodinger_pin() -> None:
     cells[0] = cell
     payload = _schrodinger_link(cells)
 
-    _, state = decode_link(payload, schrodinger=True)
+    _, state = decode_link(payload, LinkVariant(schrodinger=True))
 
     assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
 
@@ -485,7 +486,7 @@ def _schrodinger_link(cells: list[dict[str, object]], *, min_digit: int = 0) -> 
 def test_schrodinger_link_reads_domain_and_synthesizes_constraint() -> None:
     payload = _schrodinger_link(_EMPTY_CELLS, min_digit=0)
 
-    puzzle, _ = decode_link(payload, schrodinger=True, reading="classic")
+    puzzle, _ = decode_link(payload, LinkVariant(schrodinger=True, reading="classic"))
 
     assert puzzle.board == Board(size=9, values=range(10))
     assert Constraint("schrodinger") in puzzle.constraints
@@ -497,7 +498,7 @@ def test_schrodinger_link_ignores_cosmetic_and_disabled_constraints() -> None:
     # regions matrix — both ignored under --schrodinger.
     payload = _schrodinger_link(_EMPTY_CELLS)
 
-    puzzle, _ = decode_link(payload, schrodinger=True)
+    puzzle, _ = decode_link(payload, LinkVariant(schrodinger=True))
 
     regions_constraint = next(
         c for c in puzzle.constraints if c.type == "regions-distinct"
@@ -510,7 +511,7 @@ def test_schrodinger_min_digit_defaults_to_one_when_absent() -> None:
         {"cells": _EMPTY_CELLS, "constraints": _SCHRODINGER_WIRE_CONSTRAINTS}
     )
 
-    puzzle, _ = decode_link(payload, schrodinger=True)
+    puzzle, _ = decode_link(payload, LinkVariant(schrodinger=True))
 
     assert puzzle.board.values == range(1, 11)
 
@@ -519,7 +520,7 @@ def test_unsupported_reading_is_refused() -> None:
     payload = _schrodinger_link(_EMPTY_CELLS)
 
     with pytest.raises(ValueError, match="reading"):
-        decode_link(payload, schrodinger=True, reading="sum-valued")
+        decode_link(payload, LinkVariant(schrodinger=True, reading="sum-valued"))
 
 
 def _mask(digits: set[int]) -> int:
@@ -569,7 +570,7 @@ def test_schrodinger_cell_encoding_table(
     cells[0] = cell
     payload = _schrodinger_link(cells)
 
-    puzzle, state = decode_link(payload, schrodinger=True)
+    puzzle, state = decode_link(payload, LinkVariant(schrodinger=True))
 
     if cell.get("given"):
         assert Given("R1C1", cell["value"]) in puzzle.givens
@@ -589,7 +590,7 @@ def test_red_cell_with_a_value_is_rejected() -> None:
     payload = _schrodinger_link(cells)
 
     with pytest.raises(ValueError, match="R1C1"):
-        decode_link(payload, schrodinger=True)
+        decode_link(payload, LinkVariant(schrodinger=True))
 
 
 # --- non-9 square-N decode --------------------------------
@@ -1234,7 +1235,7 @@ def test_doubler_link_reads_a_red_cell_into_a_declared_modifier() -> None:
     cells[0] = {"colors": _RED_BIT}
     payload = _doubler_link(cells)
 
-    puzzle, state = decode_link(payload, doubler=True)
+    puzzle, state = decode_link(payload, LinkVariant(doubler=True))
 
     assert Constraint("doubler") in puzzle.constraints
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
@@ -1248,7 +1249,7 @@ def test_doubler_red_bit_is_orthogonal_to_the_digit_a_doubler_holds() -> None:
     cells[5] = {"colors": _RED_BIT, "given": True, "value": 3}
     payload = _doubler_link(cells)
 
-    puzzle, state = decode_link(payload, doubler=True)
+    puzzle, state = decode_link(payload, LinkVariant(doubler=True))
 
     assert Given("R2C2", 3) in puzzle.givens
     assert ModifierDirective("R2C2", is_modifier=True) in state.modifier_directives
@@ -1270,4 +1271,43 @@ def test_a_link_declaring_both_schrodinger_and_doubler_is_refused() -> None:
     payload = _doubler_link([{} for _ in range(16)])
 
     with pytest.raises(ValueError, match="both"):
-        decode_link(payload, schrodinger=True, doubler=True)
+        decode_link(payload, LinkVariant(schrodinger=True, doubler=True))
+
+
+def test_link_variant_refuses_schrodinger_and_doubler_together() -> None:
+    # The invariant lives on the value: the two variants share the red bit, so
+    # a link is one or the other — refused at construction, before any decode.
+    with pytest.raises(ValueError, match="both"):
+        LinkVariant(schrodinger=True, doubler=True)
+
+
+def test_link_variant_refuses_a_non_classic_reading_under_schrodinger() -> None:
+    with pytest.raises(ValueError, match="reading"):
+        LinkVariant(schrodinger=True, reading="sum-valued")
+
+
+def test_link_variant_leaves_a_stray_reading_alone_without_schrodinger() -> None:
+    # reading is only meaningful under --schrodinger; a value carried without it
+    # is ignored, never validated, matching the decoder's own leniency.
+    assert LinkVariant(reading="sum-valued").reading == "sum-valued"
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (["link"], LinkVariant()),
+        (["--schrodinger", "link"], LinkVariant(schrodinger=True)),
+        (["--doubler", "link"], LinkVariant(doubler=True)),
+        (
+            ["--schrodinger", "--reading", "classic", "link"],
+            LinkVariant(schrodinger=True, reading="classic"),
+        ),
+    ],
+    ids=["bare", "schrodinger", "doubler", "reading"],
+)
+def test_link_variant_from_argv_reads_the_flags(
+    argv: list[str], expected: LinkVariant
+) -> None:
+    # from_argv is the one parser the case-file scripts share, so the oracle and
+    # the eval view never diverge from a hand-copied flag read.
+    assert LinkVariant.from_argv(argv) == expected

@@ -27,9 +27,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import NamedTuple
 
-from verify_links import LINKS_DIR, decode_flags, emit_solution_link
+from verify_links import LINKS_DIR, emit_solution_link
 
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import LinkVariant, decode_link
 from gridfind.verdict import verdict
 
 # The durable approval log: link stems a person has eyeballed and accepted.
@@ -130,14 +130,8 @@ def eval_link(argv: Sequence[str]) -> LinkView:
     `found` case renders its witness grid and re-emits that same witness as a
     solution link (via `emit_solution_link`, the one source of the fill+encode
     step); anything else carries the puzzle link alone."""
-    flags = decode_flags(argv)
     link = argv[-1]
-    puzzle, state = decode_link(
-        link,
-        schrodinger=flags.schrodinger,
-        reading=flags.reading,
-        doubler=flags.doubler,
-    )
+    puzzle, state = decode_link(link, LinkVariant.from_argv(argv))
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
         return LinkView(result.kind, link, witness_grid=None, solution_link=None)

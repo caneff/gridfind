@@ -28,7 +28,12 @@ import pytest
 from lzstring import LZString
 
 from gridfind import cli
-from gridfind.sudokumaker import DECODER_REGISTRY, decode_link, has_live_data
+from gridfind.sudokumaker import (
+    DECODER_REGISTRY,
+    LinkVariant,
+    decode_link,
+    has_live_data,
+)
 from gridfind.witness_validator import validate_witness
 
 LINKS_DIR = Path(__file__).parent / "links"
@@ -66,11 +71,7 @@ def test_link_case_matches_its_filename_verdict(
     if expected_kind == "found":
         assert code == 0
         link = argv[-1]
-        puzzle, _ = decode_link(
-            link,
-            schrodinger="--schrodinger" in argv,
-            doubler="--doubler" in argv,
-        )
+        puzzle, _ = decode_link(link, LinkVariant.from_argv(argv))
         assert validate_witness("\n".join(lines[1:]), puzzle)
     else:
         assert code == 1
@@ -136,7 +137,7 @@ def _variant_tags(argv: list[str]) -> set[int | str]:
     # doubler case declares its variant by flag and doesn't double as classic
     # coverage.
     if not schrodinger and not doubler:
-        puzzle, _ = decode_link(link, schrodinger=False)
+        puzzle, _ = decode_link(link)
         jigsaw = any(
             c.type == "regions-distinct" and "regions" in c.params
             for c in puzzle.constraints
