@@ -38,7 +38,7 @@ from gridfind.sudokumaker import (
     decode_document,
     decode_link,
     encode_link,
-    write_s_cell,
+    write_cell,
 )
 
 # All three constraints, in the order the decoder emits them.
@@ -131,12 +131,22 @@ def test_decode_document_is_the_inverse_of_encode_link() -> None:
     assert decode_document(encode_link(document)) == document
 
 
-def test_write_s_cell_round_trips_a_schrodinger_pin() -> None:
-    # write_s_cell is the inverse of the decoder's SCellPin branch: writing a
-    # pair into a cell, then decoding under --schrodinger, returns that pin.
+def test_write_cell_writes_a_singleton_as_a_given() -> None:
+    # write_cell is the one wire-write seam: a length-1 content is a plain given
+    # the classic decode reads straight back.
+    cell: dict[str, object] = {}
+    write_cell(cell, (5,))
+    assert cell == {"given": True, "value": 5}
+
+
+def test_write_cell_round_trips_a_schrodinger_pin() -> None:
+    # A length-2 content is an S-cell pin: write_cell sets the red bit and the
+    # two center marks, so decoding under --schrodinger returns that pin — the
+    # inverse of the decoder's SCellPin branch, singleton and pair through one
+    # door.
     cells = list(_EMPTY_CELLS)
     cell: dict[str, object] = {}
-    write_s_cell(cell, 2, 7)
+    write_cell(cell, (2, 7))
     cells[0] = cell
     payload = _schrodinger_link(cells)
 
