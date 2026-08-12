@@ -1,4 +1,4 @@
-// Parse the reviewer's spec-conformance verdict from its stdout (issue #130).
+// Parse the reviewer's spec-conformance verdict from its stdout.
 //
 // sandbox.run has no structured output, so the reviewer emits a sentinel line —
 // `SANDCASTLE_SPEC: PASS` or `SANDCASTLE_SPEC: FAIL — <reason>`. We gate on an
@@ -18,22 +18,23 @@ export interface SpecVerdict {
 // A single judge's verdict — both axes share this shape.
 export type AxisVerdict = SpecVerdict;
 
-export function parseSpecVerdict(stdout: string): AxisVerdict {
-  const fail = stdout.match(/^SANDCASTLE_SPEC:\s*FAIL\b.*$/m);
-  if (fail) return { pass: false, reason: fail[0].trim() };
-  return { pass: true, reason: "" };
-}
-
-// The standards judge is gated identically to spec, on its own sentinel line
-// (`SANDCASTLE_STANDARDS: PASS` / `... FAIL — <reason>`). Same fail-open rule:
-// only an explicit FAIL blocks; a PASS or a missing sentinel passes.
-export function parseStandardsVerdict(stdout: string): AxisVerdict {
-  const fail = stdout.match(/^SANDCASTLE_STANDARDS:\s*FAIL\b.*$/m);
-  if (fail) return { pass: false, reason: fail[0].trim() };
-  return { pass: true, reason: "" };
-}
-
 export type ReviewAxis = "spec" | "standards";
+
+// Both judges gate the same way, differing only in their sentinel word: only an
+// explicit `SANDCASTLE_<AXIS>: FAIL` line blocks; a PASS or a missing sentinel
+// passes (fail-open). The axis name is upper-cased into the contract string —
+// host-coupled, see CODING_STANDARDS; don't reword the SANDCASTLE_… prefix.
+export function parseAxisVerdict(stdout: string, axis: ReviewAxis): AxisVerdict {
+  const sentinel = axis === "spec" ? "SPEC" : "STANDARDS";
+  const fail = stdout.match(new RegExp(`^SANDCASTLE_${sentinel}:\\s*FAIL\\b.*$`, "m"));
+  if (fail) return { pass: false, reason: fail[0].trim() };
+  return { pass: true, reason: "" };
+}
+
+export const parseSpecVerdict = (stdout: string): AxisVerdict =>
+  parseAxisVerdict(stdout, "spec");
+export const parseStandardsVerdict = (stdout: string): AxisVerdict =>
+  parseAxisVerdict(stdout, "standards");
 
 export interface CombinedVerdict {
   // Overall gate: passes only when both axes pass.
@@ -82,66 +83,3 @@ export function isHarnessError(e: unknown): boolean {
   return /PromptError/.test(String(e));
 }
 
-// The full-suite gate's verdict (issue #22). Unlike the spec/standards judges —
-// an agent OPINION that fails open on a missing sentinel — this is a safety gate
-// over the repo's check gate (lint + typecheck + the whole test suite) and fails
-// CLOSED:
-//   - "pass"          the suite is green.
-//   - "test-fail"     the suite failed, OR the output was missing/unparseable —
-//                     a crashed check is not a green suite. Carries a bounded tail.
-//   - "harness-error" a sandbox/harness fault, not the code's fault (reuses the
-//                     isHarnessError notion) — the caller retries without counting
-//                     it against the failure cap.
-export type CheckStatus = "pass" | "test-fail" | "harness-error";
-
-export interface CheckVerdict {
-  status: CheckStatus;
-  // Bounded failure context: failing test names + last N lines for "test-fail",
-  // a bounded form of the fault for "harness-error"; empty on "pass".
-  tail: string;
-}
-
-// The gate wrapper echoes this sentinel only when the repo's check command exits
-// zero (`… && echo SANDCASTLE_CHECK: PASS`, rendered into check-prompt.md). No
-// sentinel → not green → fail closed. Host-coupled contract string (see
-// CODING_STANDARDS) — don't reword.
-const CHECK_PASS = /^SANDCASTLE_CHECK:\s*PASS\s*$/m;
-
-// Bound the forwarded failure context so a huge suite log never floods the issue
-// or the requeued agent's context (issue #22). Two capped slices: the failing
-// *names* the next attempt needs (vitest `FAIL …`, tsc `error TSxxxx`), followed
-// by the raw last-N lines that carry the actual error. Both halves are bounded,
-// so the total is bounded no matter how large the log is; names not already in
-// the tail are kept, so the two halves don't duplicate.
-const MAX_FAIL_LINES = 20;
-const MAX_TAIL_LINES = 40;
-const FAIL_LINE = /(^|\s)(FAIL|×|✗|✕|✖)(\s|$)|error TS\d+/;
-
-function boundedTail(output: string): string {
-  const lines = (output ?? "").split("\n");
-  const lastN = lines.slice(-MAX_TAIL_LINES);
-  const tailSet = new Set(lastN);
-  const failNames = lines
-    .filter((l) => FAIL_LINE.test(l) && !tailSet.has(l))
-    .slice(0, MAX_FAIL_LINES);
-  return [...failNames, ...lastN].join("\n").trim();
-}
-
-// `output` is the check's stdout; `error` is whatever the gate's sandbox.run
-// THREW (undefined when it returned normally). The harness signal comes only
-// from `error` — the same thrown-FiberFailure channel isHarnessError was built
-// to read — never from scanning stdout, so a genuine test failure whose log
-// merely mentions "PromptError" isn't misread as infrastructure flakiness.
-export function parseCheckVerdict(
-  output: string,
-  error?: unknown
-): CheckVerdict {
-  // A thrown harness/sandbox fault: the check never really ran, so it's not the
-  // code's fault. Classified first, before the pass/fail split, so the caller
-  // can retry without counting it against the failure cap.
-  if (error !== undefined && isHarnessError(error))
-    return { status: "harness-error", tail: boundedTail(String(error)) };
-  // A non-harness throw (or no throw) with no PASS sentinel fails CLOSED.
-  if (CHECK_PASS.test(output)) return { status: "pass", tail: "" };
-  return { status: "test-fail", tail: boundedTail(output || String(error ?? "")) };
-}
