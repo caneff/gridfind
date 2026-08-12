@@ -218,6 +218,42 @@ def test_render_page_shows_a_comment_field_flag_control_and_count_badge() -> Non
     assert "2 flagged" in html  # the current flag count badge
 
 
+def test_render_page_keeps_the_button_onclick_attribute_intact() -> None:
+    # The stem argument sits inside a double-quoted onclick attribute, so its
+    # own quotes must be HTML-escaped — a raw `"` closes the attribute early
+    # and the handler never fires when clicked.
+    view = LinkView(
+        kind="found",
+        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
+        witness_grid="grid",
+        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
+    )
+
+    html = render_page([("found-cage-4x4", view)])
+
+    assert 'onclick="flag(this, &quot;found-cage-4x4&quot;)"' in html
+    assert 'onclick="approve(this, &quot;found-cage-4x4&quot;)"' in html
+    # the broken shape — a bare quote that terminates the attribute — is gone
+    assert 'flag(this, "found-cage-4x4"' not in html
+
+
+def test_render_page_flag_button_acknowledges_a_click() -> None:
+    # Clicking Flag must visibly change the button so a person sees the click
+    # landed — a disable while the request is in flight and a confirmation on
+    # success, not a silent badge bump.
+    view = LinkView(
+        kind="found",
+        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
+        witness_grid="grid",
+        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
+    )
+
+    html = render_page([("found-cage-4x4", view)])
+
+    assert "btn.disabled = true" in html  # goes disabled while the flag is sent
+    assert "flagged ✓" in html  # the on-success confirmation the button shows
+
+
 def test_render_page_omits_the_solution_link_for_a_broke_card() -> None:
     view = LinkView(
         kind="broke",

@@ -193,6 +193,7 @@ async function approve(btn, stem) {{
 }}
 async function flag(btn, stem) {{
   const note = document.getElementById("note-" + stem);
+  btn.disabled = true;
   const r = await fetch("/flag", {{
     method: "POST", body: JSON.stringify({{ stem: stem, comment: note.value }})
   }});
@@ -200,7 +201,9 @@ async function flag(btn, stem) {{
     const badge = document.getElementById("badge-" + stem);
     badge.textContent = (parseInt(badge.textContent) + 1) + " flagged";
     note.value = "";
-  }} else {{ btn.textContent = "retry"; }}
+    btn.textContent = "flagged ✓";
+    btn.disabled = false;
+  }} else {{ btn.disabled = false; btn.textContent = "retry"; }}
 }}
 </script>
 </body></html>
@@ -217,7 +220,7 @@ def _card(stem: str, view: LinkView, flags: int) -> str:
         answer = html.escape(view.solution_link, quote=True)
         links.append(f'<a href="{answer}" target="_blank" rel="noopener">Solution</a>')
     safe = html.escape(stem, quote=True)
-    js_stem = json.dumps(stem)
+    js_stem = html.escape(json.dumps(stem), quote=True)
     return (
         f'<article class="card" id="card-{safe}">'
         f'<h2>{safe}<span class="verdict {view.kind}">{view.kind}</span>'
