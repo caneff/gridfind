@@ -9,6 +9,9 @@ dist/
 # venv / uv
 .venv/
 
+# gh/XDG state home that leaks into the repo
+.local/
+
 # tooling caches
 .ruff_cache/
 .pytest_cache/
