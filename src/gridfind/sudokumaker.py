@@ -196,6 +196,42 @@ class LinkVariant:
         )
 
 
+@dataclass(frozen=True)
+class CellDecode:
+    """The working-state directives one cell decodes to — the return of
+    `decode_cell`, so a cell hands its directives back rather than appending
+    into shared lists. A cell touches only a few of the five channels: a plain
+    `given`, a `placement`, a `candidate` set, a Schrödinger `s_directive`
+    (optionally with a stray-marks candidate beside it), or — under the doubler
+    variant — a `modifier_directive` riding alongside its digit directive. All
+    empty is a cell that carries nothing gridfind represents.
+
+    The five tuples mirror the five directive channels the decoder fills, so
+    `concat` folds a board's worth of per-cell decodes into the lists
+    `Puzzle`/`WorkingState` read."""
+
+    givens: tuple[Given, ...] = ()
+    places: tuple[Placement, ...] = ()
+    candidates: tuple[Candidate, ...] = ()
+    s_directives: tuple[SDirective, ...] = ()
+    modifier_directives: tuple[ModifierDirective, ...] = ()
+
+    @classmethod
+    def concat(cls, decodes: Iterable[CellDecode]) -> CellDecode:
+        """One `CellDecode` merging every cell's, each channel concatenated in
+        cell order — the board-level directive set `decode_link` reads."""
+        decodes = list(decodes)
+        return cls(
+            givens=tuple(d for c in decodes for d in c.givens),
+            places=tuple(p for c in decodes for p in c.places),
+            candidates=tuple(x for c in decodes for x in c.candidates),
+            s_directives=tuple(s for c in decodes for s in c.s_directives),
+            modifier_directives=tuple(
+                m for c in decodes for m in c.modifier_directives
+            ),
+        )
+
+
 # The plain-link default, hoisted to a module singleton so `decode_link`'s
 # signature reads a name rather than calling the constructor in its defaults
 # (ruff B008). Safe to share: `LinkVariant` is frozen.
@@ -247,35 +283,15 @@ def decode_link(
     _warn_on_dropped_constraints(puzzle_data)
 
     cells = puzzle_data["cells"]
-    givens: list[Given] = []
-    places: list[Placement] = []
-    candidates: list[Candidate] = []
-    s_directives: list[SDirective] = []
-    modifier_directives: list[ModifierDirective] = []
     domain = (
         _schrodinger_domain(puzzle_data, size)
         if variant.schrodinger
         else _digit_domain(puzzle_data, size)
     )
-    for i, cell in enumerate(cells):
-        address = _address(i, size)
-        if variant.schrodinger:
-            _decode_schrodinger_cell(
-                cell, address, domain, givens, s_directives, candidates
-            )
-            continue
-        if variant.doubler and cell.get("colors", 0) & _RED_BIT:
-            modifier_directives.append(ModifierDirective(address, is_modifier=True))
-        if "value" in cell:
-            if cell.get("given"):
-                givens.append(Given(address, cell["value"]))
-            else:
-                places.append(Placement(address, cell["value"]))
-        elif "candidates" in cell:
-            digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
-            candidates.append(Candidate(address, digits))
-        # cornerPencilMarks, non-red colors, and {} carry nothing gridfind can
-        # represent.
+    decoded = CellDecode.concat(
+        decode_cell(cell, _address(i, size), variant, domain)
+        for i, cell in enumerate(cells)
+    )
 
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
@@ -289,12 +305,12 @@ def decode_link(
     if variant.doubler:
         constraints.append(Constraint("doubler"))
 
-    puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=tuple(givens))
+    puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=decoded.givens)
     state = WorkingState(
-        places=tuple(places),
-        candidates=tuple(candidates),
-        s_directives=tuple(s_directives),
-        modifier_directives=tuple(modifier_directives),
+        places=decoded.places,
+        candidates=decoded.candidates,
+        s_directives=decoded.s_directives,
+        modifier_directives=decoded.modifier_directives,
     )
     return puzzle, state
 
@@ -384,15 +400,42 @@ def write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:
     cell["candidates"] = (1 << a) | (1 << b)
 
 
+def decode_cell(
+    cell: dict[str, Any], address: str, variant: LinkVariant, domain: range
+) -> CellDecode:
+    """One cell's working-state directives — the single home for per-cell
+    decode, dispatched by `variant`. A Schrödinger variant reads the red bit
+    and center marks into an S-directive (`_decode_schrodinger_cell`). The
+    classic and doubler paths read a `given`/`placement`/`candidate` the same
+    way; a doubler cell additionally pins a discovered modifier on its red bit,
+    orthogonal to whatever digit directive the cell also carries. A cell that
+    carries nothing gridfind represents — a cosmetic color, a corner mark, `{}`
+    — decodes to an empty `CellDecode`."""
+    if variant.schrodinger:
+        return _decode_schrodinger_cell(cell, address, domain)
+    modifiers: tuple[ModifierDirective, ...] = ()
+    if variant.doubler and cell.get("colors", 0) & _RED_BIT:
+        modifiers = (ModifierDirective(address, is_modifier=True),)
+    if "value" in cell:
+        if cell.get("given"):
+            return CellDecode(
+                givens=(Given(address, cell["value"]),), modifier_directives=modifiers
+            )
+        return CellDecode(
+            places=(Placement(address, cell["value"]),), modifier_directives=modifiers
+        )
+    if "candidates" in cell:
+        digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
+        return CellDecode(
+            candidates=(Candidate(address, digits),), modifier_directives=modifiers
+        )
+    return CellDecode(modifier_directives=modifiers)
+
+
 def _decode_schrodinger_cell(
-    cell: dict[str, Any],
-    address: str,
-    domain: range,
-    givens: list[Given],
-    s_directives: list[SDirective],
-    candidates: list[Candidate],
-) -> None:
-    """One cell's directive under `--schrodinger`.
+    cell: dict[str, Any], address: str, domain: range
+) -> CellDecode:
+    """One cell's directive under the Schrödinger variant.
     A given stays literal (`Given`, unchanged from classic). Otherwise a red
     cell (`colors` bit 2) carries S-cell-ness; its center-mark count picks the
     digit axis: exactly two marks is an S-cell pin, exactly one a half S-cell,
@@ -405,32 +448,28 @@ def _decode_schrodinger_cell(
     represent, not `verdict` finding a puzzle it can't answer (module
     doctrine)."""
     if cell.get("given"):
-        givens.append(Given(address, cell["value"]))
-        return
+        return CellDecode(givens=(Given(address, cell["value"]),))
     red = bool(cell.get("colors", 0) & _RED_BIT)
     if "value" in cell:
         if red:
             msg = f"non-classic link: red cell {address} also holds a value"
             raise ValueError(msg)
-        s_directives.append(SingletonPin(address, cell["value"]))
-        return
+        return CellDecode(s_directives=(SingletonPin(address, cell["value"]),))
     if red:
         marks = frozenset(d for d in domain if cell.get("candidates", 0) & (1 << d))
         if len(marks) == _SCELL_PIN_MARKS:
-            s_directives.append(SCellPin(address, marks))
-        elif len(marks) == 1:
+            return CellDecode(s_directives=(SCellPin(address, marks),))
+        if len(marks) == 1:
             (digit,) = marks
-            s_directives.append(HalfSCell(address, digit))
-        else:
-            s_directives.append(BareSCell(address))
-            if marks:
-                candidates.append(Candidate(address, marks))
-        return
+            return CellDecode(s_directives=(HalfSCell(address, digit),))
+        stray = (Candidate(address, marks),) if marks else ()
+        return CellDecode(s_directives=(BareSCell(address),), candidates=stray)
     if "candidates" in cell:
         digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
-        candidates.append(Candidate(address, digits))
+        return CellDecode(candidates=(Candidate(address, digits),))
     # cornerPencilMarks, non-red colors, and {} carry nothing gridfind can
     # represent — same as the classic path.
+    return CellDecode()
 
 
 def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:

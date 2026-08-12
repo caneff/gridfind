@@ -31,8 +31,10 @@ from gridfind.puzzle import (
 )
 from gridfind.sudokumaker import (
     _RED_BIT,
+    CellDecode,
     LinkVariant,
     _edge_to_pair,
+    decode_cell,
     decode_document,
     decode_link,
     encode_link,
@@ -1324,3 +1326,58 @@ def test_link_variant_from_argv_reads_the_flags(
     # from_argv is the one parser the case-file scripts share, so the oracle and
     # the eval view never diverge from a hand-copied flag read.
     assert LinkVariant.from_argv(argv) == expected
+
+
+_PLAIN = LinkVariant()
+
+
+@pytest.mark.parametrize(
+    ("cell", "variant", "domain", "expected"),
+    [
+        (
+            {"given": True, "value": 5},
+            _PLAIN,
+            range(1, 10),
+            CellDecode(givens=(Given("R1C1", 5),)),
+        ),
+        (
+            {"value": 5},
+            _PLAIN,
+            range(1, 10),
+            CellDecode(places=(Placement("R1C1", 5),)),
+        ),
+        (
+            {"candidates": (1 << 2) | (1 << 5)},
+            _PLAIN,
+            range(1, 10),
+            CellDecode(candidates=(Candidate("R1C1", frozenset({2, 5})),)),
+        ),
+        ({}, _PLAIN, range(1, 10), CellDecode()),
+        (
+            {"colors": _RED_BIT, "given": True, "value": 3},
+            LinkVariant(doubler=True),
+            range(1, 10),
+            CellDecode(
+                givens=(Given("R1C1", 3),),
+                modifier_directives=(ModifierDirective("R1C1", is_modifier=True),),
+            ),
+        ),
+        (
+            {"colors": _RED_BIT, "candidates": (1 << 2) | (1 << 7)},
+            LinkVariant(schrodinger=True),
+            range(1, 11),
+            CellDecode(s_directives=(SCellPin("R1C1", frozenset({2, 7})),)),
+        ),
+    ],
+    ids=["given", "placement", "candidate", "empty", "doubler", "schrodinger-pin"],
+)
+def test_decode_cell_returns_one_cells_directives(
+    cell: dict[str, object],
+    variant: LinkVariant,
+    domain: range,
+    expected: CellDecode,
+) -> None:
+    # decode_cell is the one home for per-cell decode: it returns the directives
+    # a single cell yields rather than appending into shared lists, and the same
+    # function serves all three variants.
+    assert decode_cell(cell, "R1C1", variant, domain) == expected
