@@ -8,8 +8,16 @@ payload marks it active, else inert.
 
 from __future__ import annotations
 
+import io
+
 import pytest
-from inspect_link import _display_size, _fmt_bucket, classify_constraint
+from inspect_link import (
+    _display_size,
+    _fmt_bucket,
+    _split_args,
+    classify_constraint,
+    main,
+)
 
 
 @pytest.mark.parametrize(
@@ -83,3 +91,50 @@ def test_fmt_bucket(tags: list[str], expected: str) -> None:
 )
 def test_display_size(data: dict[str, object], cell_count: int, expected: int) -> None:
     assert _display_size(data, cell_count) == expected
+
+
+@pytest.mark.parametrize(
+    ("argv", "links", "flags", "unknown"),
+    [
+        pytest.param(
+            ["--doubler", "u1", "u2"],
+            ["u1", "u2"],
+            {"--doubler"},
+            [],
+            id="doubler-flag-split-from-links",
+        ),
+        pytest.param(
+            ["--schrodinger", "u"],
+            ["u"],
+            {"--schrodinger"},
+            [],
+            id="schrodinger-still-recognised",
+        ),
+        pytest.param(
+            ["u", "--bogus"],
+            ["u"],
+            set(),
+            ["--bogus"],
+            id="unknown-flag-not-a-link",
+        ),
+        pytest.param([], [], set(), [], id="empty"),
+    ],
+)
+def test_split_args(
+    argv: list[str], links: list[str], flags: set[str], unknown: list[str]
+) -> None:
+    assert _split_args(argv) == (links, flags, unknown)
+
+
+def test_main_reports_unknown_flag_without_decoding_it() -> None:
+    err = io.StringIO()
+    code = main(["--bogus"], io.StringIO(), stderr=err)
+    assert "unknown flag: --bogus" in err.getvalue()
+    assert code == 2  # nothing left to decode -> usage exit, not a crash
+
+
+def test_main_survives_bare_doubler_token() -> None:
+    # A recognised flag with no link behind it leaves nothing to decode, so it
+    # reaches the usage exit rather than the decoder (which raises on a non-link).
+    code = main(["--doubler"], io.StringIO(), stderr=io.StringIO())
+    assert code == 2
