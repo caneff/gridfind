@@ -983,8 +983,11 @@ def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
 ) -> None:
     # A numeric string `value` is the only channel an out-of-range killer sum
     # (a doubler inside a cage) reaches gridfind through, so it graduates to a
-    # `cage` plus the total as a `group-sum` over the same cells.
-    payload = _constraint_link({"type": 2001, "value": "11", "cells": [0, 1, 2]})
+    # `cage` plus the total as a `group-sum` over the same cells. Cells and
+    # value nest under `cages`, the same wire shape as a `type 301` block.
+    payload = _constraint_link(
+        {"type": 2001, "cages": [{"value": "11", "cells": [0, 1, 2]}]}
+    )
 
     puzzle, _ = decode_link(payload)
 
@@ -1003,7 +1006,9 @@ def test_cosmetic_cage_with_a_zero_label_decodes_to_a_bare_cage() -> None:
     # A `"0"` label carries no killer sum — a zero total is no total, the same
     # rule a sumless `type 301` and a non-numeric label both decode to: a
     # no-repeats `cage` with no `group-sum`.
-    payload = _constraint_link({"type": 2001, "value": "0", "cells": [0, 1]})
+    payload = _constraint_link(
+        {"type": 2001, "cages": [{"value": "0", "cells": [0, 1]}]}
+    )
 
     puzzle, _ = decode_link(payload)
 
@@ -1023,7 +1028,9 @@ def test_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
     # A label carrying no killer sum still leaves a rule: every non-disabled
     # cosmetic cage is a killer cage, so it emits a no-repeats `cage` with no
     # `group-sum`, exactly like a sumless `type 301`.
-    payload = _constraint_link({"type": 2001, "value": label, "cells": [0, 1]})
+    payload = _constraint_link(
+        {"type": 2001, "cages": [{"value": label, "cells": [0, 1]}]}
+    )
 
     puzzle, _ = decode_link(payload)
 
@@ -1033,13 +1040,14 @@ def test_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
 
 
 def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
-    payload = _encode(
+    # One block carries many cages under `cages`, exactly as a `type 301`
+    # block does — a real doubler export packs two cages into one block.
+    payload = _constraint_link(
         {
-            "cells": _EMPTY_CELLS,
-            "constraints": [
-                *_WIRE_CONSTRAINTS,
-                {"type": 2001, "value": "7", "cells": [0, 1]},
-                {"type": 2001, "value": "11", "cells": [18, 19]},
+            "type": 2001,
+            "cages": [
+                {"value": "7", "cells": [0, 1]},
+                {"value": "11", "cells": [18, 19]},
             ],
         }
     )
@@ -1183,10 +1191,15 @@ def test_disabled_thermo_block_decodes_to_nothing_quietly(
         ),
         pytest.param({"type": 301, "cages": []}, ("cage",), id="cage-empty"),
         pytest.param(
-            {"type": 2001, "value": "7", "cells": [0, 1], "disabled": True},
+            {
+                "type": 2001,
+                "cages": [{"value": "7", "cells": [0, 1]}],
+                "disabled": True,
+            },
             ("cage",),
             id="cosmetic-cage-disabled",
         ),
+        pytest.param({"type": 2001, "cages": []}, ("cage",), id="cosmetic-cage-empty"),
         pytest.param(
             {"type": 300, "slow": False, "thermometers": [[0, 1]], "disabled": True},
             ("thermo",),

@@ -40,17 +40,17 @@ from inspect_link import _display_size, _fmt_bucket, classify_constraint
             id="populated-cage-active",
         ),
         pytest.param(
-            {"type": 2001, "value": "11", "cells": [0, 1, 2]},
+            {"type": 2001, "cages": [{"value": "11", "cells": [0, 1, 2]}]},
             "active",
             id="graduated-cosmetic-cage-active",
         ),
         pytest.param(
-            {"type": 2001, "value": "Total", "cells": [0, 1]},
+            {"type": 2001, "cages": [{"value": "Total", "cells": [0, 1]}]},
             "active",
             id="non-numeric-cosmetic-cage-active",
         ),
         pytest.param(
-            {"type": 2001, "value": "", "cells": [0, 1]},
+            {"type": 2001, "cages": [{"value": "", "cells": [0, 1]}]},
             "active",
             id="empty-cosmetic-cage-active",
         ),

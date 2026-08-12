@@ -17,11 +17,20 @@ killer-cage tool refuses to store that sum at all.
 Setters work around it two ways, and a real link confirms both. Decoding
 author "ChinStrap"'s 4×4 (`type: sudoku`, 2×2 boxes): the doubler cell R1C2
 carries `{"colors": 2}` — red, the same bit an S-cell uses — and the cage lives
-in a **type-2001** block as `{"value": "11", "cells": [R1C1, R1C2, R1C3]}`,
-while the real **type-301** killer block sits empty and `solverIgnored`. The
-doubler sits inside the cage, so the sum is `R1C1 + 2·R1C2 + R1C3 = 11`, out of
-range for a plain cage — pushed into a cosmetic cage with the sum kept as a
-display string.
+in a **type-2001** block as
+`{"cages": [{"value": "11", "cells": [R1C1, R1C2, R1C3]}]}`, while the real
+**type-301** killer block sits empty and `solverIgnored`. The doubler sits
+inside the cage, so the sum is `R1C1 + 2·R1C2 + R1C3 = 11`, out of range for a
+plain cage — pushed into a cosmetic cage with the sum kept as a display string.
+
+> **Corrected (2026-08-12, #317):** an earlier draft recorded the cosmetic
+> block's cells and value as flat (`{"value": "11", "cells": [...]}`).
+> SudokuMaker nests them under `cages`, the same wire shape as a type-301
+> killer block — a block may carry several cages. The decoder now reads that
+> shape; the flat form it read before does not round-trip in SudokuMaker (the
+> app registers no cells for it), so the `found-doubler` / `broke-doubler`
+> fixtures were regenerated from real exports. The "cosmetic cage is a killer
+> cage" decision below is unchanged — only its wire shape was wrong.
 
 Today gridfind ignores the color bit unless `schrodinger=True` and drops
 type-2001 as cosmetic, so it computes the verdict with **neither** the doubler
