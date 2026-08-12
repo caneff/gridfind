@@ -19,6 +19,7 @@ import argparse
 import contextlib
 import html
 import json
+import threading
 import webbrowser
 from collections.abc import Mapping, Sequence
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -180,8 +181,13 @@ _PAGE = """<!doctype html>
 </style></head>
 <body>
 <h1>gridfind link eval &mdash; <span id="count">{count}</span> to check</h1>
+<button onclick="finish()">Finish</button>
 {body}
 <script>
+async function finish() {{
+  await fetch("/finish", {{ method: "POST" }});
+  document.body.innerHTML = "<h1>eval closed &mdash; you can close this tab</h1>";
+}}
 async function approve(btn, stem) {{
   btn.disabled = true;
   const r = await fetch("/approve", {{ method: "POST", body: stem }});
@@ -198,11 +204,9 @@ async function flag(btn, stem) {{
     method: "POST", body: JSON.stringify({{ stem: stem, comment: note.value }})
   }});
   if (r.ok) {{
-    const badge = document.getElementById("badge-" + stem);
-    badge.textContent = (parseInt(badge.textContent) + 1) + " flagged";
-    note.value = "";
-    btn.textContent = "flagged ✓";
-    btn.disabled = false;
+    document.getElementById("card-" + stem).remove();
+    document.getElementById("count").textContent =
+      document.querySelectorAll(".card").length;
   }} else {{ btn.disabled = false; btn.textContent = "retry"; }}
 }}
 </script>
@@ -251,8 +255,8 @@ class _ApprovalHandler(BaseHTTPRequestHandler):
     over `render_page`, `record_approval`, and `record_flag`; class attributes
     carry the run's state. `GET /` returns the page; `POST /approve` with a
     stem body records it; `POST /flag` with a `{stem, comment}` body appends a
-    flag. Both reject a stem that names no real link; `/flag` also rejects an
-    empty comment."""
+    flag; `POST /finish` ends the run. Approve and flag reject a stem that names
+    no real link; `/flag` also rejects an empty comment."""
 
     page: str = ""
     known: frozenset[str] = frozenset()
@@ -272,6 +276,8 @@ class _ApprovalHandler(BaseHTTPRequestHandler):
             self._approve(body.strip())
         elif self.path == "/flag":
             self._flag(body)
+        elif self.path == "/finish":
+            self._finish()
         else:
             self._reject()
 
@@ -291,6 +297,12 @@ class _ApprovalHandler(BaseHTTPRequestHandler):
             return
         record_flag(self.flags, stem, comment)
         self._ok()
+
+    def _finish(self) -> None:
+        # Answer first, then stop the server from a side thread — shutdown()
+        # deadlocks if called on the serve_forever thread that runs this handler.
+        self._ok()
+        threading.Thread(target=self.server.shutdown, daemon=True).start()
 
     def _ok(self) -> None:
         self.send_response(200)
@@ -334,7 +346,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     url = f"http://127.0.0.1:{args.port}/"
     server = HTTPServer(("127.0.0.1", args.port), _ApprovalHandler)
-    print(f"eval page: {url}  ({len(cards)} to check) — Ctrl+C to stop")
+    print(f"eval page: {url}  ({len(cards)} to check) — Finish button or Ctrl+C")
     # headless / WSL can't open a browser — the printed URL is the fallback.
     with contextlib.suppress(webbrowser.Error):
         webbrowser.open(url)
