@@ -9,6 +9,7 @@ one startup, not one per link.
     uv run python scripts/inspect_link.py '<link>' ['<link>' ...]
     printf '%s\n' "$l1" "$l2" | uv run python scripts/inspect_link.py
     uv run python scripts/inspect_link.py --schrodinger '<link>'
+    uv run python scripts/inspect_link.py --doubler '<link>'
 """
 
 from __future__ import annotations
@@ -33,6 +34,11 @@ from gridfind.sudokumaker import (
 from gridfind.verdict import verdict
 
 _KNOWN_TYPES = (0, 1)
+
+# The modifier flags a link file may carry ahead of its URL. Everything else on
+# the command line is a link; an unrecognised `--`-prefixed token is neither, so
+# it must never reach the decoder (feeding it one raises "variable 'c'").
+_KNOWN_FLAGS = frozenset({"--schrodinger", "--doubler"})
 
 
 def classify_constraint(constraint: dict[str, object]) -> str:
@@ -78,11 +84,17 @@ def _display_size(data: dict[str, object], cell_count: int) -> int:
     return math.isqrt(cell_count)
 
 
-def _verdict_word(link: str, *, schrodinger: bool) -> str:
+def _verdict_word(link: str, *, schrodinger: bool, doubler: bool) -> str:
     """The verdict word for a link, or `rejected (<reason>)` when the decoder
-    refuses it — so one bad link reports itself instead of killing the batch."""
+    refuses it — so one bad link reports itself instead of killing the batch.
+
+    Building the `LinkVariant` inside the try keeps `schrodinger and doubler`
+    (they share the red bit) landing here as a `rejected (…)` line, not a crash:
+    the value rejects the pair at construction, and that raise is caught too.
+    """
     try:
-        puzzle, state = decode_link(link, LinkVariant(schrodinger=schrodinger))
+        variant = LinkVariant(schrodinger=schrodinger, doubler=doubler)
+        puzzle, state = decode_link(link, variant)
     except (ValueError, GridfindError) as exc:
         return f"rejected ({exc})"
     return verdict(puzzle, state).kind
@@ -95,7 +107,7 @@ def _fmt_bucket(tags: list[str]) -> str:
     )
 
 
-def inspect_link(link: str, *, schrodinger: bool) -> str:
+def inspect_link(link: str, *, schrodinger: bool, doubler: bool) -> str:
     """One report line: size, givens, the constraint types present, each
     classification bucket that isn't empty, and the verdict."""
     # JSON values are untyped past the decode boundary — poke at them as Any.
@@ -125,22 +137,48 @@ def inspect_link(link: str, *, schrodinger: bool) -> str:
     segments += [
         f"{label}: {_fmt_bucket(tags)}" for label, tags in buckets.items() if tags
     ]
-    segments.append(f"verdict: {_verdict_word(link, schrodinger=schrodinger)}")
+    segments.append(
+        f"verdict: {_verdict_word(link, schrodinger=schrodinger, doubler=doubler)}"
+    )
     return " · ".join(segments)
 
 
-def main(argv: Sequence[str], stdin: TextIO) -> int:
-    args = [a for a in argv if a != "--schrodinger"]
-    schrodinger = "--schrodinger" in argv
-    links = args or [line.strip() for line in stdin if line.strip()]
+def _split_args(argv: Sequence[str]) -> tuple[list[str], set[str], list[str]]:
+    """Partition argv into (links, recognised flags, unknown flags).
+
+    A link is never `--`-prefixed, so any `--` token is a flag: known ones join
+    the flag set, the rest are reported back for the caller to reject."""
+    links: list[str] = []
+    flags: set[str] = set()
+    unknown: list[str] = []
+    for arg in argv:
+        if not arg.startswith("--"):
+            links.append(arg)
+        elif arg in _KNOWN_FLAGS:
+            flags.add(arg)
+        else:
+            unknown.append(arg)
+    return links, flags, unknown
+
+
+def main(argv: Sequence[str], stdin: TextIO, stderr: TextIO = sys.stderr) -> int:
+    links, flags, unknown = _split_args(argv)
+    for flag in unknown:
+        print(f"unknown flag: {flag}", file=stderr)
+    schrodinger = "--schrodinger" in flags
+    doubler = "--doubler" in flags
+    links = links or [line.strip() for line in stdin if line.strip()]
     if not links:
-        print("usage: inspect_link.py [--schrodinger] '<link>' ...", file=sys.stderr)
+        print(
+            "usage: inspect_link.py [--schrodinger|--doubler] '<link>' ...",
+            file=stderr,
+        )
         return 2
     for link in links:
         try:
-            print(inspect_link(link, schrodinger=schrodinger))
+            print(inspect_link(link, schrodinger=schrodinger, doubler=doubler))
         except Exception as exc:  # dev tool: a bad link must not kill the batch
-            print(f"error: {exc}", file=sys.stderr)
+            print(f"error: {exc}", file=stderr)
     return 0
 
 
