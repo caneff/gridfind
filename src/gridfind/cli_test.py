@@ -342,6 +342,56 @@ def test_without_the_doubler_flag_the_red_cells_are_ignored(
     assert capsys.readouterr().out.split("\n")[0] == "broke"
 
 
+def _classic_named_cage_link(name: str, cage_value: int) -> str:
+    """A synthesised, fully-given classic 4x4 solution (the same 2x2-box grid
+    as `_classic_doubler_solution_link`, no doublers) carrying a single `type
+    2001` cosmetic cage over R1C1-R1C3 named `name`. `cage_value` is the
+    cage's stored sum — 9 matches the solution's own R1C1+R1C2+R1C3."""
+    solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
+    regions = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
+    cells: list[dict[str, object]] = [{"given": True, "value": d} for d in solution]
+    puzzle = {
+        "cells": cells,
+        "size": 4,
+        "constraints": [
+            {"type": 0},
+            {"type": 1, "regions": regions},
+            {
+                "name": name,
+                "type": 2001,
+                "cages": [{"cells": [0, 1, 2], "value": str(cage_value)}],
+            },
+        ],
+    }
+    doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
+    payload = LZString.compressToEncodedURIComponent(json.dumps(doc))
+    return f"https://sudokumaker.app/?puzzle={payload}"
+
+
+def test_unrecognized_named_cage_exits_two_with_stderr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = _classic_named_cage_link("Foobar", cage_value=9)
+
+    code = cli.main([link], io.StringIO())
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert captured.out == ""
+    assert "Foobar" in captured.err
+
+
+def test_ignore_unknown_named_cages_flag_strips_and_honors_the_cage(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = _classic_named_cage_link("Foobar", cage_value=9)
+
+    code = cli.main(["--ignore-unknown-named-cages", link], io.StringIO())
+
+    assert code == 0
+    assert capsys.readouterr().out.split("\n")[0] == "found"
+
+
 def test_non_classic_link_exits_two_with_stderr(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

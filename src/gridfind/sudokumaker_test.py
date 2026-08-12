@@ -1052,6 +1052,59 @@ def test_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
     assert capsys.readouterr().err == ""
 
 
+@pytest.mark.parametrize(
+    "name",
+    ["Sum", "killer", "  Killer  ", "SUM"],
+    ids=["sum-titlecase", "killer-lowercase", "killer-padded", "sum-upper"],
+)
+def test_named_sum_or_killer_cage_decodes_as_an_ordinary_killer_cage(
+    name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A cage named `Sum`/`Killer` (any case, surrounding whitespace) is a
+    # decorative label on a genuine cage, not a marker — honored exactly as an
+    # unnamed cage, the name discarded (spec #324, issue #325).
+    payload = _constraint_link(
+        {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert (
+        Constraint("group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 7})
+        in puzzle.constraints
+    )
+    assert capsys.readouterr().err == ""
+
+
+def test_unrecognized_named_cage_raises() -> None:
+    # An unfamiliar name is refused rather than silently honored under a
+    # guessed ruleset — "Foobar" stays unrecognized forever (spec #324 tickets
+    # 2/3 add Doubler/S-cell; this name is not one of those).
+    payload = _constraint_link(
+        {"name": "Foobar", "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
+    )
+
+    with pytest.raises(ValueError, match="Foobar"):
+        decode_link(payload)
+
+
+def test_unrecognized_named_cage_is_stripped_and_honored_under_the_ignore_flag() -> (
+    None
+):
+    payload = _constraint_link(
+        {"name": "Foobar", "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
+    )
+
+    puzzle, _ = decode_link(payload, ignore_unknown_named_cages=True)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert (
+        Constraint("group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 7})
+        in puzzle.constraints
+    )
+
+
 def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
     # One block carries many cages under `cages`, exactly as a `type 301`
     # block does — a real doubler export packs two cages into one block.
