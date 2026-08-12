@@ -16,8 +16,10 @@ from eval_links import (
     LinkView,
     eval_link,
     load_approved,
+    load_flags,
     pending_stems,
     record_approval,
+    record_flag,
     render_page,
 )
 
@@ -93,6 +95,33 @@ def test_record_approval_is_idempotent(tmp_path: Path) -> None:
     assert load_approved(store) == {"found-cage-4x4", "broke-xv-4x4"}
 
 
+def test_load_flags_on_a_missing_file_is_empty(tmp_path: Path) -> None:
+    assert load_flags(tmp_path / "nope.json") == []
+
+
+def test_record_flag_round_trips(tmp_path: Path) -> None:
+    store = tmp_path / "flagged.json"
+
+    record_flag(store, "found-cage-4x4", "witness looks off")
+
+    assert load_flags(store) == [
+        {"stem": "found-cage-4x4", "comment": "witness looks off"}
+    ]
+
+
+def test_record_flag_accumulates_several_flags_on_one_stem(tmp_path: Path) -> None:
+    store = tmp_path / "flagged.json"
+
+    record_flag(store, "found-cage-4x4", "first note")
+    record_flag(store, "found-cage-4x4", "second note")
+
+    # A second flag adds an entry, never replaces the first.
+    assert load_flags(store) == [
+        {"stem": "found-cage-4x4", "comment": "first note"},
+        {"stem": "found-cage-4x4", "comment": "second note"},
+    ]
+
+
 def test_pending_stems_hides_approved_by_default() -> None:
     stems = ["a", "b", "c"]
 
@@ -123,6 +152,22 @@ def test_render_page_shows_both_links_and_an_approve_control_for_a_found_card() 
     assert 'href="https://sudokumaker.app/?puzzle=SOLUTION"' in html
     assert "found-cage-4x4" in html
     assert "<button" in html
+
+
+def test_render_page_shows_a_comment_field_flag_control_and_count_badge() -> None:
+    view = LinkView(
+        kind="found",
+        puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
+        witness_grid="grid",
+        solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
+    )
+
+    html = render_page([("found-cage-4x4", view)], counts={"found-cage-4x4": 2})
+
+    assert "<textarea" in html  # a place to jot the note
+    assert "flag(" in html  # the Flag control carries the stem
+    assert "found-cage-4x4" in html
+    assert "2 flagged" in html  # the current flag count badge
 
 
 def test_render_page_omits_the_solution_link_for_a_broke_card() -> None:
