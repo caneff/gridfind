@@ -309,7 +309,7 @@ def _classic_doubler_solution_link(cage_value: int) -> str:
         "constraints": [
             {"type": 0},
             {"type": 1, "regions": regions},
-            {"type": 2001, "cells": [0, 1, 2], "value": str(cage_value)},
+            {"type": 2001, "cages": [{"cells": [0, 1, 2], "value": str(cage_value)}]},
         ],
     }
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle}

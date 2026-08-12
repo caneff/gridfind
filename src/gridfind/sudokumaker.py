@@ -136,11 +136,12 @@ _KROPKI_BLACK_TYPE = 201
 # absent.
 _CAGE_TYPE = 301
 
-# type 2001 is a cosmetic-cage block: `{value: str, cells: [...]}`, one cage
-# per block — SudokuMaker's decoration tool, not the killer-cage tool
-# (ADR-0008). A numeric string `value` graduates it to a real killer sum, the
-# only channel an out-of-range cage sum (a doubler inside a cage) reaches
-# gridfind through, since the killer-cage tool refuses to store one.
+# type 2001 is a cosmetic-cage block: `{cages: [{value: str, cells: [...]}]}`,
+# the same nested wire shape as a `type 301` killer block — SudokuMaker's
+# decoration tool, not the killer-cage tool (ADR-0008). A numeric string
+# `value` graduates a cage to a real killer sum, the only channel an
+# out-of-range cage sum (a doubler inside a cage) reaches gridfind through,
+# since the killer-cage tool refuses to store one.
 _COSMETIC_CAGE_TYPE = 2001
 
 # type 300 is a thermometer block: `slow: bool,
@@ -617,13 +618,13 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
     return decoded
 
 
-def _cosmetic_cage_killer_sum(block: dict[Any, Any]) -> int | None:
-    """The killer sum a `type 2001` cosmetic-cage block graduates to (ADR-0008),
+def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
+    """The killer sum a `type 2001` cosmetic cage graduates to (ADR-0008),
     or `None` when its `value` label is non-numeric/empty and the cage carries
     no sum. `None` governs only the `group-sum`: a sumless cosmetic cage still
     emits its no-repeats `cage`, so this is not a liveness gate — every
-    non-disabled block with cells is a rule."""
-    value = block.get("value")
+    non-disabled cage with cells is a rule."""
+    value = cage.get("value")
     if not isinstance(value, str) or not value.strip():
         return None
     try:
@@ -635,19 +636,21 @@ def _cosmetic_cage_killer_sum(block: dict[Any, Any]) -> int | None:
 def _cosmetic_cage_constraints(
     puzzle_data: dict[str, object], size: int
 ) -> list[Constraint]:
-    """The `type 2001` cosmetic-cage blocks graduated to killer-cage
-    `Constraint`s (ADR-0008): each block's raw `cells` indices map row-major
-    to addresses, same as `type 301`. Every non-disabled block emits a
-    no-repeats `cage`; a numeric non-zero string `value` additionally decodes a
-    `group-sum` carrying that total over the same cells (spec #240). A
-    non-numeric, empty, or `"0"` `value` carries no sum, so the cage stands
-    alone — the same shape a sumless `type 301` decodes to. A `disabled` block
-    is skipped entirely."""
+    """The `type 2001` cosmetic cages graduated to killer-cage `Constraint`s
+    (ADR-0008): cells and value nest under `cages`, the same wire shape as a
+    `type 301` block, so each cage's raw `cells` indices map row-major to
+    addresses. Every non-disabled cage emits a no-repeats `cage`; a numeric
+    non-zero string `value` additionally decodes a `group-sum` carrying that
+    total over the same cells (spec #240). A non-numeric, empty, or `"0"`
+    `value` carries no sum, so the cage stands alone — the same shape a sumless
+    `type 301` decodes to. A `disabled` block is skipped entirely; an empty
+    `cages` list adds nothing."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
-        cells = cast("list[int]", block.get("cells", []))
-        addresses = _addresses(cells, size)
-        decoded.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(block)))
+        cages = cast("list[dict[str, Any]]", block.get("cages", []))
+        for cage in cages:
+            addresses = _addresses(cage["cells"], size)
+            decoded.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(cage)))
     return decoded
 
 
@@ -678,18 +681,12 @@ class DecodedType:
     unconditional rows/cols, and `type 1`'s regions live behind
     `_regions_constraints` like every other handler), `live_keys` are the
     payload keys that mark this type's wire shape as carrying a real rule
-    (read by `has_live_data`, generalized to unmodeled types too), `name`
-    labels it in the decoder's own warnings, and `live_predicate` is an optional
-    override for a type whose liveness the global `live_keys` union can't
-    express — a cosmetic cage is live on its own `cells`, but `cells` is not
-    unique to the type, so scoping the check here keeps it from marking every
-    unmodeled `cells`-carrying block live. When set, `has_live_data` defers to
-    it instead of `live_keys`."""
+    (read by `has_live_data`, generalized to unmodeled types too), and `name`
+    labels it in the decoder's own warnings."""
 
     handler: Callable[[dict[str, object], int], list[Constraint]] | None
     live_keys: tuple[str, ...]
     name: str
-    live_predicate: Callable[[dict[Any, Any]], bool] | None = None
 
 
 # The one table wire-type -> (handler, live-data payload keys, display name):
@@ -717,10 +714,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=_cage_constraints, live_keys=("cages",), name="killer-cage"
     ),
     _COSMETIC_CAGE_TYPE: DecodedType(
-        handler=_cosmetic_cage_constraints,
-        live_keys=(),
-        name="cosmetic-cage",
-        live_predicate=lambda block: bool(block.get("cells")),
+        handler=_cosmetic_cage_constraints, live_keys=("cages",), name="cosmetic-cage"
     ),
     _THERMO_TYPE: DecodedType(
         handler=_thermo_constraints, live_keys=("thermometers",), name="thermo"
@@ -789,23 +783,14 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     so `_warn_on_dropped_constraints` skips it — this entry marks
     a populated cage block `active` for `scripts/inspect_link.py`, exactly as
     the `clues` entry does for decoded XV (`type 202`): a decoded variant still
-    carries a live rule the dev tool must not report as inert.
-
-    A type whose liveness the global list-key scan can't scope (a `type 2001`
-    cosmetic cage is live on its own `cells`, but `cells` is not unique to the
-    type) registers a `live_predicate` instead; when the constraint's
-    own `type` names such an entry, that predicate decides liveness directly
-    rather than falling through the list-key scan — any non-disabled cosmetic
-    cage with cells is `active`, same as a populated killer cage.
+    carries a live rule the dev tool must not report as inert. A `type 2001`
+    cosmetic cage carries its cages under the same `cages` key, so a populated
+    cosmetic block is `active` on the same scan.
 
     Public so `scripts/inspect_link.py` classifies constraints against the same
     predicate the decoder drops by. `Any` keeps the decoded-JSON
     boundary type (a dict narrowed from the untyped payload), as `decode_link`
     does for `puzzle_data`."""
-    kind = constraint.get("type")
-    entry = DECODER_REGISTRY.get(kind) if isinstance(kind, int) else None
-    if entry is not None and entry.live_predicate is not None:
-        return entry.live_predicate(constraint)
     for key in _LIVE_LIST_KEYS:
         value = constraint.get(key)
         if isinstance(value, list) and any(value):
