@@ -8,8 +8,9 @@ one startup, not one per link.
 
     uv run python scripts/inspect_link.py '<link>' ['<link>' ...]
     printf '%s\n' "$l1" "$l2" | uv run python scripts/inspect_link.py
-    uv run python scripts/inspect_link.py --schrodinger '<link>'
-    uv run python scripts/inspect_link.py --doubler '<link>'
+
+Variants (doubler, S-cell) are inferred from the link's marker cages, so the
+inspector takes no flags — a `--`-prefixed token is reported as unknown.
 """
 
 from __future__ import annotations
