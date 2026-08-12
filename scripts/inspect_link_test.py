@@ -46,13 +46,13 @@ from inspect_link import _display_size, _fmt_bucket, classify_constraint
         ),
         pytest.param(
             {"type": 2001, "value": "Total", "cells": [0, 1]},
-            "inert",
-            id="non-numeric-cosmetic-cage-inert",
+            "active",
+            id="non-numeric-cosmetic-cage-active",
         ),
         pytest.param(
             {"type": 2001, "value": "", "cells": [0, 1]},
-            "inert",
-            id="empty-cosmetic-cage-inert",
+            "active",
+            id="empty-cosmetic-cage-active",
         ),
     ],
 )

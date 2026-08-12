@@ -38,9 +38,16 @@ nor the cage — unsound for this puzzle.
    red bit by default, mirroring `schrodinger=True`. A bare color bit is
    ambiguous, so the variant is declared, never sniffed.
 3. **Cosmetic (type-2001) cages are honored as killer cages.** A numeric string
-   `value` becomes the killer sum; a non-numeric or empty label stays inert and
-   drops as before. This is the only channel an out-of-range cage sum reaches
+   `value` becomes the killer sum; ~~a non-numeric or empty label stays inert and
+   drops as before~~. This is the only channel an out-of-range cage sum reaches
    gridfind through, since SudokuMaker cannot store it as a real killer cage.
+
+   > **Superseded (2026-08-12, #298):** the struck clause no longer holds. A
+   > non-numeric or empty label no longer drops — every non-disabled cosmetic
+   > cage is a killer cage, emitting a no-repeats `cage` with a `group-sum` only
+   > when a numeric `value` graduates, exactly as a sumless `type-301` cage
+   > emits `cage` alone. The numeric-sum channel above is unchanged, so the
+   > doubler puzzle (label `"11"`) still graduates as this ADR describes.
 4. **The killer sum folds modifiers.** A doubled cell contributes `2·d0` via
    the `modifier_value` structure (#237's pattern), not its raw content. The
    killer cage later recomposed as `cage` (uniqueness) plus `group-sum` (the
