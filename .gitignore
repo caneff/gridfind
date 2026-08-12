@@ -34,5 +34,7 @@ __marimo__/
 # node
 node_modules/
 
-# eval-links personal approval log (scripts/eval_links.py)
+# eval-links personal approval + flag logs (scripts/eval_links.py)
 scripts/.eval-approved.json
+scripts/.eval-flagged.json
+scripts/.eval-flagged-archive.json
