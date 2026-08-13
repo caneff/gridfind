@@ -302,3 +302,68 @@ def test_d0_returns_the_first_slot_and_never_raises_on_a_widened_cell() -> None:
 
     assert engine.d0("x") is plain.content[0]
     assert engine.d0("s") is s_cell.content[0]
+
+
+def test_assignment_slices_each_plain_cell_to_its_singleton_digit() -> None:
+    # No schrödinger layer: is_s() is None, so every cell reads as its lone d0.
+    engine = build_engine([], board=BOARD)
+    a = engine.add_cell("a", low=1, high=9)
+    b = engine.add_cell("b", low=1, high=9)
+    engine.model.add(a.content[0] == 4)
+    engine.model.add(b.content[0] == 7)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.assignment(solver) == {"a": (4,), "b": (7,)}
+
+
+def test_assignment_keeps_both_digits_of_a_widened_s_cell_and_slices_the_rest() -> None:
+    # The is_s ⟺ d1-real rule the accessor composes: a width-2 cell reads whole
+    # only when its is_s bool is set; an unwidened width-2 cell slices to d0.
+    engine = build_engine([], board=BOARD)
+    widened = engine.add_cell("s", low=1, high=9, width=2)
+    unwidened = engine.add_cell("p", low=1, high=9, width=2)
+    is_s = {
+        "s": engine.model.new_bool_var("s.is_s"),
+        "p": engine.model.new_bool_var("p.is_s"),
+    }
+    engine.register_structure("is_s", is_s)
+    engine.model.add(is_s["s"] == 1)
+    engine.model.add(is_s["p"] == 0)
+    engine.model.add(widened.content[0] == 2)
+    engine.model.add(widened.content[1] == 5)
+    engine.model.add(unwidened.content[0] == 8)
+    engine.model.add(unwidened.content[1] == 3)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.assignment(solver) == {"s": (2, 5), "p": (8,)}
+
+
+def test_discovered_modifiers_is_empty_without_a_modifier_layer() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("a", low=1, high=9)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.discovered_modifiers(solver) == {}
+
+
+def test_discovered_modifiers_names_each_placed_modifier_by_its_type() -> None:
+    # Only cells whose is_modifier bool is set are named, each by its declared
+    # modifier_type — the fold the accessor composes from both structures.
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("a", low=1, high=9)
+    engine.add_cell("b", low=1, high=9)
+    is_modifier = {
+        "a": engine.model.new_bool_var("a.is_modifier"),
+        "b": engine.model.new_bool_var("b.is_modifier"),
+    }
+    engine.register_structure("is_modifier", is_modifier)
+    engine.register_structure("modifier_type", {"a": "doubler", "b": "doubler"})
+    engine.model.add(is_modifier["a"] == 1)
+    engine.model.add(is_modifier["b"] == 0)
+    solver = cp_model.CpSolver()
+    solver.solve(engine.model)
+
+    assert engine.discovered_modifiers(solver) == {"a": "doubler"}
