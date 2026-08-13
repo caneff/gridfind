@@ -29,6 +29,7 @@ from eval_links import (
     record_approval,
     record_flag,
     render_page,
+    view_for,
 )
 
 from gridfind.sudokumaker import encode_link
@@ -61,6 +62,18 @@ def test_eval_link_shows_witness_and_solution_for_a_found_case() -> None:
     assert "2" in view.witness_grid
     assert view.solution_link is not None
     assert view.solution_link.startswith("https://sudokumaker.app/?puzzle=")
+
+
+def test_view_for_presents_an_invalid_case_without_decoding() -> None:
+    # An `invalid-*` fixture is a malformed link the front door refuses; view_for
+    # must render it off its prefix alone, never decoding — decoding a malformed
+    # link raises, which is exactly the crash the prefix guard avoids.
+    garbage = "https://sudokumaker.app/?puzzle=not-a-real-payload"
+    view = view_for("invalid-scell-out-of-domain-4x4", [garbage])
+    assert view.kind == "invalid"
+    assert view.puzzle_link == garbage
+    assert view.witness_grid is None
+    assert view.solution_link is None
 
 
 def test_eval_link_shows_only_the_puzzle_for_a_broke_case() -> None:

@@ -162,6 +162,52 @@ def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
     )
 
 
+def test_fill_witness_cages_a_discovered_s_cell() -> None:
+    # The solver discovers S-cells the source link never declared. `fill_witness`
+    # marks each by cage, so an S-cell the marker block did not name still
+    # round-trips as a pin — mark by cage, never by color.
+    size = 4
+    grid = _grid(size)
+    addresses = [address for row in grid for address in row]
+    declared, discovered = 0, 5
+    assignment: dict[str, tuple[int, ...]] = {
+        address: (1, 2) if index in (declared, discovered) else (1,)
+        for index, address in enumerate(addresses)
+    }
+    witness = Witness(grid=grid, assignment=assignment, region_map=[])
+    document = _document(size, _marker_block("S-cell", declared))
+
+    filled = fill_witness(document, witness, size)
+
+    _, state = decode_link(encode_link(filled))
+    pinned = {pin.address for pin in state.s_directives if isinstance(pin, SCellPin)}
+    assert {addresses[declared], addresses[discovered]} <= pinned
+
+
+def test_fill_witness_folds_a_discovered_doubler_into_the_cage() -> None:
+    # A doubler the solver found but the source link never declared is folded
+    # into the `Doubler` cage, so every modifier cell is marked by cage.
+    size = 4
+    grid = _grid(size)
+    addresses = [address for row in grid for address in row]
+    declared, discovered = 6, 9
+    witness = Witness(
+        grid=grid,
+        assignment=dict.fromkeys(addresses, (1,)),
+        region_map=[],
+        modifiers={addresses[declared]: "doubler", addresses[discovered]: "doubler"},
+    )
+    document = _document(size, _marker_block("Doubler", declared))
+
+    filled = fill_witness(document, witness, size)
+
+    _, state = decode_link(encode_link(filled))
+    assert set(state.modifier_directives) == {
+        ModifierDirective(addresses[declared], is_modifier=True),
+        ModifierDirective(addresses[discovered], is_modifier=True),
+    }
+
+
 def test_verify_link_reports_a_solution_link_for_a_found_case() -> None:
     # A fully-given, already-valid 2x2 Latin square: rows {1,2}/{2,1},
     # columns {1,2}/{2,1} — trivially found, so filling in the witness

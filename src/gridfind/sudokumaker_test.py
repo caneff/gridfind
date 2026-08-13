@@ -32,7 +32,6 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import (
-    _RED_BIT,
     _CellDecode,
     _decode_cell,
     _edge_to_pair,
@@ -142,21 +141,13 @@ def test_write_cell_writes_a_singleton_as_a_given() -> None:
     assert cell == {"given": True, "value": 5}
 
 
-def test_write_cell_writes_a_schrodinger_pin_as_red_two_mark() -> None:
-    # A length-2 content is an S-cell pin: write_cell sets the red bit and the
-    # two center marks, SudokuMaker's own S-cell look, so a human opening the
-    # solution link sees the pinned pair in red.
+def test_write_cell_writes_a_schrodinger_pair_as_two_center_marks() -> None:
+    # A length-2 content is an S-cell: write_cell sets the two center marks
+    # (candidates) and no color bit — SudokuMaker's cosmetic display of the
+    # pair, while the decode-time pair rides the marker cage's value.
     cell: dict[str, object] = {}
     write_cell(cell, (2, 7))
-    assert cell == {"colors": _RED_BIT, "candidates": (1 << 2) | (1 << 7)}
-
-
-def test_write_cell_marks_a_modifier_with_the_red_bit() -> None:
-    # An `is_modifier` given carries the red bit alongside its digit, so a
-    # solution link shows in red every cell the solver found to be a doubler.
-    cell: dict[str, object] = {}
-    write_cell(cell, (5,), is_modifier=True)
-    assert cell == {"given": True, "value": 5, "colors": _RED_BIT}
+    assert cell == {"candidates": (1 << 2) | (1 << 7)}
 
 
 def test_colors_and_corner_marks_leave_the_state_empty() -> None:
@@ -1588,7 +1579,7 @@ def test_a_red_cell_alone_is_not_a_doubler() -> None:
     # `Doubler` marker cage, so a bare red `colors` bit carries no meaning and
     # stands up no `doubler` constraint or modifier directive.
     cells: list[dict[str, object]] = [{} for _ in range(16)]
-    cells[0] = {"colors": _RED_BIT}
+    cells[0] = {"colors": 2}  # the retired red bit, ignored on decode
     payload = _doubler_link(cells)
 
     puzzle, state = decode_link(payload)

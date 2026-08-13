@@ -4,15 +4,17 @@ CLI front door.
 Each case file under `links/` holds the argv `cli.main` receives: any flag
 lines, then the link, one per line. Links are URL-encoded and carry no
 spaces, so the loader builds argv by `content.split()`. The filename stem
-starts `found-` or `broke-`; the loader partitions on the first `-` for the
-expected verdict.
+starts `found-`, `broke-`, or `invalid-`; the loader partitions on the first
+`-` for the expected outcome.
 
 A `found` case gets two layers of assertion: the front-door contract (exit
 0, `found` on stdout, a grid follows), and an *independent* witness check —
 `validate_witness` recovers the grid the CLI printed and checks it against
 the `Puzzle` `decode_link` recovers from the same link, never calling
 `verdict()` itself. A `broke` case trusts the curator's label: exit 1,
-`broke` on stdout, nothing more (map #168 decision 2).
+`broke` on stdout, nothing more (map #168 decision 2). An `invalid` case is a
+malformed link the front door refuses before any verdict: exit 2, the error
+on stderr.
 
 Deselected from the default run by `-m "not e2e"` in `pyproject.toml`'s
 addopts; run on demand with `just e2e`.
@@ -58,13 +60,21 @@ def test_link_case_matches_its_filename_verdict(
     path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     expected_kind, _, _ = path.stem.partition("-")
-    assert expected_kind in ("found", "broke")
+    assert expected_kind in ("found", "broke", "invalid")
     argv = path.read_text().split()
 
     code = cli.main(argv, io.StringIO())
 
-    out = capsys.readouterr().out
-    lines = out.split("\n")
+    captured = capsys.readouterr()
+
+    # An `invalid-*` case is a malformed link the front door refuses before any
+    # verdict: exit 2, the error on stderr, nothing on stdout.
+    if expected_kind == "invalid":
+        assert code == 2
+        assert "invalid puzzle document" in captured.err
+        return
+
+    lines = captured.out.split("\n")
     assert lines[0] == expected_kind
 
     if expected_kind == "found":
@@ -157,6 +167,10 @@ def test_coverage_floor_every_link_reachable_variant_has_found_and_broke() -> No
     coverage: dict[int | str, dict[str, bool]] = {}
     for path in _CASES:
         kind, _, _ = path.stem.partition("-")
+        # `invalid-*` cases carry a malformed link `decode_link` won't read, so
+        # they name no variant and owe no found/broke pair.
+        if kind not in ("found", "broke"):
+            continue
         argv = path.read_text().split()
         for tag in _variant_tags(argv):
             slot = coverage.setdefault(tag, {"found": False, "broke": False})
