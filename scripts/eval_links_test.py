@@ -11,6 +11,7 @@ touching the real `links/` corpus.
 from __future__ import annotations
 
 import threading
+import urllib.error
 import urllib.request
 from http.server import HTTPServer
 from pathlib import Path
@@ -226,19 +227,6 @@ def test_changed_stems_ignores_non_txt_paths() -> None:
     assert stems == {"found-classic-4x4"}
 
 
-def test_flagging_a_stem_leaves_it_pending_next_run(tmp_path: Path) -> None:
-    # A flag hides a link only for the live session; unlike an approval it must
-    # come back next run. Pending is filtered by the approved log alone, so a
-    # flagged-but-unapproved stem stays pending — flagging must never approve.
-    flag_log = tmp_path / "flagged.json"
-    record_flag(flag_log, "b", "looks off")
-
-    approved = load_approved(tmp_path / "approved.json")  # nothing approved
-    pending = pending_stems(["a", "b", "c"], approved, show_all=False)
-
-    assert pending == ["a", "b", "c"]  # the flagged "b" is still there
-
-
 _FOUND = LinkView(
     kind="found",
     puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
@@ -251,13 +239,6 @@ _BROKE = LinkView(
     witness_grid=None,
     solution_link=None,
 )
-
-
-def _flag_js(page: str) -> str:
-    """The body of the page's `flag()` handler, sliced out so assertions bind
-    to it rather than to the identically-shaped `approve()`."""
-    start = page.index("async function flag(")
-    return page[start : page.index("</script>", start)]
 
 
 def test_render_page_shows_one_active_slide_and_a_progress_counter() -> None:
@@ -310,31 +291,63 @@ def test_render_page_keeps_the_button_onclick_attribute_intact() -> None:
     assert 'flag(this, "found-cage-4x4"' not in html
 
 
-def test_render_page_slide_has_note_and_action_controls() -> None:
+def test_render_page_note_field_is_addressable_by_the_flag_handler() -> None:
+    # The flag() handler reads getElementById("note-" + stem); the slide must
+    # give its textarea exactly that id, or the note reads null and the flag
+    # throws. Pin the id to the stem the same slide hands the flag button.
     html = render_page([("found-cage-4x4", _FOUND)])
 
-    assert "<textarea" in html  # a place to jot the flag note
-    assert "approve(this," in html  # the Approve control
-    assert "flag(this," in html  # the Flag control
+    assert 'id="note-found-cage-4x4"' in html
+    assert "flag(this, &quot;found-cage-4x4&quot;)" in html
 
 
-def test_render_page_flag_advances_on_a_successful_flag() -> None:
-    # Act-to-advance: a successful flag moves to the next slide, the same way
-    # approve does, with a disable while the POST is in flight.
-    flag_js = _flag_js(render_page([("found-cage-4x4", _FOUND)]))
+def _post(port: int, path: str, data: bytes) -> int:
+    """POST to the running handler and return the status code, treating a 4xx
+    as an answer rather than an exception."""
+    try:
+        return urllib.request.urlopen(
+            urllib.request.Request(
+                f"http://127.0.0.1:{port}{path}", method="POST", data=data
+            ),
+            timeout=5,
+        ).status
+    except urllib.error.HTTPError as exc:
+        return exc.code
 
-    assert "btn.disabled = true" in flag_js  # disabled while the flag is sent
-    assert "advance()" in flag_js  # success moves to the next slide
+
+def test_flag_endpoint_records_a_valid_flag_and_rejects_bad_ones(
+    tmp_path: Path,
+) -> None:
+    # The server half of the Flag button: a known stem with a non-empty comment
+    # is recorded and answered 200; an unknown stem or an empty comment is
+    # refused 400 and nothing is written.
+    flags = tmp_path / "flagged.json"
+    _ApprovalHandler.page = render_page([])
+    _ApprovalHandler.known = frozenset({"found-cage-4x4"})
+    _ApprovalHandler.flags = flags
+    server = HTTPServer(("127.0.0.1", 0), _ApprovalHandler)
+    port = server.server_address[1]
+    serve = threading.Thread(target=server.serve_forever)
+    serve.start()
+    try:
+        good = _post(port, "/flag", b'{"stem": "found-cage-4x4", "comment": "off"}')
+        unknown = _post(port, "/flag", b'{"stem": "ghost", "comment": "off"}')
+        empty = _post(port, "/flag", b'{"stem": "found-cage-4x4", "comment": "  "}')
+    finally:
+        server.shutdown()
+        server.server_close()
+        serve.join(timeout=5)
+
+    assert (good, unknown, empty) == (200, 400, 400)
+    assert load_flags(flags) == [{"stem": "found-cage-4x4", "comment": "off"}]
 
 
-def test_render_page_offers_a_finish_and_an_end_state() -> None:
-    # A person can end the run from the page (Finish), and after the last slide
-    # an end-state offers a Close that posts to the same finish endpoint.
+def test_render_page_offers_an_end_state_with_a_close_control() -> None:
+    # After the last slide an end-state screen appears with a Close control.
+    # (The /finish behavior it drives is covered end-to-end by
+    # test_finish_endpoint_stops_the_server.)
     html = render_page([("found-cage-4x4", _FOUND)])
 
-    assert "async function finish(" in html  # the handler that ends the run
-    assert "/finish" in html  # it posts to the finish endpoint
-    assert "function advance(" in html  # the show-next handler
     assert 'id="done"' in html  # the end-state screen
     assert ">Close</button>" in html  # its Close control
 

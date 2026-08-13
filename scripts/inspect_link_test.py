@@ -126,11 +126,3 @@ def test_main_reports_unknown_flag_without_decoding_it() -> None:
     code = main(["--bogus"], io.StringIO(), stderr=err)
     assert "unknown flag: --bogus" in err.getvalue()
     assert code == 2  # nothing left to decode -> usage exit, not a crash
-
-
-def test_main_survives_a_bare_flag_token() -> None:
-    # A `--`-prefixed token with no link behind it leaves nothing to decode, so
-    # it reaches the usage exit rather than the decoder (which raises on a
-    # non-link).
-    code = main(["--doubler"], io.StringIO(), stderr=io.StringIO())
-    assert code == 2

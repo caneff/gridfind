@@ -34,7 +34,7 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
     # against the engine->layer contract via py.typed, so editing `__all__`
     # must be a deliberate act with this expectation updated alongside it.
     # (ADR-0001: the contract's named vocabulary.)
-    assert gridfind.engine.__all__ == [
+    assert set(gridfind.engine.__all__) == {
         "Cell",
         "Combine",
         "Engine",
@@ -44,7 +44,11 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
         "MissingDependencyError",
         "build_engine",
         "sole",
-    ]
+    }
+    # Every advertised name must actually resolve — a dangling `__all__` entry
+    # breaks `from gridfind.engine import X` for py.typed consumers.
+    for name in gridfind.engine.__all__:
+        assert hasattr(gridfind.engine, name)
 
 
 @dataclass
