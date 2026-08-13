@@ -5,6 +5,7 @@ from gridfind.puzzle import (
     BareSCell,
     BareSingleton,
     HalfSCell,
+    SCellMarkRestriction,
     SCellPin,
     SDirective,
     SingletonPin,
@@ -35,6 +36,10 @@ DIRECTIVE_CASES: list[tuple[SDirective, dict[str, object]]] = [
     (
         HalfSCell(address="R5C5", digit=6),
         {"kind": "half-s-cell", "address": "R5C5", "digit": 6},
+    ),
+    (
+        SCellMarkRestriction(address="R6C6", digits=frozenset({1, 4, 9})),
+        {"kind": "s-cell-mark-restriction", "address": "R6C6", "digits": [1, 4, 9]},
     ),
 ]
 

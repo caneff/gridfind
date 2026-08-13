@@ -155,10 +155,32 @@ class HalfSCell:
     kind: ClassVar[str] = "half-s-cell"
 
 
+@dataclass(frozen=True)
+class SCellMarkRestriction:
+    """A Schrödinger directive: a caged S-cell's center marks, layered as a
+    consistency restriction over the cage's own directive (CONTEXT.md
+    `schrodinger`). Every one of the cell's real slots must draw from `digits`.
+    It never selects the S-cell — the cage's `value` does that — so it only
+    tightens the cage-chosen pin/half/bare or, when the marks cannot hold the
+    directive's pair, makes the model infeasible → broke. Present only when the
+    caged cell carries center marks, which are optional."""
+
+    address: str
+    digits: frozenset[int]
+    kind: ClassVar[str] = "s-cell-mark-restriction"
+
+
 # The Schrödinger working-state directives, hard-coded not registered
 # (ADR-0006). A closed union: a second directive-bearing layer would need its
 # own seam.
-SDirective = SingletonPin | SCellPin | BareSingleton | BareSCell | HalfSCell
+SDirective = (
+    SingletonPin
+    | SCellPin
+    | BareSingleton
+    | BareSCell
+    | HalfSCell
+    | SCellMarkRestriction
+)
 
 
 @dataclass(frozen=True)

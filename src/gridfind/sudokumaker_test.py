@@ -25,6 +25,7 @@ from gridfind.puzzle import (
     ModifierDirective,
     Placement,
     Puzzle,
+    SCellMarkRestriction,
     SCellPin,
     SDirective,
     SingletonPin,
@@ -1216,17 +1217,29 @@ def test_s_cell_marker_cage_value_selects_the_directive(
     assert expected in state.s_directives
 
 
-def test_s_cell_marker_cage_value_wins_over_the_cells_own_center_marks() -> None:
-    # The cage `value` alone picks the directive: a cell's own stray marks are
-    # ignored — they neither pick pin/half/bare nor fold in as an ordinary
-    # candidate. That restriction layer is separate follow-on work
-    # (spec #347 ticket #350).
+def test_s_cell_marker_center_marks_layer_a_restriction_not_a_candidate() -> None:
+    # The cage `value` still picks the directive; the cell's own center marks
+    # layer a consistency restriction over that directive, not an ordinary
+    # candidate. So a caged cell yields both the cage's SCellPin and an
+    # SCellMarkRestriction over its marks, and never an S-cell candidate.
     payload = _s_cell_cage_link("2,7", marks={1, 4, 9})
 
     _, state = decode_link(payload)
 
     assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
+    assert SCellMarkRestriction("R1C1", frozenset({1, 4, 9})) in state.s_directives
     assert all(c.address != "R1C1" for c in state.candidates)
+
+
+def test_s_cell_marker_without_center_marks_emits_no_restriction() -> None:
+    # Marks are optional: a caged cell with no center marks carries only its
+    # cage directive, no restriction to layer.
+    payload = _s_cell_cage_link("2,7")
+
+    _, state = decode_link(payload)
+
+    assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
+    assert not any(isinstance(d, SCellMarkRestriction) for d in state.s_directives)
 
 
 def test_s_cell_marker_cage_value_out_of_domain_digit_is_refused_as_malformed() -> None:

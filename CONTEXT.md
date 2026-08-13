@@ -278,10 +278,14 @@ directives name a point on each:
 - **half S-cell** — asserts a cell **is an S-cell** and that digit `d` is one of
   its two digits, partner unknown. Between an S-cell pin and a bare S-cell;
   equivalently a bare placement whose S-cell-ness is pinned true.
+- **S-cell mark restriction** — narrows a caged S-cell's two slots to a set of
+  digits, its center marks. It names no point on either axis; it layers over the
+  cage's own directive as a consistency check. See **Center marks** below.
 
 **Cage-value pair source.** A named `S-cell`/`Schrödinger` **marker cage**'s
-own `value` field is what selects a marked cell's directive (spec #349) — not
-the cell's own center marks. `value` is read for its parsed digit-count: two
+own `value` field is what selects a marked cell's directive (spec #349); the
+cell's own center marks only restrict it (see **Center marks** below), never
+select it. `value` is read for its parsed digit-count: two
 digits (a comma-split `"a,b"`, or the two-digit scalar shorthand `"ab"` when
 every domain digit is single-character) declare an **S-cell pin** `{a,b}`;
 one digit declares a **half S-cell**; an absent, empty, or unparseable value
@@ -292,6 +296,25 @@ out-of-domain given is. The comma form is unambiguous at any board size —
 including a 16x16 domain, where a bare two-character value instead reads as a
 single two-digit **half S-cell** digit, never a split pair. A multi-cell
 marker cage applies its one `value` to every cell it contains uniformly.
+
+**Center marks.** A caged cell's own center marks are optional and never select
+the directive; they layer a **consistency restriction** over the cage-chosen
+one, narrowing the cell's two slots to the marked digits. A pinned S-cell with
+no marks stays valid. The solver judges the restriction, so a conflict reads
+**broke**, not a decode error:
+
+- **pin** `{a,b}` — the marks must contain the pair (`{a,b} ⊆ marks`); marks
+  that merely add extras stay **found**, marks that omit either digit read
+  **broke**.
+- **half** `a` — the digit must be marked and at least two digits marked
+  (`a ∈ marks`, `|marks| ≥ 2`), else **broke**.
+- **bare** — at least two digits must be marked, the pair drawn from them
+  (`|marks| ≥ 2`), else **broke**.
+
+The `≥ 2` rules need no counting: restricting both slots to one mark collides
+with the S-cell's `d0 < d1`, so the solver alone reports the break. A caged
+cell's marks are the sole S-restriction channel — an **uncaged** cell's center
+marks stay ordinary **candidates**, declaring no S-status.
 
 A marked cell that *also* carries its own settled large digit (a **given** or
 **placement** on the cell itself, distinct from the cage's `value`) decodes

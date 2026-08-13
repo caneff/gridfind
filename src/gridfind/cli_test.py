@@ -100,7 +100,9 @@ def test_sudokumaker_link_on_stdin_matches_argument(
     assert capsys.readouterr().out.split("\n")[0] == "found"
 
 
-def _classic_schrodinger_solution_link() -> str:
+def _classic_schrodinger_solution_link(
+    first_s_cell_marks: set[int] | None = None,
+) -> str:
     """A synthesised, fully-given/pinned classic Schrödinger link: a valid
     completed 1-9 Latin square (the well-known
     `(r*3 + r//3 + c) % 9 + 1` sudoku-by-formula construction, same shape as
@@ -113,13 +115,19 @@ def _classic_schrodinger_solution_link() -> str:
     (band = row // 3, k = row % 3), a transversal that lands one S-cell in
     every row, column, and box. Fully constrained (every cell a given or an
     exact cage-pinned S-cell), so the default solve decides `found` instantly
-    rather than searching."""
+    rather than searching.
+
+    `first_s_cell_marks` optionally sets center marks on the first S-cell
+    position (R1C1, pinned `{0, 1}`), the caged cell's own consistency
+    restriction: marks containing the pinned pair keep the puzzle found, marks
+    that miss it read broke."""
     s_cells = {}
     for band in range(3):
         for k in range(3):
             row = band * 3 + k
             stack = (band + k) % 3
             s_cells[(row, stack * 3 + band)] = True
+    marked_position = next(iter(s_cells)) if first_s_cell_marks else None
 
     cells = []
     s_cell_cages = []
@@ -128,7 +136,9 @@ def _classic_schrodinger_solution_link() -> str:
             base = (row * 3 + row // 3 + col) % 9 + 1
             if (row, col) in s_cells:
                 index = row * 9 + col
-                cells.append({})
+                marks = first_s_cell_marks if (row, col) == marked_position else None
+                cell = {"candidates": sum(1 << d for d in marks)} if marks else {}
+                cells.append(cell)
                 s_cell_cages.append({"value": f"0,{base}", "cells": [index]})
             else:
                 cells.append({"given": True, "value": base})
@@ -203,6 +213,31 @@ def test_settled_digit_where_the_solution_needs_an_s_cell_is_broke(
 
     assert code == 1
     assert capsys.readouterr().out.split("\n")[0] == "broke"
+
+
+@pytest.mark.parametrize(
+    ("marks", "expected_code", "expected_word"),
+    [
+        pytest.param({0, 1, 5}, 0, "found", id="stray-but-containing-mark-found"),
+        pytest.param({3, 4}, 1, "broke", id="marks-contradict-the-pair-broke"),
+    ],
+)
+def test_center_marks_layer_a_consistency_check_on_the_cage_pin(
+    marks: set[int],
+    expected_code: int,
+    expected_word: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # R1C1's cage pins the pair {0, 1}; the cell's own center marks layer a
+    # consistency restriction over that pin. Marks that contain the pair (with a
+    # stray extra) stay found; marks that miss it read broke — the solver's
+    # judgment, surfaced through the CLI front door.
+    link = _classic_schrodinger_solution_link(first_s_cell_marks=marks)
+
+    code = cli.main([link], io.StringIO())
+
+    assert code == expected_code
+    assert capsys.readouterr().out.split("\n")[0] == expected_word
 
 
 @pytest.mark.parametrize(
