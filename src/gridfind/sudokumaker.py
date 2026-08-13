@@ -79,6 +79,7 @@ from gridfind.puzzle import (
     ModifierDirective,
     Placement,
     Puzzle,
+    SCellMarkRestriction,
     SCellPin,
     SDirective,
     SingletonPin,
@@ -458,11 +459,14 @@ def _decode_cell(
     color, a corner mark, `{}` — decodes to an empty `_CellDecode`."""
     if is_scell_marker:
         directive = _scell_directive_from_value(address, scell_value, domain)
+        directives: tuple[SDirective, ...] = (directive,)
+        if "candidates" in cell:
+            marks = frozenset(d for d in domain if cell["candidates"] & (1 << d))
+            if marks:
+                directives += (SCellMarkRestriction(address, marks),)
         if "value" in cell:
-            return _CellDecode(
-                s_directives=(directive, SingletonPin(address, cell["value"]))
-            )
-        return _CellDecode(s_directives=(directive,))
+            directives += (SingletonPin(address, cell["value"]),)
+        return _CellDecode(s_directives=directives)
     if "value" in cell:
         if is_schrodinger:
             return _CellDecode(s_directives=(SingletonPin(address, cell["value"]),))

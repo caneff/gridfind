@@ -15,6 +15,7 @@ from gridfind.puzzle import (
     ModifierDirective,
     Placement,
     Puzzle,
+    SCellMarkRestriction,
     SDirective,
     SingletonPin,
     WorkingState,
@@ -64,7 +65,9 @@ def _apply_placement(engine: Engine, placement: Placement) -> None:
 def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> None:
     """Apply the Schrödinger directives by restricting the already-built model
     along the two axes `engine.restrict` can't reach: S-cell-ness (`is_s`) and
-    the second content slot (`d1`). Each names a point on those axes:
+    the second content slot (`d1`). Each pin/bare/half names a point on those
+    axes; the mark restriction instead narrows both slots, layering over
+    whichever point the cage already named:
 
     - singleton pin  — fix d0 to the digit, force is_s false.
     - S-cell pin     — fix both slots to the sorted pair, force is_s true.
@@ -73,6 +76,13 @@ def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> N
     - half S-cell    — force is_s true and the digit into *either* slot, its
                        partner free (`digit in content`, an OR over the slots'
                        reified holds, which `engine.reify_holds` builds).
+    - mark restriction — narrow *every* content slot to the caged cell's center
+                       marks. It layers over the cage's own directive rather
+                       than choosing one; the schrodinger layer's d0 < d1 then
+                       makes a half/bare with fewer than two marks infeasible,
+                       and a pin whose pair escapes the marks infeasible. Marks
+                       ride in from the domain bitmask, so all are in-domain —
+                       no digit guard needed.
 
     A consistent directive narrows the model and is honored; a contradictory
     one makes it infeasible, which the solver reports as broke.
@@ -104,6 +114,10 @@ def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> N
             holds = engine.reify_holds(content, directive.digit, f"half.{address}")
             engine.model.add_bool_or(holds)
             engine.model.add(is_s[address] == 1)
+        elif isinstance(directive, SCellMarkRestriction):
+            allowed = [(digit,) for digit in sorted(directive.digits)]
+            for slot in content:
+                engine.model.add_allowed_assignments([slot], allowed)
         else:
             low, high = sorted(directive.pair)
             _require_in_domain(engine, address, (low, high))

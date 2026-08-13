@@ -19,6 +19,7 @@ from gridfind.puzzle import (
     ModifierDirective,
     Placement,
     Puzzle,
+    SCellMarkRestriction,
     SCellPin,
     SDirective,
     SingletonPin,
@@ -1102,6 +1103,98 @@ def test_verdict_runs_a_first_light_singleton_and_s_cell_pin_end_to_end() -> Non
     ],
 )
 def test_verdict_applies_a_bare_or_half_directive(
+    directives: tuple[SDirective, ...], expected: str
+) -> None:
+    puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)
+    state = WorkingState(s_directives=directives)
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == expected
+
+
+# R1C1 forced to the S-cell {0, 4}; a center-mark restriction layers over the
+# cage directive. Consistency is the solver's to judge: the restriction narrows
+# both real slots to its marks, so the schrodinger layer's own d0 < d1 supplies
+# the "at least two distinct marks" half/bare rules for free.
+@pytest.mark.parametrize(
+    ("directives", "expected"),
+    [
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                SCellPin(address="R1C1", pair=frozenset({0, 4})),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({0, 4})),
+            ),
+            "found",
+            id="pin-marks-contain-the-pair",
+        ),
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                SCellPin(address="R1C1", pair=frozenset({0, 4})),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({0, 4, 1})),
+            ),
+            "found",
+            id="pin-marks-with-an-extra-still-contain-the-pair",
+        ),
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                SCellPin(address="R1C1", pair=frozenset({0, 4})),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({1, 2})),
+            ),
+            "broke",
+            id="pin-marks-contradict-the-pair",
+        ),
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                HalfSCell(address="R1C1", digit=0),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({0, 4})),
+            ),
+            "found",
+            id="half-marks-hold-the-digit-and-two-options",
+        ),
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                HalfSCell(address="R1C1", digit=0),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({0})),
+            ),
+            "broke",
+            id="half-marks-fewer-than-two",
+        ),
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                HalfSCell(address="R1C1", digit=0),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({2, 4})),
+            ),
+            "broke",
+            id="half-marks-lack-the-digit-with-two-marks",
+        ),
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                BareSCell(address="R1C1"),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({0, 4})),
+            ),
+            "found",
+            id="bare-marks-two-options",
+        ),
+        pytest.param(
+            (
+                *_FORCE_R1C1_S,
+                BareSCell(address="R1C1"),
+                SCellMarkRestriction(address="R1C1", digits=frozenset({0})),
+            ),
+            "broke",
+            id="bare-marks-fewer-than-two",
+        ),
+    ],
+)
+def test_verdict_center_mark_restriction_is_a_consistency_check(
     directives: tuple[SDirective, ...], expected: str
 ) -> None:
     puzzle = Puzzle(board=S_BOARD, constraints=S_CONSTRAINTS)

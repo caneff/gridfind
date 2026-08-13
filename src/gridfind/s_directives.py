@@ -51,6 +51,8 @@ def s_directive_to_dict(directive: puzzle.SDirective) -> dict[str, puzzle.JsonVa
         out["digit"] = directive.digit
     elif isinstance(directive, puzzle.SCellPin):
         out["pair"] = sorted(directive.pair)
+    elif isinstance(directive, puzzle.SCellMarkRestriction):
+        out["digits"] = sorted(directive.digits)
     return out
 
 
@@ -73,6 +75,11 @@ def _readers() -> dict[str, Callable[[Any], puzzle.SDirective]]:
         puzzle.BareSCell.kind: lambda d: puzzle.BareSCell(address=d["address"]),
         puzzle.HalfSCell.kind: (
             lambda d: puzzle.HalfSCell(address=d["address"], digit=d["digit"])
+        ),
+        puzzle.SCellMarkRestriction.kind: (
+            lambda d: puzzle.SCellMarkRestriction(
+                address=d["address"], digits=frozenset(d["digits"])
+            )
         ),
     }
 
