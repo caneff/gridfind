@@ -24,6 +24,7 @@ from gridfind.sudokumaker import (
     decode_document,
     decode_link,
     encode_link,
+    is_scell_marker_name,
     write_cell,
 )
 from gridfind.verdict import verdict
@@ -43,14 +44,51 @@ def fill_witness(
     modifier (doubler) carries the red bit too — so this holds no knowledge of
     the cell's field shape. Every other field of `document` rides through
     untouched, so `size`/`type` survive and the emitted link opens as the same
-    puzzle."""
+    puzzle.
+
+    `decode_link` sources an S-cell's pair from its marker cage's own `value`
+    (spec #349), not the cell's cosmetic candidates `write_cell` paints — so
+    every S-cell marker cage is also stamped with its solved pair
+    (`_stamp_scell_cage_values`), the write-side mirror of that read, keeping
+    the emitted link's own re-decode agree with the witness it was built
+    from."""
     filled: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", filled["puzzle"])
     cells = cast("list[dict[str, Any]]", puzzle_data["cells"])
     for i, cell in enumerate(cells):
         address = cell_address(i // size + 1, i % size + 1)
         write_cell(cell, witness[address], is_modifier=address in witness.modifiers)
+    _stamp_scell_cage_values(puzzle_data, witness, size)
     return filled
+
+
+def _stamp_scell_cage_values(
+    puzzle_data: dict[str, object], witness: Witness, size: int
+) -> None:
+    """Every `S-cell`/`Schrödinger` marker cage's `value` set to its solved
+    pair `"a,b"`, so the emitted link's own re-decode reads the same pin
+    `write_cell` painted onto the cells for SudokuMaker's display (spec #349).
+    A cage whose cells disagree (only reachable from a bare multi-cell cage,
+    where each cell is independently free) is left as-is rather than guessing
+    one pair for cells that solved to different ones."""
+    constraints = puzzle_data.get("constraints", [])
+    if not isinstance(constraints, list):
+        return
+    for block in constraints:
+        if not isinstance(block, dict) or block.get("disabled") is True:
+            continue
+        if not is_scell_marker_name(block.get("name")):
+            continue
+        for cage in cast("list[dict[str, Any]]", block.get("cages", [])):
+            addresses = [
+                cell_address(i // size + 1, i % size + 1) for i in cage["cells"]
+            ]
+            pairs = {witness[address] for address in addresses}
+            if len(pairs) == 1:
+                (pair,) = pairs
+                if len(pair) == 2:
+                    a, b = pair
+                    cage["value"] = f"{a},{b}"
 
 
 def verify_link(argv: Sequence[str]) -> str:

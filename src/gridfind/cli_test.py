@@ -105,14 +105,15 @@ def _classic_schrodinger_solution_link() -> str:
     completed 1-9 Latin square (the well-known
     `(r*3 + r//3 + c) % 9 + 1` sudoku-by-formula construction, same shape as
     `_solvable_jigsaw_link`) with one cell per row/column/box promoted to an
-    S-cell pinned with center marks `{0, base}` — 0 is the domain's tenth
-    digit and never appears among the ordinary givens, so every
-    row/column/box ends up holding exactly the ten digits 0-9 once each. The
-    S-cell positions are declared by an `S-cell` marker cage (no color flag),
-    picked by `stack = (band + k) % 3` (band = row // 3, k = row % 3), a
-    transversal that lands one S-cell in every row, column, and box. Fully
-    constrained (every cell a given or an exact S-cell pin), so the default
-    solve decides `found` instantly rather than searching."""
+    S-cell pinned via its own marker-cage `value` `"0,base"` (spec #349) — 0 is
+    the domain's tenth digit and never appears among the ordinary givens, so
+    every row/column/box ends up holding exactly the ten digits 0-9 once each.
+    The S-cell positions are each their own single-cell cage entry in one
+    `S-cell` marker block (no color flag), picked by `stack = (band + k) % 3`
+    (band = row // 3, k = row % 3), a transversal that lands one S-cell in
+    every row, column, and box. Fully constrained (every cell a given or an
+    exact cage-pinned S-cell), so the default solve decides `found` instantly
+    rather than searching."""
     s_cells = {}
     for band in range(3):
         for k in range(3):
@@ -121,13 +122,14 @@ def _classic_schrodinger_solution_link() -> str:
             s_cells[(row, stack * 3 + band)] = True
 
     cells = []
-    s_cell_indices = []
+    s_cell_cages = []
     for row in range(9):
         for col in range(9):
             base = (row * 3 + row // 3 + col) % 9 + 1
             if (row, col) in s_cells:
-                cells.append({"candidates": 1 | (1 << base)})
-                s_cell_indices.append(row * 9 + col)
+                index = row * 9 + col
+                cells.append({})
+                s_cell_cages.append({"value": f"0,{base}", "cells": [index]})
             else:
                 cells.append({"given": True, "value": base})
 
@@ -136,7 +138,7 @@ def _classic_schrodinger_solution_link() -> str:
         "minDigit": 0,
         "constraints": [
             {"type": 0},
-            {"name": "S-cell", "type": 2001, "cages": [{"cells": s_cell_indices}]},
+            {"name": "S-cell", "type": 2001, "cages": s_cell_cages},
         ],
     }
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
