@@ -128,6 +128,18 @@ def test_found_schrodinger_6x6_declares_one_scell_and_reads_found(
     assert (code, first) == (0, "found")
 
 
+def test_found_schrodinger_6x6_is_a_partial_puzzle_with_working_state(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_schrodinger_6x6()
+    # A partial puzzle, not a blank board: pre-set center marks (working state
+    # the solver narrows from) alongside a plain given or two, still found.
+    assert _state(link).candidates
+    assert _given_count(link) >= 1
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
 def _has_live_doubler(state: WorkingState) -> bool:
     return any(
         isinstance(d, ModifierDirective) and d.is_modifier
@@ -172,7 +184,7 @@ def _given_count(link: str) -> int:
         (syn.found_half, 0),
         (syn.found_bare, 0),
         (syn.found_stray_marks, 0),
-        (syn.found_schrodinger_6x6, 0),
+        (syn.found_schrodinger_6x6, 2),
         (syn.broke_consistency, 0),
         (syn.broke_settled, 1),
         (syn.broke_caged_value, 1),

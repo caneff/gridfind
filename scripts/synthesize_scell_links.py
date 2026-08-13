@@ -141,6 +141,18 @@ class _SchrodingerGrid:
         self.cells[self.first] = {"candidates": sum(1 << d for d in digits)}
         return self
 
+    def give(self, index: int, value: int) -> _SchrodingerGrid:
+        """Settle an ordinary cell to a plain given digit — a clue read directly
+        off the board."""
+        self.cells[index] = {"given": True, "value": value}
+        return self
+
+    def pencil(self, index: int, digits: set[int]) -> _SchrodingerGrid:
+        """Pre-fill an ordinary cell's center marks: working state the solver
+        narrows from, not a settled digit."""
+        self.cells[index] = {"candidates": sum(1 << d for d in digits)}
+        return self
+
     def give_first_own_value(self, digit: int) -> _SchrodingerGrid:
         """Settle the first S-cell's own large digit alongside its marker cage.
         The cage's directive and the cell's own singleton pin collide on
@@ -196,9 +208,24 @@ def found_stray_marks() -> str:
 
 
 def found_schrodinger_6x6() -> str:
-    """6x6 pin S-cell, `found` — one S-cell declared, the rest discovered, over the
-    non-square (2x3) box shape."""
-    return _SchrodingerGrid(2, 3, discover_others=True).link()
+    """6x6 pin S-cell, `found` — one S-cell declared, the rest discovered, over
+    the non-square (2x3) box shape. Two plain givens and two cells of center
+    marks stand it up as a partial puzzle the solver advances from, rather than
+    a blank board carrying a lone S-cell. Each clue matches the pattern
+    solution, so a completion still exists (found); the marks name a superset of
+    the solved digit, leaving the narrowing to the solver."""
+    grid = _SchrodingerGrid(2, 3, discover_others=True)
+    ordinary = [i for i in range(grid.size * grid.size) if i not in grid.scells]
+
+    def solved(index: int) -> int:
+        row, col = divmod(index, grid.size)
+        return _solution_digit(row, col, grid.box_h, grid.box_w)
+
+    grid.give(ordinary[0], solved(ordinary[0]))
+    grid.give(ordinary[1], solved(ordinary[1]))
+    for index in (ordinary[2], ordinary[3]):
+        grid.pencil(index, {solved(index), solved(index) % grid.size + 1})
+    return grid.link()
 
 
 def broke_consistency() -> str:
