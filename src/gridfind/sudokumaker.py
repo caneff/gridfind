@@ -795,6 +795,15 @@ def is_scell_marker_name(name: object) -> bool:
     return _cosmetic_cage_name_kind(name) == "s-cell"
 
 
+def is_doubler_marker_name(name: object) -> bool:
+    """True when a `type 2001` block's top-level `name` reads as the `Doubler`
+    modifier marker (`_cosmetic_cage_name_kind`'s `"doubler"` branch), public
+    for the same dev-tool need as `is_scell_marker_name` — `verify_links`'s
+    `fill_witness` finds the Doubler block to mark every solver-found modifier
+    cell in its cage."""
+    return _cosmetic_cage_name_kind(name) == "doubler"
+
+
 @dataclass(frozen=True)
 class _CosmeticCageDecode:
     """The `Constraint`s and `ModifierDirective`s one `type 2001` block

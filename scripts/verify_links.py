@@ -24,6 +24,7 @@ from gridfind.sudokumaker import (
     decode_document,
     decode_link,
     encode_link,
+    is_doubler_marker_name,
     is_scell_marker_name,
     write_cell,
 )
@@ -45,49 +46,83 @@ def fill_witness(
     untouched, so `size`/`type` survive and the emitted link opens as the same
     puzzle.
 
-    `decode_link` sources an S-cell's pair from its marker cage's own `value`
-    (spec #349), not the cell's cosmetic candidates `write_cell` paints — so
-    every S-cell marker cage is also stamped with its solved pair
-    (`_stamp_scell_cage_values`), the write-side mirror of that read, keeping
-    the emitted link's own re-decode agree with the witness it was built
-    from."""
+    The solver discovers S-cells and doublers the source link never declared,
+    and gridfind reads both only from named marker cages, never cell colors —
+    so `_mark_witness_variants` extends each marker block to cover every
+    variant cell the witness holds. A discovered S-cell joins the `S-cell`
+    block as a single-cell cage carrying its solved pair (spec #349); a
+    discovered doubler joins the `Doubler` block's cage. The emitted solution
+    then marks every S-cell and doubler by cage alone, and its own re-decode
+    agrees with the witness it was built from."""
     filled: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", filled["puzzle"])
     cells = cast("list[dict[str, Any]]", puzzle_data["cells"])
     for i, cell in enumerate(cells):
         address = cell_address(i // size + 1, i % size + 1)
         write_cell(cell, witness[address])
-    _stamp_scell_cage_values(puzzle_data, witness, size)
+    _mark_witness_variants(puzzle_data, witness, size)
     return filled
 
 
-def _stamp_scell_cage_values(
+def _mark_witness_variants(
     puzzle_data: dict[str, object], witness: Witness, size: int
 ) -> None:
-    """Every `S-cell`/`Schrödinger` marker cage's `value` set to its solved
-    pair `"a,b"`, so the emitted link's own re-decode reads the same pin
-    `write_cell` painted onto the cells for SudokuMaker's display (spec #349).
-    A cage whose cells disagree (only reachable from a bare multi-cell cage,
-    where each cell is independently free) is left as-is rather than guessing
-    one pair for cells that solved to different ones."""
+    """Extend each named marker block to cover every variant cell the witness
+    holds, so the emitted link marks S-cells and doublers by cage alone. The
+    `S-cell` block gains a single-cell cage per witness S-cell not already
+    caged, each stamped with its solved pair `"a,b"`; an existing cage whose
+    cells solved to one pair is stamped too, and a cage whose cells disagree
+    (only reachable from a bare multi-cell cage) is left as-is. The `Doubler`
+    block's cage gains every witness modifier cell it lacks."""
     constraints = puzzle_data.get("constraints", [])
     if not isinstance(constraints, list):
         return
+    index_of = {
+        cell_address(i // size + 1, i % size + 1): i for i in range(size * size)
+    }
     for block in constraints:
         if not isinstance(block, dict) or block.get("disabled") is True:
             continue
-        if not is_scell_marker_name(block.get("name")):
-            continue
-        for cage in cast("list[dict[str, Any]]", block.get("cages", [])):
-            addresses = [
-                cell_address(i // size + 1, i % size + 1) for i in cage["cells"]
-            ]
-            pairs = {witness[address] for address in addresses}
-            if len(pairs) == 1:
-                (pair,) = pairs
-                if len(pair) == 2:
-                    a, b = pair
-                    cage["value"] = f"{a},{b}"
+        typed_block = cast("dict[str, Any]", block)
+        if is_scell_marker_name(block.get("name")):
+            _mark_scell_block(typed_block, witness, size, index_of)
+        elif is_doubler_marker_name(block.get("name")):
+            _mark_doubler_block(typed_block, witness, index_of)
+
+
+def _mark_scell_block(
+    block: dict[str, Any], witness: Witness, size: int, index_of: dict[str, int]
+) -> None:
+    """Stamp each existing S-cell cage with its solved pair and append a
+    single-cell cage for every witness S-cell (a length-2 assignment) not yet
+    covered, so all S-cells are marked by cage."""
+    cages = cast("list[dict[str, Any]]", block.setdefault("cages", []))
+    covered: set[int] = set()
+    for cage in cages:
+        covered.update(cage["cells"])
+        addresses = [cell_address(i // size + 1, i % size + 1) for i in cage["cells"]]
+        pairs = {witness[address] for address in addresses}
+        if len(pairs) == 1:
+            (pair,) = pairs
+            if len(pair) == 2:
+                a, b = pair
+                cage["value"] = f"{a},{b}"
+    for address, content in witness.assignment.items():
+        index = index_of[address]
+        if len(content) == 2 and index not in covered:
+            a, b = content
+            cages.append({"value": f"{a},{b}", "cells": [index]})
+
+
+def _mark_doubler_block(
+    block: dict[str, Any], witness: Witness, index_of: dict[str, int]
+) -> None:
+    """Fold every witness modifier cell into the Doubler block's single cage,
+    so all doublers the solver found are marked by cage."""
+    cages = cast("list[dict[str, Any]]", block.setdefault("cages", [{"cells": []}]))
+    cage = cages[0]
+    modifiers = {index_of[address] for address in witness.modifiers}
+    cage["cells"] = sorted(set(cage.get("cells", [])) | modifiers)
 
 
 def verify_link(argv: Sequence[str]) -> str:
