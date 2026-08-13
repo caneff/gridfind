@@ -12,10 +12,10 @@ Every S-cell link declares its variant through a named `type 2001` marker cage
 absent value is a bare S-cell. Doublers ride a `name: "Doubler"` marker cage
 over a sum-cage cell, where the doubled value is load-bearing.
 
-The construction is the classic "pattern" sudoku: a filled Latin square that
-respects boxes, with one cell per row/column/box promoted to an S-cell on a
-transversal so every line holds all `N + 1` digits once. Fully pinned, the
-default solve decides `found` without searching.
+The construction is the classic "pattern" sudoku: a Latin square that respects
+boxes, with one cell per row/column/box promoted to an S-cell on a transversal
+so every line holds all `N + 1` digits once. The ordinary cells stay blank, so
+the solver reconstructs the grid rather than reading back an answer key.
 """
 
 from __future__ import annotations
@@ -87,13 +87,14 @@ def _base_document(
 
 
 class _SchrodingerGrid:
-    """A classic Schrödinger solution under construction: every non-S-cell a
-    given, the *first* S-cell (lowest cell index) marked and pinned `{0, base}`
-    through its marker cage. What happens to the other transversal positions is
-    the `discover_others` switch:
+    """A classic Schrödinger puzzle under construction: ordinary cells left
+    blank for the solver, the *first* S-cell (lowest cell index) marked and
+    pinned `{0, base}` through its marker cage. What happens to the other
+    transversal positions is the `discover_others` switch:
 
-    - `False` — they are pinned too. A broke case mutates the first cell and
-      wants the rest fixed, so the break it introduces is the sole cause.
+    - `False` — they are pinned as S-cells too, through their own `{0, base}`
+      cages. A broke case mutates the first cell and wants the rest fixed, so
+      the break it introduces is the sole cause.
     - `True` — they are left empty for the solver to discover as S-cells. A real
       found puzzle that declares one S-cell and solves for the rest, rather than
       handing over a board where every S-cell is already specified."""
@@ -109,18 +110,17 @@ class _SchrodingerGrid:
         self.cells: list[dict[str, object]] = []
         self.cages: list[dict[str, object]] = []
         for index in range(self.size * self.size):
-            row, col = divmod(index, self.size)
             if index == self.first or (index in self.scells and not discover_others):
                 self.cells.append({})
                 self.cages.append(
                     {"value": f"{_EXTRA},{self.scells[index]}", "cells": [index]}
                 )
-            elif index in self.scells:
-                self.cells.append({})  # an undeclared S-cell for the solver to find
             else:
-                self.cells.append(
-                    {"given": True, "value": _solution_digit(row, col, box_h, box_w)}
-                )
+                # An ordinary cell, left blank for the solver: pinning the whole
+                # Latin square would hand over an answer key, not a puzzle. A
+                # discovered S-cell (index in self.scells) reaches here too and
+                # is likewise left blank for the solver to find.
+                self.cells.append({})
 
     def _first_cage(self) -> dict[str, object]:
         return next(c for c in self.cages if c["cells"] == [self.first])

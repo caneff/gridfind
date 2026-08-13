@@ -8,6 +8,8 @@ exercises no S-cell path), and the front-door verdict/exit `cli.main` returns.
 from __future__ import annotations
 
 import io
+from collections.abc import Callable
+from typing import Any, cast
 
 import pytest
 import synthesize_scell_links as syn
@@ -22,7 +24,7 @@ from gridfind.puzzle import (
     SingletonPin,
     WorkingState,
 )
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import decode_document, decode_link
 
 
 def _front_door(link: str, capsys: pytest.CaptureFixture[str]) -> tuple[int, str, str]:
@@ -149,6 +151,39 @@ def test_broke_doubler_migration_keeps_a_live_doubler_and_reads_broke(
     assert _has_live_doubler(_state(link))
     code, first, _ = _front_door(link, capsys)
     assert (code, first) == (1, "broke")
+
+
+def _given_count(link: str) -> int:
+    """Ordinary givens the emitted document pins — cells flagged `given`."""
+    puzzle = cast("dict[str, Any]", decode_document(link)["puzzle"])
+    cells = cast("list[dict[str, Any]]", puzzle["cells"])
+    return sum(1 for c in cells if c.get("given"))
+
+
+# A Schrödinger fixture is a puzzle, not an answer key: the ordinary cells are
+# left blank for the solver. The only cell a fixture may pin is a break that
+# *is* a given — `broke_settled` settles one position as a plain digit,
+# `broke_caged_value` gives a caged cell its own digit — so those carry exactly
+# one. Every other fixture, found or mark-broken, pins nothing.
+@pytest.mark.parametrize(
+    ("builder", "givens"),
+    [
+        (syn.found_pin, 0),
+        (syn.found_half, 0),
+        (syn.found_bare, 0),
+        (syn.found_stray_marks, 0),
+        (syn.found_schrodinger_6x6, 0),
+        (syn.broke_consistency, 0),
+        (syn.broke_settled, 1),
+        (syn.broke_caged_value, 1),
+        (syn.invalid_out_of_domain, 0),
+    ],
+    ids=lambda v: v.__name__ if callable(v) else str(v),
+)
+def test_schrodinger_fixture_pins_only_its_load_bearing_cell(
+    builder: Callable[[], str], givens: int
+) -> None:
+    assert _given_count(builder()) == givens
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
