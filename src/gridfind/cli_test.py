@@ -146,6 +146,65 @@ def _classic_schrodinger_solution_link() -> str:
     return f"https://sudokumaker.app/?puzzle={payload}"
 
 
+def _classic_schrodinger_link_with_a_settled_scell_position() -> str:
+    """The same transversal as `_classic_schrodinger_solution_link`, but over
+    domain `1..10` (`minDigit: 1`, so the extra tenth digit is `10`, the
+    domain's *maximum* — unlike that fixture's `0`, its minimum, `10` can sit
+    in a settled cell's free upper slot without tripping the Schrödinger
+    layer's `d0 < d1` canonicalization). The row-0/col-0/box-0 S-cell position
+    is settled to a plain given of its own `base` digit instead of pinned via
+    the marker cage. That position was the sole source of `10` in its row,
+    column, and box: read as a **singleton pin** (spec #348, `is_s == 0`) it
+    leaves `10` unplaceable in all three — broke. Before spec #348, the same
+    given left `is_s` free, so the solver could silently promote this cell to
+    an S-cell holding `{base, 10}` and read `found`."""
+    s_cells = {}
+    for band in range(3):
+        for k in range(3):
+            row = band * 3 + k
+            stack = (band + k) % 3
+            s_cells[(row, stack * 3 + band)] = True
+    settled_position = next(iter(s_cells))
+
+    cells = []
+    s_cell_cages = []
+    for row in range(9):
+        for col in range(9):
+            base = (row * 3 + row // 3 + col) % 9 + 1
+            if (row, col) in s_cells and (row, col) != settled_position:
+                index = row * 9 + col
+                cells.append({})
+                s_cell_cages.append({"value": f"{base},10", "cells": [index]})
+            else:
+                cells.append({"given": True, "value": base})
+
+    puzzle = {
+        "cells": cells,
+        "minDigit": 1,
+        "constraints": [
+            {"type": 0},
+            {"name": "S-cell", "type": 2001, "cages": s_cell_cages},
+        ],
+    }
+    doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
+    payload = LZString.compressToEncodedURIComponent(json.dumps(doc))
+    return f"https://sudokumaker.app/?puzzle={payload}"
+
+
+def test_settled_digit_where_the_solution_needs_an_s_cell_is_broke(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Spec #348: a settled large digit is a singleton pin (is_s == 0), so a
+    # cell whose only valid completion is an S-cell can no longer be silently
+    # absorbed as its lower half — the puzzle reads broke, not found.
+    link = _classic_schrodinger_link_with_a_settled_scell_position()
+
+    code = cli.main([link], io.StringIO())
+
+    assert code == 1
+    assert capsys.readouterr().out.split("\n")[0] == "broke"
+
+
 @pytest.mark.parametrize(
     "flag",
     ["--schrodinger", "--doubler", "--reading"],

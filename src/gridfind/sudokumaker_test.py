@@ -27,6 +27,7 @@ from gridfind.puzzle import (
     Puzzle,
     SCellPin,
     SDirective,
+    SingletonPin,
     WorkingState,
 )
 from gridfind.sudokumaker import (
@@ -1317,9 +1318,13 @@ def test_s_cell_marker_name_is_recognized_case_insensitive_and_trimmed(
     [{"value": 5}, {"given": True, "value": 5}],
     ids=["placement", "given"],
 )
-def test_s_cell_marker_on_a_settled_value_is_refused(cell: dict[str, object]) -> None:
-    # A marked cell is declared an S-cell; a settled digit on it is the
-    # is-S-vs-settled-singleton contradiction, refused at decode.
+def test_s_cell_marker_on_a_settled_value_emits_both_directives(
+    cell: dict[str, object],
+) -> None:
+    # A marked cell is declared an S-cell (bare, no cage value here) while its
+    # own settled digit is a singleton pin — the is-S-vs-settled contradiction
+    # (#346) decodes cleanly as both directives, leaving the solver to report
+    # the collision as broke rather than a hard decode error.
     cells = list(_EMPTY_CELLS)
     cells[0] = cell
     payload = _encode(
@@ -1332,8 +1337,10 @@ def test_s_cell_marker_on_a_settled_value_is_refused(cell: dict[str, object]) ->
         }
     )
 
-    with pytest.raises(ValueError, match="also holds a value"):
-        decode_link(payload)
+    _, state = decode_link(payload)
+
+    assert BareSCell("R1C1") in state.s_directives
+    assert SingletonPin("R1C1", 5) in state.s_directives
 
 
 def test_s_cell_marker_synthesizes_schrodinger_once_amid_cosmetics() -> None:
@@ -1361,6 +1368,44 @@ def test_s_cell_marker_synthesizes_schrodinger_once_amid_cosmetics() -> None:
     assert puzzle.board == Board(size=9, values=range(10))
     assert puzzle.constraints.count(Constraint("schrodinger")) == 1
     assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
+
+
+@pytest.mark.parametrize(
+    "cell",
+    [{"value": 5}, {"given": True, "value": 5}],
+    ids=["placement", "given"],
+)
+def test_settled_value_on_a_non_marker_cell_is_a_singleton_pin_under_schrodinger(
+    cell: dict[str, object],
+) -> None:
+    # A settled large digit means "this cell is exactly d, not an S-cell"
+    # (spec #348): under a Schrödinger layer it routes to a singleton pin
+    # regardless of the given/placement wire distinction, not a plain
+    # given/placement that would leave is_s free for the solver to lift.
+    cells = list(_EMPTY_CELLS)
+    cells[1] = cell
+    payload = _schrodinger_link(cells)
+
+    puzzle, state = decode_link(payload)
+
+    assert SingletonPin("R1C2", 5) in state.s_directives
+    assert puzzle.givens == ()
+    assert state.places == ()
+
+
+def test_settled_value_on_a_non_schrodinger_puzzle_stays_given_or_placement() -> None:
+    # No S-axis exists without a schrodinger layer, so an ordinary puzzle's
+    # given/placement is unaffected — no regression (spec #348).
+    cells = list(_EMPTY_CELLS)
+    cells[0] = {"given": True, "value": 7}
+    cells[1] = {"value": 3}
+    payload = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
+
+    puzzle, state = decode_link(payload)
+
+    assert puzzle.givens == (Given("R1C1", 7),)
+    assert state.places == (Placement("R1C2", 3),)
+    assert state.s_directives == ()
 
 
 # --- type 300 thermo decode -----------------

@@ -18,7 +18,13 @@ from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.layers.board import cell_address
-from gridfind.puzzle import Given, ModifierDirective, SCellPin, WorkingState
+from gridfind.puzzle import (
+    Given,
+    ModifierDirective,
+    SCellPin,
+    SingletonPin,
+    WorkingState,
+)
 from gridfind.sudokumaker import decode_link, encode_link
 from gridfind.witness import Witness
 
@@ -119,12 +125,15 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
     url = encode_link(filled)
     puzzle, state = decode_link(url)
 
+    # Every non-S-cell address is a settled digit under a Schrödinger layer,
+    # so it round-trips as a singleton pin (spec #348), never a plain given.
     assert SCellPin(s_cell_address, frozenset({a, b})) in state.s_directives
-    assert set(puzzle.givens) == {
-        Given(address, digit[0])
+    assert puzzle.givens == ()
+    assert {
+        SingletonPin(address, digit[0])
         for address, digit in assignment.items()
         if address != s_cell_address
-    }
+    } <= set(state.s_directives)
 
 
 def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
