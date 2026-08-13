@@ -246,8 +246,9 @@ and owns the working-state directives below.
   per row, one per column) are S-cells, so every row and column holds all ten
   digits `0–9` exactly once; which cells are S-cells is discovered by solving. A
   setter can also **declare** an S-cell position in a link, via a named `S-cell`
-  or `Schrödinger` **marker cage** (ADR-0012); the marker supplies "is an
-  S-cell", and the cell's own center-marks supply the digits.
+  or `Schrödinger` **marker cage** (ADR-0012); the marker cage's own `value`
+  supplies both "is an S-cell" and its digits — see **cage-value pair source**
+  below.
 
 - **combine** — how a two-digit S-cell's digits make one **value**: `sum`
   (2 + 3 = 5, the default) or `concat` (2, 3 → 23). One choice for the whole
@@ -276,6 +277,17 @@ directives name a point on each:
 - **half S-cell** — asserts a cell **is an S-cell** and that digit `d` is one of
   its two digits, partner unknown. Between an S-cell pin and a bare S-cell;
   equivalently a bare placement whose S-cell-ness is pinned true.
+
+**Cage-value pair source.** A named `S-cell`/`Schrödinger` **marker cage**'s
+own `value` field is what selects a marked cell's directive (spec #349) — not
+the cell's own center marks. `value` is read for its parsed digit-count: two
+digits (a comma-split `"a,b"`, or the two-digit scalar shorthand `"ab"` when
+every domain digit is single-character) declare an **S-cell pin** `{a,b}`;
+one digit declares a **half S-cell**; an absent, empty, or unparseable value
+declares a **bare S-cell**. The comma form is unambiguous at any board size —
+including a 16x16 domain, where a bare two-character value instead reads as a
+single two-digit **half S-cell** digit, never a split pair. A multi-cell
+marker cage applies its one `value` to every cell it contains uniformly.
 
 Three ways a Schrödinger directive is **malformed** (refused before classify,
 never a verdict; #142): a digit-bearing directive naming a digit outside the

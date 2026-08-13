@@ -33,6 +33,7 @@ from gridfind.sudokumaker import (
     _CellDecode,
     _decode_cell,
     _edge_to_pair,
+    _parse_scell_value,
     decode_document,
     decode_link,
     encode_link,
@@ -1164,43 +1165,101 @@ def test_s_cell_named_cage_declares_s_cells_and_emits_no_cage() -> None:
     assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
 
 
-@pytest.mark.parametrize(
-    ("marks", "expected_s_directive", "expected_candidate"),
-    [
-        ({2, 7}, SCellPin("R1C1", frozenset({2, 7})), None),
-        ({4}, HalfSCell("R1C1", 4), None),
-        (set(), BareSCell("R1C1"), None),
-        ({1, 2, 3}, BareSCell("R1C1"), Candidate("R1C1", frozenset({1, 2, 3}))),
-    ],
-    ids=["pin", "half", "bare", "bare-with-stray-marks"],
-)
-def test_s_cell_marker_mark_count_selects_the_directive(
-    marks: set[int],
-    expected_s_directive: SDirective,
-    expected_candidate: Candidate | None,
-) -> None:
-    # A marked cell's own center-marks pick the directive exactly as the
-    # red-bit path does: 2 marks pin, 1 half, 0/3+ bare (stray marks riding
-    # as ordinary candidates) — no `--schrodinger` flag.
+def _s_cell_cage_link(
+    value: object, *, min_digit: int = 0, marks: set[int] | None = None
+) -> str:
+    """A single-cell `S-cell` marker cage over R1C1, carrying `value` (omitted
+    entirely when `None`) — the cage-value pair-source fixture (spec #349).
+    `marks` optionally sets the cell's own center marks, to prove they no
+    longer pick the directive."""
+    cage: dict[str, object] = {"cells": [0]}
+    if value is not None:
+        cage["value"] = value
     cells = list(_EMPTY_CELLS)
-    cells[0] = {"candidates": _mask(marks)} if marks else {}
-    payload = _encode(
+    if marks:
+        cells[0] = {"candidates": _mask(marks)}
+    return _encode(
         {
             "cells": cells,
+            "minDigit": min_digit,
             "constraints": [
                 *_WIRE_CONSTRAINTS,
-                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
+                {"name": "S-cell", "type": 2001, "cages": [cage]},
             ],
         }
     )
 
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2,7", SCellPin("R1C1", frozenset({2, 7}))),
+        ("4", HalfSCell("R1C1", 4)),
+        ("", BareSCell("R1C1")),
+        (None, BareSCell("R1C1")),
+        ("not-a-digit", BareSCell("R1C1")),
+        ("1,2,3", BareSCell("R1C1")),
+        ("35", SCellPin("R1C1", frozenset({3, 5}))),
+    ],
+    ids=[
+        "pin",
+        "half",
+        "empty-string",
+        "absent",
+        "malformed-non-numeric",
+        "malformed-too-many-parts",
+        "scalar-shorthand",
+    ],
+)
+def test_s_cell_marker_cage_value_selects_the_directive(
+    value: object, expected: SDirective
+) -> None:
+    # The named cage's own `value` sources the pair/half/bare directive by
+    # digit-count (spec #349): comma-split, or the two-digit scalar shorthand
+    # in a single-digit domain (minDigit 0 -> 0..9). A malformed value falls
+    # back to bare, the same reading as absent — never a crash.
+    payload = _s_cell_cage_link(value)
+
     _, state = decode_link(payload)
 
-    assert expected_s_directive in state.s_directives
-    if expected_candidate is not None:
-        assert expected_candidate in state.candidates
-    else:
-        assert all(c.address != "R1C1" for c in state.candidates)
+    assert expected in state.s_directives
+
+
+def test_s_cell_marker_cage_value_wins_over_the_cells_own_center_marks() -> None:
+    # Directive selection moved off the center-mark count onto the cage
+    # value: a cell's own stray marks no longer pick pin/half/bare, and they
+    # are not folded in as an ordinary candidate either — that restriction
+    # layer is separate follow-on work (spec #347 ticket #350).
+    payload = _s_cell_cage_link("2,7", marks={1, 4, 9})
+
+    _, state = decode_link(payload)
+
+    assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
+    assert all(c.address != "R1C1" for c in state.candidates)
+
+
+@hyp_given(text=st.text(max_size=12))
+def test_scell_value_parser_never_crashes_on_arbitrary_text(text: str) -> None:
+    # The comma-split parser (spec #349) must handle any garbage a link's
+    # `value` string could carry without raising — malformed input parses to
+    # `()`, the same bare reading as an absent value.
+    domain = range(10)
+
+    digits = _parse_scell_value(text, domain)
+
+    assert len(digits) in (0, 1, 2)
+    assert all(d in domain for d in digits)
+
+
+@hyp_given(
+    a=st.integers(min_value=0, max_value=9), b=st.integers(min_value=0, max_value=9)
+)
+def test_scell_value_parser_comma_form_round_trips_any_pair(a: int, b: int) -> None:
+    domain = range(10)
+
+    digits = _parse_scell_value(f"{a},{b}", domain)
+
+    assert digits == (a, b)
 
 
 def test_s_cell_marker_widens_domain_and_synthesizes_schrodinger_without_flag() -> None:
@@ -1262,17 +1321,19 @@ def test_s_cell_marker_on_a_settled_value_is_refused(cell: dict[str, object]) ->
 def test_s_cell_marker_synthesizes_schrodinger_once_amid_cosmetics() -> None:
     # An S-cell marker cage alongside a real link's cosmetic constraint mix
     # (including a `type 2003` block) widens the domain once and synthesizes
-    # exactly one `schrodinger` constraint, and the marked cell's pinned pair
-    # still decodes.
-    cells = list(_EMPTY_CELLS)
-    cells[0] = {"candidates": _mask({2, 7})}
+    # exactly one `schrodinger` constraint, and the marker cage's own
+    # cage-value pinned pair still decodes.
     payload = _encode(
         {
-            "cells": cells,
+            "cells": _EMPTY_CELLS,
             "minDigit": 0,
             "constraints": [
                 *_SCHRODINGER_WIRE_CONSTRAINTS,
-                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
+                {
+                    "name": "S-cell",
+                    "type": 2001,
+                    "cages": [{"value": "2,7", "cells": [0]}],
+                },
             ],
         }
     )
@@ -1477,14 +1538,16 @@ def test_a_single_link_decodes_both_doubler_and_s_cell_markers() -> None:
     # The retired color channel forced doubler xor S-cell (they shared the red
     # bit); named marker cages carry the variant instead, so one link may hold
     # both — a `Doubler` block and an `S-cell` block side by side, each decoded.
-    cells = list(_EMPTY_CELLS)
-    cells[0] = {"candidates": _mask({2, 7})}  # the S-cell's pinned pair
     payload = _encode(
         {
-            "cells": cells,
+            "cells": _EMPTY_CELLS,
             "constraints": [
                 *_WIRE_CONSTRAINTS,
-                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
+                {
+                    "name": "S-cell",
+                    "type": 2001,
+                    "cages": [{"value": "2,7", "cells": [0]}],
+                },
                 {"name": "Doubler", "type": 2001, "cages": [{"cells": [1]}]},
             ],
         }

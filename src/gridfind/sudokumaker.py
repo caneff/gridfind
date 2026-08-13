@@ -96,9 +96,16 @@ _CLASSIC_SIZE = 9
 # opening the link expects.
 _RED_BIT = 2
 
-# An S-cell pin's center marks are exactly two digits; fewer or more are the
-# looser bare/half directives instead.
-_SCELL_PIN_MARKS = 2
+# An S-cell marker cage's `value` selects the directive by parsed digit-count
+# (spec #349): two digits pin the pair, one is the looser half directive.
+_SCELL_PIN_DIGITS = 2
+
+# A single-digit domain's largest representable digit — a cage `value` of two
+# bare digit characters (no comma) is the pair shorthand only when every
+# domain digit fits in one character (§4c, spec #349); a wider domain (e.g.
+# 16x16's 10..16) needs the unambiguous comma form for a pair, so a bare
+# two-character value there reads as one two-digit half-cell digit instead.
+_MAX_SINGLE_DIGIT = 9
 
 # type 202 is XV: `clues: [{value, edge}], negative:
 # [...]`. `value` selects the existing group-sum alias — 10 is X, 5 is V
@@ -242,22 +249,26 @@ def decode_link(
     worth twice its value, so a given or placement on a marked cell still lands.
 
     A `type 2001` block named `S-cell`/`Schrödinger` is the analogous S-cell
-    marker: each contained cell is a declared S-cell reading its own center
-    marks (pin/half/bare), no `cage`/`group-sum`, and a settled value on a
-    marked cell is refused. The marker widens the domain by the classic `k = 1`
-    extra digit (`range(minDigit, minDigit + size + 1)`), relaxes the
-    classic-only guard, and synthesizes the `schrodinger` constraint."""
+    marker: each contained cell is a declared S-cell reading its marker cage's
+    own `value` for the pair/half/bare directive (spec #349) — a comma-split
+    `"a,b"` or the two-digit scalar shorthand in a single-digit domain pins the
+    pair, one digit is a half S-cell, absent/empty/unparseable is a bare
+    S-cell. No `cage`/`group-sum` is emitted for that block, and a settled
+    value on a marked cell (the cell's own `value`, distinct from the cage's)
+    is refused. The marker widens the domain by the classic `k = 1` extra digit
+    (`range(minDigit, minDigit + size + 1)`), relaxes the classic-only guard,
+    and synthesizes the `schrodinger` constraint."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
 
     cells = puzzle_data["cells"]
     # An S-cell marker cage infers Schrödinger-ness on its own: its presence
-    # widens the domain and synthesizes the `schrodinger` constraint, and its
-    # addresses route those cells through the S-cell branch of the per-cell
-    # decode.
-    scell_addresses = _scell_marker_addresses(puzzle_data, size)
-    is_schrodinger = bool(scell_addresses)
+    # widens the domain and synthesizes the `schrodinger` constraint, and each
+    # address maps to its marker cage's own `value` — the pair/half/bare
+    # source (spec #349) the S-cell branch of the per-cell decode reads.
+    scell_values = _scell_marker_values(puzzle_data, size)
+    is_schrodinger = bool(scell_values)
     domain = (
         _schrodinger_domain(puzzle_data, size)
         if is_schrodinger
@@ -271,7 +282,8 @@ def decode_link(
                 cell,
                 address,
                 domain,
-                is_scell_marker=address in scell_addresses,
+                is_scell_marker=address in scell_values,
+                scell_value=scell_values.get(address),
             )
         )
     decoded = _CellDecode.concat(per_cell)
@@ -419,21 +431,25 @@ def _decode_cell(
     domain: range,
     *,
     is_scell_marker: bool = False,
+    scell_value: object = None,
 ) -> _CellDecode:
     """One cell's working-state directives — the single home for per-cell
     decode, dispatched by the cell's marker membership. A cell in an `S-cell`
-    marker cage (`is_scell_marker`) is a declared S-cell: its center marks pick
-    the directive (`_s_cell_from_marks`), and a settled value on it is the
-    is-S-vs-settled contradiction, refused. Every other cell reads a plain
-    `given`/`placement`/`candidate`; doubler-ness rides on the marker cage, not
-    the cell, so a marked doubler cell still decodes its digit here unchanged. A
-    cell that carries nothing gridfind represents — a cosmetic color, a corner
-    mark, `{}` — decodes to an empty `_CellDecode`."""
+    marker cage (`is_scell_marker`) is a declared S-cell: its marker cage's own
+    `value` picks the directive (`_scell_directive_from_value`, spec #349), and
+    a settled value on the cell itself is the is-S-vs-settled contradiction,
+    refused. Every other cell reads a plain `given`/`placement`/`candidate`;
+    doubler-ness rides on the marker cage, not the cell, so a marked doubler
+    cell still decodes its digit here unchanged. A cell that carries nothing
+    gridfind represents — a cosmetic color, a corner mark, `{}` — decodes to an
+    empty `_CellDecode`."""
     if is_scell_marker:
         if "value" in cell:
             msg = f"non-classic link: S-cell {address} also holds a value"
             raise ValueError(msg)
-        return _s_cell_from_marks(cell, address, domain)
+        return _CellDecode(
+            s_directives=(_scell_directive_from_value(address, scell_value, domain),)
+        )
     if "value" in cell:
         if cell.get("given"):
             return _CellDecode(givens=(Given(address, cell["value"]),))
@@ -444,21 +460,59 @@ def _decode_cell(
     return _CellDecode()
 
 
-def _s_cell_from_marks(
-    cell: dict[str, Any], address: str, domain: range
-) -> _CellDecode:
-    """A declared S-cell's directive chosen by its own center-mark count:
-    exactly two marks pin the pair, exactly one is a half S-cell, zero or
-    three-plus is a bare S-cell (any marks riding along as ordinary
-    candidates)."""
-    marks = frozenset(d for d in domain if cell.get("candidates", 0) & (1 << d))
-    if len(marks) == _SCELL_PIN_MARKS:
-        return _CellDecode(s_directives=(SCellPin(address, marks),))
-    if len(marks) == 1:
-        (digit,) = marks
-        return _CellDecode(s_directives=(HalfSCell(address, digit),))
-    stray = (Candidate(address, marks),) if marks else ()
-    return _CellDecode(s_directives=(BareSCell(address),), candidates=stray)
+def _scell_directive_from_value(
+    address: str, value: object, domain: range
+) -> SDirective:
+    """A declared S-cell's directive chosen by its marker cage's own `value`
+    digit-count (spec #349, ADR-0012): two parsed digits pin the pair, one is a
+    half S-cell, zero — absent, empty, or unparseable — is a bare S-cell."""
+    digits = _parse_scell_value(value, domain)
+    if len(digits) == _SCELL_PIN_DIGITS:
+        return SCellPin(address, frozenset(digits))
+    if len(digits) == 1:
+        return HalfSCell(address, digits[0])
+    return BareSCell(address)
+
+
+def _parse_scell_value(value: object, domain: range) -> tuple[int, ...]:
+    """An S-cell marker cage's raw `value` parsed to its digits, never
+    raising: a comma-separated `"a,b"` splits into its pair; a bare two-digit
+    string is the pair shorthand `"ab"` when every domain digit is
+    single-character (else it is one two-digit value); anything else parses as
+    one digit. A value that is absent, empty, names a digit outside `domain`,
+    or otherwise doesn't cleanly fit one of those shapes parses to `()` — the
+    same bare reading, never a crash."""
+    if not isinstance(value, str) or not value.strip():
+        return ()
+    text = value.strip()
+    if "," in text:
+        parts = text.split(",")
+        if len(parts) != _SCELL_PIN_DIGITS:
+            return ()
+        a = _parse_domain_digit(parts[0], domain)
+        b = _parse_domain_digit(parts[1], domain)
+        return (a, b) if a is not None and b is not None else ()
+    if (
+        len(text) == _SCELL_PIN_DIGITS
+        and text.isdigit()
+        and domain.stop - 1 <= _MAX_SINGLE_DIGIT
+    ):
+        a = _parse_domain_digit(text[0], domain)
+        b = _parse_domain_digit(text[1], domain)
+        return (a, b) if a is not None and b is not None else ()
+    digit = _parse_domain_digit(text, domain)
+    return (digit,) if digit is not None else ()
+
+
+def _parse_domain_digit(text: str, domain: range) -> int | None:
+    """One digit string parsed to an `int` and confirmed a member of `domain`,
+    or `None` on anything that isn't cleanly both — a non-numeric string or a
+    number outside the board's digits."""
+    try:
+        digit = int(text.strip())
+    except ValueError:
+        return None
+    return digit if digit in domain else None
 
 
 def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
@@ -724,6 +778,16 @@ def _cosmetic_cage_name_kind(name: object) -> _CosmeticCageNameKind:
     return "unrecognized"
 
 
+def is_scell_marker_name(name: object) -> bool:
+    """True when a `type 2001` block's top-level `name` reads as the
+    `S-cell`/`Schrödinger` marker (`_cosmetic_cage_name_kind`'s `"s-cell"`
+    branch), public for a dev tool that needs to recognize a marker block
+    without decoding the whole link — `scripts/verify_links.py`'s
+    `fill_witness` uses it to find the cage whose `value` a solved S-cell pair
+    must be stamped back onto (spec #349)."""
+    return _cosmetic_cage_name_kind(name) == "s-cell"
+
+
 @dataclass(frozen=True)
 class _CosmeticCageDecode:
     """The `Constraint`s and `ModifierDirective`s one `type 2001` block
@@ -763,8 +827,8 @@ def _cosmetic_cage_constraints(
     contains and **no** `cage`/`group-sum` — the block's `cages` still supply
     the cell list, just not a killer rule. An `S-cell`/`Schrödinger`-marked
     block emits nothing here: its cells become S-cell working-state directives
-    in the per-cell decode pass (`_scell_marker_addresses` gathers them), not a
-    cage rule. An unrecognized name refuses the
+    in the per-cell decode pass (`_scell_marker_values` gathers them, cage
+    `value` and all), not a cage rule. An unrecognized name refuses the
     whole block rather than decoding some cages under an unsound reading,
     unless `ignore_unknown_named_cages` downgrades the refusal to
     strip-and-honor as an ordinary cage. A `disabled` block is skipped
@@ -796,22 +860,26 @@ def _cosmetic_cage_constraints(
     return _CosmeticCageDecode.concat(decoded)
 
 
-def _scell_marker_addresses(
+def _scell_marker_values(
     puzzle_data: dict[str, object], size: int
-) -> frozenset[str]:
+) -> dict[str, object]:
     """Every cell address declared an S-cell by a `type 2001` cosmetic-cage
-    block named `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`) — the set the
-    per-cell decode reads to route a cell through the S-cell branch, and whose
-    non-emptiness infers Schrödinger-ness (domain widening + a synthesized
-    `schrodinger` constraint) from marker presence alone. A `disabled` block
-    contributes nothing, exactly as its cage rule would not."""
-    return frozenset(
-        address
+    block named `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`), mapped to its
+    marker cage's own raw `value` (spec #349) — the pair/half/bare source
+    `_decode_cell` reads for that address. A multi-cell cage's `value` applies
+    uniformly to every cell it contains (CONTEXT.md `marker cage`). The
+    mapping's key set doubles as the address set that routes a cell through
+    the S-cell branch, and its non-emptiness infers Schrödinger-ness (domain
+    widening + a synthesized `schrodinger` constraint) from marker presence
+    alone. A `disabled` block contributes nothing, exactly as its cage rule
+    would not."""
+    return {
+        address: cage.get("value")
         for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE)
         if _cosmetic_cage_name_kind(block.get("name")) == "s-cell"
         for cage in cast("list[dict[str, Any]]", block.get("cages", []))
         for address in _addresses(cage["cells"], size)
-    )
+    }
 
 
 def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
