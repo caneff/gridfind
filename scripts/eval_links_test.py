@@ -18,6 +18,7 @@ from pathlib import Path
 from eval_links import (
     LinkView,
     _ApprovalHandler,
+    _stems_from_git_paths,
     archive_flags,
     eval_link,
     load_approved,
@@ -188,6 +189,41 @@ def test_pending_stems_show_all_keeps_everything() -> None:
     pending = pending_stems(stems, approved={"b"}, show_all=True)
 
     assert pending == ["a", "b", "c"]
+
+
+def test_changed_stems_reads_diff_and_porcelain_including_renames() -> None:
+    # `--changed` unions a bare `git diff --name-only` (edited-in-place fixtures)
+    # with `git status --porcelain` (staged/unstaged/untracked). A porcelain
+    # line carries a two-column status prefix, and a rename names both sides
+    # after ` -> `; the parser reads paths off whitespace, so the prefix and the
+    # arrow fall away and both the new and stale-old stems surface.
+    diff_out = "src/gridfind/links/found-doubler-4x4.txt\n"
+    status_out = (
+        " M src/gridfind/links/broke-schrodinger-4x4.txt\n"
+        "?? src/gridfind/links/found-combined-4x4.txt\n"
+        "R  src/gridfind/links/old-name-4x4.txt -> "
+        "src/gridfind/links/new-name-4x4.txt\n"
+    )
+
+    stems = _stems_from_git_paths(diff_out, status_out)
+
+    assert stems == {
+        "found-doubler-4x4",
+        "broke-schrodinger-4x4",
+        "found-combined-4x4",
+        "old-name-4x4",
+        "new-name-4x4",
+    }
+
+
+def test_changed_stems_ignores_non_txt_paths() -> None:
+    # The corpus is `*.txt`; a changed script or doc alongside the fixtures is
+    # not a link to eval, so it never becomes a stem.
+    stems = _stems_from_git_paths(
+        " M scripts/eval_links.py\n M src/gridfind/links/found-classic-4x4.txt\n"
+    )
+
+    assert stems == {"found-classic-4x4"}
 
 
 def test_flagging_a_stem_leaves_it_pending_next_run(tmp_path: Path) -> None:
