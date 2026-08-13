@@ -1,6 +1,9 @@
 # ADR-0008: doublers are declared color-marked cells; cosmetic cages carry real killer sums
 
-- **Status:** Accepted
+- **Status:** Accepted (decision 2 and the "CLI names which color" coexistence
+  option superseded by
+  [ADR-0012](0012-named-marker-cages-retire-the-color-channel.md), which moves
+  the declared channel from a cell color to a named cosmetic cage)
 - **Date:** 2026-08-11
 - **Decides:** how a SudokuMaker doubler link decodes — where the doubler mark
   lives, what a color-marked cell means, and why a "cosmetic" cage must be read

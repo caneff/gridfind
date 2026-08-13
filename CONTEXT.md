@@ -244,8 +244,10 @@ and owns the working-state directives below.
 - **S-cell** — a grid cell whose content is length 2: it holds an unordered pair
   of digits rather than one. In the Schrödinger sudoku a permutation of cells (one
   per row, one per column) are S-cells, so every row and column holds all ten
-  digits `0–9` exactly once; which cells are S-cells is discovered by solving, not
-  given.
+  digits `0–9` exactly once; which cells are S-cells is discovered by solving. A
+  setter can also **declare** an S-cell position in a link, via a named `S-cell`
+  or `Schrödinger` **marker cage** (ADR-0012); the marker supplies "is an
+  S-cell", and the cell's own center-marks supply the digits.
 
 - **combine** — how a two-digit S-cell's digits make one **value**: `sum`
   (2 + 3 = 5, the default) or `concat` (2, 3 → 23). One choice for the whole
@@ -326,13 +328,27 @@ forces a cell to become an S-cell.
   half is S-ready, the sum is S-blind — "not Schrödinger-ready yet" over a
   named S-cell comes from `group-sum`, never the cage.
 
-- **cosmetic cage** — a cage a setter draws for display, carrying its sum as a
-  label rather than as an enforced killer constraint. SudokuMaker forces one
-  whenever a killer sum runs out of standard-digit range — the case a **doubler**
-  inside a cage creates — because its killer tool refuses to store that sum.
-  gridfind reads a cosmetic cage whose label is a number **as a killer cage**
-  (a `cage` plus a `group-sum`); it is the only channel an out-of-range sum
-  arrives through (ADR-0008). A cage whose label is non-numeric stays inert.
+- **cosmetic cage** — a cage a setter draws for display (SudokuMaker's
+  `type 2001` block), carrying no enforced killer constraint of its own.
+  SudokuMaker forces one whenever a killer sum runs out of standard-digit range —
+  the case a **doubler** inside a cage creates — because its killer tool refuses
+  to store that sum, so it is the only channel an out-of-range sum arrives
+  through. gridfind reads the block's top-level `name` and sorts the cage four
+  ways (ADR-0012): an **unnamed** cage decodes **as a killer cage** (a `cage`
+  plus a `group-sum` when its label is a number); a cage named `Sum` or `Killer`
+  is the same killer cage with a decorative name; a cage named `Doubler`,
+  `S-cell`, or `Schrödinger` is a **marker cage** that declares positions instead
+  of a constraint; and an unrecognized name is a **loud error** unless
+  `--ignore-unknown-named-cages` strips the name and honors the cage.
+
+- **marker cage** — a named **cosmetic cage** that *declares* doubler or S-cell
+  positions rather than a killer constraint (ADR-0012). A `Doubler` cage marks
+  each of its cells a **modifier**; an `S-cell`/`Schrödinger` cage marks each an
+  **S-cell**. It emits per-cell directives and no `cage`/`group-sum`, and the
+  variant is inferred from its presence — no `--doubler`/`--schrodinger` flag.
+  Cages are expected single-cell but a multi-cell one marks all its cells
+  uniformly; a cell may sit in a marker cage and a numeric-sum cosmetic cage at
+  once.
 
 ---
 
@@ -370,14 +386,15 @@ its modified amount for a modifier cell — so a sum, difference, or cage total
 folds the modifier without the constraint layer knowing one is present.
 
 - **modifier** — a cell that transforms its own digit for arithmetic. Its
-  **position is declared** by the setter (a color-marked cell in a SudokuMaker
-  link, ADR-0008), while a plain puzzle discovers modifier positions by the
-  one-per-house transversal (issue #237). The distinction is placement, not
-  value.
+  **position is declared** by the setter (a cell in a named `Doubler` **marker
+  cage** in a SudokuMaker link, ADR-0012), while a plain puzzle discovers
+  modifier positions by the one-per-house transversal (issue #237). The
+  distinction is placement, not value.
 
-- **doubler** — the built modifier: its value is `2·d0`, twice its digit. A
-  doubler inside a **cage** is what drives a sum out of standard-digit range and
-  forces the setter to a **cosmetic cage**.
+- **doubler** — the built modifier: its value is `2·d0`, twice its digit.
+  Declared in a link by a named `Doubler` **marker cage** (ADR-0012). A doubler
+  inside a **cage** is what drives a sum out of standard-digit range and forces
+  the setter to a sum-carrying **cosmetic cage**.
 
 A **found** verdict's **witness** reports which cells the solver discovered as
 modifiers on a `modifiers: dict[str, str]` field, address to the puzzle's
