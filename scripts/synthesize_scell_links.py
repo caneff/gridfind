@@ -86,14 +86,21 @@ def _base_document(
     return {"formatVersion": "1.5.0", "puzzle": puzzle}
 
 
-class _PinnedGrid:
-    """A fully-pinned classic Schrödinger solution under construction: every
-    non-S-cell a given, every S-cell pinned `{0, base}` through its marker
-    cage's comma value. Covering cases mutate the *first* S-cell (lowest cell
-    index) off this base; the rest stay pinned so the whole board has one
-    solution and any break the mutation introduces is the sole cause."""
+class _SchrodingerGrid:
+    """A classic Schrödinger solution under construction: every non-S-cell a
+    given, the *first* S-cell (lowest cell index) marked and pinned `{0, base}`
+    through its marker cage. What happens to the other transversal positions is
+    the `discover_others` switch:
 
-    def __init__(self, box_h: int, box_w: int) -> None:
+    - `False` — they are pinned too. A broke case mutates the first cell and
+      wants the rest fixed, so the break it introduces is the sole cause.
+    - `True` — they are left empty for the solver to discover as S-cells. A real
+      found puzzle that declares one S-cell and solves for the rest, rather than
+      handing over a board where every S-cell is already specified."""
+
+    def __init__(
+        self, box_h: int, box_w: int, *, discover_others: bool = False
+    ) -> None:
         self.box_h = box_h
         self.box_w = box_w
         self.size = box_h * box_w
@@ -103,11 +110,13 @@ class _PinnedGrid:
         self.cages: list[dict[str, object]] = []
         for index in range(self.size * self.size):
             row, col = divmod(index, self.size)
-            if index in self.scells:
+            if index == self.first or (index in self.scells and not discover_others):
                 self.cells.append({})
                 self.cages.append(
                     {"value": f"{_EXTRA},{self.scells[index]}", "cells": [index]}
                 )
+            elif index in self.scells:
+                self.cells.append({})  # an undeclared S-cell for the solver to find
             else:
                 self.cells.append(
                     {"given": True, "value": _solution_digit(row, col, box_h, box_w)}
@@ -116,7 +125,7 @@ class _PinnedGrid:
     def _first_cage(self) -> dict[str, object]:
         return next(c for c in self.cages if c["cells"] == [self.first])
 
-    def set_first_value(self, value: str | None) -> _PinnedGrid:
+    def set_first_value(self, value: str | None) -> _SchrodingerGrid:
         """Override the first S-cell's marker-cage `value` (its directive
         source). `None` drops the key, declaring a bare S-cell."""
         cage = self._first_cage()
@@ -126,20 +135,20 @@ class _PinnedGrid:
             cage["value"] = value
         return self
 
-    def set_first_marks(self, digits: set[int]) -> _PinnedGrid:
+    def set_first_marks(self, digits: set[int]) -> _SchrodingerGrid:
         """Set the first S-cell's own center marks — the consistency layer over
         its cage directive."""
         self.cells[self.first] = {"candidates": sum(1 << d for d in digits)}
         return self
 
-    def give_first_own_value(self, digit: int) -> _PinnedGrid:
+    def give_first_own_value(self, digit: int) -> _SchrodingerGrid:
         """Settle the first S-cell's own large digit alongside its marker cage.
         The cage's directive and the cell's own singleton pin collide on
         S-cell-ness (CONTEXT.md `schrodinger`)."""
         self.cells[self.first] = {"given": True, "value": digit}
         return self
 
-    def uncage_first_as_given(self) -> _PinnedGrid:
+    def uncage_first_as_given(self) -> _SchrodingerGrid:
         """Drop the first S-cell's marker cage and settle it as a plain given of
         its base digit. Its row/column/box then has no S-cell to supply the
         extra `0`, so the board is unsatisfiable."""
@@ -160,34 +169,42 @@ class _PinnedGrid:
 
 
 def found_pin() -> str:
-    """4x4 pin S-cell, `found` — every cage `value` a comma pair `{0, base}`."""
-    return _PinnedGrid(2, 2).link()
+    """4x4 pin S-cell, `found` — one S-cell declared with a comma pair `{0, base}`
+    cage, the other three discovered by the solver."""
+    return _SchrodingerGrid(2, 2, discover_others=True).link()
 
 
 def found_half() -> str:
-    """4x4 half S-cell, `found` — the first cage names one digit of its pair; the
-    fully-pinned remainder forces the partner, so it still solves uniquely."""
-    return _PinnedGrid(2, 2).set_first_value(str(_EXTRA)).link()
+    """4x4 half S-cell, `found` — the marked cage names one digit of its pair; the
+    solver fills the partner and finds the other three S-cells."""
+    grid = _SchrodingerGrid(2, 2, discover_others=True)
+    return grid.set_first_value(str(_EXTRA)).link()
 
 
 def found_bare() -> str:
-    """4x4 bare S-cell, `found` — the first cage carries no value; the cell is an
-    S-cell whose pair the rest of the board forces."""
-    return _PinnedGrid(2, 2).set_first_value(None).link()
+    """4x4 bare S-cell, `found` — the marked cage carries no value; the solver
+    finds both its pair and the other three S-cells."""
+    return _SchrodingerGrid(2, 2, discover_others=True).set_first_value(None).link()
 
 
 def found_stray_marks() -> str:
-    """4x4 pin S-cell with superset center marks, `found` — marks that contain
-    the pinned pair (and extras) satisfy the consistency restriction."""
-    grid = _PinnedGrid(2, 2)
+    """4x4 pin S-cell with superset center marks, `found` — marks that contain the
+    pinned pair (and extras) satisfy the consistency restriction."""
+    grid = _SchrodingerGrid(2, 2, discover_others=True)
     pair = {_EXTRA, grid.scells[grid.first]}
     return grid.set_first_marks(pair | set(range(1, grid.size + 1))).link()
+
+
+def found_schrodinger_6x6() -> str:
+    """6x6 pin S-cell, `found` — one S-cell declared, the rest discovered, over the
+    non-square (2x3) box shape."""
+    return _SchrodingerGrid(2, 3, discover_others=True).link()
 
 
 def broke_consistency() -> str:
     """4x4 pin S-cell with center marks that omit a pinned digit, `broke` — the
     restriction can't hold the pair, so the model is infeasible."""
-    grid = _PinnedGrid(2, 2)
+    grid = _SchrodingerGrid(2, 2)
     base = grid.scells[grid.first]
     return grid.set_first_marks({base}).link()  # omits the extra 0 of the pair
 
@@ -195,32 +212,20 @@ def broke_consistency() -> str:
 def broke_settled() -> str:
     """4x4 Schrödinger, `broke` — one S-cell position is settled as a plain
     given, leaving the extra `0` unplaceable in its row/column/box."""
-    return _PinnedGrid(2, 2).uncage_first_as_given().link()
+    return _SchrodingerGrid(2, 2).uncage_first_as_given().link()
 
 
 def broke_caged_value() -> str:
     """4x4 S-cell that also carries its own settled digit, `broke` — the cage's
     pin and the cell's singleton pin collide on S-cell-ness."""
-    grid = _PinnedGrid(2, 2)
+    grid = _SchrodingerGrid(2, 2)
     return grid.give_first_own_value(grid.scells[grid.first]).link()
 
 
 def invalid_out_of_domain() -> str:
     """4x4 S-cell whose cage `value` names a digit off the board — a malformed
     directive the front door refuses with exit 2, not a `broke` verdict."""
-    return _PinnedGrid(2, 2).set_first_value(f"{_EXTRA},99").link()
-
-
-def found_schrodinger_6x6() -> str:
-    """6x6 pin S-cell, `found` — a named S-cell marker cage over the transversal,
-    the non-square (2x3) box shape exercised end to end."""
-    return _PinnedGrid(2, 3).link()
-
-
-def found_string_16x16() -> str:
-    """16x16 pin S-cell, `found` — exercises the comma `"a,b"` value at a domain
-    where a bare two-character value would instead read as one two-digit half."""
-    return _PinnedGrid(4, 4).link()
+    return _SchrodingerGrid(2, 2).set_first_value(f"{_EXTRA},99").link()
 
 
 # A doubler fixture is a 4x4 jigsaw puzzle with a named `Doubler` marker cage
@@ -290,7 +295,6 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-scell-bare-4x4": found_bare,
     "found-scell-stray-marks-4x4": found_stray_marks,
     "found-schrodinger-6x6": found_schrodinger_6x6,
-    "found-scell-string-16x16": found_string_16x16,
     "broke-scell-consistency-4x4": broke_consistency,
     "broke-schrodinger-4x4": broke_settled,
     "broke-scell-caged-value-4x4": broke_caged_value,

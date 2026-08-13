@@ -40,9 +40,8 @@ def fill_witness(
     addressed by the same row-major `i // size`, `i % size` scheme
     `decode_link` reads cells with. Each cell is written through `write_cell`,
     the decoder's one wire-write seam — a singleton digit becomes a given, a
-    Schrödinger pair its red two-mark pin, and a cell the solver found to be a
-    modifier (doubler) carries the red bit too — so this holds no knowledge of
-    the cell's field shape. Every other field of `document` rides through
+    Schrödinger pair its two center marks — so this holds no knowledge of the
+    cell's field shape. Every other field of `document` rides through
     untouched, so `size`/`type` survive and the emitted link opens as the same
     puzzle.
 
@@ -57,7 +56,7 @@ def fill_witness(
     cells = cast("list[dict[str, Any]]", puzzle_data["cells"])
     for i, cell in enumerate(cells):
         address = cell_address(i // size + 1, i % size + 1)
-        write_cell(cell, witness[address], is_modifier=address in witness.modifiers)
+        write_cell(cell, witness[address])
     _stamp_scell_cage_values(puzzle_data, witness, size)
     return filled
 

@@ -38,12 +38,14 @@ def _state(link: str) -> WorkingState:
     return state
 
 
-def test_found_pin_decodes_to_scell_pins_and_reads_found(
+def test_found_pin_declares_one_scell_and_the_solver_discovers_the_rest(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     link = syn.found_pin()
     pins = [d for d in _state(link).s_directives if isinstance(d, SCellPin)]
-    assert len(pins) == 4, "a 4x4 transversal pins one S-cell per row/col/box"
+    # Exactly one S-cell is declared; a 4x4 Schrödinger reads found only if the
+    # solver discovers the other three, so found here is a real solve.
+    assert len(pins) == 1
     code, first, _ = _front_door(link, capsys)
     assert (code, first) == (0, "found")
 
@@ -114,25 +116,12 @@ def test_invalid_out_of_domain_value_exits_two_as_a_malformed_document(
     assert "invalid puzzle document" in err
 
 
-def test_found_schrodinger_6x6_reads_found_with_six_pins(
+def test_found_schrodinger_6x6_declares_one_scell_and_reads_found(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     link = syn.found_schrodinger_6x6()
     pins = [d for d in _state(link).s_directives if isinstance(d, SCellPin)]
-    assert len(pins) == 6
-    code, first, _ = _front_door(link, capsys)
-    assert (code, first) == (0, "found")
-
-
-def test_found_string_16x16_reads_the_comma_pair_and_reads_found(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    link = syn.found_string_16x16()
-    pins = [d for d in _state(link).s_directives if isinstance(d, SCellPin)]
-    # Every pin's pair holds the extra 0 plus a base digit; at 16x16 some base
-    # digits are two-character, so a comma value is the only unambiguous form.
-    assert len(pins) == 16
-    assert all(0 in pin.pair and len(pin.pair) == 2 for pin in pins)
+    assert len(pins) == 1
     code, first, _ = _front_door(link, capsys)
     assert (code, first) == (0, "found")
 

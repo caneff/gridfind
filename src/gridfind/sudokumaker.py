@@ -90,14 +90,6 @@ from gridfind.puzzle import (
 # SudokuMaker omits those headers only on the classic 9x9 (§4b, ADR-0011).
 _CLASSIC_SIZE = 9
 
-# `colors` is an OR of palette-color bits; red is bit value 2, never
-# `colors == 2` since a cell may carry other decorative colors too. gridfind
-# no longer *reads* the red bit — declared doublers and S-cells arrive through
-# named marker cages (spec #324) — but the witness emitter still *writes* it, so
-# a solution link shows S-cells and modifiers in SudokuMaker's red as a human
-# opening the link expects.
-_RED_BIT = 2
-
 # An S-cell marker cage's `value` selects the directive by parsed digit-count
 # (spec #349): two digits pin the pair, one is the looser half directive.
 _SCELL_PIN_DIGITS = 2
@@ -403,34 +395,27 @@ def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
     return range(min_digit, min_digit + size + 1)
 
 
-def write_cell(
-    cell: dict[str, Any], content: tuple[int, ...], *, is_modifier: bool = False
-) -> None:
+def write_cell(cell: dict[str, Any], content: tuple[int, ...]) -> None:
     """Write a witness cell's content onto the SudokuMaker wire — the one
     wire-write seam, singleton and S-cell through one door, so a caller holding
     a witness never touches the cell's field shape. A length-1 content is a
     plain given (`given: True, value: d`). A length-2 content `(a, b)` is a
-    Schrödinger S-cell pin, written via `_write_s_cell`. An `is_modifier` cell
-    additionally carries the `_RED_BIT` in `colors`. The red bit and the S-cell
-    marks are cosmetic on the emitted solution link — gridfind reads variants
-    from named marker cages, not colors — but SudokuMaker paints them red, so a
-    human opening the link sees the S-cells and modifiers the solver found."""
+    Schrödinger S-cell, written via `_write_s_cell` as its two center marks.
+    gridfind reads S-cells and doublers from named marker cages, never cell
+    colors, so the fill writes no color bits — a declared cell's marker cage
+    rides through untouched and marks it."""
     if len(content) == 1:
         cell["given"] = True
         cell["value"] = content[0]
     else:
         a, b = content
         _write_s_cell(cell, a, b)
-    if is_modifier:
-        cell["colors"] = cell.get("colors", 0) | _RED_BIT
 
 
 def _write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:
-    """Write an S-cell's two-digit pin into `cell`: set the `_RED_BIT` in
-    `colors` (OR-ed in so any decorative colors survive) and set both digits in
-    the `candidates` bitmask (the two center marks) — SudokuMaker's own S-cell
-    look, so a human opening the solution link sees the pinned pair."""
-    cell["colors"] = cell.get("colors", 0) | _RED_BIT
+    """Write an S-cell's two-digit pair into `cell` as the `candidates` bitmask
+    (its two center marks) — SudokuMaker's cosmetic display of the pair. The
+    decode-time pair rides the marker cage's own `value`, not these marks."""
     cell["candidates"] = (1 << a) | (1 << b)
 
 
