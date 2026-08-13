@@ -918,6 +918,22 @@ def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
 
 
 @dataclass(frozen=True)
+class SetterDoc:
+    """The setter-facing facts a `DECODER_REGISTRY` row owes the accepted-link
+    setter guide (wayfinder map #335, ticket #336): the display name a setter
+    recognizes, the wire block gridfind reads, what it decodes to, and its
+    accept/ignore/reject verdict. Sourced from
+    `docs/research/accepted-link-constraint-map.md` §3 — the SudokuMaker
+    draw-action itself is deliberately absent; it lives only in the page
+    template (ticket #366)."""
+
+    display_name: str
+    wire_block: str
+    decode_result: str
+    verdict: str
+
+
+@dataclass(frozen=True)
 class DecodedType:
     """One SudokuMaker wire-type the decoder recognizes, one row wide: `handler` builds
     this type's `Constraint`s from the link (`None` for a type with nothing to
@@ -928,11 +944,15 @@ class DecodedType:
     `_regions_constraints` like every other generically-dispatched handler),
     `live_keys` are the payload keys that mark this type's wire shape as
     carrying a real rule (read by `has_live_data`, generalized to unmodeled
-    types too), and `name` labels it in the decoder's own warnings."""
+    types too), `name` labels it in the decoder's own warnings, and
+    `setter_doc` carries the setter-facing reference-table facts for this
+    type — `None` for a structural row (`type 0`/`type 1`) that no setter
+    draws directly."""
 
     handler: Callable[[dict[str, object], int], list[Constraint]] | None
     live_keys: tuple[str, ...]
     name: str
+    setter_doc: SetterDoc | None
 
 
 # The one table wire-type -> (handler, live-data payload keys, display name):
@@ -941,29 +961,102 @@ class DecodedType:
 # `live_keys` — adding a link type is one row here, not three hand-synced
 # call sites.
 DECODER_REGISTRY: dict[int, DecodedType] = {
-    0: DecodedType(handler=None, live_keys=(), name="givens"),
-    1: DecodedType(handler=_regions_constraints, live_keys=(), name="regions"),
+    0: DecodedType(handler=None, live_keys=(), name="givens", setter_doc=None),
+    1: DecodedType(
+        handler=_regions_constraints, live_keys=(), name="regions", setter_doc=None
+    ),
     _KROPKI_WHITE_TYPE: DecodedType(
         handler=_kropki_constraints,
         live_keys=("clues", "negative"),
         name="white-kropki",
+        setter_doc=SetterDoc(
+            display_name="White kropki (difference dot)",
+            wire_block="type 200 {clues:[{value, edge}], negative:[…]}",
+            decode_result="One pair-difference Constraint per clue; value maps"
+            " verbatim to diff.",
+            verdict="Accept the positive clues. A non-empty negative list is"
+            " warn-and-dropped to stderr. An edge naming no in-bounds pair"
+            " raises ValueError. disabled blocks are skipped.",
+        ),
     ),
     _KROPKI_BLACK_TYPE: DecodedType(
         handler=_black_kropki_constraints,
         live_keys=("clues", "negative"),
         name="black-kropki",
+        setter_doc=SetterDoc(
+            display_name="Black kropki (ratio dot)",
+            wire_block="type 201 {clues:[{value, edge}], negative:[…]} —"
+            " same shape as white kropki.",
+            decode_result="One pair-ratio Constraint per clue; value maps"
+            " verbatim to k.",
+            verdict="Accept the positive clues; negative is warn-and-dropped."
+            " A non-integer value raises ValueError, as does an out-of-range"
+            " edge. disabled blocks are skipped.",
+        ),
     ),
     _XV_TYPE: DecodedType(
-        handler=_xv_constraints, live_keys=("clues", "negative"), name="XV"
+        handler=_xv_constraints,
+        live_keys=("clues", "negative"),
+        name="XV",
+        setter_doc=SetterDoc(
+            display_name="XV",
+            wire_block="type 202 {clues:[{value, edge}], negative:[…]} —"
+            " value is 10 (X) or 5 (V).",
+            decode_result="One aliased group-sum Constraint per clue: 10"
+            " selects the X alias, 5 the V alias.",
+            verdict="Accept clues whose value is 10 or 5; any other value"
+            " raises ValueError. negative is warn-and-dropped; disabled"
+            " blocks are skipped.",
+        ),
     ),
     _CAGE_TYPE: DecodedType(
-        handler=_cage_constraints, live_keys=("cages",), name="killer-cage"
+        handler=_cage_constraints,
+        live_keys=("cages",),
+        name="killer-cage",
+        setter_doc=SetterDoc(
+            display_name="Killer cage",
+            wire_block="type 301 {cages:[{cells, value}]}.",
+            decode_result="Each cage becomes a no-repeats cage Constraint;"
+            " a positive value additionally emits a group-sum over the same"
+            " cells.",
+            verdict="Accept. value 0 or absent is SudokuMaker's own no-sum"
+            " cage — cage alone, no group-sum. disabled blocks are skipped;"
+            " an empty cages list adds nothing.",
+        ),
     ),
     _COSMETIC_CAGE_TYPE: DecodedType(
-        handler=None, live_keys=("cages",), name="cosmetic-cage"
+        handler=None,
+        live_keys=("cages",),
+        name="cosmetic-cage",
+        setter_doc=SetterDoc(
+            display_name="Cosmetic cage",
+            wire_block="type 2001 {cages:[{value:str, cells}], name?,"
+            " style?} — value is a string; a top-level name may mark the"
+            " block as a variant declaration.",
+            decode_result="name classifies the block: absent/Sum/Killer"
+            " decodes as a killer cage (a numeric non-zero string value"
+            " graduates to a group-sum); Doubler emits per-cell modifier"
+            " directives; S-cell/Schrödinger/Schrodinger infers"
+            " Schrödinger-ness and routes its cells through the per-cell"
+            " S-cell branch.",
+            verdict="Accept a recognized name. An unrecognized name raises"
+            " ValueError, downgradable to strip-and-honor via"
+            " ignore_unknown_named_cages. disabled blocks are skipped.",
+        ),
     ),
     _THERMO_TYPE: DecodedType(
-        handler=_thermo_constraints, live_keys=("thermometers",), name="thermo"
+        handler=_thermo_constraints,
+        live_keys=("thermometers",),
+        name="thermo",
+        setter_doc=SetterDoc(
+            display_name="Thermometer",
+            wire_block="type 300 {slow:bool, thermometers:[[cell indices,"
+            " bulb first], …]}.",
+            decode_result="One thermo Constraint per path, order preserved"
+            " (bulb first); slow rides onto every path in the block.",
+            verdict="Accept. disabled blocks are skipped; an empty"
+            " thermometers list adds nothing.",
+        ),
     ),
 }
 
