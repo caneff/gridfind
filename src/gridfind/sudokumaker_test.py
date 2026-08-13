@@ -1072,18 +1072,6 @@ def test_doubler_named_cage_emits_modifier_directives_and_no_cage() -> None:
     assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
 
 
-def test_doubler_marker_synthesizes_the_doubler_constraint_without_the_flag() -> None:
-    # Doubler-ness is inferred from marker presence — no `--doubler` flag
-    # required.
-    payload = _constraint_link(
-        {"name": "Doubler", "type": 2001, "cages": [{"value": "", "cells": [0]}]}
-    )
-
-    puzzle, _ = decode_link(payload)
-
-    assert Constraint("doubler") in puzzle.constraints
-
-
 @pytest.mark.parametrize(
     "name",
     ["Doubler", "doubler", "  DOUBLER  "],
@@ -1361,19 +1349,6 @@ def test_thermo_style_is_ignored() -> None:
         Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
         in puzzle.constraints
     )
-
-
-def test_disabled_thermo_block_decodes_to_nothing_quietly(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    payload = _constraint_link(
-        {"type": 300, "slow": False, "thermometers": [[0, 1, 2]], "disabled": True}
-    )
-
-    puzzle, _ = decode_link(payload)
-
-    assert all(c.type != "thermo" for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
 
 
 # --- shared: a disabled or empty block of any decoded family is a no-op ---

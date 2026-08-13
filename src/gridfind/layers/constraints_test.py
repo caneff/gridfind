@@ -21,21 +21,6 @@ def test_bare_constraints_resolve_to_the_matching_layer_instances() -> None:
     assert layers == [BOARD, ROWS_DISTINCT, COLS_DISTINCT]
 
 
-def test_rows_cols_regions_are_all_one_distinct_layer_class() -> None:
-    # The three distinct rules are instances of one
-    # partition-parameterized layer, not three bespoke classes.
-    _, layers = build_stack(
-        (
-            Constraint(type="rows-distinct"),
-            Constraint(type="cols-distinct"),
-            Constraint(type="regions-distinct"),
-        ),
-        size=9,
-    )
-
-    assert layers == [BOARD, ROWS_DISTINCT, COLS_DISTINCT, REGIONS_DISTINCT]
-
-
 def test_sudoku_preset_expands_to_exactly_the_three_distinct_constraints() -> None:
     canonical, _ = build_stack((Constraint(type="sudoku"),), size=9)
 

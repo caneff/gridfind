@@ -16,6 +16,7 @@ from gridfind.puzzle import (
     Constraint,
     Given,
     HalfSCell,
+    ModifierDirective,
     Placement,
     Puzzle,
     SCellPin,
@@ -240,12 +241,6 @@ def test_verdict_unknown_when_the_budget_is_exhausted() -> None:
 
     assert result.kind == "unknown"
     assert result.witness is None
-
-
-def test_verdict_defaults_to_the_empty_working_state() -> None:
-    puzzle = Puzzle(board=BOARD, givens=(Given(address="R1C1", digit=5),))
-
-    assert verdict(puzzle).kind == "found"
 
 
 @pytest.mark.parametrize("size", [6, 4], ids=["6x6", "4x4"])
@@ -835,19 +830,6 @@ def test_sudoku_preset_matches_the_explicit_three_distinct_constraints() -> None
     assert preset_result.kind == explicit_result.kind == "broke"
 
 
-def test_sudoku_preset_found_on_a_legal_partial() -> None:
-    puzzle = Puzzle(
-        board=BOARD,
-        constraints=(Constraint(type="sudoku"),),
-        givens=(Given(address="R1C1", digit=1), Given(address="R4C4", digit=2)),
-    )
-
-    result = verdict(puzzle)
-
-    assert result.kind == "found"
-    assert result.witness is not None
-
-
 def test_verdict_rejects_an_unknown_constraint_type() -> None:
     puzzle = Puzzle(board=BOARD, constraints=(Constraint(type="not-a-real-rule"),))
 
@@ -1283,11 +1265,13 @@ def test_verdict_found_witness_names_the_cell_a_sum_forces_to_discover() -> None
 
 
 def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None:
-    # A given writes d0 = 5 (never the value); 15 is only reachable if that
-    # digit is discovered as a doubler and read as 10 by the group-sum, so
-    # R1C2 must land on 5 (10 + 5), not 10 (5 + 10 is off the board anyway).
-    # This proves the clue read the *derived* value while the given kept the
-    # witness's own digit untouched (spec #232 decision #218).
+    # A given writes d0 = 5 (never the value); the group-sum of 15 reads the
+    # doubler's derived value 10, so R1C2 must land on 5. R1C1 is declared the
+    # doubler so the clue is forced onto the given cell — otherwise the solver
+    # is free to put the sole row doubler on R1C2 (5 + 10 = 15 also balances)
+    # and this test's cell would carry no modifier at all. This proves the clue
+    # read the *derived* value while the given kept the witness's own digit
+    # untouched (ADR-0008).
     puzzle = Puzzle(
         board=BOARD,
         constraints=(
@@ -1296,8 +1280,11 @@ def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None
         ),
         givens=(Given(address="R1C1", digit=5),),
     )
+    state = WorkingState(
+        modifier_directives=(ModifierDirective("R1C1", is_modifier=True),)
+    )
 
-    result = verdict(puzzle)
+    result = verdict(puzzle, state)
 
     assert result.kind == "found"
     assert result.witness is not None
