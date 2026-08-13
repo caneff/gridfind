@@ -32,6 +32,7 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import (
+    DECODER_REGISTRY,
     _CellDecode,
     _decode_cell,
     _edge_to_pair,
@@ -1648,3 +1649,27 @@ def test_decode_cell_returns_one_cells_directives(
     # a single cell yields as one value. A non-marker cell decodes its plain
     # given/placement/candidate; the S-cell marker path is covered separately.
     assert _decode_cell(cell, "R1C1", domain) == expected
+
+
+@pytest.mark.parametrize(
+    "wire_type",
+    [t for t in DECODER_REGISTRY if t not in (0, 1)],
+)
+def test_non_structural_registry_rows_carry_a_populated_setter_doc(
+    wire_type: int,
+) -> None:
+    # Every setter-facing constraint owes the accepted-link setter guide its
+    # display name, wire block, decode result, and verdict (map #335, #336).
+    setter_doc = DECODER_REGISTRY[wire_type].setter_doc
+    assert setter_doc is not None
+    assert setter_doc.display_name
+    assert setter_doc.wire_block
+    assert setter_doc.decode_result
+    assert setter_doc.verdict
+
+
+@pytest.mark.parametrize("wire_type", [0, 1])
+def test_structural_registry_rows_carry_no_setter_doc(wire_type: int) -> None:
+    # `type 0` (givens) and `type 1` (regions) aren't setter-drawn constraints,
+    # so `None` marks them as not setter-facing without a separate skip-list.
+    assert DECODER_REGISTRY[wire_type].setter_doc is None
