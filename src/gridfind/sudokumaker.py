@@ -480,9 +480,11 @@ def _parse_scell_value(value: object, domain: range) -> tuple[int, ...]:
     raising: a comma-separated `"a,b"` splits into its pair; a bare two-digit
     string is the pair shorthand `"ab"` when every domain digit is
     single-character (else it is one two-digit value); anything else parses as
-    one digit. A value that is absent, empty, names a digit outside `domain`,
-    or otherwise doesn't cleanly fit one of those shapes parses to `()` — the
-    same bare reading, never a crash."""
+    one digit. A value that is absent, empty, or doesn't cleanly fit one of
+    those shapes parses to `()` — a bare S-cell, never a crash. A cleanly
+    parsed digit outside `domain` is kept, not dropped: it rides into the
+    directive for the verdict-time domain guard to refuse (CONTEXT.md,
+    "malformed")."""
     if not isinstance(value, str) or not value.strip():
         return ()
     text = value.strip()
@@ -490,30 +492,31 @@ def _parse_scell_value(value: object, domain: range) -> tuple[int, ...]:
         parts = text.split(",")
         if len(parts) != _SCELL_PIN_DIGITS:
             return ()
-        a = _parse_domain_digit(parts[0], domain)
-        b = _parse_domain_digit(parts[1], domain)
+        a = _parse_digit(parts[0])
+        b = _parse_digit(parts[1])
         return (a, b) if a is not None and b is not None else ()
     if (
         len(text) == _SCELL_PIN_DIGITS
         and text.isdigit()
         and domain.stop - 1 <= _MAX_SINGLE_DIGIT
     ):
-        a = _parse_domain_digit(text[0], domain)
-        b = _parse_domain_digit(text[1], domain)
+        a = _parse_digit(text[0])
+        b = _parse_digit(text[1])
         return (a, b) if a is not None and b is not None else ()
-    digit = _parse_domain_digit(text, domain)
+    digit = _parse_digit(text)
     return (digit,) if digit is not None else ()
 
 
-def _parse_domain_digit(text: str, domain: range) -> int | None:
-    """One digit string parsed to an `int` and confirmed a member of `domain`,
-    or `None` on anything that isn't cleanly both — a non-numeric string or a
-    number outside the board's digits."""
+def _parse_digit(text: str) -> int | None:
+    """One digit string parsed to an `int`, or `None` when `text` is not a
+    clean integer. An out-of-domain digit is returned as-is, never masked: it
+    rides into the S-cell directive so the verdict-time domain guard refuses it
+    as malformed, exactly as an out-of-domain given does (CONTEXT.md,
+    "malformed"). Only genuine non-numeric text reads as a bare S-cell."""
     try:
-        digit = int(text.strip())
+        return int(text.strip())
     except ValueError:
         return None
-    return digit if digit in domain else None
 
 
 def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:

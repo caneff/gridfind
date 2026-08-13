@@ -284,7 +284,10 @@ the cell's own center marks. `value` is read for its parsed digit-count: two
 digits (a comma-split `"a,b"`, or the two-digit scalar shorthand `"ab"` when
 every domain digit is single-character) declare an **S-cell pin** `{a,b}`;
 one digit declares a **half S-cell**; an absent, empty, or unparseable value
-declares a **bare S-cell**. The comma form is unambiguous at any board size —
+declares a **bare S-cell**. A value that *does* parse a digit but names one
+outside the board's domain is not softened to bare — it rides into the
+directive and is refused as **malformed** at verdict, exactly as an
+out-of-domain given is. The comma form is unambiguous at any board size —
 including a 16x16 domain, where a bare two-character value instead reads as a
 single two-digit **half S-cell** digit, never a split pair. A multi-cell
 marker cage applies its one `value` to every cell it contains uniformly.

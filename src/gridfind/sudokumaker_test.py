@@ -14,6 +14,7 @@ from hypothesis import given as hyp_given
 from hypothesis import strategies as st
 from lzstring import LZString
 
+from gridfind.engine import MalformedPuzzleError
 from gridfind.puzzle import (
     BareSCell,
     Board,
@@ -39,6 +40,7 @@ from gridfind.sudokumaker import (
     encode_link,
     write_cell,
 )
+from gridfind.verdict import verdict
 
 # All three constraints, in the order the decoder emits them.
 _CLASSIC_CONSTRAINTS = (
@@ -1238,17 +1240,31 @@ def test_s_cell_marker_cage_value_wins_over_the_cells_own_center_marks() -> None
     assert all(c.address != "R1C1" for c in state.candidates)
 
 
+def test_s_cell_marker_cage_value_out_of_domain_digit_is_refused_as_malformed() -> None:
+    # A cage `value` naming a digit outside the board's domain rides into the
+    # S-cell directive and is refused at verdict as malformed (CONTEXT.md,
+    # "malformed"), exactly as an out-of-domain given is — never softened to a
+    # bare S-cell that a wrong `found` could slip through.
+    payload = _s_cell_cage_link("2,15")  # 15 is outside the board's 0..9 domain
+
+    puzzle, state = decode_link(payload)
+
+    assert SCellPin("R1C1", frozenset({2, 15})) in state.s_directives
+    with pytest.raises(MalformedPuzzleError, match="15"):
+        verdict(puzzle, state)
+
+
 @hyp_given(text=st.text(max_size=12))
 def test_scell_value_parser_never_crashes_on_arbitrary_text(text: str) -> None:
-    # The comma-split parser (spec #349) must handle any garbage a link's
-    # `value` string could carry without raising — malformed input parses to
-    # `()`, the same bare reading as an absent value.
+    # The parser (spec #349) handles any garbage a link's `value` could carry
+    # without raising, always yielding 0, 1, or 2 digits. It does not enforce
+    # the board's domain — an out-of-domain digit rides through for the
+    # verdict-time guard to refuse — so this asserts shape, not membership.
     domain = range(10)
 
     digits = _parse_scell_value(text, domain)
 
     assert len(digits) in (0, 1, 2)
-    assert all(d in domain for d in digits)
 
 
 @hyp_given(
