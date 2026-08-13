@@ -1,0 +1,171 @@
+"""Per-case behaviour tests for the synthesized S-cell corpus.
+
+Each covering case is asserted on two axes: the *directive kind* the link
+decodes to (so a `found` fixture can't secretly be a plain classic puzzle that
+exercises no S-cell path), and the front-door verdict/exit `cli.main` returns.
+"""
+
+from __future__ import annotations
+
+import io
+
+import pytest
+import synthesize_scell_links as syn
+
+from gridfind import cli
+from gridfind.puzzle import (
+    BareSCell,
+    HalfSCell,
+    ModifierDirective,
+    SCellMarkRestriction,
+    SCellPin,
+    SingletonPin,
+    WorkingState,
+)
+from gridfind.sudokumaker import decode_link
+
+
+def _front_door(link: str, capsys: pytest.CaptureFixture[str]) -> tuple[int, str, str]:
+    """Drive `cli.main` with a bare link; return (exit code, first stdout line,
+    stderr)."""
+    code = cli.main([link], io.StringIO())
+    captured = capsys.readouterr()
+    return code, captured.out.split("\n")[0], captured.err
+
+
+def _state(link: str) -> WorkingState:
+    _, state = decode_link(link)
+    return state
+
+
+def test_found_pin_decodes_to_scell_pins_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_pin()
+    pins = [d for d in _state(link).s_directives if isinstance(d, SCellPin)]
+    assert len(pins) == 4, "a 4x4 transversal pins one S-cell per row/col/box"
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
+def test_found_half_decodes_a_half_scell_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_half()
+    assert any(isinstance(d, HalfSCell) for d in _state(link).s_directives)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
+def test_found_bare_decodes_a_bare_scell_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_bare()
+    assert any(isinstance(d, BareSCell) for d in _state(link).s_directives)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
+def test_found_stray_marks_adds_a_restriction_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_stray_marks()
+    directives = _state(link).s_directives
+    assert any(isinstance(d, SCellMarkRestriction) for d in directives)
+    assert any(isinstance(d, SCellPin) for d in directives)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
+def test_broke_consistency_restriction_omitting_the_pair_reads_broke(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.broke_consistency()
+    assert any(isinstance(d, SCellMarkRestriction) for d in _state(link).s_directives)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (1, "broke")
+
+
+def test_broke_settled_position_leaves_the_extra_digit_unplaceable(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.broke_settled()
+    assert any(isinstance(d, SingletonPin) for d in _state(link).s_directives)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (1, "broke")
+
+
+def test_broke_caged_cell_with_its_own_value_collides_and_reads_broke(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.broke_caged_value()
+    directives = _state(link).s_directives
+    assert any(isinstance(d, SCellPin) for d in directives)
+    assert any(isinstance(d, SingletonPin) for d in directives)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (1, "broke")
+
+
+def test_invalid_out_of_domain_value_exits_two_as_a_malformed_document(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, _, err = _front_door(syn.invalid_out_of_domain(), capsys)
+    assert code == 2
+    assert "invalid puzzle document" in err
+
+
+def test_found_schrodinger_6x6_reads_found_with_six_pins(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_schrodinger_6x6()
+    pins = [d for d in _state(link).s_directives if isinstance(d, SCellPin)]
+    assert len(pins) == 6
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
+def test_found_string_16x16_reads_the_comma_pair_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_string_16x16()
+    pins = [d for d in _state(link).s_directives if isinstance(d, SCellPin)]
+    # Every pin's pair holds the extra 0 plus a base digit; at 16x16 some base
+    # digits are two-character, so a comma value is the only unambiguous form.
+    assert len(pins) == 16
+    assert all(0 in pin.pair and len(pin.pair) == 2 for pin in pins)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
+def _has_live_doubler(state: WorkingState) -> bool:
+    return any(
+        isinstance(d, ModifierDirective) and d.is_modifier
+        for d in state.modifier_directives
+    )
+
+
+def test_found_doubler_migration_keeps_a_live_doubler_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.found_doubler_4x4()
+    assert _has_live_doubler(_state(link))
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
+def test_broke_doubler_migration_keeps_a_live_doubler_and_reads_broke(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = syn.broke_doubler_4x4()
+    assert _has_live_doubler(_state(link))
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (1, "broke")
+
+
+@pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
+def test_committed_corpus_file_matches_its_synthesizer(name: str) -> None:
+    """The committed corpus is built in code, never hand-authored: each file is
+    exactly its synthesizer's output. A hand-edit (or a stale regenerate) turns
+    this red."""
+    path = syn.LINKS_DIR / f"{name}.txt"
+    assert path.read_text() == syn.CORPUS[name]() + "\n"
