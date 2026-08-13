@@ -98,9 +98,10 @@ class Candidate:
 @dataclass(frozen=True)
 class SingletonPin:
     """A Schrödinger directive: this cell is a **singleton** holding `digit` —
-    not an S-cell (CONTEXT.md `schrodinger`). The analog of a `Given` carrying
-    the extra "not an S-cell" claim a bare placed digit lacks. `kind` is the
-    wire tag `to_json`/`from_json` dispatch on (ADR-0006)."""
+    not an S-cell (CONTEXT.md `schrodinger`). The Schrödinger analog of a
+    settled given or placement alike — under a `schrodinger` layer both carry
+    the extra "not an S-cell" claim (`is_s == 0`). `kind` is the wire tag
+    `to_json`/`from_json` dispatch on (ADR-0006)."""
 
     address: str
     digit: int

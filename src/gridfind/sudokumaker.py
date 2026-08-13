@@ -263,8 +263,8 @@ def decode_link(
     relaxes the classic-only guard, and synthesizes the `schrodinger`
     constraint. Once that layer exists, every cell's settled `given`/bare
     `value` placement — marked or not — decodes to a **singleton pin**
-    (`is_s == 0`), not a plain given/placement: the wire's `given` flag no
-    longer changes the S-cell reading (spec #348)."""
+    (`is_s == 0`), not a plain given/placement: the wire's `given` flag does
+    not affect the S-cell reading (spec #348)."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
@@ -451,8 +451,8 @@ def _decode_cell(
     left to collide at solve time rather than refused here (spec #348, #346).
     Every other cell's settled value is a plain `given`/`placement` on a
     non-Schrödinger board, or — once a Schrödinger layer exists — a singleton
-    pin (`is_s == 0`), since the `given`/`placement` wire distinction no
-    longer changes the S-cell reading. Doubler-ness rides on the marker cage,
+    pin (`is_s == 0`); the `given`/`placement` wire distinction does not affect
+    the S-cell reading. Doubler-ness rides on the marker cage,
     not the cell, so a marked doubler cell still decodes its digit here
     unchanged. A cell that carries nothing gridfind represents — a cosmetic
     color, a corner mark, `{}` — decodes to an empty `_CellDecode`."""
