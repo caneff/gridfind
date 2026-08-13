@@ -74,23 +74,12 @@ def verdict(
     status = solver.solve(engine.model)
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        is_s = engine.is_s()
-        assignment: dict[str, tuple[int, ...]] = {}
-        for address in engine.cells:
-            content = engine.values(solver, address)
-            is_this_s = is_s is not None and bool(solver.value(is_s[address]))
-            assignment[address] = content if is_this_s else content[:1]
-        is_modifier = engine.is_modifier()
-        modifier_types = engine.modifier_types()
-        modifiers: dict[str, str] = {}
-        if is_modifier is not None and modifier_types is not None:
-            for address in engine.cells:
-                if bool(solver.value(is_modifier[address])):
-                    modifiers[address] = modifier_types[address]
-        grid = engine.grid()
         region_map = region_map_for_constraints(canonical, puzzle.board.size)
         witness = Witness(
-            grid=grid, assignment=assignment, region_map=region_map, modifiers=modifiers
+            grid=engine.grid(),
+            assignment=engine.assignment(solver),
+            region_map=region_map,
+            modifiers=engine.discovered_modifiers(solver),
         )
         return Verdict(kind="found", witness=witness)
     if status == cp_model.INFEASIBLE:

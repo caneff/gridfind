@@ -196,6 +196,33 @@ class Engine:
         over it. A width-1 cell hands back a length-1 sequence."""
         return self._cell(address).content
 
+    def assignment(self, solver: cp_model.CpSolver) -> dict[str, tuple[int, ...]]:
+        """Every cell's displayed digits after a solve, address → digit
+        sequence. A widened S-cell shows both digits; every other cell shows
+        its lone d0 — the `is_s ⟺ d1-real` slice the schrödinger layer owns."""
+        is_s = self.is_s()
+        result: dict[str, tuple[int, ...]] = {}
+        for address in self.cells:
+            content = self.values(solver, address)
+            widened = is_s is not None and bool(solver.value(is_s[address]))
+            result[address] = content if widened else content[:1]
+        return result
+
+    def discovered_modifiers(self, solver: cp_model.CpSolver) -> dict[str, str]:
+        """Every cell the solve placed a modifier on, address → its declared
+        type name (e.g. `\"doubler\"`). Empty when the stack has no modifier
+        layer. Folds the `is_modifier` indicators against the `modifier_type`
+        names both structures own."""
+        is_modifier = self.is_modifier()
+        modifier_types = self.modifier_types()
+        if is_modifier is None or modifier_types is None:
+            return {}
+        return {
+            address: modifier_types[address]
+            for address in self.cells
+            if bool(solver.value(is_modifier[address]))
+        }
+
     def value(self, solver: cp_model.CpSolver, address: str) -> int:
         """A not-yet-widened cell's one placed digit after a solve — the
         singular read for a rule that doesn't handle Schrödinger cells.
