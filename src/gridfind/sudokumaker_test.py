@@ -1394,8 +1394,8 @@ def test_settled_value_on_a_non_marker_cell_is_a_singleton_pin_under_schrodinger
 
 
 def test_settled_value_on_a_non_schrodinger_puzzle_stays_given_or_placement() -> None:
-    # No S-axis exists without a schrodinger layer, so an ordinary puzzle's
-    # given/placement is unaffected — no regression (spec #348).
+    # No S-axis exists without a schrodinger layer, so on an ordinary puzzle a
+    # settled given/placement stays a plain given/placement (spec #348).
     cells = list(_EMPTY_CELLS)
     cells[0] = {"given": True, "value": 7}
     cells[1] = {"value": 3}

@@ -155,9 +155,9 @@ def _classic_schrodinger_link_with_a_settled_scell_position() -> str:
     is settled to a plain given of its own `base` digit instead of pinned via
     the marker cage. That position was the sole source of `10` in its row,
     column, and box: read as a **singleton pin** (spec #348, `is_s == 0`) it
-    leaves `10` unplaceable in all three — broke. Before spec #348, the same
-    given left `is_s` free, so the solver could silently promote this cell to
-    an S-cell holding `{base, 10}` and read `found`."""
+    leaves `10` unplaceable in all three — broke: the pin holds `is_s == 0`, so
+    the solver cannot make this cell the S-cell `{base, 10}` that alone could
+    supply the missing `10`."""
     s_cells = {}
     for band in range(3):
         for k in range(3):
@@ -195,8 +195,8 @@ def test_settled_digit_where_the_solution_needs_an_s_cell_is_broke(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # Spec #348: a settled large digit is a singleton pin (is_s == 0), so a
-    # cell whose only valid completion is an S-cell can no longer be silently
-    # absorbed as its lower half — the puzzle reads broke, not found.
+    # cell whose only valid completion is an S-cell is not absorbed as its
+    # lower half — the puzzle reads broke, not found.
     link = _classic_schrodinger_link_with_a_settled_scell_position()
 
     code = cli.main([link], io.StringIO())

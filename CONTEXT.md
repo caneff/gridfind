@@ -200,8 +200,7 @@ directives on top; a header line declares the active layer stack.
 - **given** — a grid cell the setter has placed to a single digit. Content pinned
   to one value. Under the Schrödinger layer a given settles the cell as a
   **singleton pin** (spec #348): the given digit is the cell's whole value and
-  the cell is never an S-cell — it can no longer be silently absorbed as an
-  S-cell's lower digit.
+  the cell is never an S-cell — it cannot serve as an S-cell's lower digit.
 
 - **candidate / pencilmark** — a cell narrowed to a subset of digits (e.g.
   `{2,5,7}`) without being placed. Weaker information than a given.
