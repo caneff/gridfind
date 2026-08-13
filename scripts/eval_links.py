@@ -11,7 +11,15 @@ gitignored log (`.eval-approved.json`), so later runs show only the links not
 yet approved (`--all` shows every one). The board is solved once per shown link,
 so re-runs get cheaper as the log grows.
 
-    uv run python scripts/eval_links.py        # then open the printed URL
+    uv run python scripts/eval_links.py             # every non-approved link
+    uv run python scripts/eval_links.py --changed   # only this branch's edits
+    uv run python scripts/eval_links.py --all       # every link, approved too
+
+`--changed` is the one to reach for in a worktree: the approval log is
+gitignored, so a fresh worktree inherits no approvals and the default run would
+re-show the whole corpus. `--changed` instead lists only the fixtures this
+branch edited (versus `--base`, default `main`) — committed, staged, unstaged,
+or untracked — so you eval exactly what you touched.
 """
 
 from __future__ import annotations
@@ -20,6 +28,7 @@ import argparse
 import contextlib
 import html
 import json
+import subprocess
 import threading
 import webbrowser
 from collections.abc import Sequence
@@ -123,6 +132,42 @@ def pending_stems(
     """The link stems to render, in their given order: every stem when
     `show_all`, else only those not yet approved."""
     return [stem for stem in stems if show_all or stem not in approved]
+
+
+def _stems_from_git_paths(*outputs: str) -> set[str]:
+    """Every `*.txt` link stem named across `git diff`/`git status --porcelain`
+    output. Both a bare diff path and a porcelain `XY <path>` (or rename
+    `XY <old> -> <new>`) line are scanned by whitespace token, so status
+    columns and the rename arrow fall away on their own; a rename's stale old
+    stem rides along harmlessly, dropped when the caller intersects the corpus."""
+    return {
+        Path(token).stem
+        for output in outputs
+        for line in output.splitlines()
+        for token in line.split()
+        if token.endswith(".txt")
+    }
+
+
+def changed_link_stems(base: str) -> set[str]:
+    """The corpus stems edited versus `base` — the committed diff plus any
+    staged, unstaged, or untracked change under `links/`. The `--changed`
+    filter reads this so a worktree evals only its own edited examples, without
+    depending on the gitignored approval log (which a fresh worktree never
+    inherits)."""
+
+    def git(*args: str) -> str:
+        done = subprocess.run(  # noqa: S603 — fixed argv, no shell, trusted input
+            ["git", "-C", str(LINKS_DIR), *args],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return done.stdout
+
+    committed = git("diff", "--name-only", f"{base}...HEAD", "--", str(LINKS_DIR))
+    working = git("status", "--porcelain", "--", str(LINKS_DIR))
+    return _stems_from_git_paths(committed, working)
 
 
 def eval_link(argv: Sequence[str]) -> LinkView:
@@ -356,13 +401,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         "only non-approved)",
     )
     parser.add_argument(
+        "--changed",
+        action="store_true",
+        help="show only the links edited versus --base (committed, staged, "
+        "unstaged, or untracked) — the way to eval just this branch's fixtures "
+        "in a worktree, where the approval log starts empty",
+    )
+    parser.add_argument(
+        "--base",
+        default="main",
+        help="the ref --changed diffs against (default: main)",
+    )
+    parser.add_argument(
         "--port", type=int, default=8765, help="localhost port (default: 8765)"
     )
     args = parser.parse_args(argv)
 
     approved = load_approved(APPROVED_PATH)
     by_stem = {path.stem: path for path in sorted(LINKS_DIR.rglob("*.txt"))}
-    shown = pending_stems(list(by_stem), approved, show_all=args.all)
+    if args.changed:
+        # An explicit edit set overrides the approval log: you asked for your
+        # own changes, so show them whether or not they were approved before.
+        edited = changed_link_stems(args.base)
+        shown = [stem for stem in by_stem if stem in edited]
+    else:
+        shown = pending_stems(list(by_stem), approved, show_all=args.all)
     cards = [(stem, eval_link(by_stem[stem].read_text().split())) for stem in shown]
 
     _ApprovalHandler.page = render_page(cards)
