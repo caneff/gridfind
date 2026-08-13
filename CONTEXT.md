@@ -198,21 +198,19 @@ directives on top; a header line declares the active layer stack.
   "have I broken it yet?"
 
 - **given** — a grid cell the setter has placed to a single digit. Content pinned
-  to one value. Stays literal under the Schrödinger layer: it fixes the cell's
-  base slot, so the given digit is the cell's value, or the lower digit if the
-  cell turns out to be an **S-cell**. It never becomes a **bare placement** —
-  that refinement is the hand-solve **placement**'s alone (see below).
+  to one value. Under the Schrödinger layer a given settles the cell as a
+  **singleton pin** (spec #348): the given digit is the cell's whole value and
+  the cell is never an S-cell — it can no longer be silently absorbed as an
+  S-cell's lower digit.
 
 - **candidate / pencilmark** — a cell narrowed to a subset of digits (e.g.
   `{2,5,7}`) without being placed. Weaker information than a given.
 
 - **placement** — asserting a digit sits at a cell (`RxCy`) as part of the
   hand-solve. The core-level place directive; layers may refine what a placement
-  means for their own cells. Under the Schrödinger layer it refines to a
-  **bare placement**: the digit sits in the cell's content, in *either* slot, so
-  placing a digit that a solve later reveals as an **S-cell**'s upper half does
-  not break. That is where placement and **given** deliberately diverge — a
-  given stays literal to the base slot, a placement loosens to the whole content
+  means for their own cells. Under the Schrödinger layer a settled placement
+  reads the same **singleton pin** a **given** does (spec #348) — the wire's
+  `given`/`placement` distinction carries no Schrödinger meaning of its own
   (map #1, decision 12; #142).
 
 ---
@@ -263,13 +261,17 @@ this position a singleton, an S-cell, or unknown?) and **digit-content** — so 
 directives name a point on each:
 
 - **singleton pin** — asserts a cell is a **singleton** (not an S-cell) holding
-  digit `d`. The Schrödinger analog of a **given**, carrying the extra
-  "not an S-cell" claim that a bare placed digit lacks.
+  digit `d`. The Schrödinger analog of a settled **given** or **placement**
+  alike (spec #348) — a decoded settled digit routes here, never to a bare
+  placement.
 - **S-cell pin** — asserts a cell **is** an S-cell holding the pair `{a,b}`.
   Collapses both axes.
 - **bare placement** — asserts `d ∈ content(cell)` without resolving S-status: the
   cell is a singleton `d` or an S-cell holding `d` alongside an unknown partner.
-  The loosest directive — fixes a digit, leaves S-cell-ness free.
+  The loosest directive — fixes a digit, leaves S-cell-ness free. Not what a
+  decoded settled digit produces (that's a singleton pin); it remains the
+  working-state applier's own reading of a hand-solve placement layered onto a
+  cell whose S-cell-ness another directive already resolves.
 - **bare singleton** — asserts a cell **is a singleton** without saying which
   digit. A singleton pin minus its digit.
 - **bare S-cell** — asserts a cell **is an S-cell** without saying either digit. An
@@ -291,6 +293,12 @@ out-of-domain given is. The comma form is unambiguous at any board size —
 including a 16x16 domain, where a bare two-character value instead reads as a
 single two-digit **half S-cell** digit, never a split pair. A multi-cell
 marker cage applies its one `value` to every cell it contains uniformly.
+
+A marked cell that *also* carries its own settled large digit (a **given** or
+**placement** on the cell itself, distinct from the cage's `value`) decodes
+both directives rather than being refused: the cage's directive and the
+cell's own **singleton pin** collide on S-cell-ness, so the puzzle reads
+**broke**, the ordinary contradiction it is (spec #348, resolves #346).
 
 Three ways a Schrödinger directive is **malformed** (refused before classify,
 never a verdict; #142): a digit-bearing directive naming a digit outside the

@@ -81,6 +81,7 @@ from gridfind.puzzle import (
     Puzzle,
     SCellPin,
     SDirective,
+    SingletonPin,
     WorkingState,
 )
 
@@ -254,11 +255,16 @@ def decode_link(
     own `value` for the pair/half/bare directive (spec #349) — a comma-split
     `"a,b"` or the two-digit scalar shorthand in a single-digit domain pins the
     pair, one digit is a half S-cell, absent/empty/unparseable is a bare
-    S-cell. No `cage`/`group-sum` is emitted for that block, and a settled
-    value on a marked cell (the cell's own `value`, distinct from the cage's)
-    is refused. The marker widens the domain by the classic `k = 1` extra digit
-    (`range(minDigit, minDigit + size + 1)`), relaxes the classic-only guard,
-    and synthesizes the `schrodinger` constraint."""
+    S-cell. No `cage`/`group-sum` is emitted for that block. A settled value on
+    a marked cell (the cell's own `value`, distinct from the cage's) decodes
+    alongside the marker's directive rather than being refused — the two
+    collide at solve time (spec #348, #346). The marker widens the domain by
+    the classic `k = 1` extra digit (`range(minDigit, minDigit + size + 1)`),
+    relaxes the classic-only guard, and synthesizes the `schrodinger`
+    constraint. Once that layer exists, every cell's settled `given`/bare
+    `value` placement — marked or not — decodes to a **singleton pin**
+    (`is_s == 0`), not a plain given/placement: the wire's `given` flag no
+    longer changes the S-cell reading (spec #348)."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
@@ -283,6 +289,7 @@ def decode_link(
                 cell,
                 address,
                 domain,
+                is_schrodinger=is_schrodinger,
                 is_scell_marker=address in scell_values,
                 scell_value=scell_values.get(address),
             )
@@ -431,27 +438,34 @@ def _decode_cell(
     address: str,
     domain: range,
     *,
+    is_schrodinger: bool = False,
     is_scell_marker: bool = False,
     scell_value: object = None,
 ) -> _CellDecode:
     """One cell's working-state directives — the single home for per-cell
     decode, dispatched by the cell's marker membership. A cell in an `S-cell`
     marker cage (`is_scell_marker`) is a declared S-cell: its marker cage's own
-    `value` picks the directive (`_scell_directive_from_value`, spec #349), and
-    a settled value on the cell itself is the is-S-vs-settled contradiction,
-    refused. Every other cell reads a plain `given`/`placement`/`candidate`;
-    doubler-ness rides on the marker cage, not the cell, so a marked doubler
-    cell still decodes its digit here unchanged. A cell that carries nothing
-    gridfind represents — a cosmetic color, a corner mark, `{}` — decodes to an
-    empty `_CellDecode`."""
+    `value` picks the directive (`_scell_directive_from_value`, spec #349). A
+    settled value on the cell itself is the is-S-vs-settled contradiction: it
+    decodes alongside the marker's own directive as a singleton pin, the two
+    left to collide at solve time rather than refused here (spec #348, #346).
+    Every other cell's settled value is a plain `given`/`placement` on a
+    non-Schrödinger board, or — once a Schrödinger layer exists — a singleton
+    pin (`is_s == 0`), since the `given`/`placement` wire distinction no
+    longer changes the S-cell reading. Doubler-ness rides on the marker cage,
+    not the cell, so a marked doubler cell still decodes its digit here
+    unchanged. A cell that carries nothing gridfind represents — a cosmetic
+    color, a corner mark, `{}` — decodes to an empty `_CellDecode`."""
     if is_scell_marker:
+        directive = _scell_directive_from_value(address, scell_value, domain)
         if "value" in cell:
-            msg = f"non-classic link: S-cell {address} also holds a value"
-            raise ValueError(msg)
-        return _CellDecode(
-            s_directives=(_scell_directive_from_value(address, scell_value, domain),)
-        )
+            return _CellDecode(
+                s_directives=(directive, SingletonPin(address, cell["value"]))
+            )
+        return _CellDecode(s_directives=(directive,))
     if "value" in cell:
+        if is_schrodinger:
+            return _CellDecode(s_directives=(SingletonPin(address, cell["value"]),))
         if cell.get("given"):
             return _CellDecode(givens=(Given(address, cell["value"]),))
         return _CellDecode(places=(Placement(address, cell["value"]),))
