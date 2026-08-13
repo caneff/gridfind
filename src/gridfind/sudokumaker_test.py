@@ -1170,8 +1170,8 @@ def _s_cell_cage_link(
 ) -> str:
     """A single-cell `S-cell` marker cage over R1C1, carrying `value` (omitted
     entirely when `None`) — the cage-value pair-source fixture (spec #349).
-    `marks` optionally sets the cell's own center marks, to prove they no
-    longer pick the directive."""
+    `marks` optionally sets the cell's own center marks, present to show the
+    cage `value` alone picks the directive and stray marks are ignored."""
     cage: dict[str, object] = {"cells": [0]}
     if value is not None:
         cage["value"] = value
@@ -1226,10 +1226,10 @@ def test_s_cell_marker_cage_value_selects_the_directive(
 
 
 def test_s_cell_marker_cage_value_wins_over_the_cells_own_center_marks() -> None:
-    # Directive selection moved off the center-mark count onto the cage
-    # value: a cell's own stray marks no longer pick pin/half/bare, and they
-    # are not folded in as an ordinary candidate either — that restriction
-    # layer is separate follow-on work (spec #347 ticket #350).
+    # The cage `value` alone picks the directive: a cell's own stray marks are
+    # ignored — they neither pick pin/half/bare nor fold in as an ordinary
+    # candidate. That restriction layer is separate follow-on work
+    # (spec #347 ticket #350).
     payload = _s_cell_cage_link("2,7", marks={1, 4, 9})
 
     _, state = decode_link(payload)

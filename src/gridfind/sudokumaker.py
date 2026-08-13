@@ -102,9 +102,10 @@ _SCELL_PIN_DIGITS = 2
 
 # A single-digit domain's largest representable digit — a cage `value` of two
 # bare digit characters (no comma) is the pair shorthand only when every
-# domain digit fits in one character (§4c, spec #349); a wider domain (e.g.
-# 16x16's 10..16) needs the unambiguous comma form for a pair, so a bare
-# two-character value there reads as one two-digit half-cell digit instead.
+# domain digit fits in one character (CONTEXT.md, "Cage-value pair source"); a
+# wider domain (e.g. 16x16's 10..16) needs the unambiguous comma form for a
+# pair, so a bare two-character value there reads as one two-digit half-cell
+# digit instead.
 _MAX_SINGLE_DIGIT = 9
 
 # type 202 is XV: `clues: [{value, edge}], negative:
