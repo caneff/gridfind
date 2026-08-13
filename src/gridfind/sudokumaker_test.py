@@ -1242,6 +1242,20 @@ def test_s_cell_marker_cage_value_out_of_domain_digit_is_refused_as_malformed() 
         verdict(puzzle, state)
 
 
+def test_s_cell_cage_value_1234_is_one_out_of_domain_half() -> None:
+    # A value too long for the pin/half shorthand parses as one digit, not a
+    # pair: `"1234"` is the half-cell digit 1234, never {1,2,3,4} and never
+    # bare. No board holds 1234, so it is refused as malformed at verdict — the
+    # same guard an out-of-domain given hits (CONTEXT.md, "malformed").
+    payload = _s_cell_cage_link("1234")
+
+    puzzle, state = decode_link(payload)
+
+    assert HalfSCell("R1C1", 1234) in state.s_directives
+    with pytest.raises(MalformedPuzzleError, match="1234"):
+        verdict(puzzle, state)
+
+
 @hyp_given(text=st.text(max_size=12))
 def test_scell_value_parser_never_crashes_on_arbitrary_text(text: str) -> None:
     # The parser (spec #349) handles any garbage a link's `value` could carry
