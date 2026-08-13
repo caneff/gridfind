@@ -124,6 +124,8 @@ class LinkView(NamedTuple):
     puzzle_link: str
     witness_grid: str | None
     solution_link: str | None
+    # `kind` is the verdict word (`found`/`broke`/`unknown`), or `invalid` for a
+    # malformed link the front door refuses — carrying the puzzle link alone.
 
 
 def pending_stems(
@@ -170,6 +172,16 @@ def changed_link_stems(base: str) -> set[str]:
     return _stems_from_git_paths(committed, working)
 
 
+def view_for(stem: str, argv: Sequence[str]) -> LinkView:
+    """The view for one case file, keyed off its verdict prefix. An `invalid-*`
+    fixture is a malformed link the front door refuses (exit 2), so it carries
+    no verdict to eyeball and is presented without decoding; everything else
+    routes through `eval_link`."""
+    if stem.partition("-")[0] == "invalid":
+        return LinkView("invalid", argv[-1], witness_grid=None, solution_link=None)
+    return eval_link(argv)
+
+
 def eval_link(argv: Sequence[str]) -> LinkView:
     """One case file's argv (flags then the link) reduced to a `LinkView`. A
     `found` case renders its witness grid and re-emits that same witness as a
@@ -202,6 +214,7 @@ _PAGE = """<!doctype html>
              color: #fff; margin-left: .4rem; }}
   .found {{ background: #2e7d32; }}
   .broke {{ background: #b71c1c; }}
+  .invalid {{ background: #b26a00; }}
   .panes {{ display: flex; gap: 1rem; }}
   .pane {{ flex: 1; min-width: 0; height: 78vh; border: 1px solid #ccc;
           border-radius: 6px; }}
@@ -285,7 +298,8 @@ def _pane(view: LinkView) -> str:
     """The right pane of a slide: the solution in an iframe for a `found` case,
     or a labelled empty pane when there is no solution to show."""
     if view.solution_link is None:
-        return '<div class="pane empty">no solution — broke case</div>'
+        reason = "malformed link" if view.kind == "invalid" else f"{view.kind} case"
+        return f'<div class="pane empty">no solution — {reason}</div>'
     answer = html.escape(view.solution_link, quote=True)
     return f'<iframe class="pane" allow="clipboard-write" data-src="{answer}"></iframe>'
 
@@ -426,7 +440,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         shown = [stem for stem in by_stem if stem in edited]
     else:
         shown = pending_stems(list(by_stem), approved, show_all=args.all)
-    cards = [(stem, eval_link(by_stem[stem].read_text().split())) for stem in shown]
+    cards = [
+        (stem, view_for(stem, by_stem[stem].read_text().split())) for stem in shown
+    ]
 
     _ApprovalHandler.page = render_page(cards)
     _ApprovalHandler.known = frozenset(by_stem)
