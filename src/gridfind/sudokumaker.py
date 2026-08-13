@@ -920,12 +920,11 @@ def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
 @dataclass(frozen=True)
 class SetterDoc:
     """The setter-facing facts a `DECODER_REGISTRY` row owes the accepted-link
-    setter guide (wayfinder map #335, ticket #336): the display name a setter
-    recognizes, the wire block gridfind reads, what it decodes to, and its
-    accept/ignore/reject verdict. Sourced from
-    `docs/research/accepted-link-constraint-map.md` §3 — the SudokuMaker
-    draw-action itself is deliberately absent; it lives only in the page
-    template (ticket #366)."""
+    setter guide (ADR-0013): the display name a setter recognizes, the wire
+    block gridfind reads, what it decodes to, and its accept/ignore/reject
+    verdict. Sourced from `docs/research/accepted-link-constraint-map.md` §3
+    — the SudokuMaker draw-action itself is deliberately absent; ADR-0013
+    keeps it in the page template instead."""
 
     display_name: str
     wire_block: str
