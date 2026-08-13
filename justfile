@@ -54,3 +54,9 @@ verify-links:
 # left; `--all` shows every link. CP-SAT-slow, kept out of `just check`.
 eval-links *ARGS:
     uv run python scripts/eval_links.py {{ARGS}}
+
+# Regenerate docs/accepted-link-setter-guide.html from code (ADR-0013). Run
+# this after touching DECODER_REGISTRY, a cage-name frozenset, BOX_SHAPE, or
+# the template — `just check`'s test suite fails on any resulting drift.
+setter-guide:
+    uv run python scripts/generate_setter_guide.py
