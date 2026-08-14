@@ -165,6 +165,22 @@ def test_broke_doubler_migration_keeps_a_live_doubler_and_reads_broke(
     assert (code, first) == (1, "broke")
 
 
+def test_found_doubler_scell_is_a_doubled_scell_on_the_scell_domain(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A doubled S-cell (ADR-0010): one cell marked both a Doubler and an S-cell.
+    # The board must carry the S-cell domain 0..N, never the plain doubler's
+    # 1..N — the digit range every other S-cell fixture uses.
+    link = syn.found_doubler_scell_4x4()
+    puzzle, state = decode_link(link)
+    doublers = {d.address for d in state.modifier_directives if d.is_modifier}
+    pins = {d.address for d in state.s_directives if isinstance(d, SCellPin)}
+    assert doublers & pins  # one cell is both a doubler and an S-cell
+    assert puzzle.board.values == range(puzzle.board.size + 1)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
 def _given_count(link: str) -> int:
     """Ordinary givens the emitted document pins — cells flagged `given`."""
     puzzle = cast("dict[str, Any]", decode_document(link)["puzzle"])

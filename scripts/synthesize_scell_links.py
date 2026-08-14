@@ -301,6 +301,41 @@ def found_doubler_4x4() -> str:
     )
 
 
+def found_doubler_scell_4x4() -> str:
+    """4x4 doubled S-cell, `found` — one cell is marked *both* an `S-cell` and a
+    `Doubler` marker cage, the composition ADR-0010 defines: it is worth
+    `2·s_value`. That cell is pinned `{0, base}` (combined `s_value = 0 + base`)
+    and sits alone in a killer cage summing to `2·base`, which closes only
+    because the doubler counts the value twice — drop the doubler and the cage
+    is unsatisfiable, so the doubling is load-bearing. The other transversal
+    positions are discovered as ordinary S-cells, so found is a real solve. The
+    board carries the S-cell domain `0..N` (`minDigit: 0`), never the plain
+    doubler's `1..N`."""
+    box_h, box_w = 2, 2
+    size = box_h * box_w
+    scells = _transversal(size, box_h, box_w)
+    first = min(scells)
+    base = scells[first]
+    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
+    puzzle = {
+        "cells": cells,
+        "size": size,
+        "minDigit": _EXTRA,
+        "constraints": [
+            {"type": 0},
+            {"type": 1, "regions": _regions(size, box_h, box_w)},
+            {
+                "name": "S-cell",
+                "type": 2001,
+                "cages": [{"value": f"{_EXTRA},{base}", "cells": [first]}],
+            },
+            {"type": 2001, "cages": [{"value": str(2 * base), "cells": [first]}]},
+            {"name": "Doubler", "type": 2001, "cages": [{"cells": [first]}]},
+        ],
+    }
+    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+
+
 def broke_doubler_4x4() -> str:
     """4x4 doubler, `broke` — the doubled cells over-constrain the sum cages past
     any completion."""
@@ -327,6 +362,7 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-scell-caged-value-4x4": broke_caged_value,
     "invalid-scell-out-of-domain-4x4": invalid_out_of_domain,
     "found-doubler-4x4": found_doubler_4x4,
+    "found-doubler-schrodinger-4x4": found_doubler_scell_4x4,
     "broke-doubler-4x4": broke_doubler_4x4,
 }
 
