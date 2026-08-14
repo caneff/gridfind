@@ -191,6 +191,24 @@ def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
     assert (code, first) == (0, "found")
 
 
+def test_found_doubled_scell_17cage_witness_never_doubles_a_digit_twice() -> None:
+    # The verdict seam of #384: a doubled S-cell doubles *both* its digits, so
+    # no two discovered doublers may share any doubled digit. Read the invariant
+    # off the returned witness — each doubler contributes the digits its cell
+    # displays (both for an S-cell), and those contributions must be disjoint.
+    # Before the fix `verdict` could hand back R1C3={3,4}, R3C4={0,4} with 4
+    # doubled twice; the found witness now carries all-distinct doubled digits.
+    link = syn.found_doubled_scell_17cage_4x4()
+    puzzle, state = decode_link(link)
+    result = verdict(puzzle, state)
+    assert result.kind == "found"
+    assert result.witness is not None
+    doubled: list[int] = []
+    for address in result.witness.modifiers:
+        doubled.extend(result.witness.assignment[address])
+    assert len(doubled) == len(set(doubled))
+
+
 def _given_count(link: str) -> int:
     """Ordinary givens the emitted document pins — cells flagged `given`."""
     puzzle = cast("dict[str, Any]", decode_document(link)["puzzle"])
