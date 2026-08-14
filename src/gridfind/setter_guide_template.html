@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>gridfind — accepted-link setter guide</title>
+<style>
+  /* Design tokens adapted from the visual-teach base spine: one light-dark()
+     definition per token, so the page follows the reader's OS theme with no
+     JavaScript. */
+  :root {
+    color-scheme: light dark;
+    --ink: light-dark(#1a1f2b, #e6e9ee);
+    --muted: light-dark(#5b6472, #97a2b2);
+    --accent: light-dark(#1a73e8, #5b9dff);
+    --rule: light-dark(#e3e6ea, #2b313b);
+    --paper: light-dark(#ffffff, #13171d);
+    --soft: color-mix(in srgb, var(--ink) 4%, var(--paper));
+    --stripe: color-mix(in srgb, var(--ink) 6%, var(--paper));
+    --card: color-mix(in srgb, var(--ink) 3%, var(--paper));
+    --accent-soft: color-mix(in oklch, var(--accent) 8%, var(--paper));
+    --ui-font: "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--paper);
+    margin: 0;
+  }
+
+  main {
+    max-width: 54rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  .kicker {
+    font-family: var(--ui-font);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: 2.1rem;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0.3rem 0 0.4rem;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--muted);
+    margin: 0 0 2.5rem;
+    max-width: 40rem;
+  }
+
+  h2 {
+    font-family: var(--ui-font);
+    font-size: 1.25rem;
+    margin-top: 3rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid var(--rule);
+    text-wrap: balance;
+  }
+
+  a { color: var(--accent); }
+
+  code {
+    font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+    font-size: 0.88em;
+    background: var(--soft);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+
+  /* Tables: uppercase header, hairline rules, zebra body. */
+  .table-wrap { overflow-x: auto; margin: 1.2rem 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.93rem;
+    margin: 0;
+  }
+
+  th {
+    text-align: start;
+    font-family: var(--ui-font);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding: 0.45rem 0.7rem;
+    border-bottom: 2px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) { background: var(--stripe); }
+
+  /* Per-constraint reference: each constraint is a card with a definition
+     list of the code-owned facts (wire block / decode result / verdict). */
+  section.constraint {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 1.1rem 1.3rem;
+    margin: 1.2rem 0;
+  }
+
+  section.constraint h3 {
+    font-family: var(--ui-font);
+    font-size: 1.05rem;
+    margin: 0 0 0.7rem;
+  }
+
+  section.constraint dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 1rem;
+    margin: 0;
+  }
+
+  section.constraint dt {
+    font-family: var(--ui-font);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding-top: 0.15rem;
+  }
+
+  section.constraint dd { margin: 0; }
+
+  @media (max-width: 34rem) {
+    section.constraint dl { grid-template-columns: 1fr; gap: 0.1rem 0; }
+    section.constraint dt { margin-top: 0.6rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+<p class="kicker">gridfind</p>
+<h1>Accepted-Link Setter Guide</h1>
+<p class="lede">How to build a SudokuMaker link gridfind will accept — every table on this page is generated from the decoder itself, so it can never disagree with what the code does.</p>
+
+<section id="intro">
+$INTRO
+</section>
+
+<section id="cage-names">
+<h2>Recognized Special Names For Cosmetic Cages</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Canonical Name</th><th>Role</th><th>Other Accepted Names</th><th>Example</th></tr></thead>
+<tbody>
+$CAGE_NAME_ROWS
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="constraint-types">
+<h2>Supported Constraint Types</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Type</th><th>Example</th></tr></thead>
+<tbody>
+$CONSTRAINT_TYPE_ROWS
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="box-sizes">
+<h2>Box-Convention Sizes</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Board size</th><th>Box shape (rows × cols)</th></tr></thead>
+<tbody>
+$BOX_SIZE_ROWS
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="per-constraint">
+<h2>Per-Constraint Reference</h2>
+$CONSTRAINT_SECTIONS
+</section>
+
+<section id="troubleshooting">
+$TROUBLESHOOTING
+</section>
+
+</main>
+</body>
+</html>
