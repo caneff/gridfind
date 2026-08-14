@@ -95,7 +95,7 @@ def test_eval_link_colors_the_marker_cage_in_the_puzzle_pane_too() -> None:
     puzzle_data = cast("dict[str, Any]", document["puzzle"])
     constraints = cast("list[dict[str, Any]]", puzzle_data["constraints"])
     doubler_block = next(c for c in constraints if c.get("name") == "Doubler")
-    assert doubler_block["color"] == _MARKER_COLOR_PALETTE[0]
+    assert doubler_block["style"]["cage"]["color"] == _MARKER_COLOR_PALETTE[0]
 
 
 def test_view_for_presents_an_invalid_case_without_decoding() -> None:

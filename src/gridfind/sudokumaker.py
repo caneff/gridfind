@@ -167,7 +167,7 @@ _SCELL_MARKER_LABELS = frozenset({"s-cell", "schrödinger", "schrodinger"})
 # `decode_link` never reads. Index 0 is red: the slot a link's lone marker
 # type always takes, and the slot S-cell takes first when a link mixes marker
 # types (`_MARKER_KIND_PRIORITY`, near `colorize_marker_cages`).
-_MARKER_COLOR_PALETTE: tuple[str, ...] = ("#d99a9a", "#9ab3d9")
+_MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 
 # type 300 is a thermometer block: `slow: bool,
 # thermometers: [[cell indices, ordered, bulb first], …]`. Each path becomes
@@ -913,8 +913,9 @@ _MARKER_KIND_PRIORITY: tuple[_CosmeticCageNameKind, ...] = ("s-cell", "doubler")
 
 def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     """`document` with every named marker cage's `type 2001` block stamped
-    with a display `color` — a copy; `document` itself is
-    untouched. The color a marker type gets depends on which marker types the
+    with a display color at `style.cage.color` — the field SudokuMaker renders a
+    cosmetic cage's fill from — on a copy; `document` itself is untouched. The
+    color a marker type gets depends on which marker types the
     *link* actually carries, not a fixed per-type constant: the marker types
     present among `document`'s enabled `type 2001` blocks are ranked by
     `_MARKER_KIND_PRIORITY` and assigned `_MARKER_COLOR_PALETTE` slots in that
@@ -923,7 +924,7 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     types gives S-cell red and Doubler the next slot. An ordinary (unnamed or
     Sum/Killer-labelled) cosmetic-cage block, an unrecognized name, and every
     other constraint type ride through uncolored. The written field is
-    display-only: `decode_link` never reads a cosmetic-cage block's `color`,
+    display-only: `decode_link` never reads a cosmetic-cage block's `style`,
     so a decode of the result agrees with a decode of `document`."""
     colored: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", colored["puzzle"])
@@ -939,7 +940,9 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     for block in blocks:
         color = color_of_kind.get(_cosmetic_cage_name_kind(block.get("name")))
         if color is not None:
-            block["color"] = color
+            style = cast("dict[str, Any]", block.setdefault("style", {}))
+            cage_style = cast("dict[str, Any]", style.setdefault("cage", {}))
+            cage_style["color"] = color
     return colored
 
 

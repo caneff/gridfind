@@ -1670,7 +1670,10 @@ def test_colorize_makes_a_lone_s_cell_marker_red() -> None:
 
     colored = colorize_marker_cages(document)
 
-    assert _blocks_by_name(colored)["S-cell"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert (
+        _blocks_by_name(colored)["S-cell"]["style"]["cage"]["color"]
+        == _MARKER_COLOR_PALETTE[0]
+    )
     assert "Doubler" not in _blocks_by_name(colored)
 
 
@@ -1681,7 +1684,10 @@ def test_colorize_makes_a_lone_doubler_marker_red() -> None:
 
     colored = colorize_marker_cages(document)
 
-    assert _blocks_by_name(colored)["Doubler"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert (
+        _blocks_by_name(colored)["Doubler"]["style"]["cage"]["color"]
+        == _MARKER_COLOR_PALETTE[0]
+    )
     assert "S-cell" not in _blocks_by_name(colored)
 
 
@@ -1696,8 +1702,8 @@ def test_colorize_prefers_s_cell_for_red_when_both_types_present() -> None:
     colored = colorize_marker_cages(document)
 
     blocks = _blocks_by_name(colored)
-    assert blocks["S-cell"]["color"] == _MARKER_COLOR_PALETTE[0]
-    assert blocks["Doubler"]["color"] == _MARKER_COLOR_PALETTE[1]
+    assert blocks["S-cell"]["style"]["cage"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert blocks["Doubler"]["style"]["cage"]["color"] == _MARKER_COLOR_PALETTE[1]
 
 
 def test_colorize_leaves_an_ordinary_named_cage_uncolored() -> None:
@@ -1708,7 +1714,7 @@ def test_colorize_leaves_an_ordinary_named_cage_uncolored() -> None:
 
     colored = colorize_marker_cages(document)
 
-    assert "color" not in _blocks_by_name(colored)["Sum"]
+    assert "style" not in _blocks_by_name(colored)["Sum"]
 
 
 def test_colorize_does_not_mutate_its_input() -> None:

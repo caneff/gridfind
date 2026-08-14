@@ -322,5 +322,5 @@ def test_emit_solution_link_colors_the_doubler_marker_cage() -> None:
     doubler_block = next(c for c in constraints if c.get("name") == "Doubler")
     killer_block = next(c for c in constraints if c.get("type") == 301)
 
-    assert doubler_block["color"] == _MARKER_COLOR_PALETTE[0]
-    assert "color" not in killer_block
+    assert doubler_block["style"]["cage"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert "style" not in killer_block
