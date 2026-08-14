@@ -24,10 +24,10 @@ _TEMPLATE_PATH = pathlib.Path(__file__).with_name("setter_guide_template.html")
 _LINKS_DIR = pathlib.Path(__file__).with_name("links")
 
 # One representative "found" corpus link per setter-facing constraint, keyed by
-# its DECODER_REGISTRY entry name. The generator embeds each link's URL so a
-# setter can open a working example; a KeyError here (a setter-facing entry with
-# no example) or a missing file fails generation loudly rather than shipping a
-# guide with a hole.
+# its DECODER_REGISTRY entry name. Each row of the supported-constraint-types
+# table links its example; a KeyError here (a setter-facing entry with no
+# example) or a missing file fails generation loudly rather than shipping a guide
+# with a hole.
 _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "white-kropki": "found-kropki-4x4",
     "black-kropki": "found-black-kropki-4x4",
@@ -38,13 +38,20 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
 }
 
 # One canonical display label per cage-name role, paired with the frozenset the
-# decoder actually matches against and the role blurb. "Canonical" is a
-# presentation choice — the decoder treats every label in a set identically
-# (ADR-0013) — so it lives here, not in sudokumaker. The remaining labels render
-# as the row's comma-separated "other accepted names".
-_CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str], ...] = (
-    ("sum", _NAMED_KILLER_CAGE_LABELS, "Decorative label on a genuine killer cage"),
-    ("doubler", _DOUBLER_MARKER_LABELS, "Doubler position marker"),
+# decoder actually matches against, the role blurb, and a "found" corpus example.
+# "Canonical" is a presentation choice — the decoder treats every label in a set
+# identically (ADR-0013) — so it lives here, not in sudokumaker. The remaining
+# labels render as the row's comma-separated "other accepted names". Each role
+# links a distinct example, so the doubler and S-cell markers demonstrate
+# separately even though they share the one cosmetic-cage wire type.
+_CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
+    (
+        "sum",
+        _NAMED_KILLER_CAGE_LABELS,
+        "Decorative label on a genuine killer cage",
+        "found-cage-4x4",
+    ),
+    ("doubler", _DOUBLER_MARKER_LABELS, "Doubler position marker", "found-doubler-4x4"),
     (
         "s-cell",
         _SCELL_MARKER_LABELS,
@@ -53,28 +60,42 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str], ...] = (
             "each marked cell's directive — a pin (two digits), a half-pin (one "
             "digit), or bare (no label)"
         ),
+        "found-scell-pin-4x4",
     ),
 )
 
 
+def _example_link_cell(stem: str) -> str:
+    """An `<a>` to the corpus link `stem` (its filename as the visible text, its
+    SudokuMaker URL as the href), read live from `links/` so it can never go
+    stale against the corpus."""
+    url = (_LINKS_DIR / f"{stem}.txt").read_text().strip()
+    return f'<a href="{html.escape(url, quote=True)}">{html.escape(stem)}</a>'
+
+
 def _cage_name_rows() -> str:
     rows: list[str] = []
-    for canonical, labels, role in _CAGE_NAME_GROUPS:
+    for canonical, labels, role, stem in _CAGE_NAME_GROUPS:
         others = ", ".join(name.capitalize() for name in sorted(labels - {canonical}))
         rows.append(
             f"<tr><td>{html.escape(canonical.capitalize())}</td>"
             f"<td>{html.escape(role)}</td>"
-            f"<td>{html.escape(others)}</td></tr>"
+            f"<td>{html.escape(others)}</td>"
+            f"<td>{_example_link_cell(stem)}</td></tr>"
         )
     return "\n".join(rows)
 
 
 def _constraint_type_rows() -> str:
-    rows = []
+    rows: list[str] = []
     for entry in DECODER_REGISTRY.values():
         if entry.setter_doc is None:
             continue
-        rows.append(f"<tr><td>{html.escape(entry.setter_doc.display_name)}</td></tr>")
+        link = _example_link_cell(_EXAMPLE_LINK_STEMS[entry.name])
+        rows.append(
+            f"<tr><td>{html.escape(entry.setter_doc.display_name)}</td>"
+            f"<td>{link}</td></tr>"
+        )
     return "\n".join(rows)
 
 
@@ -92,8 +113,6 @@ def _constraint_sections() -> str:
         doc = entry.setter_doc
         if doc is None:
             continue
-        stem = _EXAMPLE_LINK_STEMS[entry.name]
-        url = (_LINKS_DIR / f"{stem}.txt").read_text().strip()
         sections.append(
             f'<section class="constraint">\n'
             f"<h3>{html.escape(doc.display_name)}</h3>\n"
@@ -101,8 +120,6 @@ def _constraint_sections() -> str:
             f"<dt>Wire block</dt><dd>{html.escape(doc.wire_block)}</dd>\n"
             f"<dt>Decodes to</dt><dd>{html.escape(doc.decode_result)}</dd>\n"
             f"<dt>Verdict</dt><dd>{html.escape(doc.verdict)}</dd>\n"
-            f'<dt>Example</dt><dd><a href="{html.escape(url, quote=True)}">'
-            f"{html.escape(stem)}</a></dd>\n"
             f"</dl>\n"
             f"</section>"
         )

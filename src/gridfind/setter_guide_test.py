@@ -79,15 +79,27 @@ def test_per_constraint_facts_present_for_every_setter_facing_entry() -> None:
         assert html.escape(doc.verdict) in page
 
 
-def test_every_setter_facing_entry_has_a_found_example_link() -> None:
-    # Every setter-facing constraint maps to a "found" corpus link whose URL is
-    # embedded in the page — no constraint ships without a working example.
+def _assert_found_link_embedded(page: str, stem: str) -> None:
+    assert stem.startswith("found-")
+    url = (setter_guide._LINKS_DIR / f"{stem}.txt").read_text().strip()
+    assert html.escape(url, quote=True) in page
+
+
+def test_every_setter_facing_constraint_row_links_a_found_example() -> None:
+    # Each supported-constraint-type row carries a working "found" corpus link.
     page = setter_guide.render()
     for entry in _SETTER_FACING_ENTRIES:
-        stem = setter_guide._EXAMPLE_LINK_STEMS[entry.name]
-        assert stem.startswith("found-")
-        url = (setter_guide._LINKS_DIR / f"{stem}.txt").read_text().strip()
-        assert html.escape(url, quote=True) in page
+        _assert_found_link_embedded(page, setter_guide._EXAMPLE_LINK_STEMS[entry.name])
+
+
+def test_every_cage_name_row_links_a_found_example() -> None:
+    # Each cage-name role links its own example, so doubler and S-cell markers
+    # demonstrate separately despite sharing the cosmetic-cage wire type.
+    page = setter_guide.render()
+    stems = {group[3] for group in setter_guide._CAGE_NAME_GROUPS}
+    assert {"found-doubler-4x4", "found-scell-pin-4x4"} <= stems
+    for stem in stems:
+        _assert_found_link_embedded(page, stem)
 
 
 def test_render_byte_equals_committed_page() -> None:
