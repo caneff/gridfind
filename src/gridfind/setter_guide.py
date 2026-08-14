@@ -133,10 +133,8 @@ def render() -> str:
     string."""
     template = string.Template(_TEMPLATE_PATH.read_text())
     return template.substitute(
-        INTRO="",
         CAGE_NAME_ROWS=_cage_name_rows(),
         CONSTRAINT_TYPE_ROWS=_constraint_type_rows(),
         BOX_SIZE_ROWS=_box_size_rows(),
         CONSTRAINT_SECTIONS=_constraint_sections(),
-        TROUBLESHOOTING="",
     )

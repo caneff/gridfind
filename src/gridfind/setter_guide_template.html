@@ -152,6 +152,30 @@
     section.constraint dl { grid-template-columns: 1fr; gap: 0.1rem 0; }
     section.constraint dt { margin-top: 0.6rem; }
   }
+
+  /* One draw-action per constraint: the hand-authored "what to draw in
+     SudokuMaker" line (fact a), which no code owns. */
+  p.draw-action {
+    border-left: 3px solid var(--rule);
+    padding-left: 0.9rem;
+    margin: 0.8rem 0;
+  }
+
+  p.draw-action strong { font-family: var(--ui-font); }
+
+  /* Flag for a draw-action the constraint map could not derive from repo
+     sources — a live-SudokuMaker check is still owed. */
+  .provisional {
+    font-family: var(--ui-font);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: light-dark(#8a5a00, #e0a94a);
+    background: var(--accent-soft);
+    padding: 0.05em 0.4em;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -161,7 +185,52 @@
 <p class="lede">How to build a SudokuMaker link gridfind will accept — every table on this page is generated from the decoder itself, so it can never disagree with what the code does.</p>
 
 <section id="intro">
-$INTRO
+<h2>What This Guide Covers</h2>
+<p>An <strong>accepted link</strong> is a SudokuMaker share URL that gridfind can
+decode into a puzzle and judge <em>found</em>, <em>broke</em>, or <em>unknown</em>.
+This page describes the current link form and how to build one: you draw the
+grid and its constraints in SudokuMaker, and you declare a <em>doubler</em> or a
+<em>Schrödinger cell</em> by drawing a cosmetic cage with a recognized name (the
+<a href="#cage-names">cage-name table</a> below).</p>
+<p>Every reference table here is generated from the decoder itself, so it states
+exactly what gridfind accepts today — the tables cannot drift from the code. For
+the byte-level wire format behind each block — how a constraint is encoded in the
+URL — see the link-format reference,
+<a href="research/sudoku-link-formats.md"><code>research/sudoku-link-formats.md</code></a>;
+this guide never repeats those internals.</p>
+</section>
+
+<section id="state-under-test">
+<h2>How gridfind Reads The Position</h2>
+<p>gridfind reads each cell's contents as the <strong>state under test</strong> —
+the position it must judge. Three cell states carry meaning; everything else is
+ignored.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>SudokuMaker cell</th><th>Read as</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>A given digit</td><td>Given</td><td>A setter clue fixed on the puzzle.</td></tr>
+<tr><td>A placed value (not given)</td><td>Placement</td><td>A solver's placement in the position being tested.</td></tr>
+<tr><td>Center pencilmarks</td><td>Candidates</td><td>The digits still allowed in that cell; only digits in the board's domain survive.</td></tr>
+<tr><td>Corner pencilmarks, cell colors, an empty cell</td><td>Ignored</td><td>No gridfind equivalent — dropped.</td></tr>
+</tbody>
+</table>
+</div>
+<p>A cell inside a <strong>Schrödinger marker cage</strong> is read differently:
+its center pencilmarks give its directive, by how many marks it carries.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Center marks on an S-cell</th><th>Directive</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>Exactly two</td><td>Pin</td><td>The S-cell is pinned to that digit pair.</td></tr>
+<tr><td>Exactly one</td><td>Half-pin</td><td>The S-cell is known to hold that digit; its partner is free.</td></tr>
+<tr><td>None, or three or more</td><td>Bare</td><td>Both of the S-cell's digits are free.</td></tr>
+</tbody>
+</table>
+</div>
+<p>A cell carrying a settled value cannot also be an S-cell: a value on a cell
+inside a Schrödinger marker cage is a contradiction, and gridfind rejects the
+link (see <a href="#troubleshooting">Troubleshooting</a>).</p>
 </section>
 
 <section id="cage-names">
@@ -200,13 +269,76 @@ $BOX_SIZE_ROWS
 </div>
 </section>
 
+<section id="other-sizes">
+<h2>Other Board Sizes</h2>
+<p>gridfind decodes any square board. Boxes are a convention only for the sizes
+in the table above: on a 4×4, 6×6, or 9×9, a plain regions block stands for the
+standard boxes. <strong>Any other square size decodes only with its own
+regions</strong> — gridfind has no box geometry to supply, so you must draw an
+explicit region partition, or the board runs as rows-and-columns only.</p>
+<p>To draw those regions, use SudokuMaker's regions tool.
+<span class="provisional" data-provisional="jigsaw-region">Needs confirmation against live SudokuMaker</span></p>
+</section>
+
+<section id="draw-actions">
+<h2>Drawing Each Constraint In SudokuMaker</h2>
+<p>What to draw in SudokuMaker to produce each supported constraint (fact a). The
+wire block, decode result, and accept/ignore/reject verdict for each are in the
+<a href="#per-constraint">reference</a> below.</p>
+<p class="draw-action" data-constraint="white-kropki"><strong>White Kropki (Difference Dot)</strong> — Place a white dot on the edge between two orthogonally adjacent cells.</p>
+<p class="draw-action" data-constraint="black-kropki"><strong>Black Kropki (Ratio Dot)</strong> — Place a black dot on the edge between two orthogonally adjacent cells.</p>
+<p class="draw-action" data-constraint="XV"><strong>XV</strong> — Place an X (=10) or a V (=5) clue on the edge between two orthogonally adjacent cells.</p>
+<p class="draw-action" data-constraint="thermo"><strong>Thermometer</strong> — Draw a thermometer line with SudokuMaker's thermometer tool, from the bulb outward. Its <em>slow</em> toggle sets the non-strict variant.</p>
+<p class="draw-action" data-constraint="killer-cage"><strong>Killer Cage</strong> — Draw a cage with SudokuMaker's killer-cage tool. Type a cage sum if you want one; leave it blank for a no-sum cage.</p>
+<p class="draw-action" data-constraint="cosmetic-cage"><strong>Cosmetic Cage</strong> — Draw a cage with SudokuMaker's cosmetic (decoration) tool. Type a numeric label to make it a sum cage. To declare a marker instead, name the cage <code>Doubler</code>, <code>S-cell</code>, or <code>Schrödinger</code> over the cells it marks. <span class="provisional" data-provisional="cosmetic-cage-naming">Naming step needs confirmation against live SudokuMaker</span></p>
+</section>
+
 <section id="per-constraint">
 <h2>Per-Constraint Reference</h2>
 $CONSTRAINT_SECTIONS
 </section>
 
 <section id="troubleshooting">
-$TROUBLESHOOTING
+<h2>When A Link Is Ignored Or Rejected</h2>
+<p>gridfind puts each block on one of three outcomes: it <strong>accepts</strong>
+the rule (emits it), <strong>ignores</strong> the block (silently, or with a
+warning), or <strong>rejects</strong> the whole link.</p>
+
+<h3>Ignored silently</h3>
+<p>A block you switched off in SudokuMaker (a <em>disabled</em> block) is not part
+of the puzzle. gridfind skips it with no warning, even for a constraint type it
+would otherwise decode. A link may safely carry a disabled duplicate beside a
+live block.</p>
+
+<h3>Ignored with a warning</h3>
+<p>Some blocks are dropped but announced on standard error, so a verdict is never
+computed silently under a smaller ruleset than the link states:</p>
+<ul>
+<li>A constraint type gridfind does not model, carrying real data, is dropped
+with a warning naming it. An empty or decoration-only block of an unmodeled type
+is dropped quietly.</li>
+<li>A negative-constraint list on a kropki or XV block (the rule that
+<em>un-dotted</em> edges carry no clue) is dropped with a warning; the positive
+dots still decode.</li>
+</ul>
+
+<h3>Rejected outright</h3>
+<p>A rejected link produces no puzzle at all — gridfind raises an error before it
+builds one, because it found a link it cannot support. Common causes:</p>
+<ul>
+<li>A cosmetic cage named with anything other than a recognized name
+(<a href="#cage-names">the table above</a>).</li>
+<li>A cell that both holds a value and sits inside a Schrödinger marker cage.</li>
+<li>An XV clue whose value is neither 10 (X) nor 5 (V).</li>
+<li>A black-kropki dot whose ratio label is not a whole number.</li>
+<li>A dot, X, or V whose edge names no valid pair of adjacent cells on the board.</li>
+<li>A non-square grid, a cell count that does not match the declared size, or a
+digit domain whose width is not the board size.</li>
+</ul>
+<p>A link that decodes but describes an impossible puzzle — a broken region
+partition, a domain the placements violate — is <em>not</em> rejected here. It
+becomes a puzzle, and the contradiction surfaces later, at verdict time. Only a
+rejected link means the <em>link</em> itself is unsupported.</p>
 </section>
 
 </main>
