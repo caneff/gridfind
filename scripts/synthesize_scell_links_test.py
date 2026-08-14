@@ -25,6 +25,7 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import decode_document, decode_link
+from gridfind.verdict import verdict
 
 
 def _front_door(link: str, capsys: pytest.CaptureFixture[str]) -> tuple[int, str, str]:
@@ -165,20 +166,22 @@ def test_broke_doubler_migration_keeps_a_live_doubler_and_reads_broke(
     assert (code, first) == (1, "broke")
 
 
-def test_found_doubler_scell_is_a_doubled_scell_on_the_scell_domain(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    # A doubled S-cell (ADR-0010): one cell marked both a Doubler and an S-cell.
-    # The board must carry the S-cell domain 0..N, never the plain doubler's
-    # 1..N — the digit range every other S-cell fixture uses.
-    link = syn.found_doubler_scell_4x4()
-    puzzle, state = decode_link(link)
-    doublers = {d.address for d in state.modifier_directives if d.is_modifier}
-    pins = {d.address for d in state.s_directives if isinstance(d, SCellPin)}
-    assert doublers & pins  # one cell is both a doubler and an S-cell
+def test_found_doubler_scell_witness_carries_a_doubled_scell() -> None:
+    # The acceptance criterion (ADR-0010): the found *witness* must hold a cell
+    # that is both Schrödinger (two digits) and doubled — a doubled S-cell.
+    # Decoding the directive is not enough; the solved grid must carry one, and
+    # on the S-cell domain 0..N, never the plain doubler's 1..N.
+    puzzle, state = decode_link(syn.found_doubler_scell_4x4())
     assert puzzle.board.values == range(puzzle.board.size + 1)
-    code, first, _ = _front_door(link, capsys)
-    assert (code, first) == (0, "found")
+    result = verdict(puzzle, state)
+    assert result.kind == "found"
+    assert result.witness is not None
+    doubled_scells = [
+        address
+        for address, digits in result.witness.assignment.items()
+        if len(digits) == 2 and result.witness.modifiers.get(address) == "doubler"
+    ]
+    assert doubled_scells  # the witness carries a cell that is both S-cell and doubler
 
 
 def _given_count(link: str) -> int:
