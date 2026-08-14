@@ -30,7 +30,15 @@ _TEMPLATE_PATH = pathlib.Path(__file__).with_name("setter_guide_template.html")
 _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str], ...] = (
     ("sum", _NAMED_KILLER_CAGE_LABELS, "Decorative label on a genuine killer cage"),
     ("doubler", _DOUBLER_MARKER_LABELS, "Doubler position marker"),
-    ("s-cell", _SCELL_MARKER_LABELS, "S-cell / Schrödinger position marker"),
+    (
+        "s-cell",
+        _SCELL_MARKER_LABELS,
+        (
+            "S-cell / Schrödinger position marker; the cage's numeric label supplies "
+            "each marked cell's directive — a pin (two digits), a half-pin (one "
+            "digit), or bare (no label)"
+        ),
+    ),
 )
 
 
