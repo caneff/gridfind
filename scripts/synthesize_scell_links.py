@@ -76,7 +76,6 @@ def _base_document(
     puzzle = {
         "cells": cells,
         "size": size,
-        "minDigit": _EXTRA,
         "constraints": [
             {"type": 0},
             {"type": 1, "regions": _regions(size, box_h, box_w)},

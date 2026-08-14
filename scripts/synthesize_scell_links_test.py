@@ -53,6 +53,13 @@ def test_found_pin_declares_one_scell_and_the_solver_discovers_the_rest(
     assert (code, first) == (0, "found")
 
 
+def test_found_pin_decodes_the_default_zero_to_n_domain() -> None:
+    # No fixture declares minDigit; the named S-cell block alone widens the
+    # decoded domain to 0…N (ADR-0014).
+    puzzle, _ = decode_link(syn.found_pin())
+    assert puzzle.board.values == range(puzzle.board.size + 1)
+
+
 def test_found_half_decodes_a_half_scell_and_reads_found(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
