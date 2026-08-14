@@ -969,7 +969,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         live_keys=("clues", "negative"),
         name="white-kropki",
         setter_doc=SetterDoc(
-            display_name="White kropki (difference dot)",
+            display_name="White Kropki (Difference Dot)",
             wire_block="type 200 {clues:[{value, edge}], negative:[…]}",
             decode_result="One pair-difference Constraint per clue; value maps"
             " verbatim to diff.",
@@ -983,7 +983,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         live_keys=("clues", "negative"),
         name="black-kropki",
         setter_doc=SetterDoc(
-            display_name="Black kropki (ratio dot)",
+            display_name="Black Kropki (Ratio Dot)",
             wire_block="type 201 {clues:[{value, edge}], negative:[…]} —"
             " same shape as white kropki.",
             decode_result="One pair-ratio Constraint per clue; value maps"
@@ -1013,7 +1013,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         live_keys=("cages",),
         name="killer-cage",
         setter_doc=SetterDoc(
-            display_name="Killer cage",
+            display_name="Killer Cage",
             wire_block="type 301 {cages:[{cells, value}]}.",
             decode_result="Each cage becomes a no-repeats cage Constraint;"
             " a positive value additionally emits a group-sum over the same"
@@ -1028,7 +1028,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         live_keys=("cages",),
         name="cosmetic-cage",
         setter_doc=SetterDoc(
-            display_name="Cosmetic cage",
+            display_name="Cosmetic Cage",
             wire_block="type 2001 {cages:[{value:str, cells}], name?,"
             " style?} — value is a string; a top-level name may mark the"
             " block as a variant declaration.",
