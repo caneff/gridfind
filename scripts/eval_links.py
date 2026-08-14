@@ -21,16 +21,13 @@ re-show the whole corpus. `--changed` instead lists only the fixtures this
 branch edited (versus `--base`, default `main`) — committed, staged, unstaged,
 or untracked — so you eval exactly what you touched.
 
-Launching this from an automated or background session: start it DETACHED so it
-outlives the call that launched it —
-
-    setsid bash -c 'uv run python scripts/eval_links.py --all' & disown
-
-A server run as a tool-tracked background job dies mid-session, because that
-job's process group is torn down when the launching call returns and the signal
-reaches `serve_forever` (which then exits 0). `setsid` puts the server in its
-own process group so it keeps serving. Then open the printed URL yourself
-(`wslview <url>` under WSL); the in-process `webbrowser` auto-open is unreliable.
+Launching this from an automated or background agent session: the server's
+process tree lives under that session, so it can be reaped when the launching
+task is torn down — the page then stops responding mid-review. Treat that as
+expected: relaunch when the page goes dead, or run the server from a shell that
+outlives the agent (your own terminal) when you need it to stay up. Either way,
+open the printed URL yourself (`wslview <url>` under WSL); the in-process
+`webbrowser` auto-open is unreliable.
 """
 
 from __future__ import annotations
