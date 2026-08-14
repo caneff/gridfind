@@ -972,6 +972,8 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
             style = cast("dict[str, Any]", block.setdefault("style", {}))
             cage_style = cast("dict[str, Any]", style.setdefault("cage", {}))
             cage_style["color"] = color
+            text_style = cast("dict[str, Any]", style.setdefault("text", {}))
+            text_style["color"] = color
     return colored
 
 

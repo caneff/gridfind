@@ -71,11 +71,13 @@ def test_eval_link_shows_witness_and_solution_for_a_found_case() -> None:
 _REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
 
 
-def test_eval_link_colors_the_marker_cage_in_the_puzzle_pane_too() -> None:
-    # The left pane renders `view.puzzle_link` directly: a source link
-    # carrying a Doubler marker cage must come back with that cage
-    # colored, the same as the right pane's emitted solution link, so both
-    # panes show the same cage boundary.
+def test_eval_link_shows_the_puzzle_link_verbatim_and_colors_only_the_solution() -> (
+    None
+):
+    # The left pane renders the setter's link verbatim — a marker cage is never
+    # recolored there, because a setter does not color their cages. The red
+    # highlight is the witness's job: the emitted solution link colors the
+    # discovered marker instead.
     cells: list[dict[str, object]] = [{} for _ in range(16)]
     link = _encode(
         {
@@ -91,7 +93,11 @@ def test_eval_link_colors_the_marker_cage_in_the_puzzle_pane_too() -> None:
 
     view = eval_link([link])
 
-    document = decode_document(view.puzzle_link)
+    # Puzzle pane: the source link, untouched.
+    assert view.puzzle_link == link
+    # Solution pane: the discovered doubler colored red.
+    assert view.solution_link is not None
+    document = decode_document(view.solution_link)
     puzzle_data = cast("dict[str, Any]", document["puzzle"])
     constraints = cast("list[dict[str, Any]]", puzzle_data["constraints"])
     doubler_block = next(c for c in constraints if c.get("name") == "Doubler")
