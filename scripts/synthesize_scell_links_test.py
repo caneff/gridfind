@@ -25,6 +25,7 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import decode_document, decode_link
+from gridfind.verdict import verdict
 
 
 def _front_door(link: str, capsys: pytest.CaptureFixture[str]) -> tuple[int, str, str]:
@@ -163,6 +164,24 @@ def test_broke_doubler_migration_keeps_a_live_doubler_and_reads_broke(
     assert _has_live_doubler(_state(link))
     code, first, _ = _front_door(link, capsys)
     assert (code, first) == (1, "broke")
+
+
+def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The doubled-S-cell motivating link: a 17-sum cage closes only if R1C3 is
+    # a doubled S-cell holding {3, 4} — 2·(3+4) + 2 + 1 — on domain 0…4. The
+    # witness must carry R1C3 as both two-digit (an S-cell) and `doubler`, so
+    # the discovery is a genuine doubled-S-cell solve, not either channel alone.
+    link = syn.found_doubled_scell_17cage_4x4()
+    puzzle, state = decode_link(link)
+    result = verdict(puzzle, state)
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert len(result.witness.assignment["R1C3"]) == 2
+    assert result.witness.modifiers["R1C3"] == "doubler"
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
 
 
 def _given_count(link: str) -> int:
