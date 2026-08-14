@@ -21,6 +21,7 @@ from typing import Any, cast
 
 from gridfind.layers.board import cell_address
 from gridfind.sudokumaker import (
+    colorize_marker_cages,
     decode_document,
     decode_link,
     encode_link,
@@ -142,9 +143,10 @@ def verify_link(argv: Sequence[str]) -> str:
 def emit_solution_link(link: str, witness: Witness, size: int) -> str:
     """A found link's `witness` re-emitted as an openable SudokuMaker
     solution-link: the link's own decoded document with every cell filled from
-    the witness (`fill_witness`), re-encoded. The one home for the fill+encode
-    step, shared by the verify oracle and the eval view so a caller holding a
-    witness need not solve the puzzle again to show its answer.
+    the witness (`fill_witness`), its named marker cages colored
+    (`colorize_marker_cages`), re-encoded. The one home for the fill+color+
+    encode step, shared by the verify oracle and the eval view so a caller
+    holding a witness need not solve the puzzle again to show its answer.
 
     The board `size` is stamped explicitly so the link opens at the right
     dimensions even when the source omitted it — SudokuMaker reads a sizeless
@@ -152,7 +154,7 @@ def emit_solution_link(link: str, witness: Witness, size: int) -> str:
     document = decode_document(link)
     filled = fill_witness(document, witness, size)
     cast("dict[str, object]", filled["puzzle"])["size"] = size
-    return encode_link(filled)
+    return encode_link(colorize_marker_cages(filled))
 
 
 def main() -> int:
