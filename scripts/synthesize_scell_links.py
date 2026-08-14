@@ -33,6 +33,16 @@ LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links
 _EXTRA = 0
 
 
+def _authored_cage_style() -> dict[str, object]:
+    """The default black cosmetic-cage style SudokuMaker writes for a hand-drawn
+    named cage — outline and label both `#000000`. A synthesized cage block
+    carries it so the emitted link is authentic: the cage renders with its
+    cosmetic-cage icon the way a setter's own link would, rather than the
+    style-less block SudokuMaker draws iconless. A fresh dict per call, so no two
+    blocks alias one object. Display-only — `decode_link` never reads `style`."""
+    return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
+
+
 def _solution_digit(row: int, col: int, box_h: int, box_w: int) -> int:
     """The filled-square digit at `(row, col)` for a `box_h`x`box_w`-box board,
     in `1..N`. The standard pattern construction: a row shift by the band index
@@ -79,7 +89,12 @@ def _base_document(
         "constraints": [
             {"type": 0},
             {"type": 1, "regions": _regions(size, box_h, box_w)},
-            {"name": "S-cell", "type": 2001, "cages": scell_cages},
+            {
+                "name": "S-cell",
+                "type": 2001,
+                "cages": scell_cages,
+                "style": _authored_cage_style(),
+            },
         ],
     }
     return {"formatVersion": "1.5.0", "puzzle": puzzle}
@@ -279,8 +294,13 @@ def _doubler_document(
     constraints: list[dict[str, object]] = [
         {"type": 0},
         {"type": 1, "regions": _DOUBLER_REGIONS},
-        {"type": 2001, "cages": sum_cages},
-        {"name": "Doubler", "type": 2001, "cages": [{"cells": doubler_cells}]},
+        {"type": 2001, "cages": sum_cages, "style": _authored_cage_style()},
+        {
+            "name": "Doubler",
+            "type": 2001,
+            "cages": [{"cells": doubler_cells}],
+            "style": _authored_cage_style(),
+        },
     ]
     if with_scell_block:
         constraints.append({"name": "S-cell", "type": 2001, "cages": []})

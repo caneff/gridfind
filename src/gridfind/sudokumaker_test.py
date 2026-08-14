@@ -1728,10 +1728,11 @@ def test_colorize_makes_a_lone_s_cell_marker_red() -> None:
 
     colored = colorize_marker_cages(document)
 
-    assert (
-        _blocks_by_name(colored)["S-cell"]["style"]["cage"]["color"]
-        == _MARKER_COLOR_PALETTE[0]
-    )
+    style = _blocks_by_name(colored)["S-cell"]["style"]
+    # Both the cage outline and the label text take the marker color, the full
+    # style shape SudokuMaker needs to render the cosmetic-cage icon.
+    assert style["cage"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert style["text"]["color"] == _MARKER_COLOR_PALETTE[0]
     assert "Doubler" not in _blocks_by_name(colored)
 
 
