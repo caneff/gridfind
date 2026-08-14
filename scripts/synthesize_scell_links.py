@@ -266,23 +266,26 @@ def _doubler_document(
     sum_cages: list[dict[str, object]],
     givens: dict[int, int],
     doubler_cells: list[int],
+    with_scell_block: bool = False,
 ) -> dict[str, object]:
     """A 4x4 jigsaw doubler document: `type 0` givens, `type 1` regions, an
     unnamed `type 2001` killer block for the sum cages, and a named `Doubler`
-    marker block that stands up the modifier directives."""
+    marker block that stands up the modifier directives. With `with_scell_block`
+    a named-but-empty `S-cell` block rides along, enabling Schrödinger mode by
+    presence (widening the domain to `0…N`, giving every cell `is_s` freedom to
+    be discovered) without pinning any cell (ADR-0014)."""
     cells: list[dict[str, object]] = [{} for _ in range(16)]
     for index, value in givens.items():
         cells[index] = {"given": True, "value": value}
-    puzzle = {
-        "cells": cells,
-        "size": 4,
-        "constraints": [
-            {"type": 0},
-            {"type": 1, "regions": _DOUBLER_REGIONS},
-            {"type": 2001, "cages": sum_cages},
-            {"name": "Doubler", "type": 2001, "cages": [{"cells": doubler_cells}]},
-        ],
-    }
+    constraints: list[dict[str, object]] = [
+        {"type": 0},
+        {"type": 1, "regions": _DOUBLER_REGIONS},
+        {"type": 2001, "cages": sum_cages},
+        {"name": "Doubler", "type": 2001, "cages": [{"cells": doubler_cells}]},
+    ]
+    if with_scell_block:
+        constraints.append({"name": "S-cell", "type": 2001, "cages": []})
+    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
     return {"formatVersion": "1.5.0", "puzzle": puzzle}
 
 
@@ -297,6 +300,23 @@ def found_doubler_4x4() -> str:
             ],
             givens={8: 1},
             doubler_cells=[12],
+        )
+    )
+
+
+def found_doubled_scell_17cage_4x4() -> str:
+    """4x4 doubler + Schrödinger, `found` — the doubled-S-cell motivating link.
+    The killer cage `{R1C2, R1C3, R1C4} = 17` closes only if R1C3 is a *doubled
+    S-cell* holding `{3, 4}`: `2·(3+4)` from the doubled pair, plus `2 + 1` from
+    its two row partners, over the `0…4` domain the empty S-cell block widens
+    to. Both channels must fire — the doubler alone caps two cells at
+    `2·4 + 4 = 12`, the S-cell alone caps three digits at `4 + 3 + 2 = 9`."""
+    return encode_link(
+        _doubler_document(
+            sum_cages=[{"value": "17", "cells": [1, 2, 3]}],
+            givens={},
+            doubler_cells=[2, 12],
+            with_scell_block=True,
         )
     )
 
@@ -327,6 +347,7 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-scell-caged-value-4x4": broke_caged_value,
     "invalid-scell-out-of-domain-4x4": invalid_out_of_domain,
     "found-doubler-4x4": found_doubler_4x4,
+    "found-doubled-scell-17cage-4x4": found_doubled_scell_17cage_4x4,
     "broke-doubler-4x4": broke_doubler_4x4,
 }
 
