@@ -2,6 +2,14 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-14
+- **Amended:** 2026-08-14 — a named `S-cell`/`Schrödinger` block's *presence*
+  enables Schrödinger mode even when it names no cells, and the default
+  Schrödinger digit domain is `0…N` (spec
+  [#371](https://github.com/caneff/gridfind/issues/371), ticket
+  [#372](https://github.com/caneff/gridfind/issues/372)). This joins
+  *enablement by presence* to the *declaration by membership* that map
+  [#342](https://github.com/caneff/gridfind/issues/342) recorded — see
+  "Presence enables the mode; membership pins" below.
 - **Decides:** the single authoritative reading of how a SudokuMaker link's
   markings settle a Schrödinger cell — which channel names the S-cell position,
   which supplies its digits, and what a cell's own center marks and settled
@@ -46,10 +54,26 @@ gridfind's own directive model (`puzzle.py`) and the #347 acceptance criteria.
 A marked Schrödinger cell reads through exactly one of the rows below. The
 marker cage supplies "is an S-cell" and, through its `value`, the digits; the
 cell's own marks and settled digits only ever *restrict* or *contradict* that,
-never select it.
+never select it. The table describes a cell a cage *names*; whether the mode is
+on at all is a separate question the next paragraph settles.
+
+**Presence enables the mode; membership pins known S-cells.** A named
+`S-cell`/`Schrödinger` block's *presence* enables Schrödinger reasoning, whether
+or not it names a single cell: the decoder synthesizes the `schrodinger`
+constraint, gives every cell the `is_s` freedom the solver discovers S-cells
+with, and defaults the digit domain to `0…N` — the classic `k = 1` extra digit
+prepended as `0` below the base `1…N` (an explicit `minDigit` still overrides).
+An empty block therefore means "discover them all," leaving the grid's own
+arithmetic to force where the S-cells fall; a block that *names* cells
+additionally pins those through the table below. So an S-cell may arise where no
+cage names it — a doubled cell a killer sum can only close as a doubled S-cell,
+for instance. This amends the reading map #342 recorded (its #345 made the cage
+the *sole* decode-time S-cell declarer): the cage is still the sole declarer *by
+membership*, now joined by *enablement by presence*.
 
 | Marking on the cell | Directive emitted | Meaning |
 |---|---|---|
+| no marking, but a named `S-cell`/`Schrödinger` block is **present** | none — `is_s` left free | the cell **may** be an S-cell; presence enabled the mode, and the solver discovers whether the arithmetic forces one here. |
 | a settled large digit — a **given** (`given:true` + `value`) or a bare **placement** | `SingletonPin(d)` | the cell **is not** an S-cell; its whole value is `d` (`is_s == 0`). The `given`/`placement` wire distinction carries no S-meaning of its own. |
 | named `S-cell`/`Schrödinger` marker-cage `value` naming **two** digits (`"a,b"`, or the scalar `"ab"` in a single-character domain) | `SCellPin{a,b}` | the cell **is** an S-cell holding the pair `{a,b}`. |
 | marker-cage `value` naming **one** digit (`"a"`) | `HalfSCell(a)` | the cell **is** an S-cell, `a` is one of its two digits, partner unknown. |
