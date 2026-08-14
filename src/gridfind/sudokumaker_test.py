@@ -1289,6 +1289,63 @@ def test_scell_value_parser_comma_form_round_trips_any_pair(a: int, b: int) -> N
     assert digits == (a, b)
 
 
+def test_empty_s_cell_block_enables_schrodinger_by_presence() -> None:
+    # Presence, not membership, stands up the mode: a named S-cell block that
+    # names no cells still synthesizes the `schrodinger` constraint and widens
+    # the domain to 0…N, leaving every cell's `is_s` free for the solver to
+    # discover. Naming nothing pins nothing — no cell is a known S-cell.
+    payload = _constraint_link({"name": "S-cell", "type": 2001, "cages": []})
+
+    puzzle, state = decode_link(payload)
+
+    assert Constraint("schrodinger") in puzzle.constraints
+    assert puzzle.board == Board(size=9, values=range(10))
+    assert state.s_directives == ()
+
+
+def test_named_s_cell_block_still_pins_its_cells_as_known_s_cells() -> None:
+    # Presence-enablement does not weaken membership: a block that names a cell
+    # still pins it as a known S-cell from the cage `value`, on top of the mode
+    # the block's presence enables (ADR-0014).
+    payload = _constraint_link(
+        {"name": "S-cell", "type": 2001, "cages": [{"value": "2,3", "cells": [0]}]}
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert Constraint("schrodinger") in puzzle.constraints
+    assert SCellPin("R1C1", frozenset({2, 3})) in state.s_directives
+
+
+def test_no_s_cell_block_keeps_plain_domain_and_no_schrodinger() -> None:
+    # The opt-in boundary: a puzzle carrying no named S-cell block keeps its
+    # ordinary 1…N domain and synthesizes no `schrodinger` constraint. Only a
+    # link that names the cage opts into the widened domain and the mode.
+    payload = _encode({"cells": _EMPTY_CELLS, "constraints": _WIRE_CONSTRAINTS})
+
+    puzzle, _ = decode_link(payload)
+
+    assert puzzle.board == Board(size=9, values=range(1, 10))
+    assert Constraint("schrodinger") not in puzzle.constraints
+
+
+def test_schrodinger_domain_respects_an_explicit_min_digit() -> None:
+    # The default extra digit is 0, but an explicit `minDigit` is honored
+    # as-is, so a setter who wants the classic 1…N+1 span may still ask for it
+    # (ADR-0014).
+    payload = _encode(
+        {
+            "cells": _EMPTY_CELLS,
+            "minDigit": 1,
+            "constraints": [*_WIRE_CONSTRAINTS, _S_CELL_MARKER],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert puzzle.board == Board(size=9, values=range(1, 11))
+
+
 def test_s_cell_marker_widens_domain_and_synthesizes_schrodinger_without_flag() -> None:
     # Schrödinger-ness is inferred from marker presence: the domain widens by
     # the classic `k = 1` extra digit and a bare `schrodinger` constraint
@@ -1299,7 +1356,7 @@ def test_s_cell_marker_widens_domain_and_synthesizes_schrodinger_without_flag() 
 
     puzzle, _ = decode_link(payload)
 
-    assert puzzle.board == Board(size=9, values=range(1, 11))
+    assert puzzle.board == Board(size=9, values=range(10))
     assert Constraint("schrodinger") in puzzle.constraints
 
 
@@ -1617,8 +1674,9 @@ def test_a_single_link_decodes_both_doubler_and_s_cell_markers() -> None:
     assert Constraint("doubler") in puzzle.constraints
     assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
     assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
-    # The S-cell marker widened the domain by the classic k=1 extra digit.
-    assert puzzle.board == Board(size=9, values=range(1, 11))
+    # The S-cell marker widened the domain by the classic k=1 extra digit,
+    # defaulting to 0 at the bottom: 0…N.
+    assert puzzle.board == Board(size=9, values=range(10))
 
 
 # --- named marker cages get a cosmetic display color --------------------

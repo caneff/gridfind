@@ -270,12 +270,15 @@ def decode_link(
     _warn_on_dropped_constraints(puzzle_data)
 
     cells = puzzle_data["cells"]
-    # An S-cell marker cage infers Schrödinger-ness on its own: its presence
-    # widens the domain and synthesizes the `schrodinger` constraint, and each
-    # address maps to its marker cage's own `value` — the pair/half/bare
-    # source (spec #349) the S-cell branch of the per-cell decode reads.
+    # A named `S-cell`/`Schrödinger` block splits into two signals. Its
+    # *presence* enables the mode — widening the domain and synthesizing the
+    # `schrodinger` constraint that gives every cell the `is_s` freedom the
+    # solver discovers S-cells with — even when the block names no cells
+    # (ADR-0014). Its *membership* pins known S-cells: each named address maps
+    # to its marker cage's own `value`, the pair/half/bare source (spec #349)
+    # the S-cell branch of the per-cell decode reads.
     scell_values = _scell_marker_values(puzzle_data, size)
-    is_schrodinger = bool(scell_values)
+    is_schrodinger = _has_scell_marker_block(puzzle_data)
     domain = (
         _schrodinger_domain(puzzle_data, size)
         if is_schrodinger
@@ -395,10 +398,12 @@ def _digit_domain(puzzle_data: dict[str, object], size: int) -> range:
 
 def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
     """The board's digit domain under the classic Schrödinger reading:
-    `minDigit` (defaulting to 1 when absent — the link carries no `maxDigit` or
-    `digitCount`) through `minDigit + N`, the
-    `k = 1` extra digit the classic Schrödinger rule derives, not reads."""
-    min_digit = _as_int(puzzle_data.get("minDigit", 1), "minDigit")
+    `minDigit` through `minDigit + N`, an `N + 1`-wide span carrying the
+    `k = 1` extra digit the classic Schrödinger rule derives, not reads. When
+    the link declares no `minDigit`, the extra digit defaults to `0` prepended
+    below the base `1…N`, giving the classic `0…N` (ADR-0014); an explicit
+    `minDigit` is honored as-is."""
+    min_digit = _as_int(puzzle_data.get("minDigit", 0), "minDigit")
     return range(min_digit, min_digit + size + 1)
 
 
@@ -883,6 +888,15 @@ def _cosmetic_cage_constraints(
     return _CosmeticCageDecode.concat(decoded)
 
 
+def _is_scell_block(block: dict[Any, Any]) -> bool:
+    """True when a `type 2001` block is named `S-cell`/`Schrödinger`
+    (`_SCELL_MARKER_LABELS`, via `_cosmetic_cage_name_kind`). The one predicate
+    both S-cell channels share, so presence and pinning agree on the label set
+    by construction: `_has_scell_marker_block` reads it for enablement by
+    presence, `_scell_marker_values` for pinning by membership (ADR-0014)."""
+    return _cosmetic_cage_name_kind(block.get("name")) == "s-cell"
+
+
 def _scell_marker_values(
     puzzle_data: dict[str, object], size: int
 ) -> dict[str, object]:
@@ -891,18 +905,33 @@ def _scell_marker_values(
     marker cage's own raw `value` (spec #349) — the pair/half/bare source
     `_decode_cell` reads for that address. A multi-cell cage's `value` applies
     uniformly to every cell it contains (CONTEXT.md `marker cage`). The
-    mapping's key set doubles as the address set that routes a cell through
-    the S-cell branch, and its non-emptiness infers Schrödinger-ness (domain
-    widening + a synthesized `schrodinger` constraint) from marker presence
-    alone. A `disabled` block contributes nothing, exactly as its cage rule
-    would not."""
+    mapping's key set doubles as the address set that routes a cell through the
+    S-cell branch — the *membership* channel that pins known S-cells. It does
+    not enable the mode: `_has_scell_marker_block` reads block *presence* for
+    that, so an empty block enables Schrödinger with this mapping empty
+    (ADR-0014). A `disabled` block contributes nothing, exactly as its cage
+    rule would not."""
     return {
         address: cage.get("value")
         for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE)
-        if _cosmetic_cage_name_kind(block.get("name")) == "s-cell"
+        if _is_scell_block(block)
         for cage in cast("list[dict[str, Any]]", block.get("cages", []))
         for address in _addresses(cage["cells"], size)
     }
+
+
+def _has_scell_marker_block(puzzle_data: dict[str, object]) -> bool:
+    """True when an enabled `type 2001` cosmetic-cage block is named
+    `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`), regardless of whether it
+    names any cells. This block *presence* enables Schrödinger mode (ADR-0014):
+    the domain widens to `0…N` and a `schrodinger` constraint stands up, giving
+    every cell the `is_s` freedom the solver discovers S-cells with. An empty
+    block means "discover them all"; a block that names cells additionally
+    pins those as known S-cells (`_scell_marker_values`)."""
+    return any(
+        _is_scell_block(block)
+        for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE)
+    )
 
 
 # The order `colorize_marker_cages` claims `_MARKER_COLOR_PALETTE` slots in
