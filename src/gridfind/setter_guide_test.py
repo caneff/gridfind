@@ -36,10 +36,12 @@ _ALL_CAGE_NAMES = (
 )
 
 
-def test_every_cage_name_and_role_present() -> None:
+def test_every_cage_name_present_capitalized() -> None:
+    # Every accepted label — canonical or synonym — appears in its capitalized
+    # display form, so no recognized spelling is silently dropped from the page.
     page = setter_guide.render()
     for name in _ALL_CAGE_NAMES:
-        assert name in page
+        assert name.capitalize() in page
 
 
 def test_both_schroedinger_spellings_present() -> None:

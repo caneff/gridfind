@@ -22,21 +22,26 @@ from gridfind.sudokumaker import (
 
 _TEMPLATE_PATH = pathlib.Path(__file__).with_name("setter_guide_template.html")
 
-_CAGE_NAME_ROLES: dict[str, str] = {
-    **dict.fromkeys(
-        _NAMED_KILLER_CAGE_LABELS, "Decorative label on a genuine killer cage"
-    ),
-    **dict.fromkeys(_DOUBLER_MARKER_LABELS, "Doubler position marker"),
-    **dict.fromkeys(_SCELL_MARKER_LABELS, "S-cell / Schrödinger position marker"),
-}
+# One canonical display label per cage-name role, paired with the frozenset the
+# decoder actually matches against and the role blurb. "Canonical" is a
+# presentation choice — the decoder treats every label in a set identically
+# (ADR-0013) — so it lives here, not in sudokumaker. The remaining labels render
+# as the row's comma-separated "other accepted names".
+_CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str], ...] = (
+    ("sum", _NAMED_KILLER_CAGE_LABELS, "Decorative label on a genuine killer cage"),
+    ("doubler", _DOUBLER_MARKER_LABELS, "Doubler position marker"),
+    ("s-cell", _SCELL_MARKER_LABELS, "S-cell / Schrödinger position marker"),
+)
 
 
 def _cage_name_rows() -> str:
-    rows = []
-    for name in sorted(_CAGE_NAME_ROLES):
-        role = _CAGE_NAME_ROLES[name]
+    rows: list[str] = []
+    for canonical, labels, role in _CAGE_NAME_GROUPS:
+        others = ", ".join(name.capitalize() for name in sorted(labels - {canonical}))
         rows.append(
-            f"<tr><td>{html.escape(name)}</td><td>{html.escape(role)}</td></tr>"
+            f"<tr><td>{html.escape(canonical.capitalize())}</td>"
+            f"<td>{html.escape(role)}</td>"
+            f"<td>{html.escape(others)}</td></tr>"
         )
     return "\n".join(rows)
 
