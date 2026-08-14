@@ -217,17 +217,25 @@ ignored.</p>
 </table>
 </div>
 <p>A cell inside a <strong>Schrödinger marker cage</strong> is read differently:
-its center pencilmarks give its directive, by how many marks it carries.</p>
+the marker cage's own <code>value</code> selects its directive. The cell's
+center pencilmarks, if any, only restrict that directive afterward — narrowing
+which digits the S-cell may hold — they never choose pin, half-pin, or bare on
+their own.</p>
 <div class="table-wrap">
 <table>
-<thead><tr><th>Center marks on an S-cell</th><th>Directive</th><th>Meaning</th></tr></thead>
+<thead><tr><th>Marker-cage value</th><th>Directive</th><th>Meaning</th></tr></thead>
 <tbody>
-<tr><td>Exactly two</td><td>Pin</td><td>The S-cell is pinned to that digit pair.</td></tr>
-<tr><td>Exactly one</td><td>Half-pin</td><td>The S-cell is known to hold that digit; its partner is free.</td></tr>
-<tr><td>None, or three or more</td><td>Bare</td><td>Both of the S-cell's digits are free.</td></tr>
+<tr><td>Names two digits (e.g. <code>"4,7"</code>)</td><td>Pin</td><td>The S-cell is pinned to that digit pair.</td></tr>
+<tr><td>Names one digit (e.g. <code>"4"</code>)</td><td>Half-pin</td><td>The S-cell is known to hold that digit; its partner is free.</td></tr>
+<tr><td>Absent, empty, or unparseable</td><td>Bare</td><td>Both of the S-cell's digits are free.</td></tr>
 </tbody>
 </table>
 </div>
+<p>Center pencilmarks drawn on a caged cell are optional and layer a
+consistency check on top of the cage's directive — a pin needs the marks to
+contain its pair, a half-pin needs its known digit marked, and a bare needs at
+least two marks to draw the pair from. They never override which directive the
+cage's <code>value</code> selected.</p>
 <p>A cell carrying a settled value cannot also be an S-cell: a value on a cell
 inside a Schrödinger marker cage is a contradiction, and gridfind rejects the
 link (see <a href="#troubleshooting">Troubleshooting</a>).</p>
