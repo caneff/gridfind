@@ -21,6 +21,21 @@ from gridfind.sudokumaker import (
 )
 
 _TEMPLATE_PATH = pathlib.Path(__file__).with_name("setter_guide_template.html")
+_LINKS_DIR = pathlib.Path(__file__).with_name("links")
+
+# One representative "found" corpus link per setter-facing constraint, keyed by
+# its DECODER_REGISTRY entry name. The generator embeds each link's URL so a
+# setter can open a working example; a KeyError here (a setter-facing entry with
+# no example) or a missing file fails generation loudly rather than shipping a
+# guide with a hole.
+_EXAMPLE_LINK_STEMS: dict[str, str] = {
+    "white-kropki": "found-kropki-4x4",
+    "black-kropki": "found-black-kropki-4x4",
+    "XV": "found-xv-9x9",
+    "killer-cage": "found-cage-4x4",
+    "cosmetic-cage": "found-doubler-4x4",
+    "thermo": "found-thermo-4x4",
+}
 
 # One canonical display label per cage-name role, paired with the frozenset the
 # decoder actually matches against and the role blurb. "Canonical" is a
@@ -72,11 +87,13 @@ def _box_size_rows() -> str:
 
 
 def _constraint_sections() -> str:
-    sections = []
+    sections: list[str] = []
     for entry in DECODER_REGISTRY.values():
         doc = entry.setter_doc
         if doc is None:
             continue
+        stem = _EXAMPLE_LINK_STEMS[entry.name]
+        url = (_LINKS_DIR / f"{stem}.txt").read_text().strip()
         sections.append(
             f'<section class="constraint">\n'
             f"<h3>{html.escape(doc.display_name)}</h3>\n"
@@ -84,6 +101,8 @@ def _constraint_sections() -> str:
             f"<dt>Wire block</dt><dd>{html.escape(doc.wire_block)}</dd>\n"
             f"<dt>Decodes to</dt><dd>{html.escape(doc.decode_result)}</dd>\n"
             f"<dt>Verdict</dt><dd>{html.escape(doc.verdict)}</dd>\n"
+            f'<dt>Example</dt><dd><a href="{html.escape(url, quote=True)}">'
+            f"{html.escape(stem)}</a></dd>\n"
             f"</dl>\n"
             f"</section>"
         )

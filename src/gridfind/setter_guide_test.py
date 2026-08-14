@@ -79,6 +79,17 @@ def test_per_constraint_facts_present_for_every_setter_facing_entry() -> None:
         assert html.escape(doc.verdict) in page
 
 
+def test_every_setter_facing_entry_has_a_found_example_link() -> None:
+    # Every setter-facing constraint maps to a "found" corpus link whose URL is
+    # embedded in the page — no constraint ships without a working example.
+    page = setter_guide.render()
+    for entry in _SETTER_FACING_ENTRIES:
+        stem = setter_guide._EXAMPLE_LINK_STEMS[entry.name]
+        assert stem.startswith("found-")
+        url = (setter_guide._LINKS_DIR / f"{stem}.txt").read_text().strip()
+        assert html.escape(url, quote=True) in page
+
+
 def test_render_byte_equals_committed_page() -> None:
     committed = _COMMITTED_PAGE.read_text()
     assert committed == setter_guide.render()
