@@ -1,7 +1,8 @@
 """The `doubler` layer: the concrete `{type: doubler}` modifier. Composes
 `ModifierPlacement`'s discovery and
 placement unchanged — one modifier per house, a distinct-digit
-transversal over `d0` — and supplies only this type's own value: a
+transversal over every digit a modified cell contributes — and supplies only
+this type's own value: a
 discovered doubler doubles the value beneath it. `ModifierPlacement` itself
 stays doubler-blind; this layer is the one place doubler-ness (the `2·`
 coefficient) appears.

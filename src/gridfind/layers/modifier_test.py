@@ -110,6 +110,53 @@ def test_forcing_two_modifiers_onto_the_same_digit_is_infeasible() -> None:
     assert status == cp_model.INFEASIBLE
 
 
+def _is_s(engine: Engine) -> dict[str, cp_model.IntVar]:
+    return cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+
+
+def test_two_doubled_s_cells_sharing_a_second_digit_is_infeasible() -> None:
+    # A doubled S-cell holds two digits and doubles both, so both must enter
+    # the "each digit doubled at most once" transversal. R1C1 and R2C3 sit in
+    # different rows, columns, and boxes, so pinning both as S-cell modifiers
+    # satisfies one-per-house — isolating the failure to the transversal. Both
+    # carry 4 as their second digit (d0s 3 and 0 stay distinct), so digit 4 is
+    # doubled twice and the board must break.
+    engine = build_engine(
+        [GridCells(), Schrodinger(), ModifierPlacement()],
+        board=Board(size=4, values=range(5)),
+    )
+    is_modifier, is_s = _is_modifier(engine), _is_s(engine)
+    for address, (d0, d1) in {"R1C1": (3, 4), "R2C3": (0, 4)}.items():
+        engine.model.add(is_modifier[address] == 1)
+        engine.model.add(is_s[address] == 1)
+        engine.model.add(engine.contents(address)[0] == d0)
+        engine.model.add(engine.contents(address)[1] == d1)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
+
+
+def test_a_doubled_s_cell_with_distinct_digits_stays_feasible() -> None:
+    # The over-constraint guard for the two-slot transversal: one doubled
+    # S-cell on {3,4} occupies two distinct slots, leaving {0,1,2} for the
+    # three remaining plain-cell modifiers — no digit doubled twice, so the
+    # tightened cap must still admit a solution.
+    engine = build_engine(
+        [GridCells(), Schrodinger(), ModifierPlacement()],
+        board=Board(size=4, values=range(5)),
+    )
+    is_modifier, is_s = _is_modifier(engine), _is_s(engine)
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(engine.contents("R1C1")[0] == 3)
+    engine.model.add(engine.contents("R1C1")[1] == 4)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
 def test_composes_with_schrodinger_and_stays_feasible() -> None:
     # Regression: an `== 1` per-digit transversal count is a
     # bijection with `board.values`, which only matches the one-per-house

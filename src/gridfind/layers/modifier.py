@@ -4,10 +4,12 @@ distinct-digit transversal.
 Registers a per-cell free boolean `is_modifier` and states the placement
 rule every discovered-modifier puzzle shares: exactly one modifier per row,
 per column, and per box, and the modified cells' digits are all-different (a
-distinct-digit transversal read via `d0` — well-defined for a plain cell and
-an S-cell alike, so composing with `schrodinger` costs nothing extra: no
-guard against a cell being both is needed, forbidding it would only add a
-constraint). "All-different" is capped at-most-once per digit, not a
+distinct-digit transversal over every real digit a cell contributes — `d0` for
+a plain cell, and an S-cell's `d1` too, since a doubled S-cell doubles both of
+its digits). Composing with `schrodinger` needs no guard against a cell being
+both modifier and S-cell: a non-S-cell's `d1` is a sentinel above every real
+digit, so it never enters the count. "All-different" is capped at-most-once
+per digit, not a
 bijection with `board.values` — `schrodinger` always widens `values` past
 `board.size`, and the one-per-house rule fixes the modifier count at exactly
 `board.size`, so a bijection would make every composed board infeasible. No
@@ -74,21 +76,33 @@ class ModifierPlacement:
         self, engine: Engine, is_modifier: dict[str, cp_model.IntVar]
     ) -> None:
         """Rule: the modified cells' digits are all-different — a transversal
-        reading each modified cell's `d0`. For each digit, `holds` reifies
-        "this cell is a modifier holding this digit"; at most one cell may,
-        so no two modifiers ever share a digit — true all-different, not a
-        bijection with `board.values`. `<= 1`, not `== 1`: a bijection only
-        holds when `len(values) == board.size`, and `schrodinger` always
-        widens `values` past `size`, so an `== 1` count would demand more
-        modifiers than the one-per-house rule ever places, making every
-        composed board unconditionally infeasible.
+        over every real digit a modified cell contributes. A doubled S-cell
+        holds two digits and doubles both (its value is `2·(d0+d1)`, ADR-0010),
+        so both slots enter the count; a plain cell contributes only `d0`. For
+        each digit, `holds` reifies "this cell is a modifier holding this digit
+        in some slot"; at most one cell may, so no two modifiers ever share a
+        doubled digit — true all-different, not a bijection with `board.values`.
+
+        Reading both slots needs no `is_s` gate: `schrodinger` fills a
+        non-S-cell's `d1` with a per-cell sentinel above every real digit, and
+        the count ranges only over `board.values`, so a sentinel slot never
+        matches a real digit and contributes nothing. `d0 < d1` keeps an
+        S-cell's two slots distinct, so a single cell never collides with
+        itself.
+
+        `<= 1`, not `== 1`: a bijection only holds when `len(values) ==
+        board.size`, and `schrodinger` always widens `values` past `size`, so
+        an `== 1` count would demand more modifiers than the one-per-house rule
+        ever places, making every composed board unconditionally infeasible.
         """
         for digit in engine.board.values:
             holds = []
             for address in engine.cells:
-                is_digit = engine.reify_holds(
-                    [engine.d0(address)], digit, label=f"{self.name}.{address}"
-                )[0]
+                slot_holds = engine.reify_holds(
+                    engine.contents(address), digit, label=f"{self.name}.{address}"
+                )
+                is_digit = engine.model.new_bool_var(f"{self.name}.{address}.is{digit}")
+                engine.model.add_max_equality(is_digit, slot_holds)
                 holds_digit = engine.model.new_bool_var(
                     f"{self.name}.{address}.at{digit}"
                 )
