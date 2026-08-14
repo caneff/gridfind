@@ -15,6 +15,7 @@ import urllib.error
 import urllib.request
 from http.server import HTTPServer
 from pathlib import Path
+from typing import Any, cast
 
 from eval_links import (
     LinkView,
@@ -32,7 +33,7 @@ from eval_links import (
     view_for,
 )
 
-from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker import _MARKER_COLOR_PALETTE, decode_document, encode_link
 
 _WIRE_CONSTRAINTS = [{"type": 0}]
 
@@ -62,6 +63,39 @@ def test_eval_link_shows_witness_and_solution_for_a_found_case() -> None:
     assert "2" in view.witness_grid
     assert view.solution_link is not None
     assert view.solution_link.startswith("https://sudokumaker.app/?puzzle=")
+
+
+# A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major — a doubler
+# needs a real box convention to build its engine layer, which a bare 2x2 has
+# none of (`region_map_for`).
+_REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
+
+
+def test_eval_link_colors_the_marker_cage_in_the_puzzle_pane_too() -> None:
+    # The left pane renders `view.puzzle_link` directly: a source link
+    # carrying a Doubler marker cage must come back with that cage
+    # colored, the same as the right pane's emitted solution link, so both
+    # panes show the same cage boundary.
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    link = _encode(
+        {
+            "cells": cells,
+            "size": 4,
+            "constraints": [
+                {"type": 0},
+                {"type": 1, "regions": _REGIONS_4X4},
+                {"name": "Doubler", "type": 2001, "cages": [{"cells": [0]}]},
+            ],
+        }
+    )
+
+    view = eval_link([link])
+
+    document = decode_document(view.puzzle_link)
+    puzzle_data = cast("dict[str, Any]", document["puzzle"])
+    constraints = cast("list[dict[str, Any]]", puzzle_data["constraints"])
+    doubler_block = next(c for c in constraints if c.get("name") == "Doubler")
+    assert doubler_block["color"] == _MARKER_COLOR_PALETTE[0]
 
 
 def test_view_for_presents_an_invalid_case_without_decoding() -> None:

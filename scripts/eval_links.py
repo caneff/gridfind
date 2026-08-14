@@ -38,7 +38,12 @@ from typing import NamedTuple
 
 from verify_links import LINKS_DIR, emit_solution_link
 
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import (
+    colorize_marker_cages,
+    decode_document,
+    decode_link,
+    encode_link,
+)
 from gridfind.verdict import verdict
 
 # The durable approval log: link stems a person has eyeballed and accepted.
@@ -186,15 +191,21 @@ def eval_link(argv: Sequence[str]) -> LinkView:
     """One case file's argv (flags then the link) reduced to a `LinkView`. A
     `found` case renders its witness grid and re-emits that same witness as a
     solution link (via `emit_solution_link`, the one source of the fill+encode
-    step); anything else carries the puzzle link alone."""
+    step); anything else carries the puzzle link alone. Both panes show the
+    same named-marker-cage coloring (`colorize_marker_cages`) — the puzzle
+    link colored here, the solution link inside `emit_solution_link` — so a
+    reviewer sees the same cage boundaries in either pane."""
     link = argv[-1]
     puzzle, state = decode_link(link)
+    colored_link = encode_link(colorize_marker_cages(decode_document(link)))
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
-        return LinkView(result.kind, link, witness_grid=None, solution_link=None)
+        return LinkView(
+            result.kind, colored_link, witness_grid=None, solution_link=None
+        )
     return LinkView(
         result.kind,
-        link,
+        colored_link,
         witness_grid=result.witness.render(),
         solution_link=emit_solution_link(link, result.witness, puzzle.board.size),
     )

@@ -13,6 +13,8 @@ is checked without touching the real `links/` corpus.
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from hypothesis import given
 from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
@@ -25,7 +27,12 @@ from gridfind.puzzle import (
     SingletonPin,
     WorkingState,
 )
-from gridfind.sudokumaker import decode_link, encode_link
+from gridfind.sudokumaker import (
+    _MARKER_COLOR_PALETTE,
+    decode_document,
+    decode_link,
+    encode_link,
+)
 from gridfind.witness import Witness
 
 _WIRE_CONSTRAINTS = [{"type": 0}]
@@ -301,3 +308,19 @@ def test_verify_link_decodes_a_doubler_marker() -> None:
     # emitter reports a solution-link rather than `broke`.
     solution_link = verify_link([_doubler_cage_link(doubler=True)])
     assert solution_link.startswith("https://sudokumaker.app/?puzzle=")
+
+
+def test_emit_solution_link_colors_the_doubler_marker_cage() -> None:
+    # The emitted solution link is the one surface the eval slideshow's right
+    # pane renders, so its Doubler block must carry the lone-type red the
+    # reviewer expects to see, with the ordinary killer cage untouched.
+    solution_link = verify_link([_doubler_cage_link(doubler=True)])
+
+    document = decode_document(solution_link)
+    puzzle_data = cast("dict[str, Any]", document["puzzle"])
+    constraints = cast("list[dict[str, Any]]", puzzle_data["constraints"])
+    doubler_block = next(c for c in constraints if c.get("name") == "Doubler")
+    killer_block = next(c for c in constraints if c.get("type") == 301)
+
+    assert doubler_block["color"] == _MARKER_COLOR_PALETTE[0]
+    assert "color" not in killer_block

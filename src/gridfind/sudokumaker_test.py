@@ -8,6 +8,7 @@ not app fidelity.
 """
 
 import json
+from typing import Any, cast
 
 import pytest
 from hypothesis import given as hyp_given
@@ -32,11 +33,13 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import (
+    _MARKER_COLOR_PALETTE,
     DECODER_REGISTRY,
     _CellDecode,
     _decode_cell,
     _edge_to_pair,
     _parse_scell_value,
+    colorize_marker_cages,
     decode_document,
     decode_link,
     encode_link,
@@ -1616,6 +1619,122 @@ def test_a_single_link_decodes_both_doubler_and_s_cell_markers() -> None:
     assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
     # The S-cell marker widened the domain by the classic k=1 extra digit.
     assert puzzle.board == Board(size=9, values=range(1, 11))
+
+
+# --- named marker cages get a cosmetic display color --------------------
+
+
+def _marker_link(
+    *, s_cell_cages: list[dict[str, object]], doubler_cages: list[dict[str, object]]
+) -> dict[str, object]:
+    """A synthesised document (not yet lz-compressed) carrying an `S-cell`
+    block only when `s_cell_cages` is non-empty, a `Doubler` block only when
+    `doubler_cages` is non-empty, and an ordinary `Sum`-named killer cage
+    always — a link only ever carries a marker block for a type it actually
+    uses, which is what makes "the marker types present in this link" a
+    meaningful set for `colorize_marker_cages` to read."""
+    marker_blocks: list[dict[str, object]] = []
+    if s_cell_cages:
+        marker_blocks.append({"name": "S-cell", "type": 2001, "cages": s_cell_cages})
+    if doubler_cages:
+        marker_blocks.append({"name": "Doubler", "type": 2001, "cages": doubler_cages})
+    return {
+        "formatVersion": "1.5.0",
+        "puzzle": {
+            "cells": _EMPTY_CELLS,
+            "constraints": [
+                *_WIRE_CONSTRAINTS,
+                *marker_blocks,
+                {
+                    "name": "Sum",
+                    "type": 2001,
+                    "cages": [{"value": "7", "cells": [2, 3]}],
+                },
+            ],
+        },
+    }
+
+
+def _blocks_by_name(document: dict[str, object]) -> dict[str, dict[str, Any]]:
+    puzzle_data = cast("dict[str, object]", document["puzzle"])
+    constraints = cast("list[dict[str, Any]]", puzzle_data["constraints"])
+    return {block["name"]: block for block in constraints if block.get("type") == 2001}
+
+
+def test_colorize_makes_a_lone_s_cell_marker_red() -> None:
+    # Exactly one marker type on the link (S-cell, no Doubler block at all) ⇒
+    # that type takes palette[0] (red), whichever type it is.
+    document = _marker_link(
+        s_cell_cages=[{"value": "2,7", "cells": [0]}], doubler_cages=[]
+    )
+
+    colored = colorize_marker_cages(document)
+
+    assert _blocks_by_name(colored)["S-cell"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert "Doubler" not in _blocks_by_name(colored)
+
+
+def test_colorize_makes_a_lone_doubler_marker_red() -> None:
+    # A Doubler-only link colors its cages red too — red is the lone-type
+    # slot, not an S-cell-specific color.
+    document = _marker_link(s_cell_cages=[], doubler_cages=[{"cells": [1]}])
+
+    colored = colorize_marker_cages(document)
+
+    assert _blocks_by_name(colored)["Doubler"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert "S-cell" not in _blocks_by_name(colored)
+
+
+def test_colorize_prefers_s_cell_for_red_when_both_types_present() -> None:
+    # Two marker types contend for red; S-cell wins it by priority and
+    # Doubler falls to the next palette slot.
+    document = _marker_link(
+        s_cell_cages=[{"value": "2,7", "cells": [0]}],
+        doubler_cages=[{"cells": [1]}],
+    )
+
+    colored = colorize_marker_cages(document)
+
+    blocks = _blocks_by_name(colored)
+    assert blocks["S-cell"]["color"] == _MARKER_COLOR_PALETTE[0]
+    assert blocks["Doubler"]["color"] == _MARKER_COLOR_PALETTE[1]
+
+
+def test_colorize_leaves_an_ordinary_named_cage_uncolored() -> None:
+    document = _marker_link(
+        s_cell_cages=[{"value": "2,7", "cells": [0]}],
+        doubler_cages=[{"cells": [1]}],
+    )
+
+    colored = colorize_marker_cages(document)
+
+    assert "color" not in _blocks_by_name(colored)["Sum"]
+
+
+def test_colorize_does_not_mutate_its_input() -> None:
+    document = _marker_link(
+        s_cell_cages=[{"value": "2,7", "cells": [0]}],
+        doubler_cages=[{"cells": [1]}],
+    )
+    before = json.loads(json.dumps(document))
+
+    colorize_marker_cages(document)
+
+    assert document == before
+
+
+def test_colorizing_an_emitted_link_does_not_change_its_decode() -> None:
+    # Color is write-only decoration: a decode of the colored link must agree
+    # exactly with a decode of the uncolored one (CODING_STANDARDS.md — cosmetic
+    # only, never a decode input).
+    document = _marker_link(
+        s_cell_cages=[{"value": "2,7", "cells": [0]}],
+        doubler_cages=[{"cells": [1]}],
+    )
+    plain_link = encode_link(document)
+    colored_link = encode_link(colorize_marker_cages(document))
+
+    assert decode_link(colored_link) == decode_link(plain_link)
 
 
 @pytest.mark.parametrize(
