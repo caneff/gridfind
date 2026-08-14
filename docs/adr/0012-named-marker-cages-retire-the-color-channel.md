@@ -47,7 +47,10 @@ doubler holds one digit worth twice its value). An `S-cell`/`Schrödinger` block
 declares each cell an S-cell, and the cell's *own* center-marks choose the
 working-state directive exactly as the red-bit path did (2 marks → S-cell pin
 `{a,b}`, 1 mark → half S-cell, 0/3+ → bare S-cell). The marker supplies "is an
-S-cell"; the cell supplies the digits, so no S-cell richness is lost. A marked
+S-cell"; the cell supplies the digits, so no S-cell richness is lost.
+*(This directive-selection rule is superseded by
+[ADR-0014](0014-scell-marking-meaning-model.md): the marker cage's own `value`
+now selects the directive, and the cell's center marks only restrict it.)* A marked
 cell that also holds a settled `value` is the existing "is-S vs settled
 singleton" contradiction and is refused. A marker cage is expected to be
 single-cell, but a multi-cell one marks all its cells uniformly.

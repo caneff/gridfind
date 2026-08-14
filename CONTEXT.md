@@ -199,8 +199,8 @@ directives on top; a header line declares the active layer stack.
 
 - **given** — a grid cell the setter has placed to a single digit. Content pinned
   to one value. Under the Schrödinger layer a given settles the cell as a
-  **singleton pin** (spec #348): the given digit is the cell's whole value and
-  the cell is never an S-cell — it cannot serve as an S-cell's lower digit.
+  **singleton pin** (spec #348, ADR-0014): the given digit is the cell's whole
+  value and the cell is never an S-cell.
 
 - **candidate / pencilmark** — a cell narrowed to a subset of digits (e.g.
   `{2,5,7}`) without being placed. Weaker information than a given.
@@ -245,7 +245,8 @@ and owns the working-state directives below.
   setter can also **declare** an S-cell position in a link, via a named `S-cell`
   or `Schrödinger` **marker cage** (ADR-0012); the marker cage's own `value`
   supplies both "is an S-cell" and its digits — see **cage-value pair source**
-  below.
+  below. The single marking→meaning table for every S-cell channel is
+  **ADR-0014**.
 
 - **combine** — how a two-digit S-cell's digits make one **value**: `sum`
   (2 + 3 = 5, the default) or `concat` (2, 3 → 23). One choice for the whole
