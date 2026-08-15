@@ -68,7 +68,7 @@ deprecated = "ignore"
 addopts = "-ra --strict-markers --strict-config -m \"not e2e and not slow\""
 xfail_strict = true
 markers = [
-  "e2e: drives real SudokuMaker links through the CLI front door (slow CP-SAT solves); deselected by default, run via `just e2e`.",
+  "e2e: exercises a real SudokuMaker link end to end — through the CLI front door, or the library path (`enumerate_witnesses`) direct (slow CP-SAT solves); deselected by default, run via `just e2e`.",
   "slow: a library test whose CP-SAT solve is too slow for the default gate (e.g. an exhaustive enumeration); deselected by default, run via `just slow`.",
 ]
 
