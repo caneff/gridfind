@@ -40,6 +40,7 @@ from gridfind.sudokumaker import (
     _edge_to_pair,
     _parse_scell_value,
     colorize_marker_cages,
+    cosmetic_cage_kind,
     decode_document,
     decode_link,
     encode_link,
@@ -1119,6 +1120,40 @@ def test_doubler_marker_name_is_case_insensitive_and_trimmed(name: str) -> None:
 
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
     assert Constraint("doubler") in puzzle.constraints
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        (None, "ordinary"),
+        ("", "ordinary"),
+        ("   ", "ordinary"),
+        ("Sum", "ordinary"),
+        ("Killer", "ordinary"),
+        ("Doubler", "doubler"),
+        ("  doubler ", "doubler"),
+        ("S-cell", "s-cell"),
+        ("Schrödinger", "s-cell"),
+        ("Whimsy", "unrecognized"),
+    ],
+    ids=[
+        "none",
+        "empty",
+        "blank",
+        "sum-label",
+        "killer-label",
+        "doubler",
+        "doubler-padded",
+        "s-cell",
+        "schrodinger",
+        "unknown",
+    ],
+)
+def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> None:
+    # The public four-way classifier is the one home every named-cosmetic-cage
+    # read routes through (ADR-0012): ordinary killer cage, Doubler marker,
+    # S-cell marker, or an unrecognized name the decoder refuses.
+    assert cosmetic_cage_kind(name) == expected
 
 
 def test_doubler_marker_cell_with_a_given_still_decodes_both() -> None:

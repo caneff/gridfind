@@ -22,11 +22,10 @@ from typing import Any, cast
 from gridfind.cell_geometry import cell_address
 from gridfind.sudokumaker import (
     colorize_marker_cages,
+    cosmetic_cage_kind,
     decode_document,
     decode_link,
     encode_link,
-    is_doubler_marker_name,
-    is_scell_marker_name,
     write_cell,
 )
 from gridfind.verdict import verdict
@@ -85,9 +84,10 @@ def _mark_witness_variants(
         if not isinstance(block, dict) or block.get("disabled") is True:
             continue
         typed_block = cast("dict[str, Any]", block)
-        if is_scell_marker_name(block.get("name")):
+        kind = cosmetic_cage_kind(block.get("name"))
+        if kind == "s-cell":
             _mark_scell_block(typed_block, witness, size, index_of)
-        elif is_doubler_marker_name(block.get("name")):
+        elif kind == "doubler":
             _mark_doubler_block(typed_block, witness, index_of)
 
 
