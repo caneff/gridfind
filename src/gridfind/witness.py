@@ -42,6 +42,19 @@ _JUNCTIONS = {
 }
 
 
+# A witness's identity: its full per-cell content, keyed for dedup. The
+# `assignment` entries hold each cell's digit sequence — a widened S-cell's
+# ordered pair, every other cell's lone `d0` — so the Schrödinger indicator and
+# second digit ride along wherever that layer widens a cell; the `modifiers`
+# entries name every discovered doubler. Together they are the whole grid
+# ADR-0015 makes the identity, nothing dropped. Two completions that share
+# every `d0` are still distinct here when they place the S-cell differently or
+# the doubler on another cell.
+WitnessIdentity = tuple[
+    tuple[tuple[str, tuple[int, ...]], ...], tuple[tuple[str, str], ...]
+]
+
+
 @dataclass(frozen=True)
 class Witness:
     """A found solve's content sequence per cell, paired with the board shape
@@ -81,6 +94,14 @@ class Witness:
 
     def __len__(self) -> int:
         return len(self.assignment)
+
+    @property
+    def identity(self) -> WitnessIdentity:
+        """This witness's dedup key: `assignment` and `modifiers`, frozen into
+        a hashable tuple. Both dicts iterate in `engine.cells` order, the same
+        order for every witness in one enumeration, so equal content yields an
+        equal key without sorting."""
+        return tuple(self.assignment.items()), tuple(self.modifiers.items())
 
     def render(self) -> str:
         """The witness as text, bordered wherever two adjacent cells fall in

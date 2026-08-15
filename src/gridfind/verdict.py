@@ -33,7 +33,7 @@ from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.regions import RegionMap, reason, region_map_for_constraints
 from gridfind.puzzle import EMPTY, Constraint, Puzzle, WorkingState
-from gridfind.witness import Witness
+from gridfind.witness import Witness, WitnessIdentity
 
 VerdictKind = Literal["found", "broke", "unknown"]
 
@@ -150,27 +150,6 @@ class Enumeration:
     reason: str | None = None
 
 
-# A witness's identity: its full per-cell content, keyed for dedup. The
-# `assignment` entries hold each cell's digit sequence — a widened S-cell's
-# ordered pair, every other cell's lone `d0` — so the Schrödinger indicator and
-# second digit ride along wherever that layer widens a cell; the `modifiers`
-# entries name every discovered doubler. Together they are the whole grid
-# ADR-0015 makes the identity, nothing dropped. Two completions that share
-# every `d0` are still distinct here when they place the S-cell differently or
-# the doubler on another cell.
-_WitnessIdentity = tuple[
-    tuple[tuple[str, tuple[int, ...]], ...], tuple[tuple[str, str], ...]
-]
-
-
-def _witness_identity(witness: Witness) -> _WitnessIdentity:
-    """The dedup key for one witness: its `assignment` and `modifiers`, frozen
-    into a hashable tuple. Both dicts iterate in `engine.cells` order, the same
-    order for every witness in one enumeration, so equal content yields an equal
-    key without sorting."""
-    return tuple(witness.assignment.items()), tuple(witness.modifiers.items())
-
-
 class _WitnessCollector(cp_model.CpSolverSolutionCallback):
     """Collects distinct witnesses from phase 2's `enumerate_all_solutions`
     stream, dedups them on the witness identity, and stops the search once
@@ -190,13 +169,13 @@ class _WitnessCollector(cp_model.CpSolverSolutionCallback):
         self._engine = engine
         self._region_map = region_map
         self._limit = limit
-        self._seen: set[_WitnessIdentity] = set()
+        self._seen: set[WitnessIdentity] = set()
         self.witnesses: list[Witness] = []
 
     def on_solution_callback(self) -> None:
         reader = cast("cp_model.CpSolver", self)
         witness = _witness_from(self._engine, reader, self._region_map)
-        identity = _witness_identity(witness)
+        identity = witness.identity
         if identity in self._seen:
             return
         self._seen.add(identity)

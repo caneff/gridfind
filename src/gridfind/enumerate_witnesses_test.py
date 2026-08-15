@@ -7,7 +7,7 @@ from hypothesis import strategies as st
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.sudokumaker import decode_link
 from gridfind.verdict import Enumeration, enumerate_witnesses, verdict
-from gridfind.witness import Witness
+from gridfind.witness import Witness, WitnessIdentity
 
 _LINKS_DIR = Path(__file__).parent / "links"
 
@@ -26,26 +26,21 @@ def _mixed_stack_puzzle() -> Puzzle:
     )
 
 
-def _identity_set(result: Enumeration) -> set[tuple[object, object]]:
+def _identity_set(result: Enumeration) -> set[WitnessIdentity]:
     """The set of witness identities in a result — each witness's per-cell
     content and discovered doublers (ADR-0015), the same identity `verdict`
-    dedups on. Built from the public `Witness` surface so the check does not
+    dedups on. Built from the public `Witness.identity` so the check does not
     lean on how the enumeration keys distinctness inside."""
-    return {
-        (tuple(w.assignment.items()), tuple(w.modifiers.items()))
-        for w in result.witnesses
-    }
+    return {w.identity for w in result.witnesses}
 
 
 def _pairwise_distinct(witnesses: tuple[Witness, ...]) -> bool:
     """True when no two witnesses are the same completion. A completion's
     identity is its full per-cell content — each cell's digit sequence (a
     widened S-cell's ordered pair, else its lone digit) and every discovered
-    doubler (ADR-0015). Built here from the public `Witness` surface, so the
+    doubler (ADR-0015). Built here from the public `Witness.identity`, so the
     check does not lean on how `verdict` keys distinctness inside."""
-    identities = {
-        (tuple(w.assignment.items()), tuple(w.modifiers.items())) for w in witnesses
-    }
+    identities = {w.identity for w in witnesses}
     return len(identities) == len(witnesses)
 
 

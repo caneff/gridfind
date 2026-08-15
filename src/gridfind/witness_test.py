@@ -86,3 +86,35 @@ def test_witness_render_draws_an_s_cell_as_a_curly_brace_pair() -> None:
         "│     3 │     1 │\n"
         "└───────┴───────┘"
     )
+
+
+def test_witness_identity_is_the_frozen_assignment_and_modifiers_tuple() -> None:
+    # Hand-derived oracle (ADR-0015): the identity is the assignment and
+    # modifiers dicts, each frozen into a tuple of their items in iteration
+    # order — nothing sorted, nothing dropped. This is the one place the
+    # formula stays spelled out as a cross-check on `.identity` itself.
+    grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (0, 5),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (1,),
+    }
+    region_map = [[(1, 1), (2, 1)], [(1, 2), (2, 2)]]
+    modifiers = {"R2C2": "doubler"}
+    witness = Witness(
+        grid=grid,
+        assignment=assignment,
+        region_map=region_map,
+        modifiers=modifiers,
+    )
+
+    assert witness.identity == (
+        (
+            ("R1C1", (0, 5)),
+            ("R1C2", (2,)),
+            ("R2C1", (3,)),
+            ("R2C2", (1,)),
+        ),
+        (("R2C2", "doubler"),),
+    )
