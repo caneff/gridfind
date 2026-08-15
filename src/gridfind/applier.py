@@ -7,6 +7,11 @@ runs. `apply` is the one entry point.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
+from typing import Protocol
+
+from ortools.sat.python import cp_model
+
 from gridfind.engine import Engine, MalformedPuzzleError
 from gridfind.puzzle import (
     BareSCell,
@@ -20,6 +25,16 @@ from gridfind.puzzle import (
     SingletonPin,
     WorkingState,
 )
+
+
+class _AddressedDirective(Protocol):
+    """The one shape `_apply_directives` needs from a directive: an address
+    to run the off-board `contents` guard on. A property getter, not a plain
+    attribute — every directive dataclass is frozen, so a plain attribute
+    member (which Protocol treats as read/write) would reject them all."""
+
+    @property
+    def address(self) -> str: ...
 
 
 def apply(engine: Engine, puzzle: Puzzle, working_state: WorkingState) -> None:
@@ -62,6 +77,33 @@ def _apply_placement(engine: Engine, placement: Placement) -> None:
     engine.model.add_bool_or(holds)
 
 
+def _apply_directives[Directive: _AddressedDirective](
+    engine: Engine,
+    directives: Sequence[Directive],
+    *,
+    channel: Callable[[Engine], dict[str, cp_model.IntVar] | None],
+    missing_msg: str,
+    apply_one: Callable[
+        [Engine, dict[str, cp_model.IntVar], Directive, list[cp_model.IntVar]], None
+    ],
+) -> None:
+    """The shared skeleton every directive family runs: skip when there are no
+    directives, raise `missing_msg` when the layer `channel` reads is absent,
+    then walk the directives applying each through `apply_one` — the one home
+    for the empty-check, the missing-layer guard, and the off-board `contents`
+    guard every family shares. `apply_one` gets the resolved channel (never
+    None) and the directive's own content slots; the per-directive model work
+    stays with the caller, since that's where the families genuinely differ."""
+    if not directives:
+        return
+    values = channel(engine)
+    if values is None:
+        raise MalformedPuzzleError(missing_msg)
+    for directive in directives:
+        content = engine.contents(directive.address)  # off-board raises here
+        apply_one(engine, values, directive, content)
+
+
 def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> None:
     """Apply the Schrödinger directives by restricting the already-built model
     along the two axes `engine.restrict` can't reach: S-cell-ness (`is_s`) and
@@ -89,41 +131,50 @@ def _apply_s_directives(engine: Engine, directives: tuple[SDirective, ...]) -> N
 
     Two content errors are malformed, refused here before the solve:
     a directive naming a digit off the board (singleton/half/S-cell pin), and
-    *any* directive on a stack with no schrodinger layer to honor it. The
-    missing-layer check runs first, so a directive with a legal digit still
-    refuses when the layer is absent."""
-    if not directives:
-        return
-    is_s = engine.is_s()
-    if is_s is None:
-        msg = "a Schrödinger pin needs a schrodinger layer, but the stack has none"
-        raise MalformedPuzzleError(msg)
-    for directive in directives:
-        address = directive.address
-        content = engine.contents(address)  # off-board raises here
-        if isinstance(directive, SingletonPin):
-            _require_in_domain(engine, address, (directive.digit,))
-            engine.model.add(content[0] == directive.digit)
-            engine.model.add(is_s[address] == 0)
-        elif isinstance(directive, BareSingleton):
-            engine.model.add(is_s[address] == 0)
-        elif isinstance(directive, BareSCell):
-            engine.model.add(is_s[address] == 1)
-        elif isinstance(directive, HalfSCell):
-            _require_in_domain(engine, address, (directive.digit,))
-            holds = engine.reify_holds(content, directive.digit, f"half.{address}")
-            engine.model.add_bool_or(holds)
-            engine.model.add(is_s[address] == 1)
-        elif isinstance(directive, SCellMarkRestriction):
-            allowed = [(digit,) for digit in sorted(directive.digits)]
-            for slot in content:
-                engine.model.add_allowed_assignments([slot], allowed)
-        else:
-            low, high = sorted(directive.pair)
-            _require_in_domain(engine, address, (low, high))
-            engine.model.add(content[0] == low)
-            engine.model.add(content[1] == high)
-            engine.model.add(is_s[address] == 1)
+    *any* directive on a stack with no schrodinger layer to honor it — both
+    enforced by the shared `_apply_directives` skeleton, which runs the
+    missing-layer check before the per-directive loop reaches a digit."""
+    _apply_directives(
+        engine,
+        directives,
+        channel=Engine.is_s,
+        missing_msg=(
+            "a Schrödinger pin needs a schrodinger layer, but the stack has none"
+        ),
+        apply_one=_apply_one_s_directive,
+    )
+
+
+def _apply_one_s_directive(
+    engine: Engine,
+    is_s: dict[str, cp_model.IntVar],
+    directive: SDirective,
+    content: list[cp_model.IntVar],
+) -> None:
+    address = directive.address
+    if isinstance(directive, SingletonPin):
+        _require_in_domain(engine, address, (directive.digit,))
+        engine.model.add(content[0] == directive.digit)
+        engine.model.add(is_s[address] == 0)
+    elif isinstance(directive, BareSingleton):
+        engine.model.add(is_s[address] == 0)
+    elif isinstance(directive, BareSCell):
+        engine.model.add(is_s[address] == 1)
+    elif isinstance(directive, HalfSCell):
+        _require_in_domain(engine, address, (directive.digit,))
+        holds = engine.reify_holds(content, directive.digit, f"half.{address}")
+        engine.model.add_bool_or(holds)
+        engine.model.add(is_s[address] == 1)
+    elif isinstance(directive, SCellMarkRestriction):
+        allowed = [(digit,) for digit in sorted(directive.digits)]
+        for slot in content:
+            engine.model.add_allowed_assignments([slot], allowed)
+    else:
+        low, high = sorted(directive.pair)
+        _require_in_domain(engine, address, (low, high))
+        engine.model.add(content[0] == low)
+        engine.model.add(content[1] == high)
+        engine.model.add(is_s[address] == 1)
 
 
 def _apply_modifier_directives(
@@ -135,19 +186,28 @@ def _apply_modifier_directives(
     layer's one-per-house and distinct-digit transversal then verify the
     declared set, so an ill-placed declaration solves to broke.
 
-    Mirrors `_apply_s_directives`: a directive on a stack with no modifier
-    layer to honor it is malformed, refused here before the solve. An off-board
-    address raises through `engine.contents` first, the same content guard
-    every other directive reaches."""
-    if not directives:
-        return
-    is_modifier = engine.is_modifier()
-    if is_modifier is None:
-        msg = "a modifier directive needs a modifier layer, but the stack has none"
-        raise MalformedPuzzleError(msg)
-    for directive in directives:
-        engine.contents(directive.address)  # off-board raises here
-        engine.model.add(is_modifier[directive.address] == int(directive.is_modifier))
+    Mirrors `_apply_s_directives`: the shared `_apply_directives` skeleton
+    refuses a directive on a stack with no modifier layer to honor it, and
+    raises through `engine.contents` on an off-board address, before the
+    per-directive pin below ever runs."""
+    _apply_directives(
+        engine,
+        directives,
+        channel=Engine.is_modifier,
+        missing_msg=(
+            "a modifier directive needs a modifier layer, but the stack has none"
+        ),
+        apply_one=_apply_one_modifier_directive,
+    )
+
+
+def _apply_one_modifier_directive(
+    engine: Engine,
+    is_modifier: dict[str, cp_model.IntVar],
+    directive: ModifierDirective,
+    content: list[cp_model.IntVar],
+) -> None:
+    engine.model.add(is_modifier[directive.address] == int(directive.is_modifier))
 
 
 def _require_in_domain(engine: Engine, address: str, digits: tuple[int, ...]) -> None:
