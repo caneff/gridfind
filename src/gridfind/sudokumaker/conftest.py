@@ -1,11 +1,11 @@
 """Link-synthesis primitives shared by the per-module decode tests.
 
 Every `sudokumaker/*_test.py` builds its input the same way: a puzzle document
-compressed to a real SudokuMaker link, then run through `decode_link`. The
-low-level pieces of that synthesis — the lz-string wrapper, the classic
-`type 0`/`type 1` constraint pair, the empty 9x9 cell array, the box partition
-of an N x N board — are needed by more than one module's test file, so they
-live here as one home rather than drifting into per-file copies.
+encoded to a real SudokuMaker link through `encode_link`, then run through
+`decode_link`. The synthesis pieces above that boundary — the document wrapper,
+the classic `type 0`/`type 1` constraint pair, the empty 9x9 cell array, the box
+partition of an N x N board — are needed by more than one module's test file, so
+they live here as one home rather than drifting into per-file copies.
 
 A `conftest.py` is excluded from the built wheel (`pyproject.toml`
 `source-exclude`), so this test-only synthesis stays out of the installed
@@ -13,11 +13,19 @@ package. Following `layers/conftest.py`, the shared pieces are plain
 constants and functions, not `return _f` fixtures.
 """
 
-import json
-
-from lzstring import LZString
-
 from gridfind.puzzle import Constraint
+from gridfind.sudokumaker.boundary import encode_link
+
+
+def regions_for(n: int, box_rows: int, box_cols: int) -> list[int]:
+    """The standard box partition of an n x n board as a flat row-major id
+    array, derived independently of the decoder (region = band-row * bands +
+    band-col)."""
+    bands = n // box_cols
+    return [
+        (r // box_rows) * bands + (c // box_cols) for r in range(n) for c in range(n)
+    ]
+
 
 # The classic decode's constraint tuple, in the order the decoder emits it.
 CLASSIC_CONSTRAINTS = (
@@ -26,9 +34,9 @@ CLASSIC_CONSTRAINTS = (
     Constraint("regions-distinct"),
 )
 
-# The standard 3x3 box id per cell of a 9x9 board, derived independently of the
-# decoder's own region map: region = (row // 3) * 3 + (col // 3), row-major.
-STANDARD_REGIONS = [(i // 9 // 3) * 3 + (i % 9 // 3) for i in range(81)]
+# The standard 3x3 box id per cell of a 9x9 board — the n=9 case of the general
+# partition, derived independently of the decoder's own region map.
+STANDARD_REGIONS = regions_for(9, 3, 3)
 
 # An empty 9x9 cell array — the blank canvas every classic-size link starts from.
 EMPTY_CELLS: list[dict[str, object]] = [{} for _ in range(81)]
@@ -48,9 +56,9 @@ WIRE_CONSTRAINTS: list[dict[str, object]] = [
 
 def encode_document(puzzle: dict[str, object]) -> str:
     """A synthesised bare link: the `puzzle` block wrapped in a
-    `formatVersion 1.5.0` document, lz-string-compressed as a real link is."""
-    doc = {"formatVersion": "1.5.0", "puzzle": puzzle}
-    return LZString.compressToEncodedURIComponent(json.dumps(doc))
+    `formatVersion 1.5.0` document and encoded through `encode_link`, the one
+    home for the compress-to-payload step."""
+    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
 
 
 def constraint_link(constraint: dict[str, object]) -> str:
@@ -68,13 +76,3 @@ def mask(digits: set[int]) -> int:
     for d in digits:
         total |= 1 << d
     return total
-
-
-def regions_for(n: int, box_rows: int, box_cols: int) -> list[int]:
-    """The standard box partition of an n x n board as a flat row-major id
-    array, derived independently of the decoder (region = band-row * bands +
-    band-col)."""
-    bands = n // box_cols
-    return [
-        (r // box_rows) * bands + (c // box_cols) for r in range(n) for c in range(n)
-    ]
