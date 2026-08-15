@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
-from gridfind.layers.board import cell_address
+from gridfind.cell_geometry import cell_address
 from gridfind.sudokumaker import (
     colorize_marker_cages,
     decode_document,

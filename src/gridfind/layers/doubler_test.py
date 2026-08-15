@@ -55,7 +55,7 @@ def test_composes_modifier_placement_one_per_house() -> None:
     status = solver.solve(engine.model)
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-    grid = cast("list[list[str]]", engine.structures["grid"])
+    grid = engine.cell_geometry.grid
     for partition in (rows, cols, regions):
         for group in partition(grid):
             addresses = list(group)

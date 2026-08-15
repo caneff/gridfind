@@ -27,7 +27,7 @@ leaving it to emerge the way `schrodinger` leaves the S-cell count to
 `distinct`.
 
 Reuses `distinct`'s `rows`/`cols`/`regions` partition functions to group the
-board's own cell addresses (the `grid` structure `board` registers) — the
+board's own cell addresses (`engine.cell_geometry.grid`, ADR-0004) — the
 same partitions `rows-distinct`/`cols-distinct`/`regions-distinct` cut over
 cell content, run here over cell addresses instead. `regions` is the classic
 box tiling; a board size with no box convention refuses there,
@@ -63,7 +63,7 @@ class ModifierPlacement:
         is_modifier = cast(
             "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
         )
-        grid = engine.grid()
+        grid = engine.cell_geometry.grid
         for partition in _HOUSE_PARTITIONS:
             for group in partition(grid):
                 addresses = list(group)
