@@ -93,6 +93,7 @@ def _edge_clue_constraints(
     size: int,
     type_: int,
     build_clue: Callable[[object, str, str], Constraint],
+    label: str,
 ) -> list[Constraint]:
     """The shared decode walk behind the edge-clue types — XV, white-kropki,
     black-kropki — which share one wire shape (`clues: [{value, edge}],
@@ -100,22 +101,17 @@ def _edge_clue_constraints(
     to its orthogonally-adjacent pair via `_edge_to_pair`, then
     `build_clue(value, a, b)` turns the clue's raw `value` and that pair into
     one `Constraint`. A `disabled` block is skipped entirely; a non-empty
-    `negative` list is warn-and-dropped to stderr while its positive clues
-    still decode. `build_clue` carries the single per-type variation — an
-    alias lookup, a `diff`, a ratio `k`."""
-    # `registry` builds `DECODER_REGISTRY` from this module's handlers, so a
-    # module-level import here would cycle; the type's display name is only
-    # needed once a block is actually being decoded, so a local import breaks
-    # the cycle without changing behavior.
-    from gridfind.sudokumaker.registry import DECODER_REGISTRY
-
+    `negative` list is warn-and-dropped to stderr under `label` — the caller's
+    `DECODER_REGISTRY` display name — while its positive clues still decode.
+    `build_clue` carries the single per-type variation — an alias lookup, a
+    `diff`, a ratio `k`."""
     decoded: list[Constraint] = []
     for block in _enabled_blocks(puzzle_data, type_):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
         for clue in clues:
             a, b = _edge_to_pair(clue["edge"], size)
             decoded.append(build_clue(clue["value"], a, b))
-        _warn_dropped_negative(block, DECODER_REGISTRY[type_].name)
+        _warn_dropped_negative(block, label)
     return decoded
 
 
@@ -135,7 +131,7 @@ def _xv_constraints(puzzle_data: dict[str, object], size: int) -> list[Constrain
             raise ValueError(msg)
         return Constraint(alias, params={"cells": [a, b]})
 
-    return _edge_clue_constraints(puzzle_data, size, _XV_TYPE, build)
+    return _edge_clue_constraints(puzzle_data, size, _XV_TYPE, build, "XV")
 
 
 def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
@@ -148,7 +144,9 @@ def _kropki_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
     def build(value: object, a: str, b: str) -> Constraint:
         return Constraint("pair-difference", params={"cells": [a, b], "diff": value})
 
-    return _edge_clue_constraints(puzzle_data, size, _KROPKI_WHITE_TYPE, build)
+    return _edge_clue_constraints(
+        puzzle_data, size, _KROPKI_WHITE_TYPE, build, "white-kropki"
+    )
 
 
 def _black_kropki_constraints(
@@ -164,4 +162,6 @@ def _black_kropki_constraints(
         k = _as_int(value, "black-kropki value")
         return Constraint("pair-ratio", params={"cells": [a, b], "k": k})
 
-    return _edge_clue_constraints(puzzle_data, size, _KROPKI_BLACK_TYPE, build)
+    return _edge_clue_constraints(
+        puzzle_data, size, _KROPKI_BLACK_TYPE, build, "black-kropki"
+    )
