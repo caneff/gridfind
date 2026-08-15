@@ -33,7 +33,8 @@ from eval_links import (
     view_for,
 )
 
-from gridfind.sudokumaker import _MARKER_COLOR_PALETTE, decode_document, encode_link
+from gridfind.sudokumaker import decode_document, encode_link
+from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE
 
 _WIRE_CONSTRAINTS = [{"type": 0}]
 
