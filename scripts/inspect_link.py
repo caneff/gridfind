@@ -15,25 +15,33 @@ inspector takes no flags — a `--`-prefixed token is reported as unknown.
 
 from __future__ import annotations
 
-import json
 import math
 import sys
-import urllib.parse
 from collections import Counter
 from collections.abc import Sequence
 from typing import Any, TextIO
 
-from lzstring import LZString
-
 from gridfind.engine import GridfindError
 from gridfind.sudokumaker import (
+    DECODER_REGISTRY,
     constraint_name,
+    decode_document,
     decode_link,
     has_live_data,
 )
 from gridfind.verdict import verdict
 
-_KNOWN_TYPES = (0, 1)
+# The two wire types that describe the puzzle's structure (givens, regions)
+# rather than a placeable rule — `decode_link` handles them outside the
+# active/inert/disabled bucketing every other DECODER_REGISTRY row gets.
+# Picked by the registry's own `name` field, so the set tracks the registry
+# instead of a hand-copied `(0, 1)` nobody re-checks against it.
+_STRUCTURAL_NAMES = frozenset({"givens", "regions"})
+_KNOWN_TYPES = frozenset(
+    wire_type
+    for wire_type, decoded in DECODER_REGISTRY.items()
+    if decoded.name in _STRUCTURAL_NAMES
+)
 
 
 def classify_constraint(constraint: dict[str, object]) -> str:
@@ -56,15 +64,14 @@ def classify_constraint(constraint: dict[str, object]) -> str:
 def _decode_payload(link: str) -> dict[str, object]:
     """The SudokuMaker puzzle JSON behind a `?puzzle=` link (or bare payload).
 
-    Mirrors `decode_link`'s boundary decode, kept local because `decode_link`
-    consumes the raw dict and returns a `Puzzle` — the inspector needs the dict
-    itself to classify constraints, including on links `decode_link` rejects.
+    Delegates to `decode_document`'s boundary decode and keeps only the
+    `puzzle` block — the inspector needs the dict itself to classify
+    constraints, including on links `decode_link` rejects, so it can't route
+    through `decode_link`'s `Puzzle`.
     """
-    payload = link.split("?puzzle=", 1)[-1]
-    raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
     # Decoded JSON is an untyped external boundary — a local `Any` is deliberate
     # (CODING_STANDARDS: reach for Any only at genuine boundaries).
-    data: Any = json.loads(raw)["puzzle"]
+    data: Any = decode_document(link)["puzzle"]
     return data
 
 
