@@ -6,19 +6,22 @@ from hypothesis import strategies as st
 
 from gridfind.engine import MalformedPuzzleError
 from gridfind.puzzle import (
-    BareSCell,
-    BareSingleton,
     Board,
     Candidate,
     Constraint,
     Given,
-    HalfSCell,
     ModifierDirective,
     Placement,
     Puzzle,
+    WorkingState,
+)
+from gridfind.s_directives import (
+    BareSCell,
+    BareSingleton,
+    HalfSCell,
+    SCellMarkRestriction,
     SCellPin,
     SingletonPin,
-    WorkingState,
 )
 
 MIN_DIGIT = 0
@@ -81,8 +84,18 @@ S_CELL_PINS = st.builds(
 BARE_SINGLETONS = st.builds(BareSingleton, address=ADDRESSES)
 BARE_S_CELLS = st.builds(BareSCell, address=ADDRESSES)
 HALF_S_CELLS = st.builds(HalfSCell, address=ADDRESSES, digit=DIGITS)
+S_CELL_MARK_RESTRICTIONS = st.builds(
+    SCellMarkRestriction,
+    address=ADDRESSES,
+    digits=st.sets(DIGITS, min_size=1).map(frozenset),
+)
 S_DIRECTIVES = st.one_of(
-    SINGLETON_PINS, S_CELL_PINS, BARE_SINGLETONS, BARE_S_CELLS, HALF_S_CELLS
+    SINGLETON_PINS,
+    S_CELL_PINS,
+    BARE_SINGLETONS,
+    BARE_S_CELLS,
+    HALF_S_CELLS,
+    S_CELL_MARK_RESTRICTIONS,
 )
 MODIFIER_DIRECTIVES = st.builds(
     ModifierDirective, address=ADDRESSES, is_modifier=st.booleans()
@@ -195,27 +208,6 @@ def test_working_state_round_trips_through_json() -> None:
     assert WorkingState.from_json(state.to_json()) == state
 
 
-@pytest.mark.parametrize(
-    "pair",
-    [
-        pytest.param(frozenset([5, 5]), id="dedup-to-one"),
-        pytest.param(frozenset({1, 2, 3}), id="size-three"),
-    ],
-)
-def test_s_cell_pin_refuses_a_pair_that_is_not_two_distinct_digits(
-    pair: frozenset[int],
-) -> None:
-    # The pair's shape is guarded at construction, so a malformed S-cell pin
-    # can never exist in memory (ADR-0006 grill note). Counted after the
-    # frozenset collapses duplicates: {5,5} is one digit, {1,2,3} is three.
-    with pytest.raises(MalformedPuzzleError, match="two distinct"):
-        SCellPin(address="R1C1", pair=pair)
-
-
-def test_s_cell_pin_accepts_two_distinct_digits() -> None:
-    assert SCellPin(address="R1C1", pair=frozenset({2, 7})).pair == frozenset({2, 7})
-
-
 def test_working_state_round_trips_its_s_directives() -> None:
     state = WorkingState(
         s_directives=(
@@ -233,6 +225,20 @@ def test_working_state_round_trips_the_bare_and_half_directives() -> None:
             BareSingleton(address="R1C1"),
             BareSCell(address="R2C2"),
             HalfSCell(address="R3C3", digit=6),
+        )
+    )
+
+    assert WorkingState.from_json(state.to_json()) == state
+
+
+def test_working_state_round_trips_an_s_cell_mark_restriction() -> None:
+    # The one directive kind layered over another rather than naming a point
+    # of its own (CONTEXT.md `schrodinger`) — round-tripped here alongside the
+    # S-cell pin it restricts, its usual real-world pairing.
+    state = WorkingState(
+        s_directives=(
+            SCellPin(address="R1C1", pair=frozenset({2, 7})),
+            SCellMarkRestriction(address="R1C1", digits=frozenset({1, 2, 7})),
         )
     )
 
