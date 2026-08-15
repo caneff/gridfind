@@ -46,9 +46,23 @@ The count `enumerate_witnesses` reports is the literal number of distinct
 filled grids, up to the caller's `limit`. A caller who wants "unique solution"
 asks for two and reads whether the second exists.
 
-The implementation reaches this rule in steps. T2 dedups on the digit `d0` per
-cell — the full identity for the plain-digit grids it enumerates, since those
-carry no S-cell or modifier content. T3 widens the identity tuple to the full
-assignment (S-cell pair and modifier terms included), at which point the code
-matches this ADR term for term. The rule stated here is the target the identity
-tuple grows into, not a description of the d0-only tuple T2 ships.
+Phase 2 dedups on the full witness content: each cell's digit sequence (a
+widened S-cell's ordered pair, else its lone `d0`) and every discovered
+modifier. For a plain-digit grid this is the digit per cell and nothing more; a
+Schrödinger or modifier stack carries the S-cell pair and doubler placement
+along, so the key matches this rule term for term.
+
+The wider key counts completions a first-digit-only key would merge. Two
+completions can share every first digit yet be distinct: a 2×2 over `{0,1,2}`
+with one S-cell per line has six completions but only four first-digit grids —
+two grids each carry a pair that places the S-cell on the other cell of the
+line, same `d0`, different two-digit content. A fully-given 4×4 sudoku grid
+fixes every digit, and its doubler — one per row, column, and box, all digits
+different — still admits four placements, each a distinct completion on its
+placement alone. A first-digit-only key would count four and one; the
+full-content key counts six and four.
+
+Phase 2 dedups in the callback because CP-SAT enumerates distinct *variable*
+assignments over the whole model, auxiliary variables included, so several
+solver solutions can carry one witness; keying on the witness content folds
+those together (spec #389, decision #383).

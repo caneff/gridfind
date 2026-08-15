@@ -41,6 +41,11 @@ test:
 e2e:
     uv run pytest -m e2e
 
+# On-demand slow library tests: exhaustive enumerations and other CP-SAT-heavy
+# checks too slow for `just check`, skipped there via the `not slow` deselection.
+slow:
+    uv run pytest -m slow
+
 # On-demand solution-link oracle (spec #244, issue #249): for every link
 # under src/gridfind/links/, prints a found link's witness filled back in as
 # an openable sudokumaker.app solution-link, or `broke` for a broke link.

@@ -65,10 +65,11 @@ deprecated = "ignore"
 
 # --- pytest (hardened) ---
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --strict-config -m \"not e2e\""
+addopts = "-ra --strict-markers --strict-config -m \"not e2e and not slow\""
 xfail_strict = true
 markers = [
   "e2e: drives real SudokuMaker links through the CLI front door (slow CP-SAT solves); deselected by default, run via `just e2e`.",
+  "slow: a library test whose CP-SAT solve is too slow for the default gate (e.g. an exhaustive enumeration); deselected by default, run via `just slow`.",
 ]
 
 # --- coverage (soft) ---
