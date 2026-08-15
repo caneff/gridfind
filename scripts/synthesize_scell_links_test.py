@@ -173,6 +173,49 @@ def test_broke_doubler_migration_keeps_a_live_doubler_and_reads_broke(
     assert (code, first) == (1, "broke")
 
 
+def _caged_2001_blocks(link: str) -> list[dict[str, Any]]:
+    """The enabled `type 2001` blocks the emitted document carries that hold at
+    least one cage — the blocks a `cage`/`group-sum` rule can ride."""
+    puzzle = cast("dict[str, Any]", decode_document(link)["puzzle"])
+    blocks = cast("list[dict[str, Any]]", puzzle["constraints"])
+    return [
+        b
+        for b in blocks
+        if b.get("type") == 2001 and not b.get("disabled") and b.get("cages")
+    ]
+
+
+@pytest.mark.parametrize(
+    "builder",
+    [syn.found_doubler_4x4, syn.broke_doubler_4x4, syn.found_doubled_scell_17cage_4x4],
+    ids=lambda v: v.__name__ if callable(v) else str(v),
+)
+def test_composition_sum_rides_a_named_sum_cage(builder: Callable[[], str]) -> None:
+    # The doubler / S-cell + sum composition carries its sum on a `Sum`-named
+    # cosmetic cage: no cage-bearing cosmetic block is left unnamed, so no live
+    # rule rides an unnamed cage the coming warn-drop would silence (spec #431).
+    blocks = _caged_2001_blocks(builder())
+    assert blocks, "expected at least one cage-bearing cosmetic block"
+    for block in blocks:
+        assert block.get("name"), f"unnamed cage-bearing cosmetic block: {block}"
+
+
+def test_sumless_cage_stays_a_bare_named_cage_and_reads_broke(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A `Sum`-named cage with an empty value emits a live no-repeats `cage`
+    # (and no `group-sum`), and that no-repeats rule alone breaks the board.
+    # Naming it moves the rule off the unnamed cosmetic path (spec #431)
+    # without changing the verdict.
+    link = syn.broke_cosmetic_cage_sumless_4x4()
+    puzzle, _ = decode_link(link)
+    assert any(c.type == "cage" for c in puzzle.constraints)
+    assert all(c.type != "group-sum" for c in puzzle.constraints)
+    assert all(b.get("name") for b in _caged_2001_blocks(link))
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (1, "broke")
+
+
 def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
