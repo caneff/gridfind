@@ -5,7 +5,9 @@ block's top-level `name` sorted into `"ordinary"`, `"doubler"`, `"s-cell"`, or
 enablement by block *presence* (`_has_scell_marker_block`) and pinning by cell
 *membership* (`_scell_marker_values`) — and the display-only marker colorizer
 (`colorize_marker_cages`) that ranks the marker kinds a link actually carries
-onto a fixed palette.
+onto a fixed palette. The public `MARKER_LABELS` dict is the classifier's own
+concept -> (kind, accepted-names) table, read directly by `setter_guide.py`'s
+cage-name-alias rendering.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from typing import Any, Literal, cast
 
 from gridfind.sudokumaker.boundary import _enabled_blocks
 from gridfind.sudokumaker.cells import _addresses
-from gridfind.sudokumaker.naming import _named_component
+from gridfind.sudokumaker.naming import _aliases_by_role, _normalize_component_name
 
 # type 2001 is a cosmetic-cage block: `{cages: [{value: str, cells: [...]}]}`,
 # the same nested wire shape as a `type 301` killer block — SudokuMaker's
@@ -34,6 +36,25 @@ _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 
 CosmeticCageKind = Literal["ordinary", "doubler", "s-cell", "unrecognized"]
 
+# The role -> resulting kind a `type 2001` block's name classifies to. Paired
+# with `naming._aliases_by_role`'s role -> accepted-label-set grouping below to
+# build `MARKER_LABELS`, the one public table both `cosmetic_cage_kind` and
+# `setter_guide.py`'s cage-name table read — a name-bearing role has exactly
+# one kind, so this mapping cannot itself drift from the registry.
+_ROLE_KIND: dict[str, CosmeticCageKind] = {
+    "killer": "ordinary",
+    "doubler": "doubler",
+    "s-cell": "s-cell",
+}
+
+# Concept -> (the `cosmetic_cage_kind` result, its accepted `type 2001` names).
+# A real cross-package contract: `cosmetic_cage_kind` classifies through it,
+# and `setter_guide.py`'s cage-name-alias table renders it directly, so the
+# kind<->label pairing has one public home that cannot drift between them.
+MARKER_LABELS: dict[str, tuple[CosmeticCageKind, frozenset[str]]] = {
+    role: (_ROLE_KIND[role], labels) for role, labels in _aliases_by_role().items()
+}
+
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     """Classify a `type 2001` block's top-level `name` (ADR-0012) into one of
@@ -42,16 +63,20 @@ def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     `Doubler` position marker), `"s-cell"` (an `S-cell`/`Schrödinger` position
     marker), or `"unrecognized"` (a name `decode_link` cannot answer for).
     Matching is case-insensitive and trimmed, via the shared
-    `naming._named_component` lookup.
+    `naming._normalize_component_name` helper, then looked up against the
+    public `MARKER_LABELS` table.
 
     This is the one home the named-cosmetic-cage reads route through — the cage
     decoder, the S-cell presence and membership channels, marker colorizing,
     and dev tools that recognize a marker block without decoding the whole
     link all switch on this kind."""
-    component = _named_component(name)
-    if component is None:
-        return "unrecognized" if isinstance(name, str) and name.strip() else "ordinary"
-    return "ordinary" if component.role == "killer" else component.role
+    normalized = _normalize_component_name(name)
+    if normalized is None:
+        return "ordinary"
+    for kind, labels in MARKER_LABELS.values():
+        if normalized in labels:
+            return kind
+    return "unrecognized"
 
 
 def _is_scell_block(block: dict[Any, Any]) -> bool:

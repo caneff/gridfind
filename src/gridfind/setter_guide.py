@@ -1,8 +1,8 @@
 """Render the accepted-link setter guide page from the decoder's own
 constants (ADR-0013). `render()` is pure: it reads
-`sudokumaker.DECODER_REGISTRY`, the name -> shape registry's per-role alias
-groups, and `BOX_SHAPE`, fills them into `setter_guide_template.html`'s
-`$slot` placeholders, and returns the full page HTML. The committed copy at
+`sudokumaker.registry.DECODER_REGISTRY`, `sudokumaker.markers.MARKER_LABELS`,
+and `BOX_SHAPE`, fills them into `setter_guide_template.html`'s `$slot`
+placeholders, and returns the full page HTML. The committed copy at
 `docs/accepted-link-setter-guide.html` is a build product of this function —
 `setter_guide_test.py`'s freshness test fails the moment the two diverge."""
 
@@ -13,10 +13,8 @@ import pathlib
 import string
 
 from gridfind.cell_geometry import BOX_SHAPE
-from gridfind.sudokumaker import DECODER_REGISTRY
-from gridfind.sudokumaker.naming import _aliases_by_role
-
-_CAGE_NAME_ROLES = _aliases_by_role()
+from gridfind.sudokumaker.markers import MARKER_LABELS
+from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 _TEMPLATE_PATH = pathlib.Path(__file__).with_name("setter_guide_template.html")
 _LINKS_DIR = pathlib.Path(__file__).with_name("links")
@@ -39,7 +37,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "positive-diagonal": "found-x-sudoku-4x4",
 }
 
-# One canonical display label per cage-name role, paired with the registry's
+# One canonical display label per cage-name role, paired with `MARKER_LABELS`'s
 # alias set for that role, the role blurb, and a "found" corpus example.
 # "Canonical" is a presentation choice — the decoder treats every alias in a
 # role identically (ADR-0013) — so it lives here, not in sudokumaker. The
@@ -50,19 +48,19 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
 _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
     (
         "sum",
-        _CAGE_NAME_ROLES["killer"],
+        MARKER_LABELS["killer"][1],
         "Decorative label on a genuine killer cage",
         "found-cage-4x4",
     ),
     (
         "doubler",
-        _CAGE_NAME_ROLES["doubler"],
+        MARKER_LABELS["doubler"][1],
         "Doubler position marker",
         "found-doubler-4x4",
     ),
     (
         "s-cell",
-        _CAGE_NAME_ROLES["s-cell"],
+        MARKER_LABELS["s-cell"][1],
         (
             "S-cell / Schrödinger position marker; the cage's numeric label supplies "
             "each marked cell's directive — a pin (two digits), a half-pin (one "

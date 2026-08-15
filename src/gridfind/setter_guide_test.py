@@ -12,8 +12,8 @@ import re
 
 from gridfind import setter_guide
 from gridfind.layers.regions import BOX_SHAPE
-from gridfind.sudokumaker import DECODER_REGISTRY
-from gridfind.sudokumaker.naming import _aliases_by_role
+from gridfind.sudokumaker.markers import MARKER_LABELS
+from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 _COMMITTED_PAGE = (
     pathlib.Path(__file__).resolve().parent.parent.parent
@@ -29,7 +29,9 @@ _SETTER_FACING_ENTRIES = [
 ]
 
 
-_ALL_CAGE_NAMES: frozenset[str] = frozenset().union(*_aliases_by_role().values())
+_ALL_CAGE_NAMES: frozenset[str] = frozenset().union(
+    *(labels for _kind, labels in MARKER_LABELS.values())
+)
 
 
 def test_every_cage_name_present_capitalized() -> None:

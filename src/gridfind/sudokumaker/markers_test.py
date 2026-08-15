@@ -42,7 +42,7 @@ from gridfind.sudokumaker.conftest import (
     encode_document,
     mask,
 )
-from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE
+from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE, MARKER_LABELS
 from gridfind.verdict import verdict
 
 # A Schrödinger link's own cosmetic vocabulary: unknown types the decoder must
@@ -134,6 +134,29 @@ def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> 
     # read routes through (ADR-0012): ordinary killer cage, Doubler marker,
     # S-cell marker, or an unrecognized name the decoder refuses.
     assert cosmetic_cage_kind(name) == expected
+
+
+def test_marker_labels_covers_killer_doubler_and_s_cell_roles() -> None:
+    # MARKER_LABELS is the public concept -> (kind, accepted-names) table
+    # setter_guide.py's cage-name-alias rows read directly; every cage-name
+    # role cosmetic_cage_kind recognizes has an entry here.
+    assert set(MARKER_LABELS) == {"killer", "doubler", "s-cell"}
+
+
+@pytest.mark.parametrize(
+    ("role", "kind"),
+    [("killer", "ordinary"), ("doubler", "doubler"), ("s-cell", "s-cell")],
+)
+def test_marker_labels_every_listed_name_classifies_to_its_own_kind(
+    role: str, kind: str
+) -> None:
+    # Every name MARKER_LABELS lists under a role must classify to that
+    # role's kind through cosmetic_cage_kind — the two cannot drift since
+    # cosmetic_cage_kind reads this same table.
+    _listed_kind, labels = MARKER_LABELS[role]
+    assert _listed_kind == kind
+    for name in labels:
+        assert cosmetic_cage_kind(name) == kind
 
 
 # --- Doubler marker cage -------------------------------------------------

@@ -12,8 +12,7 @@
 
 The guide tells a setter how to build a SudokuMaker link gridfind will accept.
 Three of its lists already live in the decoder: the recognized cosmetic-cage
-names (`_NAMED_KILLER_CAGE_LABELS` / `_DOUBLER_MARKER_LABELS` /
-`_SCELL_MARKER_LABELS`), the supported constraint types (`DECODER_REGISTRY`),
+names (`MARKER_LABELS`), the supported constraint types (`DECODER_REGISTRY`),
 and the box-convention sizes (`BOX_SHAPE`). Hand-copied into a page, each list
 lies the moment the code changes — the exact failure `CODING_STANDARDS.md`
 names ("a stale comment lies").
@@ -38,7 +37,7 @@ setter can open it directly.
 
 | Page content | Source |
 |---|---|
-| Recognized cage-name → role table | the three name frozensets, imported |
+| Recognized cage-name → role table | `MARKER_LABELS`, imported |
 | Supported constraint-type table | `DECODER_REGISTRY`, imported |
 | Box-convention size table (`{4, 6, 9}`) | `BOX_SHAPE`, imported |
 | Per-constraint facts: wire block, decode result, accept/ignore/reject | new description fields on `DecodedType` |
