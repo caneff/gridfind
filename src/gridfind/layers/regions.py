@@ -16,11 +16,10 @@ is the one table, and `CellGeometry.box_shape` is a board's own resolved
 entry from it. `box_regions` is the one tiling generator, here because it is
 region-specific, not shared infrastructure.
 
-`region_map_for` is the one door onto all of it: the setter's own map when
-given, an already-resolved `box_shape` when the caller holds a
-`CellGeometry`, the table lookup by size otherwise.
+`region_map_for` is the one door onto the classic box tiling: the table
+lookup by size.
 
-`region_map_from_labels` reads the other supplied shape: a
+`region_map_from_labels` reads the setter-supplied shape: a
 setter's `regions-distinct` constraint carries `params["regions"]` as a flat,
 row-major array of one integer label per cell — SudokuMaker's own jigsaw wire
 shape, not a `RegionMap`. It converts and validates in one step: the matrix
@@ -31,10 +30,10 @@ the solver reports as broke, never a validator's judgment.
 
 `region_map_for_constraints` is the one door onto a whole
 constraint list rather than a single already-found constraint: it scans for
-`regions-distinct` and picks jigsaw vs. box tiling exactly as `region_map_for`
-would, but also owns the third case neither of the above two decide alone —
-no `regions-distinct` constraint at all, which resolves to one region
-covering the whole board. `build_stack`, the witness render path, and
+`regions-distinct` and picks jigsaw (`region_map_from_labels`) vs. box tiling
+(`region_map_for`), but also owns the third case neither of the above two
+decide alone — no `regions-distinct` constraint at all, which resolves to one
+region covering the whole board. `build_stack`, the witness render path, and
 `witness_validator` all cross this one seam instead of each re-deriving
 the same three-way branch, which is what let them quietly resolve
 different partitions.
@@ -78,26 +77,17 @@ def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
     ]
 
 
-def region_map_for(
-    size: int,
-    supplied: RegionMap | None = None,
-    *,
-    box_shape: tuple[int, int] | None = None,
-) -> RegionMap:
-    """The region map a `size`x`size` board runs on: the setter's own map when
-    given, `box_shape` when the caller already resolved one off its
-    `CellGeometry`, the `BOX_SHAPE` table by size otherwise. Three sources,
-    one shape — a setter-supplied map or an already-resolved box shape is not
-    a second path beside the table lookup, each supplies what the lookup
-    would otherwise compute.
+def region_map_for(size: int) -> RegionMap:
+    """The region map a `size`x`size` board tiles by convention — the
+    `BOX_SHAPE` table by size. A setter's own jigsaw map goes through
+    `region_map_from_labels` instead; this door only resolves the classic
+    box tiling.
 
     The refusal sits here, on the fallback, not on the consumer: only a board
     asking to be tiled by convention needs a convention to exist, so a 5x5
     carrying its own region map is perfectly legal.
     """
-    if supplied is not None:
-        return supplied
-    resolved = box_shape if box_shape is not None else BOX_SHAPE.get(size)
+    resolved = BOX_SHAPE.get(size)
     if resolved is None:
         msg = f"no classic box convention for a {size}x{size} board"
         raise GridfindError(msg)

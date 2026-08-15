@@ -2,7 +2,7 @@
 
 Assembles the layer registry from the per-layer modules as an explicit list —
 no decorator, no import-side-effect auto-discovery — and holds the one door
-from a puzzle's constraints to a layer stack (`build_stack`, `canonical_identity`,
+from a puzzle's constraints to a layer stack (`build_stack`,
 `UnknownLayerError`) that `verdict.py` consumes.
 
 `gridfind.layers` is **internal-only** — no external or plugin callers. Its committed
@@ -24,7 +24,6 @@ from gridfind.layers.cage import Cage
 from gridfind.layers.distinct import (
     DistinctOverGroups,
     cols,
-    diagonals,
     negative_diagonal,
     positive_diagonal,
     regions,
@@ -52,7 +51,6 @@ __all__ = [
     "SBlindLayerError",
     "UnknownLayerError",
     "build_stack",
-    "canonical_identity",
 ]
 
 
@@ -65,7 +63,6 @@ LAYER_REGISTRY = {
     "rows-distinct": DistinctOverGroups("rows-distinct", rows),
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
     "regions-distinct": DistinctOverGroups("regions-distinct", regions),
-    "diagonal": DistinctOverGroups("diagonal", diagonals),
     "negative-diagonal": DistinctOverGroups("negative-diagonal", negative_diagonal),
     "positive-diagonal": DistinctOverGroups("positive-diagonal", positive_diagonal),
     "line-count-distinct": LineCountDistinct(),
@@ -185,24 +182,3 @@ def build_stack(
             layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
     refuse_s_blind_over_widening(layers)
     return canonical, list(layers.values())
-
-
-def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
-    """A puzzle's identity: its expanded constraint set, alphabetically
-    normalized. The preset spelling and the explicit spelling compare equal
-    (the duplicate-detection rule, over constraints instead of a stack string).
-
-    ponytail: keys on constraint `type` only — right for the sudoku family (all
-    bare constraints). Data-bearing constraints collide: killer cages on
-    `value`, group-sum clues (the `x`/`v` aliases included) on `sum`, and now
-    the value seam's affine modifiers (`+N`, coefficients) on their params —
-    two puzzles differing only there compare identical.
-    Left alone: the only caller is a pytest-id label in this module's own test
-    suite, not a runtime dedup, and folding params in would make that id worse
-    (`killercage:24` noise), not better. Discovered modifiers (doubler) declare
-    a rule with no cell data, so `type` already tells them apart. Fold params
-    in when a real dedup caller needs it.
-    """
-    return tuple(
-        sorted({constraint.type for constraint in expand_constraints(constraints)})
-    )

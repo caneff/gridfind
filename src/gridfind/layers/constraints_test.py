@@ -1,12 +1,7 @@
 import pytest
 
 from gridfind.engine import MalformedPuzzleError, build_engine
-from gridfind.layers import (
-    SBlindLayerError,
-    UnknownLayerError,
-    build_stack,
-    canonical_identity,
-)
+from gridfind.layers import SBlindLayerError, UnknownLayerError, build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
@@ -34,25 +29,6 @@ def test_sudoku_preset_expands_to_exactly_the_three_distinct_constraints() -> No
         Constraint(type="cols-distinct"),
         Constraint(type="regions-distinct"),
     ]
-
-
-def test_sudoku_and_the_explicit_three_share_one_canonical_identity() -> None:
-    preset = (Constraint(type="sudoku"),)
-    explicit = (
-        Constraint(type="rows-distinct"),
-        Constraint(type="cols-distinct"),
-        Constraint(type="regions-distinct"),
-    )
-
-    assert canonical_identity(preset) == canonical_identity(explicit)
-
-
-def test_canonical_identity_is_order_independent() -> None:
-    # Set-based identity: the same constraints spelled in any order collapse.
-    forward = (Constraint(type="rows-distinct"), Constraint(type="cols-distinct"))
-    reversed_ = (Constraint(type="cols-distinct"), Constraint(type="rows-distinct"))
-
-    assert canonical_identity(forward) == canonical_identity(reversed_)
 
 
 def test_two_constraints_of_one_type_resolve_to_a_single_layer_instance() -> None:

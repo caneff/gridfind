@@ -83,30 +83,6 @@ class CellGeometry:
         target = cell_address(row + delta_row, col + delta_col)
         return target if target in declared else None
 
-    @property
-    def diagonals(self) -> tuple[list[str], list[str]]:
-        """The two long diagonals as address cell-sets: the main diagonal
-        (top-left to bottom-right) and the anti-diagonal (top-right to
-        bottom-left), each of `size` cells (ADR-0004).
-
-        The descriptor's exposure of the diagonals for any reader that wants
-        them by address — an outside-clue line-walk, a witness renderer. The
-        X-sudoku layer does not read this property; it cuts the same slice off
-        the content grid through the shared `main_diagonals`, so the two agree
-        without one depending on the other."""
-        return main_diagonals(self.grid)
-
-    def walk(self, cell: str, delta_row: int, delta_col: int) -> list[str]:
-        """The ordered line of cells reached by repeated `step` from `cell` in
-        the `(delta_row, delta_col)` direction, until it leaves the cell space.
-        Excludes `cell`; empty when the first step is already off-space."""
-        line: list[str] = []
-        current = self.step(cell, delta_row, delta_col)
-        while current is not None:
-            line.append(current)
-            current = self.step(current, delta_row, delta_col)
-        return line
-
     def _declared(self) -> frozenset[str]:
         """The set of declared cell addresses — the membership the stepper
         resolves against. Rebuilt per call; the cell space is small
@@ -117,8 +93,9 @@ class CellGeometry:
 def main_diagonals[Cell](grid: list[list[Cell]]) -> tuple[list[Cell], list[Cell]]:
     """The two long diagonals of a square grid: `(main, anti)`. Generic over
     the grid's cells (addresses off `CellGeometry.grid`, or content sequences
-    off `grid_content`), so the descriptor and the distinct layer cut the
-    diagonals from one place instead of each indexing its own copy."""
+    off `grid_content`), so the `negative-diagonal`/`positive-diagonal`
+    layers cut the diagonals from one place instead of each indexing its own
+    copy."""
     size = len(grid)
     main = [grid[i][i] for i in range(size)]
     anti = [grid[i][size - 1 - i] for i in range(size)]
