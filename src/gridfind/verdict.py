@@ -13,7 +13,7 @@ working states over one puzzle, so no build-once/race-many API is offered
 
 `verdict()` keeps only assemble-solve-classify: applying the
 working state onto the model is `gridfind.applier.apply`, and the broke-path
-diagnosis is `gridfind.layers.regions.reason`. `_solve_phase1` is the shared
+diagnosis is `gridfind.layers.regions.reason`. `_build_and_solve` is the shared
 build-and-solve core: `verdict()` classifies its raw result directly, and the
 coming `enumerate_witnesses()` (spec #389, decision #20) reuses the same core
 so the two functions cannot drift in how they assemble or apply the puzzle.
@@ -40,8 +40,8 @@ DEFAULT_NUM_WORKERS = 8
 
 
 @dataclass(frozen=True)
-class _Phase1Result:
-    """The raw materials of a phase-1 build-and-solve, unclassified."""
+class _BuildSolveResult:
+    """The raw materials of a build-and-solve, unclassified."""
 
     engine: Engine
     solver: cp_model.CpSolver
@@ -49,13 +49,13 @@ class _Phase1Result:
     canonical: tuple[Constraint, ...]
 
 
-def _solve_phase1(
+def _build_and_solve(
     puzzle: Puzzle,
     working_state: WorkingState,
     *,
     time_limit_s: float,
     num_workers: int,
-) -> _Phase1Result:
+) -> _BuildSolveResult:
     """Build the puzzle, apply the working state, and race a broke-proof
     against a witness-find. Returns the raw engine/solver/status/constraints
     for the caller to classify."""
@@ -74,7 +74,7 @@ def _solve_phase1(
     solver.parameters.num_workers = num_workers
     status = solver.solve(engine.model)
 
-    return _Phase1Result(
+    return _BuildSolveResult(
         engine=engine, solver=solver, status=status, canonical=tuple(canonical)
     )
 
@@ -101,19 +101,19 @@ def verdict(
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
     num_workers: int = DEFAULT_NUM_WORKERS,
 ) -> Verdict:
-    phase1 = _solve_phase1(
+    solved = _build_and_solve(
         puzzle, working_state, time_limit_s=time_limit_s, num_workers=num_workers
     )
 
-    if phase1.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        region_map = region_map_for_constraints(phase1.canonical, puzzle.board.size)
+    if solved.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
         witness = Witness(
-            grid=phase1.engine.grid(),
-            assignment=phase1.engine.assignment(phase1.solver),
+            grid=solved.engine.grid(),
+            assignment=solved.engine.assignment(solved.solver),
             region_map=region_map,
-            modifiers=phase1.engine.discovered_modifiers(phase1.solver),
+            modifiers=solved.engine.discovered_modifiers(solved.solver),
         )
         return Verdict(kind="found", witness=witness)
-    if phase1.status == cp_model.INFEASIBLE:
+    if solved.status == cp_model.INFEASIBLE:
         return Verdict(kind="broke", reason=reason(puzzle))
     return Verdict(kind="unknown")
