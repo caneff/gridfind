@@ -282,10 +282,13 @@ def _doubler_document(
     doubler_cells: list[int],
     with_scell_block: bool = False,
 ) -> dict[str, object]:
-    """A 4x4 jigsaw doubler document: `type 0` givens, `type 1` regions, an
-    unnamed `type 2001` killer block for the sum cages, and a named `Doubler`
-    marker block that stands up the modifier directives. With `with_scell_block`
-    a named-but-empty `S-cell` block rides along, enabling Schrödinger mode by
+    """A 4x4 jigsaw doubler document: `type 0` givens, `type 1` regions, a
+    `Sum`-named `type 2001` killer block for the sum cages, and a named `Doubler`
+    marker block that stands up the modifier directives. The sum rides a named
+    `Sum` cage, so no live rule sits on an unnamed cosmetic block — the path
+    spec #431's warn-drop silences; a `Sum` label decodes to a killer cage the
+    same as an unnamed block (ADR-0012). With `with_scell_block` a
+    named-but-empty `S-cell` block rides along, enabling Schrödinger mode by
     presence (widening the domain to `0…N`, giving every cell `is_s` freedom to
     be discovered) without pinning any cell (ADR-0014)."""
     cells: list[dict[str, object]] = [{} for _ in range(16)]
@@ -294,7 +297,12 @@ def _doubler_document(
     constraints: list[dict[str, object]] = [
         {"type": 0},
         {"type": 1, "regions": _DOUBLER_REGIONS},
-        {"type": 2001, "cages": sum_cages, "style": _authored_cage_style()},
+        {
+            "name": "Sum",
+            "type": 2001,
+            "cages": sum_cages,
+            "style": _authored_cage_style(),
+        },
         {
             "name": "Doubler",
             "type": 2001,
@@ -352,6 +360,31 @@ def broke_doubler_4x4() -> str:
     )
 
 
+def broke_cosmetic_cage_sumless_4x4() -> str:
+    """4x4 jigsaw, `broke` — a `Sum`-named cosmetic cage with an empty value
+    over two cells in different boxes. The empty value emits no `group-sum`, so
+    the cage is a bare no-repeats rule; that rule alone makes the board
+    unsatisfiable (drop the cage and it reads found). The cage is named `Sum`,
+    not an unnamed cosmetic block, so its live no-repeats rule never rides the
+    unnamed path spec #431's warn-drop silences; a `Sum` label decodes to a
+    killer cage the same as an unnamed block (ADR-0012)."""
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells[1] = {"given": True, "value": 2}
+    cells[7] = {"given": True, "value": 2}
+    constraints: list[dict[str, object]] = [
+        {"type": 0},
+        {"type": 1, "regions": _DOUBLER_REGIONS},
+        {
+            "name": "Sum",
+            "type": 2001,
+            "cages": [{"value": "", "cells": [0, 6]}],
+            "style": _authored_cage_style(),
+        },
+    ]
+    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
+    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+
+
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The
 # filename stem's first token is the e2e verdict (`found`/`broke`/`invalid`);
 # the drift-guard test re-runs each `fn` and refuses a hand-edited file.
@@ -368,6 +401,7 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-doubler-4x4": found_doubler_4x4,
     "found-doubled-scell-17cage-4x4": found_doubled_scell_17cage_4x4,
     "broke-doubler-4x4": broke_doubler_4x4,
+    "broke-cosmetic-cage-sumless-4x4": broke_cosmetic_cage_sumless_4x4,
 }
 
 
