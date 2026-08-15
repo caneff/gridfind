@@ -36,10 +36,21 @@ case-insensitive and whitespace-trimmed.
 
 | `name` on the block | Behavior |
 |---|---|
-| absent / empty | ordinary cosmetic cage → killer cage (a numeric `value` graduates a `group-sum`) |
+| absent / empty | no rule — loud stderr warn-drop naming the block ([#435](https://github.com/caneff/gridfind/issues/435)) |
 | recognized marker (`Doubler`, `S-cell`, `Schrödinger`) | position marker: emit per-cell directives, **no** `cage`/`group-sum` |
-| recognized real-cage label (`Sum`, `Killer`) | honored as an ordinary killer cage; the name is decorative |
-| present but unrecognized | **loud error** (raise `ValueError`); under the ignore flag, strip-and-honor as an ordinary killer cage |
+| recognized real-cage label (`Sum`, `Killer`) | honored as a killer cage; the name selects the rule |
+| present but unrecognized | no rule — loud stderr warn-drop naming the block, the same policy as absent ([#435](https://github.com/caneff/gridfind/issues/435)) |
+
+**Every name routes through one name → shape registry**
+([#431](https://github.com/caneff/gridfind/issues/431)/[#434](https://github.com/caneff/gridfind/issues/434)).
+`sudokumaker.naming` holds the single normalized-name → shape table: `Sum`/
+`Killer` are a `cage-selector` (needs a cage's cells + value), `Doubler` and
+`S-cell`/`Schrödinger` are a `cell-marker` (needs a cage's cells).
+`markers.cosmetic_cage_kind` reads a `type 2001` block's name through this
+registry; the same registry backs the `type 1000` custom-constraint
+carrier-fitness check in `registry._warn_on_dropped_constraints`, so a
+cage-shaped name stranded on a payload-less carrier warn-drops there too — one
+table, two carriers, one policy.
 
 **Marker semantics.** A `Doubler` block emits one modifier directive
 (`is_modifier=True`) per cell and no cage; the cell may still carry a given (a
@@ -67,7 +78,11 @@ the doubler on (synthesize the bare `doubler` constraint). The color read, the
 **Composition.** A cell may sit in a marker cage and a numeric-sum cosmetic cage
 at once; the marker path and the killer-cage path compose over the shared cell.
 The sample link shows exactly this — one cell is in the `S-cell` block *and* a
-`value: "9"` sum cage.
+`value: "9"` sum cage. Since an unnamed `type 2001` block carries no rule
+([#435](https://github.com/caneff/gridfind/issues/435)), the sum side of this
+composition must sit on a `Sum`-named block to survive the policy — the
+doubler/S-cell + sum corpus links were migrated onto a named `Sum` cage ahead
+of the flip ([#433](https://github.com/caneff/gridfind/issues/433)).
 
 ## Considered options
 
@@ -78,12 +93,25 @@ The sample link shows exactly this — one cell is in the `S-cell` block *and* a
   grid carry both variants without a second color the setter has to reserve.
 - **Sniff the variant from the color bit alone.** Rejected before and still:
   a bare bit is ambiguous, and both variants ride it. The name is unambiguous.
-- **Silently strip an unrecognized name and honor the cage.** Rejected as the
-  default: a typo'd marker (`Doubbler`) would silently compute a verdict under
-  the wrong ruleset — a dropped doubler is an unsound verdict. The loud error is
-  the default; the strip-and-honor path is opt-in via
-  `ignore_unknown_named_cages` (CLI `--ignore-unknown-named-cages`) for a setter
-  who knows the label is decoration.
+- **Silently strip an unrecognized name and honor the cage as a killer cage.**
+  Rejected outright, then and now: a typo'd marker (`Doubbler`) would silently
+  compute a verdict under the wrong ruleset — a dropped doubler is an unsound
+  verdict.
+- **Raise a loud error on an unrecognized name, downgradable via an opt-in
+  flag.** ADR-0012's original policy: refuse the whole document by default,
+  with `ignore_unknown_named_cages` (CLI `--ignore-unknown-named-cages`) as a
+  caller-declared downgrade to strip-and-honor for a setter who knew the label
+  was decoration. Retired by [#435](https://github.com/caneff/gridfind/issues/435):
+  the raise and the *silent* absent-name path were two different responses to
+  the same underlying fact — "this block has no name-selected rule" — and the
+  flag was a second knob a caller had to know to reach for.
+  **The uniform warn-drop collapses both to one policy: an unnamed cosmetic
+  cage carries no rule**, exactly like an unrecognized one, and both say so
+  loudly instead of one raising and the other staying silent.
+  `registry._warn_on_dropped_constraints` already loud-warns a misplaced name
+  on a `type 1000` constraint ([#434](https://github.com/caneff/gridfind/issues/434));
+  this makes the `type 2001` carrier consistent with it. No flag remains —
+  every caller sees the same behavior.
 
 ## Consequences
 
@@ -91,9 +119,10 @@ The sample link shows exactly this — one cell is in the `S-cell` block *and* a
   but its channel is now a cage name, not a color mark. Its decision 2 (the
   flag-gated color read) and its rejected "CLI names which color" coexistence
   option are superseded by this ADR. ADR-0008 carries a pointer here.
-- `decode_link` drops its `variant` parameter and gains
-  `ignore_unknown_named_cages: bool = False`; it infers the variant itself, so
+- `decode_link` drops its `variant` parameter; it infers the variant itself, so
   callers (`cli.py`, `witness_validator.py`, the raw-argv `verify_links` /
-  `eval_links` scripts) stop constructing a `LinkVariant`.
+  `eval_links` scripts) stop constructing a `LinkVariant`. It later drops
+  `ignore_unknown_named_cages` too ([#435](https://github.com/caneff/gridfind/issues/435))
+  — the uniform warn-drop leaves no refusal for a flag to downgrade.
 - Reading a `type 2001` block's name as a semantic channel is surprising without
   this context — this ADR is the why.

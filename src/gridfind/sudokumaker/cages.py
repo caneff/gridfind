@@ -8,6 +8,7 @@ it).
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, cast
@@ -15,7 +16,11 @@ from typing import Any, cast
 from gridfind.puzzle import Constraint, ModifierDirective
 from gridfind.sudokumaker.boundary import ConstraintBuckets, _enabled_blocks
 from gridfind.sudokumaker.cells import _addresses
-from gridfind.sudokumaker.markers import _COSMETIC_CAGE_TYPE, cosmetic_cage_kind
+from gridfind.sudokumaker.markers import (
+    _COSMETIC_CAGE_TYPE,
+    CosmeticCageKind,
+    cosmetic_cage_kind,
+)
 
 # type 301 is a killer-cage block: `cages: [{cells, value}]`. A
 # positive `value` is the killer sum, decoded onto a `group-sum` alongside the
@@ -79,10 +84,11 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
 @dataclass(frozen=True)
 class _CosmeticCageDecode:
     """The `Constraint`s and `ModifierDirective`s one `type 2001` block
-    decodes to — an ordinary (unnamed, or `Sum`/`Killer`-labelled) block
-    contributes killer-cage constraints, a `Doubler`-marked block contributes
-    modifier directives instead, and `concat` folds a link's worth of blocks
-    into the two lists `decode_link` reads."""
+    decodes to — a `Sum`/`Killer`-labelled block contributes killer-cage
+    constraints, a `Doubler`-marked block contributes modifier directives
+    instead, an unnamed or unrecognized-named block contributes nothing
+    (ADR-0012's warn-drop), and `concat` folds a link's worth of blocks into
+    the two lists `decode_link` reads."""
 
     constraints: tuple[Constraint, ...] = ()
     modifier_directives: tuple[ModifierDirective, ...] = ()
@@ -98,15 +104,28 @@ class _CosmeticCageDecode:
         )
 
 
+def _warn_dropped_cosmetic_cage(block: dict[str, Any], kind: CosmeticCageKind) -> None:
+    """Warn to stderr that a live `type 2001` block carries no rule: `kind` is
+    `"unnamed"` (absent/blank name) or `"unrecognized"` (a name the registry
+    doesn't answer for) — either way only a recognized name selects a rule
+    (ADR-0012), so the verdict is computed without this block. Named after
+    the case so the message tells the setter which one they hit."""
+    if kind == "unnamed":
+        msg = "warning: ignoring unnamed cosmetic cage — verdict computed without it"
+    else:
+        msg = (
+            f"warning: ignoring unrecognized named cage {block.get('name')!r} "
+            "— verdict computed without it"
+        )
+    print(msg, file=sys.stderr)
+
+
 def _cosmetic_cage_constraints(
-    buckets: ConstraintBuckets,
-    size: int,
-    *,
-    ignore_unknown_named_cages: bool = False,
+    buckets: ConstraintBuckets, size: int
 ) -> _CosmeticCageDecode:
     """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
-    (`cosmetic_cage_kind`, ADR-0012): an ordinary block graduates to
-    killer-cage `Constraint`s (ADR-0008) — cells and value
+    (`cosmetic_cage_kind`, ADR-0012): a `Sum`/`Killer`-labelled block
+    graduates to killer-cage `Constraint`s (ADR-0008) — cells and value
     nest under `cages`, the same wire shape as a `type 301` block, each cage's
     raw `cells` indices mapping row-major to addresses, every non-disabled
     cage emitting a no-repeats `cage` plus a `group-sum` when its numeric
@@ -116,22 +135,22 @@ def _cosmetic_cage_constraints(
     the cell list, just not a killer rule. An `S-cell`/`Schrödinger`-marked
     block emits nothing here: its cells become S-cell working-state directives
     in the per-cell decode pass (`_scell_marker_values` gathers them, cage
-    `value` and all), not a cage rule. An unrecognized name refuses the
-    whole block rather than decoding some cages under an unsound reading,
-    unless `ignore_unknown_named_cages` downgrades the refusal to
-    strip-and-honor as an ordinary cage. A `disabled` block is skipped
-    entirely; an empty `cages` list adds nothing."""
+    `value` and all), not a cage rule. An **unnamed** block, or one whose name
+    gridfind does not recognize, carries no rule at all — only a recognized
+    name selects one. A non-empty one is dropped with a loud stderr warning
+    naming the block or its unrecognized name; an empty one adds nothing and
+    warns nothing, the same as any other empty block. A `disabled` block is
+    skipped entirely."""
     decoded: list[_CosmeticCageDecode] = []
     for block in _enabled_blocks(buckets, _COSMETIC_CAGE_TYPE):
         kind = cosmetic_cage_kind(block.get("name"))
-        if kind == "unrecognized":
-            if not ignore_unknown_named_cages:
-                msg = f"non-classic link: unrecognized named cage {block['name']!r}"
-                raise ValueError(msg)
-            kind = "ordinary"
+        cages = cast("list[dict[str, Any]]", block.get("cages", []))
+        if kind in ("unnamed", "unrecognized"):
+            if cages:
+                _warn_dropped_cosmetic_cage(block, kind)
+            continue
         if kind == "s-cell":
             continue
-        cages = cast("list[dict[str, Any]]", block.get("cages", []))
         if kind == "doubler":
             modifiers = tuple(
                 ModifierDirective(address, is_modifier=True)

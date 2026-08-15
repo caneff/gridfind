@@ -242,14 +242,16 @@ def test_center_marks_layer_a_consistency_check_on_the_cage_pin(
 
 @pytest.mark.parametrize(
     "flag",
-    ["--schrodinger", "--doubler", "--reading"],
-    ids=["schrodinger", "doubler", "reading"],
+    ["--schrodinger", "--doubler", "--reading", "--ignore-unknown-named-cages"],
+    ids=["schrodinger", "doubler", "reading", "ignore-unknown-named-cages"],
 )
 def test_retired_variant_flags_are_rejected(
     flag: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # The color channel is gone: the CLI no longer accepts the variant flags,
     # so argparse refuses them (exit 2) rather than silently ignoring them.
+    # --ignore-unknown-named-cages retired alongside it (ADR-0012, #435): the
+    # uniform warn-drop policy leaves no refusal for it to downgrade.
     link = _classic_schrodinger_solution_link()
 
     with pytest.raises(SystemExit) as exc:
@@ -284,28 +286,21 @@ def _classic_named_cage_link(name: str, cage_value: int) -> str:
     return f"https://sudokumaker.app/?puzzle={payload}"
 
 
-def test_unrecognized_named_cage_exits_two_with_stderr(
+def test_unrecognized_named_cage_warns_and_drops(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # An unrecognized name carries no rule (ADR-0012, #435): the cage is
+    # dropped with a loud stderr warning, and the rest of the link — a
+    # complete, valid solution grid with no other constraint — still verdicts
+    # found.
     link = _classic_named_cage_link("Foobar", cage_value=9)
 
     code = cli.main([link], io.StringIO())
 
     captured = capsys.readouterr()
-    assert code == 2
-    assert captured.out == ""
-    assert "Foobar" in captured.err
-
-
-def test_ignore_unknown_named_cages_flag_strips_and_honors_the_cage(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    link = _classic_named_cage_link("Foobar", cage_value=9)
-
-    code = cli.main(["--ignore-unknown-named-cages", link], io.StringIO())
-
     assert code == 0
-    assert capsys.readouterr().out.split("\n")[0] == "found"
+    assert captured.out.split("\n")[0] == "found"
+    assert "Foobar" in captured.err
 
 
 def test_non_classic_link_exits_two_with_stderr(

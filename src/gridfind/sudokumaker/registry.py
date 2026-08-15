@@ -84,8 +84,8 @@ class DecodedType:
     this type's `Constraint`s from the link (`None` for a type with nothing to
     build through `decode_link`'s generic dispatch — a bare `type 0` is just
     the unconditional rows/cols, and `type 2001` cosmetic cages are dispatched
-    by hand for their extra ignore-flag argument and richer
-    `_CosmeticCageDecode` return; `type 1`'s regions live behind
+    by hand for their richer `_CosmeticCageDecode` return; `type 1`'s regions
+    live behind
     `_regions_constraints` like every other generically-dispatched handler),
     `live_keys` are the payload keys that mark this type's wire shape as
     carrying a real rule (read by `has_live_data`, generalized to unmodeled
@@ -178,15 +178,15 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             wire_block="type 2001 {cages:[{value:str, cells}], name?,"
             " style?} — value is a string; a top-level name may mark the"
             " block as a variant declaration.",
-            decode_result="name classifies the block: absent/Sum/Killer"
-            " decodes as a killer cage (a numeric non-zero string value"
-            " graduates to a group-sum); Doubler emits per-cell modifier"
-            " directives; S-cell/Schrödinger/Schrodinger infers"
-            " Schrödinger-ness and routes its cells through the per-cell"
-            " S-cell branch.",
-            verdict="Accept a recognized name. An unrecognized name raises"
-            " ValueError, downgradable to strip-and-honor via"
-            " ignore_unknown_named_cages. disabled blocks are skipped.",
+            decode_result="name classifies the block: Sum/Killer decodes as a"
+            " killer cage (a numeric non-zero string value graduates to a"
+            " group-sum); Doubler emits per-cell modifier directives;"
+            " S-cell/Schrödinger/Schrodinger infers Schrödinger-ness and"
+            " routes its cells through the per-cell S-cell branch; absent or"
+            " unrecognized carries no rule.",
+            verdict="Accept a recognized name. An unnamed or unrecognized"
+            " name is warn-and-dropped to stderr, naming the block."
+            " disabled blocks are skipped.",
         ),
     ),
     _THERMO_TYPE: DecodedType(

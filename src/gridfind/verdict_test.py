@@ -9,21 +9,23 @@ from gridfind.layers import UnknownLayerError
 from gridfind.layers.regions import box_regions
 from gridfind.puzzle import (
     EMPTY,
-    BareSCell,
-    BareSingleton,
     Board,
     Candidate,
     Constraint,
     Given,
-    HalfSCell,
     ModifierDirective,
     Placement,
     Puzzle,
+    WorkingState,
+)
+from gridfind.s_directives import (
+    BareSCell,
+    BareSingleton,
+    HalfSCell,
     SCellMarkRestriction,
     SCellPin,
     SDirective,
     SingletonPin,
-    WorkingState,
 )
 from gridfind.verdict import verdict
 

@@ -1,11 +1,11 @@
 """Named marker-cage classification (ADR-0012, homed here in #443, routed
 through the name -> shape registry in #434): a `type 2001` cosmetic-cage
-block's top-level `name` sorted into `"ordinary"`, `"doubler"`, `"s-cell"`, or
-`"unrecognized"` (`cosmetic_cage_kind`), the two S-cell channels that read it —
-enablement by block *presence* (`_has_scell_marker_block`) and pinning by cell
-*membership* (`_scell_marker_values`) — and the display-only marker colorizer
-(`colorize_marker_cages`) that ranks the marker kinds a link actually carries
-onto a fixed palette.
+block's top-level `name` sorted into `"unnamed"`, `"killer"`, `"doubler"`,
+`"s-cell"`, or `"unrecognized"` (`cosmetic_cage_kind`), the two S-cell channels
+that read it — enablement by block *presence* (`_has_scell_marker_block`) and
+pinning by cell *membership* (`_scell_marker_values`) — and the display-only
+marker colorizer (`colorize_marker_cages`) that ranks the marker kinds a link
+actually carries onto a fixed palette.
 """
 
 from __future__ import annotations
@@ -36,17 +36,20 @@ _COSMETIC_CAGE_TYPE = 2001
 # types (`_MARKER_KIND_PRIORITY`, near `colorize_marker_cages`).
 _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 
-CosmeticCageKind = Literal["ordinary", "doubler", "s-cell", "unrecognized"]
+CosmeticCageKind = Literal["unnamed", "killer", "doubler", "s-cell", "unrecognized"]
 
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     """Classify a `type 2001` block's top-level `name` (ADR-0012) into one of
-    four kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
-    label on a genuine cage — the registry's `"killer"` role), `"doubler"` (a
-    `Doubler` position marker), `"s-cell"` (an `S-cell`/`Schrödinger` position
-    marker), or `"unrecognized"` (a name `decode_link` cannot answer for).
-    Matching is case-insensitive and trimmed, via the shared
-    `naming._named_component` lookup.
+    five kinds: `"unnamed"` (absent/blank — a purely decorative block that
+    carries no rule), `"killer"` (a recognized `Sum`/`Killer` label that
+    selects the killer-cage rule), `"doubler"` (a `Doubler` position marker),
+    `"s-cell"` (an `S-cell`/`Schrödinger` position marker), or
+    `"unrecognized"` (a name `decode_link` cannot answer for). `"unnamed"` and
+    `"unrecognized"` share the same fate downstream — a loud stderr warn-drop,
+    never a rule (ADR-0012) — but stay distinct kinds here since the warning
+    they produce names the block differently. Matching is case-insensitive
+    and trimmed, via the shared `naming._named_component` lookup.
 
     This is the one home the named-cosmetic-cage reads route through — the cage
     decoder, the S-cell presence and membership channels, marker colorizing,
@@ -54,8 +57,8 @@ def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     link all switch on this kind."""
     component = _named_component(name)
     if component is None:
-        return "unrecognized" if isinstance(name, str) and name.strip() else "ordinary"
-    return "ordinary" if component.role == "killer" else component.role
+        return "unrecognized" if isinstance(name, str) and name.strip() else "unnamed"
+    return component.role
 
 
 def _is_scell_block(block: dict[Any, Any]) -> bool:
@@ -116,9 +119,9 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     `_MARKER_KIND_PRIORITY` and assigned `_MARKER_COLOR_PALETTE` slots in that
     order, so a link with only one marker type always colors it red
     (`_MARKER_COLOR_PALETTE[0]`), whichever type it is, while a link mixing
-    types gives S-cell red and Doubler the next slot. An ordinary (unnamed or
-    Sum/Killer-labelled) cosmetic-cage block, an unrecognized name, and every
-    other constraint type ride through uncolored. The written field is
+    types gives S-cell red and Doubler the next slot. An unnamed cosmetic-cage
+    block, a Sum/Killer-labelled one, an unrecognized name, and every other
+    constraint type ride through uncolored. The written field is
     display-only: `decode_link` never reads a cosmetic-cage block's `style`,
     so a decode of the result agrees with a decode of `document`."""
     colored: dict[str, object] = json.loads(json.dumps(document))

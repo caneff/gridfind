@@ -9,10 +9,7 @@ and a stdin and read back stdout and the exit code;
 `console_main` only wires `sys` for the `[project.scripts]` entry point.
 
 Variants (doubler, Schrödinger) are inferred from the link's named marker
-cages, so the CLI takes no variant flag. `--ignore-unknown-named-cages`
-downgrades an unrecognized named cosmetic cage from a refusal to
-strip-and-honor; it is meaningless for a `{puzzle, working_state}` document
-and simply carried unused in that branch.
+cages, so the CLI takes no variant flag.
 
 Example:
     $ gridfind puzzle.json      # or:  gridfind < puzzle.json
@@ -66,12 +63,6 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         help="a JSON document path or a SudokuMaker link; omit or use '-' "
         "to read stdin",
     )
-    parser.add_argument(
-        "--ignore-unknown-named-cages",
-        action="store_true",
-        help="strip and honor a cosmetic cage named something other than "
-        "Sum/Killer as an ordinary killer cage, instead of refusing the link",
-    )
     args = parser.parse_args(argv)
 
     try:
@@ -90,10 +81,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         return 2
 
     try:
-        result = _verdict_of(
-            text,
-            ignore_unknown_named_cages=args.ignore_unknown_named_cages,
-        )
+        result = _verdict_of(text)
     except (
         json.JSONDecodeError,
         KeyError,
@@ -110,17 +98,10 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
     return 0 if result.kind == "found" else 1
 
 
-def _verdict_of(
-    text: str,
-    *,
-    ignore_unknown_named_cages: bool = False,
-) -> Verdict:
+def _verdict_of(text: str) -> Verdict:
     stripped = text.strip()
     if _is_link(stripped):
-        puzzle, state = decode_link(
-            stripped,
-            ignore_unknown_named_cages=ignore_unknown_named_cages,
-        )
+        puzzle, state = decode_link(stripped)
     else:
         doc = json.loads(stripped)
         puzzle = Puzzle.from_dict(doc["puzzle"])
