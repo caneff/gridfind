@@ -21,7 +21,9 @@ three (map #1, decision 15). The core runs **pure-satisfaction** search — it
 races a broke-proof against a witness-find, never an objective solve.
 
 - **found** — a **witness** exists; here it is. The first solution CP-SAT
-  returns, with no enumeration and no uniqueness claim.
+  returns, with no enumeration and no uniqueness claim. The exact-count signal
+  is opt-in: `enumerate_witnesses` asks for up to N distinct completions when a
+  caller wants uniqueness or a count (decision #382).
 - **broke** — proven that **no** completion exists (the space is infeasible).
   A change that merely lands on a _different_ valid grid is not broke — that is a
   different valid puzzle. Broke is a consistency claim: does any completion
@@ -41,7 +43,9 @@ races a broke-proof against a witness-find, never an objective solve.
   [#107](https://github.com/caneff/gridfind/issues/107)).
 
 - **witness** — a concrete full grid satisfying every rule in the stack. The
-  proof object returned by **found** — a usable grid, not just a yes.
+  proof object returned by **found** — a usable grid, not just a yes. Two
+  witnesses are distinct iff their full per-cell assignment differs, taken
+  literally with no symmetry reasoning ([ADR-0015](docs/adr/0015-witness-identity-is-the-full-assignment.md)).
 
 - **result** — what asking for a verdict hands back: the verdict itself, plus
   the **witness** when the verdict is **found**. The verdict is the word; the
