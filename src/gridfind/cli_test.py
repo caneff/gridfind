@@ -94,10 +94,14 @@ def test_sudokumaker_link_argument_prints_found_and_grid(
 def test_sudokumaker_link_on_stdin_matches_argument(
     capsys: pytest.CaptureFixture[str], classic_link: str
 ) -> None:
+    cli.main([classic_link], io.StringIO())
+    argument_out = capsys.readouterr().out
+
     code = cli.main([], io.StringIO(f"{classic_link}\n"))
+    stdin_out = capsys.readouterr().out
 
     assert code == 0
-    assert capsys.readouterr().out.split("\n")[0] == "found"
+    assert stdin_out == argument_out
 
 
 def _classic_schrodinger_solution_link(
@@ -251,11 +255,11 @@ def test_retired_variant_flags_are_rejected(
     # The color channel is gone: the CLI no longer accepts the variant flags,
     # so argparse refuses them (exit 2) rather than silently ignoring them.
     # --ignore-unknown-named-cages retired alongside it (ADR-0012, #435): the
-    # uniform warn-drop policy leaves no refusal for it to downgrade.
-    link = _classic_schrodinger_solution_link()
-
+    # uniform warn-drop policy leaves no refusal for it to downgrade. argparse
+    # rejects the flag before the puzzle argument is ever read, so a
+    # throwaway string proves the point as well as a real link.
     with pytest.raises(SystemExit) as exc:
-        cli.main([flag, link], io.StringIO())
+        cli.main([flag, "ignored"], io.StringIO())
 
     assert exc.value.code == 2
 

@@ -818,19 +818,34 @@ def test_verdict_rejects_a_regions_matrix_with_a_non_integer_entry(
 
 
 def test_sudoku_preset_matches_the_explicit_three_distinct_constraints() -> None:
-    givens = (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5))
+    # Two directions, since either alone leaves a gap: the broke case alone
+    # can't catch a preset that expands to *more* than the trio (an extra
+    # rule only tightens an already-broke puzzle), and the found case alone
+    # can't catch one that expands to *less* (a missing rule can only loosen
+    # an already-found puzzle). Together they pin the preset to exactly the
+    # trio, neither over- nor under-expanding.
     explicit = (
         Constraint(type="rows-distinct"),
         Constraint(type="cols-distinct"),
         Constraint(type="regions-distinct"),
     )
 
-    preset_result = verdict(
-        Puzzle(board=BOARD, constraints=(Constraint(type="sudoku"),), givens=givens)
+    broke_givens = (Given(address="R1C1", digit=5), Given(address="R2C2", digit=5))
+    preset_broke = verdict(
+        Puzzle(
+            board=BOARD, constraints=(Constraint(type="sudoku"),), givens=broke_givens
+        )
     )
-    explicit_result = verdict(Puzzle(board=BOARD, constraints=explicit, givens=givens))
+    explicit_broke = verdict(
+        Puzzle(board=BOARD, constraints=explicit, givens=broke_givens)
+    )
+    assert preset_broke.kind == explicit_broke.kind == "broke"
 
-    assert preset_result.kind == explicit_result.kind == "broke"
+    preset_found = verdict(
+        Puzzle(board=BOARD, constraints=(Constraint(type="sudoku"),))
+    )
+    explicit_found = verdict(Puzzle(board=BOARD, constraints=explicit))
+    assert preset_found.kind == explicit_found.kind == "found"
 
 
 def test_verdict_rejects_an_unknown_constraint_type() -> None:

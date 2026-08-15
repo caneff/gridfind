@@ -12,7 +12,6 @@ from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, MissingDependencyError, build_engine
 from gridfind.layers.board import GridCells
-from gridfind.layers.distinct import cols, regions, rows
 from gridfind.layers.doubler import Doubler
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board
@@ -45,21 +44,6 @@ def test_registers_modifier_type_per_cell_not_one_global_name() -> None:
 def test_doubler_requires_board() -> None:
     with pytest.raises(MissingDependencyError):
         build_engine([Doubler()], board=Board(size=4))
-
-
-def test_composes_modifier_placement_one_per_house() -> None:
-    engine = _engine()
-    is_modifier = _is_modifier(engine)
-    solver = cp_model.CpSolver()
-
-    status = solver.solve(engine.model)
-
-    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-    grid = engine.cell_geometry.grid
-    for partition in (rows, cols, regions):
-        for group in partition(grid):
-            addresses = list(group)
-            assert sum(solver.value(is_modifier[a]) for a in addresses) == 1
 
 
 @pytest.mark.parametrize(

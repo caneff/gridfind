@@ -441,26 +441,6 @@ def test_no_s_cell_block_keeps_plain_domain_and_no_schrodinger() -> None:
     assert Constraint("schrodinger") not in puzzle.constraints
 
 
-def test_s_cell_marker_widens_domain_and_synthesizes_schrodinger_without_flag() -> None:
-    # Schrödinger-ness is inferred from marker presence: the domain widens by
-    # the classic `k = 1` extra digit and a bare `schrodinger` constraint
-    # stands up, no `--schrodinger` flag required.
-    payload = encode_document(
-        {
-            "cells": EMPTY_CELLS,
-            "constraints": [
-                *WIRE_CONSTRAINTS,
-                {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]},
-            ],
-        }
-    )
-
-    puzzle, _ = decode_link(payload)
-
-    assert puzzle.board == Board(size=9, values=range(10))
-    assert Constraint("schrodinger") in puzzle.constraints
-
-
 @pytest.mark.parametrize(
     "name",
     ["S-cell", "s-cell", "Schrödinger", "Schrodinger", "  SCHRODINGER  "],

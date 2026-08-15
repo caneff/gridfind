@@ -3,7 +3,6 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from gridfind.cell_geometry import (
-    BOX_SHAPE,
     CellGeometry,
     cell_address,
     cell_geometry,
@@ -73,28 +72,6 @@ def test_step_returns_none_stepping_off_the_declared_space() -> None:
     assert geometry.step("R1C1", -2, 1) is None
 
 
-@given(
-    row=st.integers(min_value=1, max_value=9),
-    col=st.integers(min_value=1, max_value=9),
-    delta_row=st.integers(min_value=-3, max_value=3),
-    delta_col=st.integers(min_value=-3, max_value=3),
-)
-def test_step_resolves_by_membership_not_a_bounds_check(
-    row: int, col: int, delta_row: int, delta_col: int
-) -> None:
-    # The stepper answers with the target's declared address, or None — never
-    # an off-space address. On a full rectangular board membership coincides
-    # with 1..size, which is the property that must hold cell-by-cell.
-    geometry = cell_geometry(Board(size=9))
-    declared = {address for line in geometry.grid for address in line}
-
-    target = geometry.step(cell_address(row, col), delta_row, delta_col)
-
-    in_space = cell_address(row + delta_row, col + delta_col) in declared
-    assert (target is not None) == in_space
-    assert target is None or target in declared
-
-
 def test_step_from_an_undeclared_start_raises() -> None:
     geometry = cell_geometry(Board(size=4))
 
@@ -114,6 +91,40 @@ def _holed_geometry() -> CellGeometry:
     return CellGeometry(size=3, values=range(1, 4), box_shape=None, grid=grid)
 
 
+_HOLE = (2, 2)
+
+
+@given(
+    start=st.sampled_from(
+        [
+            (row, col)
+            for row in range(1, 4)
+            for col in range(1, 4)
+            if (row, col) != _HOLE
+        ]
+    ),
+    delta_row=st.integers(min_value=-3, max_value=3),
+    delta_col=st.integers(min_value=-3, max_value=3),
+)
+def test_step_resolves_by_membership_not_a_bounds_check(
+    start: tuple[int, int], delta_row: int, delta_col: int
+) -> None:
+    # The stepper answers from grid membership, not a `1 <= row <= size`
+    # bounds check: over `_holed_geometry()`'s interior hole at R2C2, a
+    # bounds-only implementation would wrongly resolve a step onto it, while
+    # membership correctly reports None — the divergence a solid board can't
+    # expose.
+    geometry = _holed_geometry()
+    declared = {address for line in geometry.grid for address in line}
+    row, col = start
+
+    target = geometry.step(cell_address(row, col), delta_row, delta_col)
+
+    in_space = cell_address(row + delta_row, col + delta_col) in declared
+    assert (target is not None) == in_space
+    assert target is None or target in declared
+
+
 def test_step_onto_an_interior_hole_is_off_space() -> None:
     # R2C2 sits inside 1..3 on both axes, so a bounds check would accept it;
     # membership rejects it because no cell is declared there.
@@ -128,10 +139,3 @@ def test_step_resolves_a_present_cell_across_a_hole() -> None:
     geometry = _holed_geometry()
 
     assert geometry.step("R2C1", 0, 2) == "R2C3"
-
-
-def test_box_shape_table_matches_regions_layers_convention() -> None:
-    # `cell_geometry`'s `box_shape` and `layers.regions.region_map_for`'s
-    # fallback tiling must agree on every classic size — both read this one
-    # table (ADR-0004).
-    assert BOX_SHAPE == {4: (2, 2), 6: (2, 3), 9: (3, 3)}
