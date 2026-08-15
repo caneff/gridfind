@@ -42,12 +42,14 @@ import {
   bucketIssues,
   buildRunSummary,
   deliveredParentIds,
+  buildNextMerges,
+  deriveDammed,
   type OpenIssue,
+  type StuckIssue,
 } from "./reconcile.mts";
 import {
   planOutcomeTransition,
   planFailureBodyEdit,
-  type CompletedIssue,
   type IssueOutcome,
 } from "./issue-lifecycle.mts";
 import {
@@ -58,7 +60,7 @@ import {
   parseOpenIssues,
   type IssueEdgeRow,
 } from "./github-parse.mts";
-import { selectableFrontier } from "./select-buildable.mts";
+import { nextBuildable } from "./select-buildable.mts";
 import { firstHarnessFault, normalizeSettled } from "./pipeline-results.mts";
 import { parseSandcastleWorktrees } from "./worktrees.mts";
 import { planRetention } from "./log-retention.mts";
@@ -202,21 +204,25 @@ function listAllOpenIssues(): OpenIssue[] {
   );
 }
 
-// The deterministic frontier the planner is handed (#242): every open
-// ready-for-agent issue whose native `blockedBy` edges have all closed. Blocker
-// openness is judged against ALL open issues (any label) — an open blocker still
-// blocks whether it is ready-for-agent, in-review, or anything else — so we pull
-// blockedBy for the whole open set and hand both halves of the rule to the pure
-// `selectableFrontier` (buildable ∩ ready-for-agent). A child whose parent issue
-// is still open never survives, which is the parent-merged-to-main rule in one line.
-function getBuildableFrontier(): OpenIssue[] {
+// The raw material the replan loop's pure `nextBuildable` decision runs on:
+// every open issue (all labels) and its native `blockedBy` edges. Blocker
+// openness is judged against ALL open issues — an open blocker still blocks
+// whether it is ready-for-agent, in-review, or anything else. Fetched fresh each
+// iteration so a parent that merged, or a label that changed, mid-run is seen;
+// `blockedBy` also gives each issue's parents for `resolveBase`. The buildable ∩
+// ready-for-agent filter and the built-this-run/attempted exclusions live in the
+// pure `nextBuildable`, not here (#342).
+function fetchFrontierInputs(): {
+  open: OpenIssue[];
+  blockedBy: Map<number, number[]>;
+} {
   const open = listAllOpenIssues();
   const blockedBy = parseBlockedByRows(
     gh(
       `issue list --state open --limit ${OPEN_ISSUE_LIMIT} --json number,blockedBy --jq '[.[] | {number, blockedBy: [.blockedBy.nodes[].number]}]'`
     )
   );
-  return selectableFrontier(open, blockedBy);
+  return { open, blockedBy };
 }
 
 // Every issue's state and native parent, open AND closed — the open-only frontier
@@ -243,7 +249,7 @@ function fetchIssueEdges(): IssueEdgeRow[] | null {
 // surfaces these for a human to close (spent-parent hygiene). Fetched fresh at
 // the end of the run rather than reusing the start-of-run memo, so an issue a
 // human closed mid-run is counted.
-function getDeliveredParents(): Set<string> {
+function getDeliveredParents(): Set<number> {
   return deliveredParentIds(fetchIssueEdges() ?? []);
 }
 
@@ -268,7 +274,7 @@ const planSchema = z.object({
       // Vestigial in the one-PR-per-issue model (#244): every branch is cut from
       // `main` and opens its own PR, so parents no longer stack branches and
       // group no longer combines PRs. The planner emits `[]` and a theme slug;
-      // the fields are kept so the plan item and CompletedIssue stay one shape.
+      // the fields are kept so the plan item and OutcomeIssue stay one shape.
       parents: z.array(z.string()),
       group: z.string(),
     })
@@ -285,18 +291,22 @@ const planSchema = z.object({
 const copyToWorktree = [".venv"];
 
 // ---------------------------------------------------------------------------
-// The run: one planning pass
+// The run: a bounded replan loop (#342)
 // ---------------------------------------------------------------------------
-
-// A run plans the buildable frontier once, builds it concurrently, opens one PR
-// per issue that passes review, and exits (#244). Nothing merges to `main`
-// mid-run — a human merges each PR later — so there is no second planning pass to
-// re-select an in-review issue through GitHub's index lag. The dependency chain
-// drains one level per run-until-empty pass, each gated by a human merge; that
-// outer drain (`/sandcastle-watch`) is the only loop.
 //
-// Every issue's branch is cut from `main` and opens its own PR against `main`, so
-// nothing races on a shared merge target. `runId` names the per-run log file.
+// A run drains a whole dependency chain top to bottom in ONE invocation. Each
+// iteration plans the buildable frontier, builds it concurrently, opens one PR
+// per issue that passes review, and records every success in an in-memory
+// built-set. The next iteration recomputes the frontier treating built-this-run
+// parents as satisfied — so a child becomes buildable the moment its parent
+// succeeds, though the parent issue is still open — and repeats until a pass
+// offers no new issue (the `nextBuildable` fixpoint). No state is persisted: the
+// built-set is in-memory and the `in-review` label is the only cross-run record.
+//
+// Each issue's branch is cut from `resolveBase` — its parent's branch when the
+// parent built this run, else `main` (#341) — so a linear chain stacks level by
+// level. At this stage every PR still opens against `main`; ticket 3 wires the PR
+// base. `runId` names the per-run log file.
 const runId = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 
 // Branch refs and commits persist — only the checkout dirs go. Called at run
@@ -315,27 +325,15 @@ gcWorktrees();
 // Branch the top-level runs (planner, PR author) report against — used only to
 // name their log files the way sandcastle would by default.
 const headBranch = git("rev-parse --abbrev-ref HEAD") ?? "main";
-// Every issue that built to a clean review and opened a PR this run — recorded
-// for the end-of-run summary.
-const allCompleted: CompletedIssue[] = [];
-// Issue id → PR number, one per issue, for the run summary.
-const prAssignments = new Map<string, number>();
+// Issue number → PR number, one per issue, for the run summary.
+const prAssignments = new Map<number, number>();
+// Issue number → its Stuck record — review-fail or a harness/reviewer error —
+// accumulated across every replan-loop iteration for the end-of-run "Stuck"
+// section (#344). A later iteration never revisits an id already attempted
+// this run (attemptedThisRun), so each entry is written at most once.
+const failedThisRun = new Map<number, StuckIssue>();
 
-// ---------------------------------------------------------------------------
-// Phase 1: Plan
-//
-// The planning agent (opus, for deeper reasoning) reads the buildable frontier
-// and reasons over issue content to prune it for implicit same-file conflicts —
-// two issues that would collide with no declared edge. It emits a <plan> JSON
-// block; Output.object parses and validates it. One planning pass per run.
-// ---------------------------------------------------------------------------
-
-// The deterministic frontier (#242): the host, not the planner, decides which
-// issues have zero open blockers. The planner is handed this buildable set and
-// may only select from it — it prunes it further for implicit same-file
-// conflicts, but never resurrects an issue the blockedBy filter excluded.
-const buildable = getBuildableFrontier();
-
+// The plan item / OutcomeIssue shape — declared once, shared by every iteration.
 type WorkIssue = {
   id: string;
   title: string;
@@ -344,11 +342,54 @@ type WorkIssue = {
   group?: string;
 };
 
-let work: WorkIssue[] = [];
-if (buildable.length === 0) {
-  console.log("\nNo unblocked issues this run.");
-} else {
-  const plan = await sandcastle.run({
+// Replan-loop state (#342). `builtBranches` maps a built-AND-reviewed issue's id
+// to its branch: the base a child stacks on, and — as its key set — the
+// satisfied-parent set that unblocks children this run. `attemptedThisRun` holds
+// every id offered to a plan this run (built, failed, errored, or planner-pruned),
+// so no issue is planned twice within a run and the loop always terminates; the
+// built issue's `in-review` label backs the no-double-build guard across runs.
+const builtBranches = new Map<number, string>();
+const attemptedThisRun = new Set<number>();
+
+// ---------------------------------------------------------------------------
+// Phase 1–3, one level of the chain per iteration.
+//
+// The planner (opus, for deeper reasoning) reads this iteration's buildable set
+// and prunes it for implicit same-file conflicts — two issues that would collide
+// with no declared edge. It emits a <plan> JSON block; Output.object parses and
+// validates it. The loop rebuilds the frontier after each pass, so a child built
+// on its just-built parent's branch is the whole of in-run stacking.
+// ---------------------------------------------------------------------------
+let iteration = 0;
+while (true) {
+  // The deterministic frontier (#242) plus the run-scoped exclusions (#342): the
+  // host, not the planner, decides which issues have zero unsatisfied blockers and
+  // have not already been offered this run. A parent built this run counts as
+  // satisfied; the planner may only prune this set, never resurrect an excluded issue.
+  const { open, blockedBy } = fetchFrontierInputs();
+  const satisfiedThisRun = new Set(builtBranches.keys());
+  const pending = nextBuildable(
+    open,
+    blockedBy,
+    satisfiedThisRun,
+    attemptedThisRun
+  );
+
+  if (pending.length === 0) {
+    // Iteration 0 empty = nothing was ever buildable; a later empty pass is the
+    // normal fixpoint that ends a fully drained run.
+    if (iteration === 0) {
+      console.log("\nNo unblocked issues this run.");
+      console.log(emitMarker("plan", 0));
+    }
+    break;
+  }
+  iteration++;
+  // Every offered issue counts as attempted — planner pruning included — so a
+  // pruned or failed issue is not re-offered this run; it retries next run.
+  for (const p of pending) attemptedThisRun.add(p.number);
+
+  const planResult = await sandcastle.run({
     ...sandboxConfig(),
     name: "planner",
     logging: logging("planner", headBranch),
@@ -359,10 +400,11 @@ if (buildable.length === 0) {
     agent: sandcastle.claudeCode("claude-opus-4-8"),
     promptFile: "./.sandcastle/plan-prompt.md",
     promptArgs: {
-      // The host-computed buildable frontier (#242): open ready-for-agent issues
-      // whose every native `blockedBy` edge has closed. This is the ONLY set the
-      // planner may select from — the raw open list never reaches it.
-      BUILDABLE: buildable.map((i) => `- #${i.number} — ${i.title}`).join("\n"),
+      // This iteration's buildable frontier: open ready-for-agent issues whose
+      // every blocker has closed or built this run, minus any already offered.
+      // This is the ONLY set the planner may select from — the raw open list
+      // never reaches it.
+      BUILDABLE: pending.map((i) => `- #${i.number} — ${i.title}`).join("\n"),
     },
     // Extract and validate the <plan> JSON into a typed object. Throws
     // StructuredOutputError if the tag is missing, the JSON is malformed, or
@@ -370,22 +412,21 @@ if (buildable.length === 0) {
     output: sandcastle.Output.object({ tag: "plan", schema: planSchema }),
   });
 
-  work = plan.output.issues;
+  const work: WorkIssue[] = planResult.output.issues;
   console.log(`\nPlanning complete. ${work.length} issue(s) to build:`);
   for (const w of work) {
     console.log(`  ${w.id}: ${w.title} → ${w.branch}`);
   }
-}
 
-// Status-bar markers (#270): the build-set count fills the bar's lead slot, and
-// the in-flight ids follow. Emitted once — this config plans a single sweep, not
-// per-iteration. Human output above is unchanged; the skill reads only these.
-console.log(emitMarker("plan", work.length));
-if (work.length > 0) console.log(emitMarker("flight", ...work.map((w) => w.id)));
+  // Status-bar markers (#270): the build-set count fills the bar's lead slot, and
+  // the in-flight ids follow. Emitted per iteration now the run replans.
+  console.log(emitMarker("plan", work.length));
+  if (work.length > 0)
+    console.log(emitMarker("flight", ...work.map((w) => w.id)));
 
-// Build every selected issue concurrently, then open one PR per issue that
-// passes review. An empty frontier or empty plan skips straight to the summary.
-if (work.length > 0) {
+  // Build every selected issue concurrently, then open one PR per issue that
+  // passes review. An empty plan (everything pruned) advances to the next pass.
+  if (work.length > 0) {
   // -------------------------------------------------------------------------
   // Phase 2: Execute + Review
   //
@@ -398,23 +439,30 @@ if (work.length > 0) {
 
   const settled = await Promise.allSettled(
     work.map(async (issue): Promise<IssueOutcome<WorkIssue>> => {
-      // Every issue's branch is cut from `main` (#243). A child is only selected
-      // once its parents' issues have closed, so their work is already in `main`
-      // — no stacking, no diamond base.
-      const base = resolveBase();
+      // The base this issue stacks on (#342): its parent's branch when the issue
+      // has exactly one parent built this run, else `main` (#341). `blockedBy`
+      // gives the issue's native parents; `builtBranches` holds only the parents
+      // that built AND passed review this run, so a child whose parent failed or
+      // merged in a prior run resolves to `main`. A linear chain thus stacks each
+      // child on its just-built parent's branch.
+      const base = resolveBase(
+        blockedBy.get(Number(issue.id)) ?? [],
+        builtBranches
+      );
 
       // A pre-existing branch (a ready-for-human issue a human is re-driving, or
-      // a stale worktree lingering from an earlier run) was built against an
-      // older `main`. Bring it up to date by REBASING onto `main` (not merging)
-      // so the branch stays linear — a merge commit here would make the issue
-      // un-revisable later and entangle the diff the reviewer sees. A fresh
-      // branch cut from `main` rebases as a no-op; a stale branch replays its
-      // commits onto `main`. Best-effort: abort on conflict and proceed.
+      // a stale worktree lingering from an earlier run) was built against an older
+      // base. Bring it up to date by REBASING onto its base (not merging) so the
+      // branch stays linear — a merge commit here would make the issue un-revisable
+      // later and entangle the diff the reviewer sees. A fresh branch cut from its
+      // base rebases as a no-op; a stale branch replays its commits. Best-effort:
+      // abort on conflict and proceed.
       const cfg = sandboxConfig();
       const sandbox = await sandcastle.createSandbox({
         branch: issue.branch,
-        // New branches are cut from `main`. (Ignored if the branch already
-        // exists — the rebase hook above refreshes those.)
+        // New branches are cut from `base` — the parent's branch for a stacked
+        // child, else `main`. (Ignored if the branch already exists — the rebase
+        // hook above refreshes those.)
         baseBranch: base,
         ...cfg,
         hooks: {
@@ -525,6 +573,11 @@ if (work.length > 0) {
           // re-review path, leave the issue untouched — "nothing" keeps its
           // ready-for-agent label for a fresh single attempt next run.
           console.error(`  ⚠ ${issue.id} review errored; leaving for next run: ${e}`);
+          failedThisRun.set(Number(issue.id), {
+            kind: "error",
+            number: Number(issue.id),
+            title: issue.title,
+          });
           return { issue, kind: "nothing" as const };
         }
       } finally {
@@ -545,6 +598,11 @@ if (work.length > 0) {
       console.log(
         emitMarker(isSetupNoise(outcome.reason) ? "setup" : "fail", work[i]!.id)
       );
+      failedThisRun.set(Number(work[i]!.id), {
+        kind: "error",
+        number: Number(work[i]!.id),
+        title: work[i]!.title,
+      });
     }
   }
   // The run-aborting decision — first rejected PromptError, if any — lives in
@@ -594,9 +652,22 @@ if (work.length > 0) {
     if (plan.note) console.warn(`  ${plan.note}`);
 
     if (kind === "done") {
-      // Open one ready PR — head = the issue's own branch, base = main — then
+      // Open one ready PR — head = the issue's own branch, base = resolveBase's
+      // pick (the parent's branch for a stacked child, else `main`, #343) — then
       // label in-review and record it. Order matters: opening before the label
       // makes "in-review with no PR" structurally impossible.
+      //
+      // Recomputed here rather than threaded through the outcome union: the
+      // build-time value (~line 444) isn't in scope in this loop, but
+      // `blockedBy` and `builtBranches` both are, and resolveBase is pure — the
+      // recompute is cheaper than plumbing base through normalizeSettled.
+      // builtBranches only grows within a run, and X's parent (built at an
+      // earlier level) is already in it while X itself and its same-level
+      // siblings are not X's parents, so this equals the build-time base.
+      const base = resolveBase(
+        blockedBy.get(Number(issue.id)) ?? [],
+        builtBranches
+      );
       git(`push -u --force-with-lease origin ${issue.branch}`);
       await sandcastle.run({
         ...sandboxConfig(),
@@ -609,14 +680,19 @@ if (work.length > 0) {
           BRANCH: issue.branch,
           ISSUE_ID: issue.id,
           ISSUE_TITLE: issue.title,
+          BASE: base,
         },
       });
       const prNumRaw = gh(`pr view ${issue.branch} --json number --jq .number`);
       const prNum = prNumRaw ? parseInt(prNumRaw, 10) : 0;
       if (prNum > 0) {
         if (plan.addLabel) relabel(issue.id, plan.addLabel, plan.removeLabels);
-        prAssignments.set(issue.id, prNum);
-        if (plan.completed) allCompleted.push(plan.completed);
+        prAssignments.set(Number(issue.id), prNum);
+        // Enter the built-set (#342): the next loop pass treats this issue as a
+        // satisfied parent (unblocking its children) and stacks a child on this
+        // branch. Only the success terminal — commits pushed AND both review axes
+        // passed — records here, so a child never stacks on a failed base.
+        builtBranches.set(Number(issue.id), issue.branch);
         console.log(`  ✓ #${issue.id} reviewed clean → PR #${prNum} (in-review)`);
         console.log(emitMarker("pr", issue.id, prNum));
       } else {
@@ -629,6 +705,21 @@ if (work.length > 0) {
     }
 
     if (kind === "review-fail") {
+      // Record for the end-of-run Stuck section (#344): the failing axes plus
+      // a one-line why — the first failed axis's reason, truncated to its
+      // first line so the summary stays a pointer, not a re-quote of the full
+      // review notes (those already live in the issue body, spliced above).
+      const firstAxis = record.failedAxes[0];
+      const reason = firstAxis ? record.reasons[firstAxis] : undefined;
+      failedThisRun.set(Number(issue.id), {
+        kind: "review-fail",
+        number: Number(issue.id),
+        title: issue.title,
+        failedAxes: record.failedAxes,
+        why: reason?.split("\n")[0],
+        branch: issue.branch,
+      });
+
       // Binding: no PR. Push the branch so its work survives sandbox teardown,
       // relabel ready-for-human, and splice the failure section into the issue
       // body (read-modify-write; the original ticket is preserved).
@@ -656,7 +747,8 @@ if (work.length > 0) {
 
     // "nothing": leave the issue's labels exactly as they arrived.
   }
-}
+  } // end if (work.length > 0)
+} // end replan loop — recompute the frontier and build the next unblocked level
 
 // End-of-run worktree GC: remove any issue checkout dirs left behind. PRs are
 // open; the worktrees are dead.
@@ -667,14 +759,36 @@ gcWorktrees();
 // bucket so nothing is silently hidden behind "no work to do".
 // ---------------------------------------------------------------------------
 {
-  const allOpenIssues = listAllOpenIssues();
+  // Fetched once more here rather than threading the loop-local blockedBy out
+  // (#344) — simpler, and end-of-run correctness matters more than the extra
+  // gh call.
+  const { open: allOpenIssues, blockedBy: finalBlockedBy } =
+    fetchFrontierInputs();
+  // The one truth for "built this run": builtBranches' key set. bucketIssues,
+  // buildNextMerges, and deriveDammed all read it.
+  const builtIds = new Set(builtBranches.keys());
   const bucketed = bucketIssues({
     openIssues: allOpenIssues,
-    builtThisRun: new Set(allCompleted.map((i) => i.id)),
+    builtThisRun: builtIds,
     prAssignments,
     deliveredParents: getDeliveredParents(),
   });
-  const summary = buildRunSummary(bucketed);
+
+  // Next footer: base-first merge order for everything built this run.
+  const nextMerges = buildNextMerges(prAssignments, finalBlockedBy, builtIds);
+
+  const dammed = deriveDammed(
+    allOpenIssues,
+    finalBlockedBy,
+    new Set(failedThisRun.keys()),
+    builtIds
+  );
+
+  const summary = buildRunSummary(bucketed, {
+    stuck: [...failedThisRun.values()],
+    dammed,
+    nextMerges,
+  });
   console.log(summary);
   console.log(emitMarker("done"));
   // Persist the summary — per-run filename so it survives the next run (the
