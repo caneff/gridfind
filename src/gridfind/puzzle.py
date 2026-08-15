@@ -10,20 +10,20 @@ This module is schema only: nothing here calls `verdict` or builds a model.
 It reaches into `gridfind.engine` for `MalformedPuzzleError` itself — the
 shared refusal for a document that is not a well-formed puzzle,
 so a caller catches one class regardless of which module noticed — and into
-`gridfind.s_directives` for the Schrödinger directive codec and pair guard:
-the five directive dataclasses below are bare schema, but
-reading/writing them and validating an S-cell pin's pair is real logic named
-in its own module, not hidden here among the plain structs.
+`gridfind.s_directives` for the Schrödinger directives themselves: the six
+directive dataclasses, their closed union `SDirective`, and the codec that
+reads/writes them and validates an S-cell pin's pair all live there as one
+home (ADR-0006), not split across this module and that one.
 """
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any
 
-from gridfind import s_directives
 from gridfind.engine import MalformedPuzzleError
+from gridfind.s_directives import SDirective, s_directive_from_dict, s_directive_to_dict
 
 # A JSON scalar/array/object value — the genuine open boundary a constraint's
 # params live at (a killer sum is an int, a thermo path is a list).
@@ -93,94 +93,6 @@ class Candidate:
 
     address: str
     digits: frozenset[int]
-
-
-@dataclass(frozen=True)
-class SingletonPin:
-    """A Schrödinger directive: this cell is a **singleton** holding `digit` —
-    not an S-cell (CONTEXT.md `schrodinger`). The Schrödinger analog of a
-    settled given or placement alike — under a `schrodinger` layer both carry
-    the extra "not an S-cell" claim (`is_s == 0`). `kind` is the wire tag
-    `to_json`/`from_json` dispatch on (ADR-0006)."""
-
-    address: str
-    digit: int
-    kind: ClassVar[str] = "singleton-pin"
-
-
-@dataclass(frozen=True)
-class SCellPin:
-    """A Schrödinger directive: this cell **is** an S-cell holding the pair
-    `{a, b}` (CONTEXT.md `schrodinger`). The pair mirrors `Candidate.digits` as
-    a `frozenset[int]`. Its shape is guarded here at construction so a malformed
-    S-cell pin can never exist in memory (ADR-0006): the pair must be exactly
-    two distinct digits, counted after the frozenset collapses duplicates."""
-
-    address: str
-    pair: frozenset[int]
-    kind: ClassVar[str] = "s-cell-pin"
-
-    def __post_init__(self) -> None:
-        s_directives.validate_s_cell_pair(self.pair)
-
-
-@dataclass(frozen=True)
-class BareSingleton:
-    """A Schrödinger directive: this cell **is a singleton** (not an S-cell),
-    digit unstated (CONTEXT.md `schrodinger`). A singleton pin minus its
-    digit — it fixes S-cell-ness, leaves the digit free."""
-
-    address: str
-    kind: ClassVar[str] = "bare-singleton"
-
-
-@dataclass(frozen=True)
-class BareSCell:
-    """A Schrödinger directive: this cell **is an S-cell**, both digits unstated
-    (CONTEXT.md `schrodinger`). An S-cell pin minus its pair."""
-
-    address: str
-    kind: ClassVar[str] = "bare-s-cell"
-
-
-@dataclass(frozen=True)
-class HalfSCell:
-    """A Schrödinger directive: this cell **is an S-cell** and `digit` is one of
-    its two digits, partner unstated (CONTEXT.md `schrodinger`) — a reified
-    "digit appears among the two slots" claim, between an S-cell pin and a bare
-    S-cell."""
-
-    address: str
-    digit: int
-    kind: ClassVar[str] = "half-s-cell"
-
-
-@dataclass(frozen=True)
-class SCellMarkRestriction:
-    """A Schrödinger directive: a caged S-cell's center marks, layered as a
-    consistency restriction over the cage's own directive (CONTEXT.md
-    `schrodinger`). Every one of the cell's real slots must draw from `digits`.
-    It never selects the S-cell — the cage's `value` does that — so it only
-    tightens the cage-chosen pin/half/bare or, when the marks cannot hold the
-    directive's pair, makes the model infeasible → broke. Present only when the
-    caged cell carries center marks, which are optional."""
-
-    address: str
-    digits: frozenset[int]
-    kind: ClassVar[str] = "s-cell-mark-restriction"
-
-
-# The Schrödinger working-state directives, hard-coded not registered
-# (ADR-0006). A closed union: a second directive-bearing layer would need its
-# own seam.
-SDirective = (
-    SingletonPin
-    | SCellPin
-    | BareSingleton
-    | BareSCell
-    | HalfSCell
-    | SCellMarkRestriction
-)
 
 
 @dataclass(frozen=True)
@@ -274,9 +186,7 @@ class WorkingState:
                     {"address": c.address, "digits": sorted(c.digits)}
                     for c in self.candidates
                 ],
-                "s_directives": [
-                    s_directives.s_directive_to_dict(d) for d in self.s_directives
-                ],
+                "s_directives": [s_directive_to_dict(d) for d in self.s_directives],
                 "modifier_directives": [
                     {"address": d.address, "is_modifier": d.is_modifier}
                     for d in self.modifier_directives
@@ -304,8 +214,7 @@ class WorkingState:
             # A save with no s_directives key predates the grammar — read it as
             # an empty tuple rather than refusing it (ADR-0006).
             s_directives=tuple(
-                s_directives.s_directive_from_dict(d)
-                for d in doc.get("s_directives", [])
+                s_directive_from_dict(d) for d in doc.get("s_directives", [])
             ),
             # Same empty-default treatment for a save that predates the
             # modifier channel.

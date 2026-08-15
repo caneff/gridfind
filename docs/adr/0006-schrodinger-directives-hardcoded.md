@@ -2,6 +2,12 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-09
+- **Amended:** 2026-08-15 — a sixth directive, `SCellMarkRestriction`, joined
+  the original five, and the six dataclasses moved into `s_directives.py`
+  beside the codec that already lived there, closing the two-file split this
+  ADR originally left open ([#463](https://github.com/caneff/gridfind/issues/463),
+  spec [#462](https://github.com/caneff/gridfind/issues/462)). See "One home:
+  dataclasses, union, and codec together" below.
 - **Decides:** how [#142](https://github.com/caneff/gridfind/issues/142) carries
   the Schrödinger working-state directives on `WorkingState`.
 
@@ -52,3 +58,35 @@ When a **second** directive-bearing layer arrives and needs its own working-stat
 grammar. That is the trigger for #26 to build the real registration seam, and
 `s_directives` becomes its first migration — a concrete second occupant, not a
 speculative one, is what justifies the extension point.
+
+## One home: dataclasses, union, and codec together (2026-08-15 amendment)
+
+The original decision landed the six dataclasses (a sixth, `SCellMarkRestriction`,
+followed later — ADR-0014) in `puzzle.py` as "bare schema," while the `kind`-tag
+codec (`s_directive_to_dict`/`s_directive_from_dict`) and the pair guard
+(`validate_s_cell_pair`) lived in `s_directives.py`. The two modules imported
+each other's *module* (never top-level names) to break the resulting cycle —
+`puzzle.SDirective` referenced from `s_directives.py`, `s_directives.validate_s_cell_pair`
+called from `puzzle.py`'s `SCellPin.__post_init__`. That split, plus the
+Schrödinger-specific isinstance ladder `applier.py`'s model-application needs
+and the digit-count dispatch `sudokumaker/cells.py`'s decode needs, meant a
+directive-shaped fix could touch four files.
+
+The dataclasses, the closed `SDirective` union, and the codec now all live in
+`s_directives.py` — one module owns the six directives' full schema and wire
+format. `puzzle.py`'s `WorkingState` imports `SDirective` and the two codec
+functions from there for its own `to_json`/`from_json`; nothing in
+`s_directives.py` imports `puzzle`, so the cycle this ADR's original text
+described is gone, not merely worked around. `applier.py` (model application)
+and `sudokumaker/cells.py` (SudokuMaker-wire construction) now import the six
+dataclasses from `s_directives.py` instead of `puzzle.py`; those two remain
+separate homes by necessity — one turns a directive into a CP-SAT constraint
+(needs `Engine`/`ortools`, which `puzzle.py`'s schema-only contract forbids),
+the other turns a marker cage's raw `value` into a directive (a SudokuMaker
+decode concern, not a persistence-format concern) — but both now read the
+one schema `s_directives.py` defines rather than each carrying its own copy.
+
+This does not revisit the no-registration-seam decision above: the six
+directives are still hard-coded, not registered, and the closed-set/no-seventh
+reasoning is unchanged. It only collapses the artificial two-file split within
+that hard-coded design.

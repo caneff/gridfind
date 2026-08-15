@@ -16,13 +16,10 @@ from typing import Any, cast
 import pytest
 
 from gridfind.engine import MalformedPuzzleError
-from gridfind.puzzle import (
+from gridfind.puzzle import Board, Constraint, Given, ModifierDirective
+from gridfind.s_directives import (
     BareSCell,
-    Board,
-    Constraint,
-    Given,
     HalfSCell,
-    ModifierDirective,
     SCellMarkRestriction,
     SCellPin,
     SDirective,

@@ -13,17 +13,14 @@ from typing import Protocol
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, MalformedPuzzleError
-from gridfind.puzzle import (
+from gridfind.puzzle import ModifierDirective, Placement, Puzzle, WorkingState
+from gridfind.s_directives import (
     BareSCell,
     BareSingleton,
     HalfSCell,
-    ModifierDirective,
-    Placement,
-    Puzzle,
     SCellMarkRestriction,
     SDirective,
     SingletonPin,
-    WorkingState,
 )
 
 
