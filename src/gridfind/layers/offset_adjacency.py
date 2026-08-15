@@ -54,11 +54,16 @@ KING_OFFSETS: tuple[tuple[int, int], ...] = (
 class OffsetAdjacency:
     """Every pair of cells one of `offsets` apart holds different digits.
     Reads the grid and stepper off `board`'s geometry; registers nothing,
-    emits in phase 2."""
+    emits in phase 2.
+
+    `s_blind`: reads a cell through `engine.content`, its single slot —
+    undefined once a widening layer gives a cell a second slot (`build_stack`
+    refuses the combination)."""
 
     name: str
     offsets: tuple[tuple[int, int], ...]
     depends_on: tuple[str, ...] = ("board",)
+    s_blind: bool = True
 
     def register(self, engine: Engine) -> None:
         pass

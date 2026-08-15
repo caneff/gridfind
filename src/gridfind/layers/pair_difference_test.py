@@ -8,7 +8,7 @@ satisfied by accident.
 
 import pytest
 
-from gridfind.engine import build_engine
+from gridfind.engine import MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.conftest import pair_difference_rules
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
@@ -126,6 +126,25 @@ def test_the_relation_is_absolute_either_cell_may_hold_the_larger_value() -> Non
     assert result.kind == "found"
     assert result.witness is not None
     assert result.witness["R1C2"][0] == 5
+
+
+@pytest.mark.parametrize("cell_count", [1, 3], ids=["too few", "too many"])
+def test_a_pair_difference_clue_with_the_wrong_cell_count_raises_malformed(
+    cell_count: int,
+) -> None:
+    # A pair relation names exactly two cells; a clue that doesn't must fail
+    # loud with the malformed-input contract, not an opaque tuple-unpack
+    # error out of the emitter.
+    cells = [f"R1C{i + 1}" for i in range(cell_count)]
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="pair-difference", params={"cells": cells, "diff": 1}),
+        ),
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        verdict(puzzle)
 
 
 def test_a_puzzle_mixing_group_sum_and_pair_difference_resolves_correctly() -> None:
