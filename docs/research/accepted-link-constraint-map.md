@@ -255,39 +255,48 @@ emitted unconditionally (`sudokumaker.py:285`).
 killer-cage tool (ADR-0008). Its wire shape is identical to `type 301` —
 `{cages:[{value, cells}], name?, style?}` — but `value` is a **string** and a
 top-level `name` may mark the block as a variant declaration. The `name`
-classifies the whole block (`_cosmetic_cage_name_kind`, `sudokumaker.py:707-724`):
+classifies the whole block (`markers.cosmetic_cage_kind`):
 
-**Recognized-name set (frozen, read from the code):**
+**Recognized-name set:** the name → shape registry, `sudokumaker.naming`
+(`_NAME_REGISTRY`), built in #434 and read by `markers.cosmetic_cage_kind`.
 
-| `name` (normalized) | Kind | Constant | Source |
-|---|---|---|---|
-| absent / blank | `ordinary` | — | `sudokumaker.py:715-716` |
-| `sum`, `killer` | `ordinary` (real cage, name discarded) | `_NAMED_KILLER_CAGE_LABELS` | `sudokumaker.py:150`, `sudokumaker.py:718-719` |
-| `doubler` | `doubler` (position marker) | `_DOUBLER_MARKER_LABELS` | `sudokumaker.py:155`, `sudokumaker.py:720-721` |
-| `s-cell`, `schrödinger`, `schrodinger` | `s-cell` (position marker) | `_SCELL_MARKER_LABELS` | `sudokumaker.py:161`, `sudokumaker.py:722-723` |
-| anything else | `unrecognized` | — | `sudokumaker.py:724` |
+| `name` (normalized) | Kind | Source |
+|---|---|---|
+| absent / blank | `unnamed` (no rule — warn-drop) | `naming.py` / `markers.cosmetic_cage_kind` |
+| `sum`, `killer` | `killer` (real cage, name discarded) | `naming._NAME_REGISTRY` |
+| `doubler` | `doubler` (position marker) | `naming._NAME_REGISTRY` |
+| `s-cell`, `schrödinger`, `schrodinger` | `s-cell` (position marker) | `naming._NAME_REGISTRY` |
+| anything else | `unrecognized` (no rule — warn-drop) | `markers.cosmetic_cage_kind` |
 
 **Matching rule:** the `name` is `.strip()`-trimmed and `.lower()`-cased before
-membership — **case-insensitive and whitespace-trimmed**
-(`sudokumaker.py:715-717`). A non-string or blank `name` is `ordinary`. Both the
-umlaut `schrödinger` and the ASCII fold `schrodinger` are recognized (a link may
-carry either; `sudokumaker.py:157-161`).
+lookup — **case-insensitive and whitespace-trimmed**
+(`naming._normalize_component_name`). A non-string or blank `name` is
+`unnamed`. Both the umlaut `schrödinger` and the ASCII fold `schrodinger` are
+recognized (a link may carry either).
 
-#### 3.8a Ordinary cosmetic cage (unnamed, or `Sum` / `Killer`)
+#### 3.8a Killer cage (`name: Sum` / `Killer`)
 
 - **(a)** Draw a decorative/named cage; type a numeric label for a sum.
-- **(b)** `type 2001` `{cages:[{value:str, cells}]}`, `name` absent or
-  `Sum`/`Killer`. Confirmed shape: `found-doubler`'s ordinary sibling carries
+- **(b)** `type 2001` `{cages:[{value:str, cells}]}`, `name` `Sum`/`Killer`.
+  Confirmed shape: `found-doubler`'s sum sibling carries
   `{'value':'9','cells':[8,12]}`.
 - **(c)** Decodes exactly as a killer cage: each cage → no-repeats `cage`; a
   **numeric non-zero string** `value` graduates to a `group-sum`
-  (`_cosmetic_cage_killer_sum` parses `int(value)`, returns `None` for
-  non-numeric/blank; `sudokumaker.py:689-701`, `sudokumaker.py:791-795`). This is
-  the *only* channel an out-of-range cage sum (a doubler inside a cage) reaches
-  gridfind through (`sudokumaker.py:138-144`, ADR-0008 decision 3).
+  (`cages._cosmetic_cage_killer_sum` parses `int(value)`, returns `None` for
+  non-numeric/blank). This is the *only* channel an out-of-range cage sum (a
+  doubler inside a cage) reaches gridfind through (ADR-0008 decision 3).
 - **(d)** *Accept*. A sumless / non-numeric label still emits its `cage` — the
-  sum-parse gates only the `group-sum`, not liveness (`sudokumaker.py:692-694`).
-  `disabled` skipped; empty `cages` adds nothing.
+  sum-parse gates only the `group-sum`, not liveness. `disabled` skipped;
+  empty `cages` adds nothing.
+
+#### 3.8a′ Unnamed cosmetic cage — no rule (ADR-0012, #435)
+
+- An absent/blank `name` carries no rule at all: a non-empty block is
+  warn-and-dropped to stderr, naming it (`cages._warn_dropped_cosmetic_cage`);
+  an empty one is silently skipped like any other empty block. Before #435 this
+  block decoded as an ordinary killer cage — the same reading as a named
+  `Sum`/`Killer` cage — which meant a purely decorative box a setter drew
+  silently became a load-bearing rule.
 
 #### 3.8b Doubler marker (`name: Doubler`)
 
@@ -322,12 +331,10 @@ carry either; `sudokumaker.py:157-161`).
 
 #### 3.8d Unrecognized cosmetic-cage name
 
-- **(d)** **Reject the whole block**: `ValueError` "unrecognized named cage
-  {name!r}" (`sudokumaker.py:775-778`) — rather than decode some cages under an
-  unsound reading. `decode_link(ignore_unknown_named_cages=True)` **downgrades**
-  the refusal to strip-and-honor: the name is discarded and the block decodes as
-  an ordinary cage (`sudokumaker.py:219-221`, `sudokumaker.py:776-779`; spec
-  #324).
+- **(d)** No rule — the same warn-drop as an unnamed block (§3.8a′), naming the
+  unrecognized name (`cages._warn_dropped_cosmetic_cage`). Before #435 this
+  raised `ValueError`, downgradable to strip-and-honor via the now-retired
+  `ignore_unknown_named_cages` (spec #324, ADR-0012).
 
 ### 3.9 Global toggles — anti-knight, anti-king, the two diagonals
 
@@ -396,7 +403,6 @@ decoder finding a link it does not support (`sudokumaker.py:41-49`). The paths:
 | black-kropki `value` non-integer | "black-kropki value must be an int" | `sudokumaker.py:641`, `353-359` |
 | edge names no valid pair | "edge … does not name a valid cell pair" | `sudokumaker.py:567-571` |
 | S-cell-marked cell holds a value | "S-cell … also holds a value" | `sudokumaker.py:432-435` |
-| unrecognized cosmetic-cage name | "unrecognized named cage" | `sudokumaker.py:775-778` |
 
 **Reject as a malformed puzzle — `MalformedPuzzleError` from `verdict`.** A
 `Puzzle` `decode_link` produces is never itself malformed; a malformed jigsaw

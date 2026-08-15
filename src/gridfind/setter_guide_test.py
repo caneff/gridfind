@@ -29,9 +29,7 @@ _SETTER_FACING_ENTRIES = [
 ]
 
 
-_ALL_CAGE_NAMES: frozenset[str] = frozenset().union(
-    *(labels for _kind, labels in MARKER_LABELS.values())
-)
+_ALL_CAGE_NAMES: frozenset[str] = frozenset().union(*MARKER_LABELS.values())
 
 
 def test_every_cage_name_present_capitalized() -> None:

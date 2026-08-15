@@ -48,19 +48,19 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
 _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
     (
         "sum",
-        MARKER_LABELS["killer"][1],
+        MARKER_LABELS["killer"],
         "Decorative label on a genuine killer cage",
         "found-cage-4x4",
     ),
     (
         "doubler",
-        MARKER_LABELS["doubler"][1],
+        MARKER_LABELS["doubler"],
         "Doubler position marker",
         "found-doubler-4x4",
     ),
     (
         "s-cell",
-        MARKER_LABELS["s-cell"][1],
+        MARKER_LABELS["s-cell"],
         (
             "S-cell / Schrödinger position marker; the cage's numeric label supplies "
             "each marked cell's directive — a pin (two digits), a half-pin (one "

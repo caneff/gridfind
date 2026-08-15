@@ -130,7 +130,9 @@ def test_xv_negative_list_warns_but_keeps_positive_clues(
     puzzle, _ = decode_link(payload)
 
     assert Constraint("x", params={"cells": ["R4C8", "R5C8"]}) in puzzle.constraints
-    assert "negative" in capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        "warning: ignoring XV negative constraint — verdict computed without it\n"
+    )
 
 
 def test_xv_value_that_is_neither_x_nor_v_is_refused() -> None:
@@ -213,7 +215,10 @@ def test_kropki_negative_list_warns_but_keeps_positive_clues(
         Constraint("pair-difference", params={"cells": ["R5C3", "R5C4"], "diff": 1})
         in puzzle.constraints
     )
-    assert "negative" in capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        "warning: ignoring white-kropki negative constraint "
+        "— verdict computed without it\n"
+    )
 
 
 # --- type 201 black kropki -----------------------------------------------
@@ -287,7 +292,10 @@ def test_black_kropki_negative_list_warns_but_keeps_positive_clues(
         Constraint("pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": 2})
         in puzzle.constraints
     )
-    assert "negative" in capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        "warning: ignoring black-kropki negative constraint "
+        "— verdict computed without it\n"
+    )
 
 
 def test_black_kropki_non_integer_value_raises_at_decode() -> None:

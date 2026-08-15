@@ -20,13 +20,8 @@ from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.cell_geometry import cell_address
-from gridfind.puzzle import (
-    Given,
-    ModifierDirective,
-    SCellPin,
-    SingletonPin,
-    WorkingState,
-)
+from gridfind.puzzle import Given, ModifierDirective, WorkingState
+from gridfind.s_directives import SCellPin, SingletonPin
 from gridfind.sudokumaker import (
     decode_document,
     decode_link,

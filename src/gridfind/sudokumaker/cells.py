@@ -12,12 +12,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from gridfind.cell_geometry import cell_address
-from gridfind.puzzle import (
+from gridfind.puzzle import Candidate, Given, Placement
+from gridfind.s_directives import (
     BareSCell,
-    Candidate,
-    Given,
     HalfSCell,
-    Placement,
     SCellMarkRestriction,
     SCellPin,
     SDirective,

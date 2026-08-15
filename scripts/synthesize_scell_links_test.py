@@ -15,14 +15,13 @@ import pytest
 import synthesize_scell_links as syn
 
 from gridfind import cli
-from gridfind.puzzle import (
+from gridfind.puzzle import ModifierDirective, WorkingState
+from gridfind.s_directives import (
     BareSCell,
     HalfSCell,
-    ModifierDirective,
     SCellMarkRestriction,
     SCellPin,
     SingletonPin,
-    WorkingState,
 )
 from gridfind.sudokumaker import decode_document, decode_link
 from gridfind.verdict import verdict

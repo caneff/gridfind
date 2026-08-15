@@ -32,11 +32,7 @@ from gridfind.sudokumaker.markers import (
 from gridfind.sudokumaker.registry import DECODER_REGISTRY, _warn_on_dropped_constraints
 
 
-def decode_link(
-    link: str,
-    *,
-    ignore_unknown_named_cages: bool = False,
-) -> tuple[Puzzle, WorkingState]:
+def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a square-N
     `Puzzle` + `WorkingState`, sizing the board and domain from the link
     itself. Raises `ValueError` on a link gridfind can't answer.
@@ -48,9 +44,10 @@ def decode_link(
 
     A `type 2001` cosmetic-cage block whose top-level `name` names a
     recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
-    decodes as an ordinary killer cage with the name discarded; any other name
-    raises `ValueError` unless `ignore_unknown_named_cages` downgrades that
-    refusal to strip-and-honor (ADR-0012).
+    decodes as an ordinary killer cage with the name discarded. An unnamed
+    block, or one whose name gridfind does not recognize, carries no rule: a
+    non-empty one is dropped with a loud stderr warning naming the block
+    (ADR-0012).
 
     A `type 2001` block named `Doubler` (case-insensitive, trimmed) marks every
     cell it contains a declared doubler — one `ModifierDirective` per cell, no
@@ -116,14 +113,11 @@ def decode_link(
 
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
-    # The cosmetic-cage type alone takes a decode_link-scoped extra argument
-    # (the ignore flag) and returns modifier directives alongside its
+    # The cosmetic-cage type alone returns modifier directives alongside its
     # constraints, so it is dispatched by hand rather than through the
     # registry's generic two-argument, constraints-only call.
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
-    cosmetic_cage_decode = _cosmetic_cage_constraints(
-        puzzle_data, size, ignore_unknown_named_cages=ignore_unknown_named_cages
-    )
+    cosmetic_cage_decode = _cosmetic_cage_constraints(puzzle_data, size)
     constraints.extend(cosmetic_cage_decode.constraints)
     for kind, decoded_type in DECODER_REGISTRY.items():
         if kind == _COSMETIC_CAGE_TYPE or decoded_type.handler is None:

@@ -3,7 +3,7 @@ a constraint — `Doubler` and `S-cell` — plus the classifier and the display
 colorizer.
 
 `cosmetic_cage_kind` is the one home that reads a cage's name into its kind
-(ordinary / doubler / s-cell / unrecognized, ADR-0012). A `Doubler` cage emits
+(unnamed / killer / doubler / s-cell / unrecognized, ADR-0012). A `Doubler` cage emits
 modifier directives; an `S-cell` cage declares S-cells, infers Schrödinger-ness
 from its mere presence, and sources each cell's pin/half/bare directive from its
 own `value` (ADR-0014). `colorize_marker_cages` writes the cosmetic display
@@ -16,13 +16,10 @@ from typing import Any, cast
 import pytest
 
 from gridfind.engine import MalformedPuzzleError
-from gridfind.puzzle import (
+from gridfind.puzzle import Board, Constraint, Given, ModifierDirective
+from gridfind.s_directives import (
     BareSCell,
-    Board,
-    Constraint,
-    Given,
     HalfSCell,
-    ModifierDirective,
     SCellMarkRestriction,
     SCellPin,
     SDirective,
@@ -105,11 +102,11 @@ def _s_cell_cage_link(
 @pytest.mark.parametrize(
     ("name", "expected"),
     [
-        (None, "ordinary"),
-        ("", "ordinary"),
-        ("   ", "ordinary"),
-        ("Sum", "ordinary"),
-        ("Killer", "ordinary"),
+        (None, "unnamed"),
+        ("", "unnamed"),
+        ("   ", "unnamed"),
+        ("Sum", "killer"),
+        ("Killer", "killer"),
         ("Doubler", "doubler"),
         ("  doubler ", "doubler"),
         ("S-cell", "s-cell"),
@@ -130,33 +127,27 @@ def _s_cell_cage_link(
     ],
 )
 def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> None:
-    # The public four-way classifier is the one home every named-cosmetic-cage
-    # read routes through (ADR-0012): ordinary killer cage, Doubler marker,
-    # S-cell marker, or an unrecognized name the decoder refuses.
+    # The public five-way classifier is the one home every named-cosmetic-cage
+    # read routes through (ADR-0012): unnamed, killer cage, Doubler marker,
+    # S-cell marker, or an unrecognized name — the decoder warn-drops both
+    # unnamed and unrecognized.
     assert cosmetic_cage_kind(name) == expected
 
 
 def test_marker_labels_covers_killer_doubler_and_s_cell_roles() -> None:
-    # MARKER_LABELS is the public concept -> (kind, accepted-names) table
-    # setter_guide.py's cage-name-alias rows read directly; every cage-name
-    # role cosmetic_cage_kind recognizes has an entry here.
+    # MARKER_LABELS is the public role -> accepted-names table setter_guide.py's
+    # cage-name-alias rows read directly; every name-bearing role
+    # cosmetic_cage_kind recognizes has an entry here.
     assert set(MARKER_LABELS) == {"killer", "doubler", "s-cell"}
 
 
-@pytest.mark.parametrize(
-    ("role", "kind"),
-    [("killer", "ordinary"), ("doubler", "doubler"), ("s-cell", "s-cell")],
-)
-def test_marker_labels_every_listed_name_classifies_to_its_own_kind(
-    role: str, kind: str
-) -> None:
-    # Every name MARKER_LABELS lists under a role must classify to that
-    # role's kind through cosmetic_cage_kind — the two cannot drift since
-    # cosmetic_cage_kind reads this same table.
-    _listed_kind, labels = MARKER_LABELS[role]
-    assert _listed_kind == kind
-    for name in labels:
-        assert cosmetic_cage_kind(name) == kind
+@pytest.mark.parametrize("role", ["killer", "doubler", "s-cell"])
+def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
+    # Every name MARKER_LABELS lists under a role must classify to that role
+    # through cosmetic_cage_kind. MARKER_LABELS and cosmetic_cage_kind both
+    # read naming's one registry, so the two cannot drift.
+    for name in MARKER_LABELS[role]:
+        assert cosmetic_cage_kind(name) == role
 
 
 # --- Doubler marker cage -------------------------------------------------

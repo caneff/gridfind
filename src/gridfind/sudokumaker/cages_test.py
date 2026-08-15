@@ -6,8 +6,9 @@ Each decodes through `decode_link` to its gridfind constraint(s). A summed cage
 recomposes into a no-repeats `cage` plus a `group-sum` over the same cells
 (ADR-0009); a cosmetic cage carrying a numeric label graduates the same way.
 The named-marker cages (`Doubler`, `S-cell`) are a different reading and live
-in `markers_test`; here a name is only ever a decorative `Sum`/`Killer` label or
-an unrecognized one the decoder refuses.
+in `markers_test`; here a name is only ever a `Sum`/`Killer` label that selects
+the killer-cage rule, or an unnamed/unrecognized one the decoder warn-drops
+(ADR-0012).
 """
 
 import pytest
@@ -78,7 +79,7 @@ def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
     # `cage` plus the total as a `group-sum` over the same cells. Cells and
     # value nest under `cages`, the same wire shape as a `type 301` block.
     payload = constraint_link(
-        {"type": 2001, "cages": [{"value": "11", "cells": [0, 1, 2]}]}
+        {"name": "Sum", "type": 2001, "cages": [{"value": "11", "cells": [0, 1, 2]}]}
     )
 
     puzzle, _ = decode_link(payload)
@@ -94,12 +95,12 @@ def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
     assert capsys.readouterr().err == ""
 
 
-def test_cosmetic_cage_with_a_zero_label_decodes_to_a_bare_cage() -> None:
+def test_named_cosmetic_cage_with_a_zero_label_decodes_to_a_bare_cage() -> None:
     # A `"0"` label carries no killer sum — a zero total is no total, the same
     # rule a sumless `type 301` and a non-numeric label both decode to: a
     # no-repeats `cage` with no `group-sum`.
     payload = constraint_link(
-        {"type": 2001, "cages": [{"value": "0", "cells": [0, 1]}]}
+        {"name": "Killer", "type": 2001, "cages": [{"value": "0", "cells": [0, 1]}]}
     )
 
     puzzle, _ = decode_link(payload)
@@ -113,15 +114,15 @@ def test_cosmetic_cage_with_a_zero_label_decodes_to_a_bare_cage() -> None:
     ["Total", ""],
     ids=["non-numeric-label", "empty-label"],
 )
-def test_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
+def test_named_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
     label: str,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # A label carrying no killer sum still leaves a rule: every non-disabled
-    # cosmetic cage is a killer cage, so it emits a no-repeats `cage` with no
-    # `group-sum`, exactly like a sumless `type 301`.
+    # named killer cage emits a no-repeats `cage` with no `group-sum`, exactly
+    # like a sumless `type 301`.
     payload = constraint_link(
-        {"type": 2001, "cages": [{"value": label, "cells": [0, 1]}]}
+        {"name": "Sum", "type": 2001, "cages": [{"value": label, "cells": [0, 1]}]}
     )
 
     puzzle, _ = decode_link(payload)
@@ -136,12 +137,12 @@ def test_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
     ["Sum", "killer", "  Killer  ", "SUM"],
     ids=["sum-titlecase", "killer-lowercase", "killer-padded", "sum-upper"],
 )
-def test_named_sum_or_killer_cage_decodes_as_an_ordinary_killer_cage(
+def test_named_sum_or_killer_cage_decodes_as_a_killer_cage(
     name: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # A cage named `Sum`/`Killer` (any case, surrounding whitespace) is a
-    # decorative label on a genuine cage, not a marker — honored exactly as an
-    # unnamed cage, the name discarded (ADR-0012).
+    # A cage named `Sum`/`Killer` (any case, surrounding whitespace) selects
+    # the killer-cage rule, the name itself discarded once recognized
+    # (ADR-0012).
     payload = constraint_link(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
@@ -156,38 +157,12 @@ def test_named_sum_or_killer_cage_decodes_as_an_ordinary_killer_cage(
     assert capsys.readouterr().err == ""
 
 
-def test_unrecognized_named_cage_raises() -> None:
-    # An unfamiliar name is refused rather than silently honored under a
-    # guessed ruleset — "Foobar" stays unrecognized forever (ADR-0012).
-    payload = constraint_link(
-        {"name": "Foobar", "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
-    )
-
-    with pytest.raises(ValueError, match="Foobar"):
-        decode_link(payload)
-
-
-def test_unrecognized_named_cage_is_stripped_and_honored_under_the_ignore_flag() -> (
-    None
-):
-    payload = constraint_link(
-        {"name": "Foobar", "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
-    )
-
-    puzzle, _ = decode_link(payload, ignore_unknown_named_cages=True)
-
-    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
-    assert (
-        Constraint("group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 7})
-        in puzzle.constraints
-    )
-
-
-def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
+def test_multiple_named_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
     # One block carries many cages under `cages`, exactly as a `type 301`
     # block does — a real doubler export packs two cages into one block.
     payload = constraint_link(
         {
+            "name": "Sum",
             "type": 2001,
             "cages": [
                 {"value": "7", "cells": [0, 1]},
@@ -208,6 +183,55 @@ def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
         Constraint("group-sum", params={"cells": ["R3C1", "R3C2"], "sum": 11})
         in puzzle.constraints
     )
+
+
+# --- unnamed / unrecognized: no rule, loud warn-drop (ADR-0012, #435) ----
+
+
+@pytest.mark.parametrize(
+    "cages",
+    [
+        [{"value": "11", "cells": [0, 1, 2]}],
+        [{"value": "0", "cells": [0, 1]}],
+        [{"value": "Total", "cells": [0, 1]}],
+        [{"value": "", "cells": [0, 1]}],
+        [{"value": "7", "cells": [0, 1]}, {"value": "11", "cells": [18, 19]}],
+    ],
+    ids=[
+        "numeric-value",
+        "zero-value",
+        "non-numeric-value",
+        "empty-value",
+        "multiple-cages",
+    ],
+)
+def test_unnamed_cosmetic_cage_warns_and_drops(
+    cages: list[dict[str, object]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    # An unnamed block carries no rule under any value shape — only a
+    # recognized name selects one (ADR-0012). No cage/group-sum constraint is
+    # emitted for it, and the drop is loud.
+    payload = constraint_link({"type": 2001, "cages": cages})
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+    assert "unnamed cosmetic cage" in capsys.readouterr().err
+
+
+def test_unrecognized_named_cage_warns_and_drops(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # An unfamiliar name is dropped rather than silently honored under a
+    # guessed ruleset — "Foobar" stays unrecognized forever (ADR-0012).
+    payload = constraint_link(
+        {"name": "Foobar", "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+    assert "Foobar" in capsys.readouterr().err
 
 
 # --- type 300 thermometer ------------------------------------------------

@@ -1,7 +1,7 @@
 import pytest
 
 from gridfind.engine import MalformedPuzzleError
-from gridfind.puzzle import (
+from gridfind.s_directives import (
     BareSCell,
     BareSingleton,
     HalfSCell,
@@ -9,8 +9,6 @@ from gridfind.puzzle import (
     SCellPin,
     SDirective,
     SingletonPin,
-)
-from gridfind.s_directives import (
     s_directive_from_dict,
     s_directive_to_dict,
     validate_s_cell_pair,
@@ -92,3 +90,24 @@ def test_validate_s_cell_pair_refuses_a_pair_that_is_not_two_distinct_digits(
 
 def test_validate_s_cell_pair_accepts_two_distinct_digits() -> None:
     validate_s_cell_pair(frozenset({2, 7}))
+
+
+@pytest.mark.parametrize(
+    "pair",
+    [
+        pytest.param(frozenset([5, 5]), id="dedup-to-one"),
+        pytest.param(frozenset({1, 2, 3}), id="size-three"),
+    ],
+)
+def test_s_cell_pin_refuses_a_pair_that_is_not_two_distinct_digits(
+    pair: frozenset[int],
+) -> None:
+    # The pair's shape is guarded at construction, so a malformed S-cell pin
+    # can never exist in memory (ADR-0006 grill note). Counted after the
+    # frozenset collapses duplicates: {5,5} is one digit, {1,2,3} is three.
+    with pytest.raises(MalformedPuzzleError, match="two distinct"):
+        SCellPin(address="R1C1", pair=pair)
+
+
+def test_s_cell_pin_accepts_two_distinct_digits() -> None:
+    assert SCellPin(address="R1C1", pair=frozenset({2, 7})).pair == frozenset({2, 7})
