@@ -24,6 +24,7 @@ from gridfind.layers.cage import Cage
 from gridfind.layers.distinct import (
     DistinctOverGroups,
     cols,
+    diagonals,
     regions,
     regions_from,
     rows,
@@ -60,6 +61,7 @@ LAYER_REGISTRY = {
     "rows-distinct": DistinctOverGroups("rows-distinct", rows),
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
     "regions-distinct": DistinctOverGroups("regions-distinct", regions),
+    "diagonal": DistinctOverGroups("diagonal", diagonals),
     "line-count-distinct": LineCountDistinct(),
     "anti-knight": OffsetAdjacency("anti-knight", KNIGHT_OFFSETS),
     "anti-king": OffsetAdjacency("anti-king", KING_OFFSETS),
