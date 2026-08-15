@@ -62,6 +62,17 @@ different — still admits four placements, each a distinct completion on its
 placement alone. A first-digit-only key would count four and one; the
 full-content key counts six and four.
 
+The equivalence is a trap worth naming, because a `d0`-only key is cheaper and
+tempting. It returns the right count on any puzzle whose completions happen to
+have distinct first-digit grids — which is most small ones — so a suite of
+plain fixtures stays green under it and hides the undercount. Exposing the gap
+needs a *constructed* collision, and confirming it needs the right measurement:
+compare the full-content count against the distinct first-digit grids of the
+**same** enumeration, the way `enumerate_witnesses_test.py`'s S-cell and doubler
+tests do (six against four, four against one). Comparing counts across two
+separate runs — or over a witness set already deduped on `d0` — cannot show the
+difference: the divergent completions are gone before they are counted.
+
 Phase 2 dedups in the callback because CP-SAT enumerates distinct *variable*
 assignments over the whole model, auxiliary variables included, so several
 solver solutions can carry one witness; keying on the witness content folds
