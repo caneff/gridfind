@@ -16,6 +16,7 @@ from gridfind.sudokumaker.conftest import (
     CLASSIC_CONSTRAINTS,
     EMPTY_CELLS,
     WIRE_CONSTRAINTS,
+    constraint_link,
     encode_document,
 )
 
@@ -103,6 +104,42 @@ def test_every_live_payload_shape_warns(
     decode_link(payload)
 
     assert "1000" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Sum", "Killer", "Doubler", "S-cell", "Schrödinger", "  sum  "],
+    ids=["sum", "killer", "doubler", "s-cell", "schrodinger", "padded-lower"],
+)
+def test_cage_shaped_name_on_a_type_1000_constraint_warns_and_names_it(
+    name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A cage-selector (Sum/Killer) or cell-marker (Doubler/S-cell/Schrödinger)
+    # name needs a cage's cells; a type 1000 custom constraint has none, so the
+    # shared recognizer's carrier-fitness check fails and it warn-drops, naming
+    # the component that was stranded on the wrong carrier (#434).
+    payload = constraint_link({"type": 1000, "definition": {"name": name}})
+
+    puzzle, _ = decode_link(payload)
+
+    captured = capsys.readouterr()
+    assert puzzle.constraints == CLASSIC_CONSTRAINTS
+    assert name in captured.err
+    assert "1000" in captured.err
+
+
+def test_disabled_cage_shaped_name_on_type_1000_is_skipped_without_warning(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # `disabled` wins over the misplaced-name check too: the setter switched
+    # the block off, so a stranded `Sum` name never warns.
+    payload = constraint_link(
+        {"type": 1000, "definition": {"name": "Sum"}, "disabled": True}
+    )
+
+    decode_link(payload)
+
+    assert capsys.readouterr().err == ""
 
 
 def test_disabled_active_constraint_is_skipped_without_warning(

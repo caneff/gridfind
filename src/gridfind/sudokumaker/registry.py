@@ -32,6 +32,7 @@ from gridfind.sudokumaker.edge_clues import (
     _xv_constraints,
 )
 from gridfind.sudokumaker.markers import _COSMETIC_CAGE_TYPE
+from gridfind.sudokumaker.naming import _named_component, _shape_needs_cells
 from gridfind.sudokumaker.regions import _regions_constraints
 
 # SudokuMaker's global toggles — bare `{type: N}` blocks, one per rule, read
@@ -276,6 +277,17 @@ _TOGGLE_WIRE_TYPES = frozenset(
 )
 
 
+def _carrier_supplies_cage_cells(constraint: dict[Any, Any]) -> bool:
+    """True when `constraint` itself carries a `cages` list naming cells — the
+    payload a cage-selector/cell-marker name needs (`naming._shape_needs_cells`).
+    `type 2001`/`type 301` blocks carry this; a `type 1000` custom constraint's
+    payload lives under `input.groups` instead, so it never does."""
+    cages = constraint.get("cages")
+    return isinstance(cages, list) and any(
+        isinstance(cage, dict) and cage.get("cells") for cage in cages
+    )
+
+
 def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     """Ignore every constraint gridfind doesn't model, warning to
     stderr for any that carries live data — so a verdict is never silently
@@ -287,13 +299,18 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     constraint is skipped first with no warning: the setter switched it off,
     so it is not part of
     the puzzle even for a type gridfind knows how to decode. A remaining
-    enabled unmodeled constraint is inert (empty or cosmetic-only payload) and
-    dropped quietly, or active (a live clue/negative list or a populated
-    group) and dropped loudly, named by its `definition.name` when the link
-    carries one. Honoring a specific variant rather than dropping it is the
-    opt-in variant-decoder path; each variant still warns on the
-    part it can't model (a kropki/XV `negative` list), fired from its own
-    decoder instead.
+    enabled unmodeled constraint whose `definition.name` names a
+    cage-selector/cell-marker component (`naming._named_component`, #434) whose
+    shape needs a cage's cells the constraint doesn't carry
+    (`_carrier_supplies_cage_cells`) is a misplaced declaration — dropped
+    loudly, naming the component, regardless of whether its own payload would
+    otherwise read as live. Any other unmodeled constraint is inert (empty or
+    cosmetic-only payload) and dropped quietly, or active (a live
+    clue/negative list or a populated group) and dropped loudly, named by its
+    `definition.name` when the link carries one. Honoring a specific variant
+    rather than dropping it is the opt-in variant-decoder path; each variant
+    still warns on the part it can't model (a kropki/XV `negative` list),
+    fired from its own decoder instead.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` both
@@ -310,8 +327,21 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         kind = constraint.get("type")
         if kind in DECODER_REGISTRY:
             continue
+        name = constraint_name(constraint)
+        component = _named_component(name)
+        if (
+            component is not None
+            and _shape_needs_cells(component.shape)
+            and not _carrier_supplies_cage_cells(constraint)
+        ):
+            msg = (
+                f"warning: ignoring {name!r} (type {kind!r}) — its "
+                f"{component.shape} name needs a cage's cells, which this "
+                "constraint does not carry — verdict computed without it"
+            )
+            print(msg, file=sys.stderr)
+            continue
         if has_live_data(constraint):
-            name = constraint_name(constraint)
             named = f" {name!r}" if name is not None else ""
             msg = (
                 f"warning: ignoring unmodeled constraint{named} (type {kind!r}) "

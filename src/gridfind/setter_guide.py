@@ -1,8 +1,8 @@
 """Render the accepted-link setter guide page from the decoder's own
 constants (ADR-0013). `render()` is pure: it reads
-`sudokumaker.DECODER_REGISTRY`, the three cage-name frozensets, and
-`BOX_SHAPE`, fills them into `setter_guide_template.html`'s `$slot`
-placeholders, and returns the full page HTML. The committed copy at
+`sudokumaker.DECODER_REGISTRY`, the name -> shape registry's per-role alias
+groups, and `BOX_SHAPE`, fills them into `setter_guide_template.html`'s
+`$slot` placeholders, and returns the full page HTML. The committed copy at
 `docs/accepted-link-setter-guide.html` is a build product of this function —
 `setter_guide_test.py`'s freshness test fails the moment the two diverge."""
 
@@ -14,11 +14,9 @@ import string
 
 from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.sudokumaker import DECODER_REGISTRY
-from gridfind.sudokumaker.markers import (
-    _DOUBLER_MARKER_LABELS,
-    _NAMED_KILLER_CAGE_LABELS,
-    _SCELL_MARKER_LABELS,
-)
+from gridfind.sudokumaker.naming import _aliases_by_role
+
+_CAGE_NAME_ROLES = _aliases_by_role()
 
 _TEMPLATE_PATH = pathlib.Path(__file__).with_name("setter_guide_template.html")
 _LINKS_DIR = pathlib.Path(__file__).with_name("links")
@@ -41,24 +39,30 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "positive-diagonal": "found-x-sudoku-4x4",
 }
 
-# One canonical display label per cage-name role, paired with the frozenset the
-# decoder actually matches against, the role blurb, and a "found" corpus example.
-# "Canonical" is a presentation choice — the decoder treats every label in a set
-# identically (ADR-0013) — so it lives here, not in sudokumaker. The remaining
-# labels render as the row's comma-separated "other accepted names". Each role
-# links a distinct example, so the doubler and S-cell markers demonstrate
-# separately even though they share the one cosmetic-cage wire type.
+# One canonical display label per cage-name role, paired with the registry's
+# alias set for that role, the role blurb, and a "found" corpus example.
+# "Canonical" is a presentation choice — the decoder treats every alias in a
+# role identically (ADR-0013) — so it lives here, not in sudokumaker. The
+# remaining aliases render as the row's comma-separated "other accepted
+# names". Each role links a distinct example, so the doubler and S-cell
+# markers demonstrate separately even though they share the one cosmetic-cage
+# wire type.
 _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
     (
         "sum",
-        _NAMED_KILLER_CAGE_LABELS,
+        _CAGE_NAME_ROLES["killer"],
         "Decorative label on a genuine killer cage",
         "found-cage-4x4",
     ),
-    ("doubler", _DOUBLER_MARKER_LABELS, "Doubler position marker", "found-doubler-4x4"),
+    (
+        "doubler",
+        _CAGE_NAME_ROLES["doubler"],
+        "Doubler position marker",
+        "found-doubler-4x4",
+    ),
     (
         "s-cell",
-        _SCELL_MARKER_LABELS,
+        _CAGE_NAME_ROLES["s-cell"],
         (
             "S-cell / Schrödinger position marker; the cage's numeric label supplies "
             "each marked cell's directive — a pin (two digits), a half-pin (one "

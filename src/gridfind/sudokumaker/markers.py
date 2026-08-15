@@ -1,9 +1,9 @@
-"""Named marker-cage classification (ADR-0012, homed here in #443): a `type
-2001` cosmetic-cage block's top-level `name` sorted into `"ordinary"`,
-`"doubler"`, `"s-cell"`, or `"unrecognized"` (`cosmetic_cage_kind`), the two
-S-cell channels that read it — enablement by block *presence*
-(`_has_scell_marker_block`) and pinning by cell *membership*
-(`_scell_marker_values`) — and the display-only marker colorizer
+"""Named marker-cage classification (ADR-0012, homed here in #443, routed
+through the name -> shape registry in #434): a `type 2001` cosmetic-cage
+block's top-level `name` sorted into `"ordinary"`, `"doubler"`, `"s-cell"`, or
+`"unrecognized"` (`cosmetic_cage_kind`), the two S-cell channels that read it —
+enablement by block *presence* (`_has_scell_marker_block`) and pinning by cell
+*membership* (`_scell_marker_values`) — and the display-only marker colorizer
 (`colorize_marker_cages`) that ranks the marker kinds a link actually carries
 onto a fixed palette.
 """
@@ -15,6 +15,7 @@ from typing import Any, Literal, cast
 
 from gridfind.sudokumaker.boundary import _enabled_blocks
 from gridfind.sudokumaker.cells import _addresses
+from gridfind.sudokumaker.naming import _named_component
 
 # type 2001 is a cosmetic-cage block: `{cages: [{value: str, cells: [...]}]}`,
 # the same nested wire shape as a `type 301` killer block — SudokuMaker's
@@ -23,23 +24,6 @@ from gridfind.sudokumaker.cells import _addresses
 # out-of-range cage sum (a doubler inside a cage) reaches gridfind through,
 # since the killer-cage tool refuses to store one.
 _COSMETIC_CAGE_TYPE = 2001
-
-# A cosmetic-cage block's top-level `name` (§4c, ADR-0012): case-insensitive,
-# trimmed, these labels mark a real killer cage decorated with a display name
-# rather than a position marker — the name is discarded, the cage decodes as
-# ordinary. Any name outside the three recognized sets is unrecognized.
-_NAMED_KILLER_CAGE_LABELS = frozenset({"sum", "killer"})
-
-# A cosmetic-cage block's top-level `name` (§4c, ADR-0012) that marks every
-# cell it contains as a declared doubler — a position marker, not a killer
-# cage.
-_DOUBLER_MARKER_LABELS = frozenset({"doubler"})
-
-# A cosmetic-cage block's top-level `name` (§4c, ADR-0012) that declares every
-# cell it contains a Schrödinger S-cell — a position marker, not a killer cage.
-# Both the umlaut spelling and its ASCII fold are recognized (a link may carry
-# either), matched case-insensitively and trimmed.
-_SCELL_MARKER_LABELS = frozenset({"s-cell", "schrödinger", "schrodinger"})
 
 # A low-saturation display palette for named marker cages, cosmetic only —
 # written onto the `type 2001` block's own `color` field, a field
@@ -54,31 +38,25 @@ CosmeticCageKind = Literal["ordinary", "doubler", "s-cell", "unrecognized"]
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     """Classify a `type 2001` block's top-level `name` (ADR-0012) into one of
     four kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
-    label on a genuine cage — `_NAMED_KILLER_CAGE_LABELS`), `"doubler"` (a
-    `Doubler` position marker — `_DOUBLER_MARKER_LABELS`), `"s-cell"` (an
-    `S-cell`/`Schrödinger` position marker — `_SCELL_MARKER_LABELS`), or
-    `"unrecognized"` (a name `decode_link` cannot answer for). Matching is
-    case-insensitive and trimmed.
+    label on a genuine cage — the registry's `"killer"` role), `"doubler"` (a
+    `Doubler` position marker), `"s-cell"` (an `S-cell`/`Schrödinger` position
+    marker), or `"unrecognized"` (a name `decode_link` cannot answer for).
+    Matching is case-insensitive and trimmed, via the shared
+    `naming._named_component` lookup.
 
     This is the one home the named-cosmetic-cage reads route through — the cage
     decoder, the S-cell presence and membership channels, marker colorizing,
     and dev tools that recognize a marker block without decoding the whole
     link all switch on this kind."""
-    if not isinstance(name, str) or not name.strip():
-        return "ordinary"
-    normalized = name.strip().lower()
-    if normalized in _NAMED_KILLER_CAGE_LABELS:
-        return "ordinary"
-    if normalized in _DOUBLER_MARKER_LABELS:
-        return "doubler"
-    if normalized in _SCELL_MARKER_LABELS:
-        return "s-cell"
-    return "unrecognized"
+    component = _named_component(name)
+    if component is None:
+        return "unrecognized" if isinstance(name, str) and name.strip() else "ordinary"
+    return "ordinary" if component.role == "killer" else component.role
 
 
 def _is_scell_block(block: dict[Any, Any]) -> bool:
     """True when a `type 2001` block is named `S-cell`/`Schrödinger`
-    (`_SCELL_MARKER_LABELS`, via `cosmetic_cage_kind`). The one predicate
+    (`cosmetic_cage_kind`, backed by the `naming` registry). The one predicate
     both S-cell channels share, so presence and pinning agree on the label set
     by construction: `_has_scell_marker_block` reads it for enablement by
     presence, `_scell_marker_values` for pinning by membership (ADR-0014)."""
@@ -89,7 +67,7 @@ def _scell_marker_values(
     puzzle_data: dict[str, object], size: int
 ) -> dict[str, object]:
     """Every cell address declared an S-cell by a `type 2001` cosmetic-cage
-    block named `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`), mapped to its
+    block named `S-cell`/`Schrödinger`, mapped to its
     marker cage's own raw `value` (ADR-0014) — the pair/half/bare source
     `_decode_cell` reads for that address. A multi-cell cage's `value` applies
     uniformly to every cell it contains (CONTEXT.md `marker cage`). The
@@ -110,7 +88,7 @@ def _scell_marker_values(
 
 def _has_scell_marker_block(puzzle_data: dict[str, object]) -> bool:
     """True when an enabled `type 2001` cosmetic-cage block is named
-    `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`), regardless of whether it
+    `S-cell`/`Schrödinger`, regardless of whether it
     names any cells. This block *presence* enables Schrödinger mode (ADR-0014):
     the domain widens to `0…N` and a `schrodinger` constraint stands up, giving
     every cell the `is_s` freedom the solver discovers S-cells with. An empty
