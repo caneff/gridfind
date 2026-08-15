@@ -13,11 +13,11 @@ import pathlib
 import string
 
 from gridfind.cell_geometry import BOX_SHAPE
-from gridfind.sudokumaker import (
+from gridfind.sudokumaker import DECODER_REGISTRY
+from gridfind.sudokumaker.markers import (
     _DOUBLER_MARKER_LABELS,
     _NAMED_KILLER_CAGE_LABELS,
     _SCELL_MARKER_LABELS,
-    DECODER_REGISTRY,
 )
 
 _TEMPLATE_PATH = pathlib.Path(__file__).with_name("setter_guide_template.html")

@@ -11,11 +11,11 @@ import re
 
 from gridfind import setter_guide
 from gridfind.layers.regions import BOX_SHAPE
-from gridfind.sudokumaker import (
+from gridfind.sudokumaker import DECODER_REGISTRY
+from gridfind.sudokumaker.markers import (
     _DOUBLER_MARKER_LABELS,
     _NAMED_KILLER_CAGE_LABELS,
     _SCELL_MARKER_LABELS,
-    DECODER_REGISTRY,
 )
 
 _COMMITTED_PAGE = (
