@@ -383,13 +383,13 @@ forces a cell to become an S-cell.
   SudokuMaker forces one whenever a killer sum runs out of standard-digit range —
   the case a **doubler** inside a cage creates — because its killer tool refuses
   to store that sum, so it is the only channel an out-of-range sum arrives
-  through. gridfind reads the block's top-level `name` and sorts the cage four
-  ways (ADR-0012): an **unnamed** cage decodes **as a killer cage** (a `cage`
-  plus a `group-sum` when its label is a number); a cage named `Sum` or `Killer`
-  is the same killer cage with a decorative name; a cage named `Doubler`,
-  `S-cell`, or `Schrödinger` is a **marker cage** that declares positions instead
-  of a constraint; and an unrecognized name is a **loud error** unless
-  `--ignore-unknown-named-cages` strips the name and honors the cage.
+  through. gridfind reads the block's top-level `name`, and only a recognized
+  name selects a rule (ADR-0012): a cage named `Sum` or `Killer` decodes **as a
+  killer cage** (a `cage` plus a `group-sum` when its label is a number); a cage
+  named `Doubler`, `S-cell`, or `Schrödinger` is a **marker cage** that declares
+  positions instead of a constraint. An **unnamed** cage and an **unrecognized**
+  name both carry no rule — gridfind warn-drops each to stderr, naming the block,
+  and computes the verdict without it.
 
 - **marker cage** — a named **cosmetic cage** that *declares* doubler or S-cell
   positions rather than a killer constraint (ADR-0012). A `Doubler` cage marks

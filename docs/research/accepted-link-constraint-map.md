@@ -403,7 +403,6 @@ decoder finding a link it does not support (`sudokumaker.py:41-49`). The paths:
 | black-kropki `value` non-integer | "black-kropki value must be an int" | `sudokumaker.py:641`, `353-359` |
 | edge names no valid pair | "edge … does not name a valid cell pair" | `sudokumaker.py:567-571` |
 | S-cell-marked cell holds a value | "S-cell … also holds a value" | `sudokumaker.py:432-435` |
-| unrecognized cosmetic-cage name | "unrecognized named cage" | `sudokumaker.py:775-778` |
 
 **Reject as a malformed puzzle — `MalformedPuzzleError` from `verdict`.** A
 `Puzzle` `decode_link` produces is never itself malformed; a malformed jigsaw
