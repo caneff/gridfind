@@ -1472,3 +1472,41 @@ def test_verdict_found_for_a_clean_x_sudoku_puzzle() -> None:
     )
 
     assert result.kind == "found"
+
+
+def test_negative_diagonal_breaks_its_repeat_but_allows_a_positive_repeat() -> None:
+    # `negative-diagonal` constrains only the `\` diagonal. A repeat on it breaks;
+    # the same repeat on the `/` positive diagonal is left free — that separation
+    # is the whole reason the single-diagonal layer exists apart from `diagonal`.
+    assert_layer_newly_breaks(
+        smaller=(),
+        full=(Constraint(type="negative-diagonal"),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R2C2", digit=1)),
+        board=Board(size=4),
+    )
+    allowed = verdict(
+        Puzzle(
+            board=Board(size=4),
+            constraints=(Constraint(type="negative-diagonal"),),
+            givens=(Given(address="R1C4", digit=1), Given(address="R2C3", digit=1)),
+        )
+    )
+    assert allowed.kind == "found"
+
+
+def test_positive_diagonal_breaks_its_repeat_but_allows_a_negative_repeat() -> None:
+    # `positive-diagonal` is the mirror: it constrains only the `/` diagonal.
+    assert_layer_newly_breaks(
+        smaller=(),
+        full=(Constraint(type="positive-diagonal"),),
+        givens=(Given(address="R1C4", digit=1), Given(address="R2C3", digit=1)),
+        board=Board(size=4),
+    )
+    allowed = verdict(
+        Puzzle(
+            board=Board(size=4),
+            constraints=(Constraint(type="positive-diagonal"),),
+            givens=(Given(address="R1C1", digit=1), Given(address="R2C2", digit=1)),
+        )
+    )
+    assert allowed.kind == "found"

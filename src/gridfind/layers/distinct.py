@@ -80,6 +80,27 @@ def diagonals(
     return main_diagonals(grid)
 
 
+def negative_diagonal(
+    grid: Grid, box_shape: tuple[int, int] | None = None
+) -> tuple[list[Cell]]:
+    """The negative diagonal (`\\`, top-left to bottom-right) as a one-group
+    partition — SudokuMaker's negative-diagonal toggle, distinct from the
+    positive diagonal a full X-sudoku also constrains. It is the main diagonal
+    off `main_diagonals`; `box_shape` is ignored."""
+    main, _anti = main_diagonals(grid)
+    return (main,)
+
+
+def positive_diagonal(
+    grid: Grid, box_shape: tuple[int, int] | None = None
+) -> tuple[list[Cell]]:
+    """The positive diagonal (`/`, top-right to bottom-left) as a one-group
+    partition — SudokuMaker's positive-diagonal toggle. It is the anti diagonal
+    off `main_diagonals`; `box_shape` is ignored."""
+    _main, anti = main_diagonals(grid)
+    return (anti,)
+
+
 def regions_from(region_map: RegionMap) -> Partition:
     """A partition function closed over a setter-supplied region map — the
     dispatch door's escape hatch for a jigsaw partition. Built

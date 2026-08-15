@@ -35,6 +35,10 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "killer-cage": "found-cage-4x4",
     "cosmetic-cage": "found-doubler-4x4",
     "thermo": "found-thermo-4x4",
+    "anti-knight": "found-anti-knight-4x4",
+    "anti-king": "found-anti-king-6x6",
+    "negative-diagonal": "found-x-sudoku-4x4",
+    "positive-diagonal": "found-x-sudoku-4x4",
 }
 
 # One canonical display label per cage-name role, paired with the frozenset the

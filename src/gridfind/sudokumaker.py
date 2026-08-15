@@ -175,6 +175,15 @@ _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 # block. The strict-vs-non-strict split is the `thermo` layer's concern, not
 # the decoder's.
 _THERMO_TYPE = 300
+# SudokuMaker's global toggles — bare `{type: N}` blocks, one per rule, read
+# off real links (the two diagonals also carry a cosmetic `style` gridfind
+# ignores). The two diagonals are independent switches: negative is the `\`
+# main diagonal, positive the `/` anti-diagonal, so gridfind decodes each to
+# its own single-diagonal constraint rather than the both-diagonals `diagonal`.
+_NEGATIVE_DIAGONAL_TYPE = 10
+_POSITIVE_DIAGONAL_TYPE = 11
+_ANTI_KING_TYPE = 12
+_ANTI_KNIGHT_TYPE = 13
 
 
 @dataclass(frozen=True)
@@ -562,6 +571,23 @@ def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Cons
     if size in BOX_SHAPE and matrix == _classic_regions_for(size):
         return [Constraint("regions-distinct")]
     return [Constraint("regions-distinct", params={"regions": matrix})]
+
+
+def _global_toggle_handler(
+    wire_type: int, constraint_type: str
+) -> Callable[[dict[str, object], int], list[Constraint]]:
+    """A decoder for a bare global-toggle block (anti-knight, anti-king, a
+    single diagonal): the block carries no payload — its enabled presence is
+    the whole rule — so any enabled block of `wire_type` stands up
+    `constraint_type` once, and a cosmetic `style` on the block is ignored. A
+    `disabled` block contributes nothing (the setter switched the rule off)."""
+
+    def handler(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+        for _ in _enabled_blocks(puzzle_data, wire_type):
+            return [Constraint(constraint_type)]
+        return []
+
+    return handler
 
 
 def _regions_matrix(puzzle_data: dict[str, object]) -> object | None:
@@ -1142,6 +1168,56 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " thermometers list adds nothing.",
         ),
     ),
+    _NEGATIVE_DIAGONAL_TYPE: DecodedType(
+        handler=_global_toggle_handler(_NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
+        live_keys=(),
+        name="negative-diagonal",
+        setter_doc=SetterDoc(
+            display_name="Negative Diagonal (\\)",
+            wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
+            decode_result="One negative-diagonal Constraint: the `\\` diagonal"
+            " holds all-different digits. Independent of the positive diagonal.",
+            verdict="Accept an enabled block. A disabled block is skipped; the"
+            " cosmetic style is ignored.",
+        ),
+    ),
+    _POSITIVE_DIAGONAL_TYPE: DecodedType(
+        handler=_global_toggle_handler(_POSITIVE_DIAGONAL_TYPE, "positive-diagonal"),
+        live_keys=(),
+        name="positive-diagonal",
+        setter_doc=SetterDoc(
+            display_name="Positive Diagonal (/)",
+            wire_block="type 11 {style?} — a bare toggle; style is cosmetic.",
+            decode_result="One positive-diagonal Constraint: the `/` diagonal"
+            " holds all-different digits. Both toggles together are X-sudoku.",
+            verdict="Accept an enabled block. A disabled block is skipped; the"
+            " cosmetic style is ignored.",
+        ),
+    ),
+    _ANTI_KING_TYPE: DecodedType(
+        handler=_global_toggle_handler(_ANTI_KING_TYPE, "anti-king"),
+        live_keys=(),
+        name="anti-king",
+        setter_doc=SetterDoc(
+            display_name="Anti-King",
+            wire_block="type 12 — a bare toggle, no payload.",
+            decode_result="One anti-king Constraint: no two cells a king's step"
+            " apart share a digit.",
+            verdict="Accept an enabled block. A disabled block is skipped.",
+        ),
+    ),
+    _ANTI_KNIGHT_TYPE: DecodedType(
+        handler=_global_toggle_handler(_ANTI_KNIGHT_TYPE, "anti-knight"),
+        live_keys=(),
+        name="anti-knight",
+        setter_doc=SetterDoc(
+            display_name="Anti-Knight",
+            wire_block="type 13 — a bare toggle, no payload.",
+            decode_result="One anti-knight Constraint: no two cells a knight's"
+            " hop apart share a digit.",
+            verdict="Accept an enabled block. A disabled block is skipped.",
+        ),
+    ),
 }
 
 # The union of every registered type's live-data keys, order-preserved and
@@ -1149,6 +1225,20 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
 # happened to match what the decoders above read.
 _LIVE_LIST_KEYS: tuple[str, ...] = tuple(
     dict.fromkeys(key for entry in DECODER_REGISTRY.values() for key in entry.live_keys)
+)
+
+# Global toggles carry their rule in the bare type, not a payload, so
+# `has_live_data` can't read their liveness off a `live_keys` list the way it
+# does for clue/cage blocks — an enabled toggle's presence is the live rule.
+# The coverage-floor E2E gate turns red if a toggle row is added to the
+# registry without listing it here, so the two never drift.
+_TOGGLE_WIRE_TYPES = frozenset(
+    {
+        _NEGATIVE_DIAGONAL_TYPE,
+        _POSITIVE_DIAGONAL_TYPE,
+        _ANTI_KING_TYPE,
+        _ANTI_KNIGHT_TYPE,
+    }
 )
 
 
@@ -1197,10 +1287,11 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
 
 
 def has_live_data(constraint: dict[Any, Any]) -> bool:
-    """True when an enabled, unmodeled constraint carries data that would emit
-    a rule: a non-empty list under one of `DECODER_REGISTRY`'s `live_keys`
-    (`clues`/`negative`/`cages`), or a group holding real cells
-    under `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
+    """True when a constraint carries a rule gridfind would honour: a global
+    toggle (anti-knight, anti-king, a diagonal), whose bare enabled presence is
+    the rule; a non-empty list under one of `DECODER_REGISTRY`'s `live_keys`
+    (`clues`/`negative`/`cages`); or a group holding real cells under
+    `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
 
     `cages` is a killer-cage block's (`type 301`) payload. It is decoded now,
     so `_warn_on_dropped_constraints` skips it — this entry marks
@@ -1214,6 +1305,8 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     predicate the decoder drops by. `Any` keeps the decoded-JSON
     boundary type (a dict narrowed from the untyped payload), as `decode_link`
     does for `puzzle_data`."""
+    if constraint.get("type") in _TOGGLE_WIRE_TYPES:
+        return True
     for key in _LIVE_LIST_KEYS:
         value = constraint.get(key)
         if isinstance(value, list) and any(value):

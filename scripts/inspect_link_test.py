@@ -62,6 +62,22 @@ from inspect_link import (
             "active",
             id="empty-cosmetic-cage-active",
         ),
+        # A global toggle carries its rule in the bare type, not a payload;
+        # gridfind now honours all four, so the inspector calls them active.
+        pytest.param({"type": 12}, "active", id="anti-king-toggle-active"),
+        pytest.param({"type": 13}, "active", id="anti-knight-toggle-active"),
+        pytest.param(
+            {"type": 10, "style": {"color": "#34bbe6ff"}},
+            "active",
+            id="negative-diagonal-toggle-active",
+        ),
+        pytest.param(
+            {"type": 11, "style": {"color": "#34bbe6ff"}},
+            "active",
+            id="positive-diagonal-toggle-active",
+        ),
+        # A disabled toggle never counts, whatever gridfind does with it enabled.
+        pytest.param({"type": 12, "disabled": True}, "disabled", id="disabled-toggle"),
     ],
 )
 def test_classify_constraint(constraint: dict[str, object], expected: str) -> None:
