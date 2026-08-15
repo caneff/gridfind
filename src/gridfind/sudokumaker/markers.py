@@ -5,7 +5,10 @@ block's top-level `name` sorted into `"unnamed"`, `"killer"`, `"doubler"`,
 that read it — enablement by block *presence* (`_has_scell_marker_block`) and
 pinning by cell *membership* (`_scell_marker_values`) — and the display-only
 marker colorizer (`colorize_marker_cages`) that ranks the marker kinds a link
-actually carries onto a fixed palette.
+actually carries onto a fixed palette. The public `MARKER_LABELS` dict is the
+role -> accepted-names table, built once from `naming._aliases_by_role` and read
+directly by `setter_guide.py`'s cage-name-alias rendering — the public seam that
+keeps it off `naming`'s private grouping.
 """
 
 from __future__ import annotations
@@ -15,7 +18,7 @@ from typing import Any, Literal, cast
 
 from gridfind.sudokumaker.boundary import _enabled_blocks
 from gridfind.sudokumaker.cells import _addresses
-from gridfind.sudokumaker.naming import _named_component
+from gridfind.sudokumaker.naming import _aliases_by_role, _named_component
 
 # type 2001 is a cosmetic-cage block: `{cages: [{value: str, cells: [...]}]}`,
 # the same nested wire shape as a `type 301` killer block — SudokuMaker's
@@ -33,6 +36,13 @@ _COSMETIC_CAGE_TYPE = 2001
 _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 
 CosmeticCageKind = Literal["unnamed", "killer", "doubler", "s-cell", "unrecognized"]
+
+# Role -> its accepted `type 2001` names, the public seam `setter_guide.py`
+# reads for cage-name-alias rendering. Built from `naming._aliases_by_role` so
+# the alias data keeps one home (the name -> shape registry); this exposes it
+# publicly without a second copy. `cosmetic_cage_kind` classifies through
+# `naming._named_component`, not this table, so the two cannot drift.
+MARKER_LABELS: dict[str, frozenset[str]] = _aliases_by_role()
 
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:

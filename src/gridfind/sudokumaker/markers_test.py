@@ -39,7 +39,7 @@ from gridfind.sudokumaker.conftest import (
     encode_document,
     mask,
 )
-from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE
+from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE, MARKER_LABELS
 from gridfind.verdict import verdict
 
 # A Schrödinger link's own cosmetic vocabulary: unknown types the decoder must
@@ -132,6 +132,22 @@ def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> 
     # S-cell marker, or an unrecognized name — the decoder warn-drops both
     # unnamed and unrecognized.
     assert cosmetic_cage_kind(name) == expected
+
+
+def test_marker_labels_covers_killer_doubler_and_s_cell_roles() -> None:
+    # MARKER_LABELS is the public role -> accepted-names table setter_guide.py's
+    # cage-name-alias rows read directly; every name-bearing role
+    # cosmetic_cage_kind recognizes has an entry here.
+    assert set(MARKER_LABELS) == {"killer", "doubler", "s-cell"}
+
+
+@pytest.mark.parametrize("role", ["killer", "doubler", "s-cell"])
+def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
+    # Every name MARKER_LABELS lists under a role must classify to that role
+    # through cosmetic_cage_kind. MARKER_LABELS and cosmetic_cage_kind both
+    # read naming's one registry, so the two cannot drift.
+    for name in MARKER_LABELS[role]:
+        assert cosmetic_cage_kind(name) == role
 
 
 # --- Doubler marker cage -------------------------------------------------
