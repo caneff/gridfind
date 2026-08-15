@@ -1,8 +1,40 @@
+from pathlib import Path
+
 import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
-from gridfind.verdict import enumerate_witnesses, verdict
+from gridfind.sudokumaker import decode_link
+from gridfind.verdict import Enumeration, enumerate_witnesses, verdict
 from gridfind.witness import Witness
+
+_LINKS_DIR = Path(__file__).parent / "links"
+
+
+def _mixed_stack_puzzle() -> Puzzle:
+    """The 4x4 sudoku + schrodinger + doubler stack. Its 17280 completions are
+    far more than any tight time budget can enumerate, so it drives the
+    phase-2-timeout path: the search always finds some and never exhausts."""
+    return Puzzle(
+        board=Board(size=4, values=range(5)),
+        constraints=(
+            Constraint(type="sudoku"),
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+        ),
+    )
+
+
+def _identity_set(result: Enumeration) -> set[tuple[object, object]]:
+    """The set of witness identities in a result — each witness's per-cell
+    content and discovered doublers (ADR-0015), the same identity `verdict`
+    dedups on. Built from the public `Witness` surface so the check does not
+    lean on how the enumeration keys distinctness inside."""
+    return {
+        (tuple(w.assignment.items()), tuple(w.modifiers.items()))
+        for w in result.witnesses
+    }
 
 
 def _pairwise_distinct(witnesses: tuple[Witness, ...]) -> bool:
@@ -217,3 +249,101 @@ def test_mixed_s_cell_and_doubler_fixture_enumerates_all_17280_completions() -> 
     assert result.exhaustive is True
     assert len(result.witnesses) == 17280
     assert _pairwise_distinct(result.witnesses)
+
+
+def test_phase_two_timeout_returns_partial_witnesses_not_exhaustive() -> None:
+    # Phase 1 finds, so phase 2 runs; with a limit far above the true count the
+    # search can only stop on the clock, not the limit. A budget too small to
+    # enumerate all 17280 completions returns the ones found so far with
+    # `exhaustive=False` — the caller keeps the partial set and knows more exist
+    # (story #16). The budget has wide margin either way: phase 1 is one fast
+    # feasibility solve, and exhausting 17280 single-worker takes seconds, so
+    # 0.5s reliably finds some and never all. The count itself is
+    # timing-dependent, so the assertion pins the contract, not a number.
+    result = enumerate_witnesses(_mixed_stack_puzzle(), limit=20001, time_limit_s=0.5)
+
+    assert result.kind == "found"
+    assert result.exhaustive is False
+    assert 0 < len(result.witnesses) < 17280
+    assert _pairwise_distinct(result.witnesses)
+
+
+def test_phase_one_timeout_with_nothing_found_returns_unknown_empty() -> None:
+    # A zero-second budget lets phase 1 do no work, so it decides nothing and
+    # returns `unknown` with an empty tuple — distinct from `broke`, which
+    # proves no completion exists (story #15). Zero seconds models the
+    # phase-1-exhausted-the-budget case with no dependence on machine speed: no
+    # solve can finish in zero time.
+    result = enumerate_witnesses(_mixed_stack_puzzle(), limit=5, time_limit_s=0.0)
+
+    assert result.kind == "unknown"
+    assert result.witnesses == ()
+    assert result.exhaustive is False
+
+
+@settings(max_examples=25, deadline=None)
+@given(
+    size=st.integers(min_value=1, max_value=2),
+    domain=st.integers(min_value=1, max_value=3),
+    limit=st.integers(min_value=1, max_value=12),
+)
+def test_witnesses_are_pairwise_distinct_and_within_limit(
+    size: int, domain: int, limit: int
+) -> None:
+    # For any small board and limit, the returned witnesses are pairwise
+    # distinct and number at most `limit` (story #13). An unconstrained board
+    # has domain**cells completions, always feasible, so every draw returns
+    # `found` and exercises both truncation (limit below the count) and
+    # exhaustion (limit at or above it).
+    puzzle = Puzzle(board=Board(size=size, values=range(1, domain + 1)))
+
+    result = enumerate_witnesses(puzzle, limit=limit)
+
+    assert result.kind == "found"
+    assert len(result.witnesses) <= limit
+    assert _pairwise_distinct(result.witnesses)
+
+
+@settings(max_examples=20, deadline=None)
+@given(
+    size=st.integers(min_value=1, max_value=2),
+    domain=st.integers(min_value=1, max_value=3),
+)
+def test_exhaustive_result_is_stable_under_higher_limit(size: int, domain: int) -> None:
+    # When `exhaustive` is True, the enumeration saw every completion, so
+    # re-running with a higher limit returns the same set and the same count
+    # (story #17). A generous first limit reaches exhaustion on these small
+    # boards; the rare draw whose true count exceeds it is dropped by `assume`.
+    puzzle = Puzzle(board=Board(size=size, values=range(1, domain + 1)))
+
+    first = enumerate_witnesses(puzzle, limit=64)
+    assume(first.exhaustive)
+
+    again = enumerate_witnesses(puzzle, limit=128)
+
+    assert again.exhaustive is True
+    assert len(again.witnesses) == len(first.witnesses)
+    assert _identity_set(again) == _identity_set(first)
+
+
+@pytest.mark.e2e
+def test_real_link_multi_witness_enumeration_through_the_library_path() -> None:
+    # The library path end to end on a real SudokuMaker link: decode the corpus
+    # kropki 4x4, which has exactly 12 completions, and enumerate them. A limit
+    # above the count returns all 12, exhaustively and pairwise distinct; a
+    # limit below truncates to that many and reports the search unfinished. The
+    # CLI front door is out of scope here — this drives `enumerate_witnesses`
+    # directly (spec #389).
+    link = (_LINKS_DIR / "found-kropki-4x4.txt").read_text().split()[-1]
+    puzzle, working_state = decode_link(link)
+
+    full = enumerate_witnesses(puzzle, working_state, limit=50)
+    assert full.kind == "found"
+    assert full.exhaustive is True
+    assert len(full.witnesses) == 12
+    assert _pairwise_distinct(full.witnesses)
+
+    truncated = enumerate_witnesses(puzzle, working_state, limit=5)
+    assert truncated.exhaustive is False
+    assert len(truncated.witnesses) == 5
+    assert _pairwise_distinct(truncated.witnesses)
