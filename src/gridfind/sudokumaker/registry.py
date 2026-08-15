@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker.boundary import _enabled_blocks
+from gridfind.sudokumaker.boundary import ConstraintBuckets, _enabled_blocks
 from gridfind.sudokumaker.cages import (
     _CAGE_TYPE,
     _THERMO_TYPE,
@@ -48,15 +48,15 @@ _ANTI_KNIGHT_TYPE = 13
 
 def _global_toggle_handler(
     wire_type: int, constraint_type: str
-) -> Callable[[dict[str, object], int], list[Constraint]]:
+) -> Callable[[ConstraintBuckets, int], list[Constraint]]:
     """A decoder for a bare global-toggle block (anti-knight, anti-king, a
     single diagonal): the block carries no payload — its enabled presence is
     the whole rule — so any enabled block of `wire_type` stands up
     `constraint_type` once, and a cosmetic `style` on the block is ignored. A
     `disabled` block contributes nothing (the setter switched the rule off)."""
 
-    def handler(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
-        for _ in _enabled_blocks(puzzle_data, wire_type):
+    def handler(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+        for _ in _enabled_blocks(buckets, wire_type):
             return [Constraint(constraint_type)]
         return []
 
@@ -94,7 +94,7 @@ class DecodedType:
     type — `None` for a structural row (`type 0`/`type 1`) that no setter
     draws directly."""
 
-    handler: Callable[[dict[str, object], int], list[Constraint]] | None
+    handler: Callable[[ConstraintBuckets, int], list[Constraint]] | None
     live_keys: tuple[str, ...]
     name: str
     setter_doc: SetterDoc | None
