@@ -430,25 +430,50 @@ over the same cells (issue #243, spec #240) — see the `cage` layer section.
 
 ## Modifiers
 
-A cell whose placed digit enters constraint arithmetic changed rather than raw.
-The value seam reads a cell's **value**, which is its digit for a plain cell and
-its modified amount for a modifier cell — so a sum, difference, or cage total
-folds the modifier without the constraint layer knowing one is present.
+A cell whose **value** in constraint arithmetic is not its raw digit. The value
+seam reads a cell's **value** — its digit for a plain cell, its modified amount
+for a modifier cell — so a sum, difference, or cage total folds the modifier
+without the constraint layer knowing one is present. Every modifier type shares
+one base (`Modifier`, ADR-0016): one **modifier** per house, found by the same
+transversal, differing only in the value a modified cell takes.
 
-- **modifier** — a cell that transforms its own digit for arithmetic. Its
-  **position is declared** by the setter (a cell in a named `Doubler` **marker
-  cage** in a SudokuMaker link, ADR-0012), while a plain puzzle discovers
-  modifier positions by the one-per-house transversal (issue #237). The
-  distinction is placement, not value.
+Modifier types split by how that value is built:
 
-- **doubler** — the built modifier: its value is `2·d0`, twice its digit.
-  Declared in a link by a named `Doubler` **marker cage** (ADR-0012). A doubler
-  inside a **cage** is what drives a sum out of standard-digit range and forces
-  the setter to a sum-carrying **cosmetic cage**.
+- **digit-relative modifier** — the modified value is a function of the cell's
+  own digit. The **doubler** is the built one.
+- **constant modifier** — the modified value is a fixed number `k`, the same for
+  every modified cell, independent of its digit. The **nullifier** (`k = 0`) is
+  the conventional case.
+
+A puzzle carries **one** modifier type at a time; two kinds — or one kind at two
+values of `k` — in one grid is deferred, not foreclosed (ADR-0016).
+
+- **modifier** — a cell that transforms its own value for arithmetic. Its
+  **position is declared** by the setter (a cell in a named modifier **marker
+  cage** — `Doubler`, or `Constant`/`Nullifier` — in a SudokuMaker link,
+  ADR-0012, ADR-0016), while a plain puzzle discovers modifier positions by the
+  one-per-house transversal (issue #237). The distinction is placement, not
+  value.
+
+- **doubler** — the built **digit-relative** modifier: its value is `2·d0`,
+  twice its digit. Declared in a link by a named `Doubler` **marker cage**
+  (ADR-0012). A doubler inside a **cage** is what drives a sum out of
+  standard-digit range and forces the setter to a sum-carrying **cosmetic cage**.
+
+- **constant modifier** — a modifier whose value is a fixed `k`, ignoring the
+  cell's digit (`k` any integer, negatives included). `k` is the `constant`
+  constraint's own parameter, so a discovered cage-free puzzle names it directly;
+  a link declares it through a named `Constant <N>` **marker cage**, `N` read
+  from the cage **name** itself (ADR-0016). A per-cage `value` field on a marker
+  cage carries no meaning and is refused.
+
+- **nullifier** — the constant modifier with `k = 0`: every modified cell counts
+  as `0` in arithmetic. `Nullifier` is the marker-cage spelling for `Constant 0`.
 
 A **found** verdict's **witness** reports which cells the solver discovered as
 modifiers on a `modifiers: dict[str, str]` field, address to the puzzle's
-declared modifier type (`"doubler"`) — the modifier analog of `assignment`,
+declared modifier type (`"doubler"`, `"constant"`) — the modifier analog of
+`assignment`,
 populated from the discovered `is_modifier` structure the same way `assignment`
 is gated on `is_s`. The witness's digit `assignment` still carries the raw
 digit, never the folded value: a **given** on a modified cell pins the digit
