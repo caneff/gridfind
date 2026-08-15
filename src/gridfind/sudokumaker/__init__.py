@@ -60,153 +60,35 @@ enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
 (`DECODER_REGISTRY`), and `decode` (`decode_link` itself, the one function
-that threads all of them together). `decode_link`/`encode_link` remain the
-package's public door; every name any importer previously pulled from the
-single `sudokumaker.py` module is re-exported below.
+that threads all of them together). `decode_link`/`encode_link` are the
+package's public door, alongside the rest of the public tool surface listed
+in `__all__` below; a module-private (`_`-prefixed) name is imported from its
+owning submodule directly.
 """
 
 from __future__ import annotations
 
-from gridfind.sudokumaker.boundary import (
-    _CLASSIC_SIZE,
-    _as_int,
-    _board_size,
-    _digit_domain,
-    _enabled_blocks,
-    _schrodinger_domain,
-    decode_document,
-    encode_link,
-)
-from gridfind.sudokumaker.cages import (
-    _CAGE_TYPE,
-    _THERMO_TYPE,
-    _cage_constraints,
-    _cosmetic_cage_constraints,
-    _cosmetic_cage_killer_sum,
-    _CosmeticCageDecode,
-    _killer_cage,
-    _thermo_constraints,
-)
-from gridfind.sudokumaker.cells import (
-    _MAX_SINGLE_DIGIT,
-    _SCELL_PIN_DIGITS,
-    _address,
-    _addresses,
-    _CellDecode,
-    _decode_cell,
-    _parse_digit,
-    _scell_directive_from_value,
-    _write_s_cell,
-    write_cell,
-)
+from gridfind.sudokumaker.boundary import decode_document, encode_link
+from gridfind.sudokumaker.cells import write_cell
 from gridfind.sudokumaker.decode import decode_link
-from gridfind.sudokumaker.edge_clues import (
-    _KROPKI_BLACK_TYPE,
-    _KROPKI_WHITE_TYPE,
-    _XV_ALIASES,
-    _XV_TYPE,
-    _black_kropki_constraints,
-    _edge_clue_constraints,
-    _kropki_constraints,
-    _warn_dropped_negative,
-    _xv_constraints,
-)
 from gridfind.sudokumaker.markers import (
-    _COSMETIC_CAGE_TYPE,
-    _DOUBLER_MARKER_LABELS,
-    _MARKER_KIND_PRIORITY,
-    _NAMED_KILLER_CAGE_LABELS,
-    _SCELL_MARKER_LABELS,
     CosmeticCageKind,
-    _has_scell_marker_block,
-    _is_scell_block,
-    _scell_marker_values,
     colorize_marker_cages,
     cosmetic_cage_kind,
 )
-from gridfind.sudokumaker.regions import (
-    _classic_regions_for,
-    _regions_constraints,
-    _regions_matrix,
-)
 from gridfind.sudokumaker.registry import (
-    _ANTI_KING_TYPE,
-    _ANTI_KNIGHT_TYPE,
-    _LIVE_LIST_KEYS,
-    _NEGATIVE_DIAGONAL_TYPE,
-    _POSITIVE_DIAGONAL_TYPE,
-    _TOGGLE_WIRE_TYPES,
     DECODER_REGISTRY,
     DecodedType,
     SetterDoc,
-    _global_toggle_handler,
-    _warn_on_dropped_constraints,
     constraint_name,
     has_live_data,
 )
 
-# The full re-export surface: `decode_link`/`encode_link` are the public
-# door, but the package also carries forward every name an existing importer
-# (cli, setter_guide, inspect_link, verify_links, and the *_test.py suites)
-# previously pulled from the single sudokumaker.py module — including the
-# module-private helpers those whitebox tests exercise directly — so every
-# import path keeps working unchanged after the split.
 __all__ = [
     "DECODER_REGISTRY",
-    "_ANTI_KING_TYPE",
-    "_ANTI_KNIGHT_TYPE",
-    "_CAGE_TYPE",
-    "_CLASSIC_SIZE",
-    "_COSMETIC_CAGE_TYPE",
-    "_DOUBLER_MARKER_LABELS",
-    "_KROPKI_BLACK_TYPE",
-    "_KROPKI_WHITE_TYPE",
-    "_LIVE_LIST_KEYS",
-    "_MARKER_KIND_PRIORITY",
-    "_MAX_SINGLE_DIGIT",
-    "_NAMED_KILLER_CAGE_LABELS",
-    "_NEGATIVE_DIAGONAL_TYPE",
-    "_POSITIVE_DIAGONAL_TYPE",
-    "_SCELL_MARKER_LABELS",
-    "_SCELL_PIN_DIGITS",
-    "_THERMO_TYPE",
-    "_TOGGLE_WIRE_TYPES",
-    "_XV_ALIASES",
-    "_XV_TYPE",
     "CosmeticCageKind",
     "DecodedType",
     "SetterDoc",
-    "_CellDecode",
-    "_CosmeticCageDecode",
-    "_address",
-    "_addresses",
-    "_as_int",
-    "_black_kropki_constraints",
-    "_board_size",
-    "_cage_constraints",
-    "_classic_regions_for",
-    "_cosmetic_cage_constraints",
-    "_cosmetic_cage_killer_sum",
-    "_decode_cell",
-    "_digit_domain",
-    "_edge_clue_constraints",
-    "_enabled_blocks",
-    "_global_toggle_handler",
-    "_has_scell_marker_block",
-    "_is_scell_block",
-    "_killer_cage",
-    "_kropki_constraints",
-    "_parse_digit",
-    "_regions_constraints",
-    "_regions_matrix",
-    "_scell_directive_from_value",
-    "_scell_marker_values",
-    "_schrodinger_domain",
-    "_thermo_constraints",
-    "_warn_dropped_negative",
-    "_warn_on_dropped_constraints",
-    "_write_s_cell",
-    "_xv_constraints",
     "colorize_marker_cages",
     "constraint_name",
     "cosmetic_cage_kind",

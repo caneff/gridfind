@@ -26,12 +26,12 @@ from pathlib import Path
 
 # The toggle wire types are imported from the decoder — their one home — so the
 # corpus builds off the same numbers the decoder reads by, never a second copy.
-from gridfind.sudokumaker import (
+from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker.registry import (
     _ANTI_KING_TYPE,
     _ANTI_KNIGHT_TYPE,
     _NEGATIVE_DIAGONAL_TYPE,
     _POSITIVE_DIAGONAL_TYPE,
-    encode_link,
 )
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
