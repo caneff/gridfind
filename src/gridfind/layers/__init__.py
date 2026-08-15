@@ -43,6 +43,7 @@ from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.regions import region_map_for_constraints
+from gridfind.layers.s_blind import SBlindLayerError, refuse_s_blind_over_widening
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.layers.thermo import Thermo
 from gridfind.puzzle import Constraint, JsonValue
@@ -57,14 +58,6 @@ __all__ = [
 
 class UnknownLayerError(GridfindError):
     """A stack names a layer the registry doesn't recognize."""
-
-
-class SBlindLayerError(GridfindError):
-    """An `s_blind` layer — one that reads a cell's single content slot — is
-    stacked with a layer that widens cells to a second slot (`schrodinger`
-    today, any future widening layer as well). The combination has no
-    defined meaning, so `build_stack` refuses it rather than let the s-blind
-    layer read past a widened cell's first slot alone."""
 
 
 LAYER_REGISTRY = {
@@ -190,36 +183,8 @@ def build_stack(
             )
         else:
             layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
-    _refuse_s_blind_over_widening(layers)
+    refuse_s_blind_over_widening(layers)
     return canonical, list(layers.values())
-
-
-def _refuse_s_blind_over_widening(layers: dict[str, Layer]) -> None:
-    """Refuse a stack that pairs an `s_blind` layer with a `widens` layer —
-    keyed on those properties, not on the literal name `schrodinger`, so a
-    future widening layer is covered for free.
-
-    Names the first offending pair found, in stack order: the s-blind
-    layer's own constraint type is the one a setter needs to see to fix
-    their puzzle."""
-    widening_name = next(
-        (name for name, layer in layers.items() if getattr(layer, "widens", False)),
-        None,
-    )
-    if widening_name is None:
-        return
-    blind_name = next(
-        (name for name, layer in layers.items() if getattr(layer, "s_blind", False)),
-        None,
-    )
-    if blind_name is None:
-        return
-    msg = (
-        f"{blind_name!r} reads a cell's single content slot; it has no "
-        f"defined meaning next to {widening_name!r}, which widens every "
-        "cell to two"
-    )
-    raise SBlindLayerError(msg)
 
 
 def canonical_identity(constraints: tuple[Constraint, ...]) -> tuple[str, ...]:
