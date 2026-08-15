@@ -2,7 +2,12 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from gridfind.cell_geometry import BOX_SHAPE, cell_address, cell_geometry
+from gridfind.cell_geometry import (
+    BOX_SHAPE,
+    CellGeometry,
+    cell_address,
+    cell_geometry,
+)
 from gridfind.puzzle import Board
 
 
@@ -95,6 +100,34 @@ def test_step_from_an_undeclared_start_raises() -> None:
 
     with pytest.raises(KeyError):
         geometry.step("R9C9", 1, 0)
+
+
+def _holed_geometry() -> CellGeometry:
+    # A 3x3 address space with an interior hole: R2C2 is not declared. The hole
+    # is what tells membership apart from a `1 <= row <= size` bounds check —
+    # the cell-space contract that no full-board link can reach (#399).
+    grid = [
+        ["R1C1", "R1C2", "R1C3"],
+        ["R2C1", "R2C3"],
+        ["R3C1", "R3C2", "R3C3"],
+    ]
+    return CellGeometry(size=3, values=range(1, 4), box_shape=None, grid=grid)
+
+
+def test_step_onto_an_interior_hole_is_off_space() -> None:
+    # R2C2 sits inside 1..3 on both axes, so a bounds check would accept it;
+    # membership rejects it because no cell is declared there.
+    geometry = _holed_geometry()
+
+    assert geometry.step("R1C2", 1, 0) is None
+
+
+def test_step_resolves_a_present_cell_across_a_hole() -> None:
+    # Stepping right from R2C1 skips the R2C2 hole and lands on the declared
+    # R2C3 — position comes from the address, not a shifted list index.
+    geometry = _holed_geometry()
+
+    assert geometry.step("R2C1", 0, 2) == "R2C3"
 
 
 def test_walk_returns_the_ordered_line_and_stops_at_the_boundary() -> None:
