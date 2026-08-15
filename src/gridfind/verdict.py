@@ -105,7 +105,7 @@ def _witness_from(
     distinct — is defined in a single place. `solver` is any reader over the
     solution — a `CpSolver` or the solution callback standing in for one."""
     return Witness(
-        grid=engine.grid(),
+        grid=engine.cell_geometry.grid,
         assignment=engine.assignment(solver),
         region_map=region_map,
         modifiers=engine.discovered_modifiers(solver),

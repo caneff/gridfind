@@ -2,10 +2,10 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from gridfind.cell_geometry import cell_address
 from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.layers import UnknownLayerError
-from gridfind.layers.board import cell_address
 from gridfind.layers.regions import box_regions
 from gridfind.puzzle import (
     EMPTY,

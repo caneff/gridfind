@@ -12,7 +12,7 @@ import html
 import pathlib
 import string
 
-from gridfind.layers.regions import BOX_SHAPE
+from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.sudokumaker import (
     _DOUBLER_MARKER_LABELS,
     _NAMED_KILLER_CAGE_LABELS,

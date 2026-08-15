@@ -8,6 +8,12 @@
   [#43](https://github.com/caneff/gridfind/issues/43), ticket
   [#110](https://github.com/caneff/gridfind/issues/110), sweep
   [#109](https://github.com/caneff/gridfind/issues/109)).
+- **Amended:** 2026-08-15 — the descriptor is built (ticket
+  [#420](https://github.com/caneff/gridfind/issues/420)) and the adjacency slot
+  is locked, not yet built: a directional stepper, resolved against the cell
+  space (sub-map [#398](https://github.com/caneff/gridfind/issues/398), spec
+  [#416](https://github.com/caneff/gridfind/issues/416)). See "The directional
+  stepper" under Decision.
 
 ## Context
 
@@ -77,6 +83,27 @@ no registry, and never needs to ask who produced what
    carried fields — they are setter input, fixed before any layer runs, and
    nothing must stay apart.
 
+6. **The directional stepper is `CellGeometry`'s one adjacency primitive,
+   locked but not yet built.** Given a start cell address and a direction
+   `(Δrow, Δcol)`, `step` returns the cell address at that offset, or nothing
+   when no cell is declared there; `walk` returns the ordered tuple of cell
+   addresses from the start in that direction until the line leaves the cell
+   space. One primitive serves every cell-to-cell clue foreseeable today —
+   anti-knight and anti-king apply it once per offset, an outside-clue line
+   walks it whole — so `CellGeometry` never learns a variant name; each clue
+   owns its own offset list. **vs ISS:** shape matches `CellGraph.traverse`,
+   which `walk` iterates. **One knowing deviation:** ISS's `traverse` clips to
+   the grid rectangle (`numRows`/`numCols`); the stepper resolves against the
+   **declared cell-address set** instead, returning nothing only when no cell
+   sits at the target. Off-grid solved cells are coming (sub-map
+   [#399](https://github.com/caneff/gridfind/issues/399)) and `CellGeometry` was
+   named over `GridGeometry` for exactly this (see Consequences below) —
+   clipping to the rectangle would force #399 to reopen the stepper; resolving
+   against the space does not. The deviation costs nothing today: with only
+   grid cells declared, cell-space membership equals the rectangle bound.
+   Locked in spec [#416](https://github.com/caneff/gridfind/issues/416); ships
+   in a later ticket of that spec, not this ADR's own extraction (#420).
+
 ## Considered options
 
 - **A registry read handle** (ADR-0003's own prediction). Rejected: it gives
@@ -101,9 +128,11 @@ no registry, and never needs to ask who produced what
   `emit_distinct_count`, and `Engine.restrict` stop reaching two dots into the
   setter's descriptor. Stated here so a later reader does not think we forgot
   them.
-- **Adjacency has a slot and no implementation.** ISS puts `cellGraph()` inside
-  the same descriptor. When the first adjacency variant lands — anti-knight,
-  anti-king, kropki-on-all-pairs — it goes here. Nothing is built for it now.
+- **Adjacency has a slot, and now a locked design.** ISS puts `cellGraph()`
+  inside the same descriptor; decision 6 records `CellGeometry`'s own
+  directional stepper and its one knowing deviation from ISS. The stepper
+  itself, and the anti-knight/anti-king/X-sudoku clues that prove it, ship in
+  a later ticket — this ADR only records the design spec #416 locked.
 - **The name defends itself in the docstring.** gridfind has a real `Cell` class
   (`engine.py:55`), which ISS does not, so `CellGeometry` can be misread as the
   geometry of one cell. It is the geometry of the puzzle's cell **space**. The

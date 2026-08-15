@@ -9,17 +9,16 @@ shared infrastructure. The `regions-distinct` rule itself is one
 instance of the shared `DistinctOverGroups` layer, whose `regions`
 partition maps this address partition onto the live grid.
 
-`BOX_SHAPE` is the convention that gives a board its box shape:
-a 6x6 tiles as six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3 — never a
-6x6 as four 3x3 mini-grids. `box_regions` is the one generator: it serves every
-board size, including the classic 9x9 the SudokuMaker decoder reads through
-`region_map_for`.
+`BOX_SHAPE`, the convention that gives a board its box shape (a 6x6 tiles as
+six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3 — never a 6x6 as four 3x3
+mini-grids), lives on `CellGeometry` (ADR-0004): `cell_geometry.BOX_SHAPE`
+is the one table, and `CellGeometry.box_shape` is a board's own resolved
+entry from it. `box_regions` is the one tiling generator, here because it is
+region-specific, not shared infrastructure.
 
-`region_map_for` is the one door onto all of it: the
-setter's own map when given, the box tiling by convention when not. The
-table itself, `BOX_SHAPE`, also feeds the witness's own render —
-the verdict reads it when it builds a witness, so the box shape travels with
-the grid rather than being re-derived by whoever prints it.
+`region_map_for` is the one door onto all of it: the setter's own map when
+given, an already-resolved `box_shape` when the caller holds a
+`CellGeometry`, the table lookup by size otherwise.
 
 `region_map_from_labels` reads the other supplied shape: a
 setter's `regions-distinct` constraint carries `params["regions"]` as a flat,
@@ -52,16 +51,12 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from gridfind import layers
+from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.puzzle import Constraint, Puzzle
 
 # A partition of a board into regions of cell addresses, whatever its source.
 RegionMap = list[list[tuple[int, int]]]
-
-# N -> (box_rows, box_cols): the classic box convention this board size tiles
-# by. A size absent here has no classic box convention —
-# `region_map_for` refuses rather than guessing one.
-BOX_SHAPE: dict[int, tuple[int, int]] = {4: (2, 2), 6: (2, 3), 9: (3, 3)}
 
 
 def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
@@ -83,12 +78,18 @@ def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
     ]
 
 
-def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
+def region_map_for(
+    size: int,
+    supplied: RegionMap | None = None,
+    *,
+    box_shape: tuple[int, int] | None = None,
+) -> RegionMap:
     """The region map a `size`x`size` board runs on: the setter's own map when
-    given, the board's box tiling by convention when not.
-    One consumer, one shape, two sources — a setter-supplied map is not
-    a second path beside the box tiling, it supplies what the tiling would
-    otherwise compute.
+    given, `box_shape` when the caller already resolved one off its
+    `CellGeometry`, the `BOX_SHAPE` table by size otherwise. Three sources,
+    one shape — a setter-supplied map or an already-resolved box shape is not
+    a second path beside the table lookup, each supplies what the lookup
+    would otherwise compute.
 
     The refusal sits here, on the fallback, not on the consumer: only a board
     asking to be tiled by convention needs a convention to exist, so a 5x5
@@ -96,10 +97,11 @@ def region_map_for(size: int, supplied: RegionMap | None = None) -> RegionMap:
     """
     if supplied is not None:
         return supplied
-    if size not in BOX_SHAPE:
+    resolved = box_shape if box_shape is not None else BOX_SHAPE.get(size)
+    if resolved is None:
         msg = f"no classic box convention for a {size}x{size} board"
         raise GridfindError(msg)
-    return box_regions(size, *BOX_SHAPE[size])
+    return box_regions(size, *resolved)
 
 
 def region_map_from_labels(size: int, labels: object) -> RegionMap:

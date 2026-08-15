@@ -11,11 +11,10 @@ types behind them (decision 31).
 
 `is_s`, registered by the schrödinger layer, is read back by `distinct` and
 `verdict` through the `engine.is_s()` accessor's `.get`, which tolerates its
-absence — so neither hard-depends on schrödinger being present. `grid`, the
-addresses `board` registers, is the anomaly: built from `board.size` alone, a
-fact no layer's work informs, so it belongs on the board, not in the late-
-binding registry. ADR-0004 decisions 2 and 4 move it to a `CellGeometry`
-descriptor.
+absence — so neither hard-depends on schrödinger being present. `cell_geometry`
+is a third kind of fact: built from `board.size` alone, no layer's work informs
+it, so `build_engine` attaches it directly rather than routing it through the
+structure registry's late binding (ADR-0004 decisions 2-4).
 """
 
 from __future__ import annotations
@@ -25,6 +24,8 @@ from dataclasses import dataclass, field
 from typing import Literal, Protocol, cast
 
 from ortools.sat.python import cp_model
+
+from gridfind.cell_geometry import BoardShape, CellGeometry, cell_geometry
 
 # The engine->layer contract's named surface (ADR-0001). Layers code
 # against these; everything else in the module is implementation detail.
@@ -103,19 +104,6 @@ class Constraint(Protocol):
     def params(self) -> dict[str, object]: ...
 
 
-class BoardShape(Protocol):
-    """A puzzle's board shape facts, riding on the engine opaquely beside
-    `constraints` — size and digit values. The same read-only
-    decoupling this module's `Constraint` protocol gives `puzzle.Constraint`:
-    the engine knows this view, never the concrete `Board` it is."""
-
-    @property
-    def size(self) -> int: ...
-
-    @property
-    def values(self) -> range: ...
-
-
 class Layer(Protocol):
     """A composable, parameterized rule-family module."""
 
@@ -134,6 +122,7 @@ class Engine:
     """Holds the CP-SAT model, cell content, and the structure registry."""
 
     board: BoardShape
+    cell_geometry: CellGeometry
     model: cp_model.CpModel = field(default_factory=cp_model.CpModel)
     cells: dict[str, Cell] = field(default_factory=dict)
     structures: dict[str, object] = field(default_factory=dict)
@@ -179,10 +168,6 @@ class Engine:
         else. The map is keyed per cell, so the witness names each discovered
         cell from its own entry."""
         return cast("dict[str, str] | None", self.structures.get("modifier_type"))
-
-    def grid(self) -> list[list[str]]:
-        """The board's addresses laid out row-major, registered by `board`."""
-        return cast("list[list[str]]", self.structures["grid"])
 
     def values(self, solver: cp_model.CpSolver, address: str) -> tuple[int, ...]:
         """A cell's placed content sequence after a solve. A
@@ -361,7 +346,9 @@ def build_engine(
     them by type — available before phase 1, which is what lets a
     future Schrödinger-style layer widen named cells at register time. `board`
     rides beside them: the `board` layer reads its size and values
-    to size the grid and bound cells, rather than a fixed constant.
+    to bound cells, rather than a fixed constant. `cell_geometry` is built from
+    `board` once, here, before either phase runs, so every layer's `RxCy`
+    address grid is the same object (ADR-0004).
 
     A layer's declared dependency is a validity check, not a build-order
     crutch: missing dependency refuses the build before either phase runs.
@@ -373,7 +360,9 @@ def build_engine(
                 msg = f"layer {layer.name!r} requires {dep!r}, not in stack"
                 raise MissingDependencyError(msg)
 
-    engine = Engine(constraints=constraints, board=board)
+    engine = Engine(
+        constraints=constraints, board=board, cell_geometry=cell_geometry(board)
+    )
     for layer in layers:
         layer.register(engine)
     for layer in layers:

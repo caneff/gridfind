@@ -19,7 +19,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
 
-from gridfind.layers.board import cell_address
+from gridfind.cell_geometry import cell_address
 from gridfind.puzzle import (
     Given,
     ModifierDirective,

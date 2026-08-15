@@ -66,9 +66,9 @@ from typing import Any, Literal, cast
 
 from lzstring import LZString
 
+from gridfind.cell_geometry import BOX_SHAPE, cell_address, cell_geometry
 from gridfind.layers import ALIAS_REGISTRY
-from gridfind.layers.board import cell_address
-from gridfind.layers.regions import BOX_SHAPE, region_map_for
+from gridfind.layers.regions import region_map_for
 from gridfind.puzzle import (
     BareSCell,
     Board,
@@ -284,9 +284,14 @@ def decode_link(
         if is_schrodinger
         else _digit_domain(puzzle_data, size)
     )
+    # `sudokumaker` has no engine, so it builds its own descriptor straight
+    # from the board it holds rather than re-deriving the `RxCy` address grid
+    # by hand (ADR-0004).
+    board = Board(size=size, values=domain)
+    geometry = cell_geometry(board)
     per_cell: list[_CellDecode] = []
     for i, cell in enumerate(cells):
-        address = _address(i, size)
+        address = geometry.grid[i // size][i % size]
         per_cell.append(
             _decode_cell(
                 cell,
@@ -314,7 +319,6 @@ def decode_link(
         if kind == _COSMETIC_CAGE_TYPE or decoded_type.handler is None:
             continue
         constraints.extend(decoded_type.handler(puzzle_data, size))
-    board = Board(size=size, values=domain)
     if is_schrodinger:
         constraints.append(Constraint("schrodinger"))
     if cosmetic_cage_decode.modifier_directives:

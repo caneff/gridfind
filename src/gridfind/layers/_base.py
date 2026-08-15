@@ -36,7 +36,7 @@ def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
     width-1 cell's sequence has length 1, so a caller that wants one
     variable per cell folds it itself.
     """
-    grid = engine.grid()
+    grid = engine.cell_geometry.grid
     return [[engine.contents(address) for address in row] for row in grid]
 
 

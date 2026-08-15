@@ -30,14 +30,21 @@ from gridfind.layers.regions import RegionMap, region_map_for
 
 Cell = TypeVar("Cell")
 Grid = list[list[Cell]]
-Partition = Callable[[Grid], Iterable[Iterable[Cell]]]
+Partition = Callable[[Grid, "tuple[int, int] | None"], Iterable[Iterable[Cell]]]
+"""A grid (of content or of addresses — `regions` is reused for both, see
+`layers.modifier`) to that grid's groups. The second argument is an
+already-resolved box shape read off a `CellGeometry` (ADR-0004); only
+`regions` reads it, `rows`/`cols` ignore it, and `None` falls back to
+`region_map_for`'s own size-keyed table lookup."""
 
 
-def rows(grid: Grid) -> Grid:
+def rows(grid: Grid, box_shape: tuple[int, int] | None = None) -> Grid:
     return grid
 
 
-def cols(grid: Grid) -> Iterable[tuple[Cell, ...]]:
+def cols(
+    grid: Grid, box_shape: tuple[int, int] | None = None
+) -> Iterable[tuple[Cell, ...]]:
     return zip(*grid, strict=True)
 
 
@@ -45,15 +52,19 @@ def _cells_for(grid: Grid, region_map: RegionMap) -> list[list[Cell]]:
     return [[grid[row - 1][col - 1] for row, col in region] for region in region_map]
 
 
-def regions(grid: Grid) -> Iterable[list[Cell]]:
+def regions(
+    grid: Grid, box_shape: tuple[int, int] | None = None
+) -> Iterable[list[Cell]]:
     """The regions, cut from whatever grid is handed in — the region partition
-    reused as cell groups. `region_map_for` resolves the partition for the live
-    grid's size (a 6x6 tiles as 2x3, a 4x4 as 2x2, a 9x9 as 3x3 — never four 3x3
-    mini-grids on a 6x6). The refusal for a size with no classic
-    box convention belongs to the resolver's fallback, not here, so it surfaces at emit
-    time rather than tiling something wrong.
+    reused as cell groups. `box_shape`, when the caller already resolved one
+    off its `CellGeometry` (ADR-0004), skips `region_map_for`'s own table
+    lookup; left `None`, it resolves the classic tiling by grid size the same
+    way (a 6x6 tiles as 2x3, a 4x4 as 2x2, a 9x9 as 3x3 — never four 3x3
+    mini-grids on a 6x6). The refusal for a size with no classic box
+    convention belongs to the resolver's fallback, not here, so it surfaces
+    at emit time rather than tiling something wrong.
     """
-    return _cells_for(grid, region_map_for(len(grid)))
+    return _cells_for(grid, region_map_for(len(grid), box_shape=box_shape))
 
 
 def regions_from(region_map: RegionMap) -> Partition:
@@ -63,7 +74,7 @@ def regions_from(region_map: RegionMap) -> Partition:
     the layer it feeds stays a plain `(partition)` `DistinctOverGroups`,
     never aware of where its groups came from.
     """
-    return lambda grid: _cells_for(grid, region_map)
+    return lambda grid, box_shape: _cells_for(grid, region_map)
 
 
 @dataclass
@@ -89,7 +100,8 @@ class DistinctOverGroups:
 
     def emit(self, engine: Engine) -> None:
         is_s = engine.structures.get("is_s")
-        for index, group in enumerate(self.partition(grid_content(engine))):
+        groups = self.partition(grid_content(engine), engine.cell_geometry.box_shape)
+        for index, group in enumerate(groups):
             cells = list(group)
             if is_s is None:
                 engine.model.add_all_different([sole(content) for content in cells])
