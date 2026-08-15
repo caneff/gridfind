@@ -107,6 +107,13 @@ to the reviewer of the diff that produced it. Write what the code *does* and
   the decoder registry, the region-map resolver, the active/inert predicate, and
   witness assembly were each collapsed to a single home after a second copy
   appeared.
+- **`__init__.py` is wiring only — no `def` or `class` in it.** A package's
+  `__init__` holds the package docstring, the submodule imports, and the
+  `__all__` re-export list. Nothing else. Python lets you define real code
+  there, but a responsibility that lives in `__init__` has no named home: it
+  gets no module of its own, and its tests have nowhere natural to sit beside.
+  Give every behavior a named module (`decode.py`, `registry.py`, …) and let
+  `__init__` assemble the public surface from them.
 - **Unknown or unmodeled input fails loud — warn to stderr or raise, never
   drop silently.** An unrecognized flag, layer name, or constraint payload means
   the code's model of the link is incomplete, and a silent skip turns that into
