@@ -749,11 +749,11 @@ def test_killer_cage_unreachable_total_resolves_broke() -> None:
 
 
 def test_killer_cage_sum_over_an_s_cell_reads_the_value_seam() -> None:
-    # A killer cage on a Schrödinger board no longer refuses: its group-sum
+    # A killer cage on a Schrödinger board completes: its group-sum
     # half reads each cell's value through `value_expr`, so an S-cell folds in
-    # as its `s_value` rather than raising "not Schrödinger-ready". The cage
-    # completes (the value-seam reading proven discriminatingly at the
-    # `group-sum` engine seam).
+    # as its `s_value` rather than raising "not Schrödinger-ready" (the
+    # value-seam reading proven discriminatingly at the `group-sum` engine
+    # seam).
     puzzle = Puzzle(
         board=Board(size=4, values=range(5)),
         constraints=(
@@ -940,7 +940,6 @@ def test_schrodinger_with_values_more_than_twice_size_is_broke() -> None:
 def test_schrodinger_puzzle_with_no_schrodinger_constraint_keeps_singleton_cells() -> (
     None
 ):
-    # An ordinary puzzle's witness stays every cell a 1-tuple.
     puzzle = Puzzle(board=Board(size=4), constraints=(Constraint(type="sudoku"),))
 
     result = verdict(puzzle)

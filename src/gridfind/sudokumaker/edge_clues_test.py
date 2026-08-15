@@ -84,9 +84,6 @@ def test_edge_to_pair_rejects_an_out_of_bounds_edge() -> None:
         _edge_to_pair(8, size=2)
 
 
-# --- type 202 XV ---------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     ("value", "edge", "alias", "cells"),
     [
@@ -142,9 +139,6 @@ def test_xv_value_that_is_neither_x_nor_v_is_refused() -> None:
 
     with pytest.raises(ValueError, match="neither"):
         decode_link(payload)
-
-
-# --- type 200 white kropki ----------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -219,9 +213,6 @@ def test_kropki_negative_list_warns_but_keeps_positive_clues(
         "warning: ignoring white-kropki negative constraint "
         "— verdict computed without it\n"
     )
-
-
-# --- type 201 black kropki -----------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -305,9 +296,6 @@ def test_black_kropki_non_integer_value_raises_at_decode() -> None:
 
     with pytest.raises(ValueError, match="black-kropki value"):
         decode_link(payload)
-
-
-# --- disabled / empty is a quiet no-op for each edge-clue family ---------
 
 
 @pytest.mark.parametrize(
