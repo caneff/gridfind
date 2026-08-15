@@ -16,7 +16,7 @@ working states over one puzzle, so no build-once/race-many API is offered
 working state onto the model is `gridfind.applier.apply`, and the broke-path
 diagnosis is `gridfind.layers.regions.reason`. `_build_and_solve` is the shared
 build-and-solve core: `verdict()` classifies its raw result directly, and
-`enumerate_witnesses()` (spec #389, decision #20) reuses the same core for its
+`enumerate_witnesses()` reuses the same core for its
 phase 1, so the two functions cannot drift in how they assemble or apply the
 puzzle.
 """

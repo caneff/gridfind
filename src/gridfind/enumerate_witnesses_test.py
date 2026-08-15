@@ -333,7 +333,7 @@ def test_real_link_multi_witness_enumeration_through_the_library_path() -> None:
     # above the count returns all 12, exhaustively and pairwise distinct; a
     # limit below truncates to that many and reports the search unfinished. The
     # CLI front door is out of scope here — this drives `enumerate_witnesses`
-    # directly (spec #389).
+    # directly.
     link = (_LINKS_DIR / "found-kropki-4x4.txt").read_text().split()[-1]
     puzzle, working_state = decode_link(link)
 

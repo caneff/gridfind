@@ -107,7 +107,7 @@ def _classic_schrodinger_solution_link(
     completed 1-9 Latin square (the well-known
     `(r*3 + r//3 + c) % 9 + 1` sudoku-by-formula construction, same shape as
     `_solvable_jigsaw_link`) with one cell per row/column/box promoted to an
-    S-cell pinned via its own marker-cage `value` `"0,base"` (spec #349) — 0 is
+    S-cell pinned via its own marker-cage `value` `"0,base"` (ADR-0014) — 0 is
     the domain's tenth digit and never appears among the ordinary givens, so
     every row/column/box ends up holding exactly the ten digits 0-9 once each.
     The S-cell positions are each their own single-cell cage entry in one
@@ -164,7 +164,7 @@ def _classic_schrodinger_link_with_a_settled_scell_position() -> str:
     layer's `d0 < d1` canonicalization). The row-0/col-0/box-0 S-cell position
     is settled to a plain given of its own `base` digit instead of pinned via
     the marker cage. That position was the sole source of `10` in its row,
-    column, and box: read as a **singleton pin** (spec #348, `is_s == 0`) it
+    column, and box: read as a **singleton pin** (ADR-0014, `is_s == 0`) it
     leaves `10` unplaceable in all three — broke: the pin holds `is_s == 0`, so
     the solver cannot make this cell the S-cell `{base, 10}` that alone could
     supply the missing `10`."""

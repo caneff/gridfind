@@ -91,7 +91,7 @@ from gridfind.puzzle import (
 _CLASSIC_SIZE = 9
 
 # An S-cell marker cage's `value` selects the directive by parsed digit-count
-# (spec #349): two digits pin the pair, one is the looser half directive.
+# (ADR-0014): two digits pin the pair, one is the looser half directive.
 _SCELL_PIN_DIGITS = 2
 
 # A single-digit domain's largest representable digit — a cage `value` of two
@@ -132,7 +132,7 @@ _KROPKI_BLACK_TYPE = 201
 
 # type 301 is a killer-cage block: `cages: [{cells, value}]`. A
 # positive `value` is the killer sum, decoded onto a `group-sum` alongside the
-# `cage` (no-repeats) constraint, both over the same cells (spec #240) — 0 is
+# `cage` (no-repeats) constraint, both over the same cells (ADR-0009) — 0 is
 # SudokuMaker's own no-sum cage, decoding to `cage` alone, exactly as `value`
 # absent.
 _CAGE_TYPE = 301
@@ -145,18 +145,18 @@ _CAGE_TYPE = 301
 # since the killer-cage tool refuses to store one.
 _COSMETIC_CAGE_TYPE = 2001
 
-# A cosmetic-cage block's top-level `name` (§4c, spec #324): case-insensitive,
+# A cosmetic-cage block's top-level `name` (§4c, ADR-0012): case-insensitive,
 # trimmed, these labels mark a real killer cage decorated with a display name
 # rather than a position marker — the name is discarded, the cage decodes as
 # ordinary. Any name outside the three recognized sets is unrecognized.
 _NAMED_KILLER_CAGE_LABELS = frozenset({"sum", "killer"})
 
-# A cosmetic-cage block's top-level `name` (§4c, spec #324) that marks every
+# A cosmetic-cage block's top-level `name` (§4c, ADR-0012) that marks every
 # cell it contains as a declared doubler — a position marker, not a killer
 # cage.
 _DOUBLER_MARKER_LABELS = frozenset({"doubler"})
 
-# A cosmetic-cage block's top-level `name` (§4c, spec #324) that declares every
+# A cosmetic-cage block's top-level `name` (§4c, ADR-0012) that declares every
 # cell it contains a Schrödinger S-cell — a position marker, not a killer cage.
 # Both the umlaut spelling and its ASCII fold are recognized (a link may carry
 # either), matched case-insensitively and trimmed.
@@ -242,7 +242,7 @@ def decode_link(
     recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
     decodes as an ordinary killer cage with the name discarded; any other name
     raises `ValueError` unless `ignore_unknown_named_cages` downgrades that
-    refusal to strip-and-honor (spec #324).
+    refusal to strip-and-honor (ADR-0012).
 
     A `type 2001` block named `Doubler` (case-insensitive, trimmed) marks every
     cell it contains a declared doubler — one `ModifierDirective` per cell, no
@@ -252,19 +252,19 @@ def decode_link(
 
     A `type 2001` block named `S-cell`/`Schrödinger` is the analogous S-cell
     marker: each contained cell is a declared S-cell reading its marker cage's
-    own `value` for the pair/half/bare directive (spec #349) — a comma-split
+    own `value` for the pair/half/bare directive (ADR-0014) — a comma-split
     `"a,b"` or the two-digit scalar shorthand in a single-digit domain pins the
     pair, one digit is a half S-cell, absent/empty/unparseable is a bare
     S-cell. No `cage`/`group-sum` is emitted for that block. A settled value on
     a marked cell (the cell's own `value`, distinct from the cage's) decodes
     alongside the marker's directive rather than being refused — the two
-    collide at solve time (spec #348, #346). The marker widens the domain by
+    collide at solve time (ADR-0014). The marker widens the domain by
     the classic `k = 1` extra digit (`range(minDigit, minDigit + size + 1)`),
     relaxes the classic-only guard, and synthesizes the `schrodinger`
     constraint. Once that layer exists, every cell's settled `given`/bare
     `value` placement — marked or not — decodes to a **singleton pin**
     (`is_s == 0`), not a plain given/placement: the wire's `given` flag does
-    not affect the S-cell reading (spec #348)."""
+    not affect the S-cell reading (ADR-0014)."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
@@ -275,7 +275,7 @@ def decode_link(
     # `schrodinger` constraint that gives every cell the `is_s` freedom the
     # solver discovers S-cells with — even when the block names no cells
     # (ADR-0014). Its *membership* pins known S-cells: each named address maps
-    # to its marker cage's own `value`, the pair/half/bare source (spec #349)
+    # to its marker cage's own `value`, the pair/half/bare source (ADR-0014)
     # the S-cell branch of the per-cell decode reads.
     scell_values = _scell_marker_values(puzzle_data, size)
     is_schrodinger = _has_scell_marker_block(puzzle_data)
@@ -443,10 +443,10 @@ def _decode_cell(
     """One cell's working-state directives — the single home for per-cell
     decode, dispatched by the cell's marker membership. A cell in an `S-cell`
     marker cage (`is_scell_marker`) is a declared S-cell: its marker cage's own
-    `value` picks the directive (`_scell_directive_from_value`, spec #349). A
+    `value` picks the directive (`_scell_directive_from_value`, ADR-0014). A
     settled value on the cell itself is the is-S-vs-settled contradiction: it
     decodes alongside the marker's own directive as a singleton pin, the two
-    left to collide at solve time rather than refused here (spec #348, #346).
+    left to collide at solve time rather than refused here (ADR-0014).
     Every other cell's settled value is a plain `given`/`placement` on a
     non-Schrödinger board, or — once a Schrödinger layer exists — a singleton
     pin (`is_s == 0`); the `given`/`placement` wire distinction does not affect
@@ -480,7 +480,7 @@ def _scell_directive_from_value(
     address: str, value: object, domain: range
 ) -> SDirective:
     """A declared S-cell's directive chosen by its marker cage's own `value`
-    digit-count (spec #349, ADR-0012): two parsed digits pin the pair, one is a
+    digit-count (ADR-0012): two parsed digits pin the pair, one is a
     half S-cell, zero — absent, empty, or unparseable — is a bare S-cell."""
     digits = _parse_scell_value(value, domain)
     if len(digits) == _SCELL_PIN_DIGITS:
@@ -732,7 +732,7 @@ def _addresses(indices: Iterable[int], size: int) -> list[str]:
 
 def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
     """A killer cage over `addresses`: always a no-repeats `cage`, plus a
-    `group-sum` carrying `total` when a total is present (spec #240). A zero or
+    `group-sum` carrying `total` when a total is present (ADR-0009). A zero or
     `None` total is no total — the cage stands alone."""
     decoded = [Constraint("cage", params={"cells": addresses})]
     if total:
@@ -746,7 +746,7 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
     """The `type 301` killer cages as `Constraint`s: each cage's raw `cells`
     indices map row-major to addresses (`_addresses`), so `[18, 19]` on a
     9-board is R3C1/R3C2. Every cage decodes to a no-repeats `cage`; a positive
-    `value` additionally decodes a `group-sum` over the same cells (spec #240) —
+    `value` additionally decodes a `group-sum` over the same cells (ADR-0009) —
     `0` (SudokuMaker's own no-sum cage) decodes to `cage` alone, exactly as an
     absent `value`. A `disabled` block is skipped entirely; an empty `cages`
     list adds nothing."""
@@ -778,7 +778,7 @@ _CosmeticCageNameKind = Literal["ordinary", "doubler", "s-cell", "unrecognized"]
 
 
 def _cosmetic_cage_name_kind(name: object) -> _CosmeticCageNameKind:
-    """Classify a `type 2001` block's top-level `name` (spec #324) into one of
+    """Classify a `type 2001` block's top-level `name` (ADR-0012) into one of
     four kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
     label on a genuine cage — `_NAMED_KILLER_CAGE_LABELS`), `"doubler"` (a
     `Doubler` position marker — `_DOUBLER_MARKER_LABELS`), `"s-cell"` (an
@@ -803,7 +803,7 @@ def is_scell_marker_name(name: object) -> bool:
     branch), public for a dev tool that needs to recognize a marker block
     without decoding the whole link — `scripts/verify_links.py`'s
     `fill_witness` uses it to find the cage whose `value` a solved S-cell pair
-    must be stamped back onto (spec #349)."""
+    must be stamped back onto (ADR-0014)."""
     return _cosmetic_cage_name_kind(name) == "s-cell"
 
 
@@ -845,12 +845,12 @@ def _cosmetic_cage_constraints(
     ignore_unknown_named_cages: bool = False,
 ) -> _CosmeticCageDecode:
     """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
-    (`_cosmetic_cage_name_kind`, spec #324): an ordinary block graduates to
+    (`_cosmetic_cage_name_kind`, ADR-0012): an ordinary block graduates to
     killer-cage `Constraint`s (ADR-0008) exactly as before — cells and value
     nest under `cages`, the same wire shape as a `type 301` block, each cage's
     raw `cells` indices mapping row-major to addresses, every non-disabled
     cage emitting a no-repeats `cage` plus a `group-sum` when its numeric
-    non-zero string `value` carries a total (spec #240). A `Doubler`-marked
+    non-zero string `value` carries a total (ADR-0009). A `Doubler`-marked
     block instead emits one `ModifierDirective(is_modifier=True)` per cell it
     contains and **no** `cage`/`group-sum` — the block's `cages` still supply
     the cell list, just not a killer rule. An `S-cell`/`Schrödinger`-marked
@@ -902,7 +902,7 @@ def _scell_marker_values(
 ) -> dict[str, object]:
     """Every cell address declared an S-cell by a `type 2001` cosmetic-cage
     block named `S-cell`/`Schrödinger` (`_SCELL_MARKER_LABELS`), mapped to its
-    marker cage's own raw `value` (spec #349) — the pair/half/bare source
+    marker cage's own raw `value` (ADR-0014) — the pair/half/bare source
     `_decode_cell` reads for that address. A multi-cell cage's `value` applies
     uniformly to every cell it contains (CONTEXT.md `marker cage`). The
     mapping's key set doubles as the address set that routes a cell through the

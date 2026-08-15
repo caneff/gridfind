@@ -882,7 +882,7 @@ def test_cage_with_a_sum_decodes_to_a_cage_plus_a_group_sum(
 ) -> None:
     # A summed cage (value > 0) decodes to two constraints over the same
     # cells: a no-repeats `cage` and the total as a `group-sum` — the killer
-    # cage's recomposition (spec #240). No warning, the sum is honored.
+    # cage's recomposition (ADR-0009). No warning, the sum is honored.
     payload = _constraint_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
 
     puzzle, _ = decode_link(payload)
@@ -986,7 +986,7 @@ def test_named_sum_or_killer_cage_decodes_as_an_ordinary_killer_cage(
 ) -> None:
     # A cage named `Sum`/`Killer` (any case, surrounding whitespace) is a
     # decorative label on a genuine cage, not a marker — honored exactly as an
-    # unnamed cage, the name discarded (spec #324).
+    # unnamed cage, the name discarded (ADR-0012).
     payload = _constraint_link(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
@@ -1003,8 +1003,7 @@ def test_named_sum_or_killer_cage_decodes_as_an_ordinary_killer_cage(
 
 def test_unrecognized_named_cage_raises() -> None:
     # An unfamiliar name is refused rather than silently honored under a
-    # guessed ruleset — "Foobar" stays unrecognized forever (spec #324 tickets
-    # 2/3 add Doubler/S-cell; this name is not one of those).
+    # guessed ruleset — "Foobar" stays unrecognized forever (ADR-0012).
     payload = _constraint_link(
         {"name": "Foobar", "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
@@ -1059,8 +1058,7 @@ def test_multiple_cosmetic_cages_each_decode_to_their_own_constraint() -> None:
 def test_doubler_named_cage_emits_modifier_directives_and_no_cage() -> None:
     # A `Doubler`-named cosmetic cage is a position marker, not a killer
     # cage: every cell it contains decodes to a discovered-modifier
-    # directive, and the block emits no `cage`/`group-sum` at all (spec #324
-    # ticket 2/6).
+    # directive, and the block emits no `cage`/`group-sum` at all (ADR-0012).
     payload = _constraint_link(
         {"name": "Doubler", "type": 2001, "cages": [{"value": "", "cells": [0, 1]}]}
     )
@@ -1156,7 +1154,7 @@ def _s_cell_cage_link(
     value: object, *, min_digit: int = 0, marks: set[int] | None = None
 ) -> str:
     """A single-cell `S-cell` marker cage over R1C1, carrying `value` (omitted
-    entirely when `None`) — the cage-value pair-source fixture (spec #349).
+    entirely when `None`) — the cage-value pair-source fixture (ADR-0014).
     `marks` optionally sets the cell's own center marks, present to show the
     cage `value` alone picks the directive and stray marks are ignored."""
     cage: dict[str, object] = {"cells": [0]}
@@ -1202,7 +1200,7 @@ def test_s_cell_marker_cage_value_selects_the_directive(
     value: object, expected: SDirective
 ) -> None:
     # The named cage's own `value` sources the pair/half/bare directive by
-    # digit-count (spec #349): comma-split, or the two-digit scalar shorthand
+    # digit-count (ADR-0014): comma-split, or the two-digit scalar shorthand
     # in a single-digit domain (minDigit 0 -> 0..9). A malformed value falls
     # back to bare, the same reading as absent — never a crash.
     payload = _s_cell_cage_link(value)
@@ -1267,7 +1265,7 @@ def test_s_cell_cage_value_1234_is_one_out_of_domain_half() -> None:
 
 @hyp_given(text=st.text(max_size=12))
 def test_scell_value_parser_never_crashes_on_arbitrary_text(text: str) -> None:
-    # The parser (spec #349) handles any garbage a link's `value` could carry
+    # The parser (ADR-0014) handles any garbage a link's `value` could carry
     # without raising, always yielding 0, 1, or 2 digits. It does not enforce
     # the board's domain — an out-of-domain digit rides through for the
     # verdict-time guard to refuse — so this asserts shape, not membership.
@@ -1444,7 +1442,7 @@ def test_settled_value_on_a_non_marker_cell_is_a_singleton_pin_under_schrodinger
     cell: dict[str, object],
 ) -> None:
     # A settled large digit means "this cell is exactly d, not an S-cell"
-    # (spec #348): under a Schrödinger layer it routes to a singleton pin
+    # (ADR-0014): under a Schrödinger layer it routes to a singleton pin
     # regardless of the given/placement wire distinction, not a plain
     # given/placement that would leave is_s free for the solver to lift.
     cells = list(_EMPTY_CELLS)
@@ -1460,7 +1458,7 @@ def test_settled_value_on_a_non_marker_cell_is_a_singleton_pin_under_schrodinger
 
 def test_settled_value_on_a_non_schrodinger_puzzle_stays_given_or_placement() -> None:
     # No S-axis exists without a schrodinger layer, so on an ordinary puzzle a
-    # settled given/placement stays a plain given/placement (spec #348).
+    # settled given/placement stays a plain given/placement (ADR-0014).
     cells = list(_EMPTY_CELLS)
     cells[0] = {"given": True, "value": 7}
     cells[1] = {"value": 3}

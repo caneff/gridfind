@@ -33,7 +33,7 @@ unread today.
 
 A killer cage's total is not this layer's concern: it is a `group-sum` over
 the same cells, composed alongside a `cage` rather than bundled into one
-(spec #240). This layer states no sum and reads no `value` param.
+(ADR-0009). This layer states no sum and reads no `value` param.
 """
 
 from __future__ import annotations

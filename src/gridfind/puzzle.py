@@ -186,7 +186,7 @@ SDirective = (
 @dataclass(frozen=True)
 class ModifierDirective:
     """A discovered-modifier working-state directive: this cell either **is**
-    or **is not** a discovered modifier (spec #232 decision #218). Its own
+    or **is not** a discovered modifier. Its own
     channel on `WorkingState`, mirroring `s_directives` (ADR-0006) rather than
     folding into `given`/`candidate`/`placement` — a modifier's position is
     discovered, not a digit fact those channels state. Unlike a Schrödinger
@@ -257,7 +257,7 @@ class WorkingState:
     EMPTY. `places` keeps the wire key's spelling; `s_directives` is one
     tagged list, not a field per directive kind; `modifier_directives` is its
     own sibling channel, one shape per entry, not folded into
-    given/candidate/placement (spec #232 decision #218)."""
+    given/candidate/placement."""
 
     places: tuple[Placement, ...] = ()
     candidates: tuple[Candidate, ...] = ()
