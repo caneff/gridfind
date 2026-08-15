@@ -806,17 +806,22 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
         return None
 
 
-_CosmeticCageNameKind = Literal["ordinary", "doubler", "s-cell", "unrecognized"]
+CosmeticCageKind = Literal["ordinary", "doubler", "s-cell", "unrecognized"]
 
 
-def _cosmetic_cage_name_kind(name: object) -> _CosmeticCageNameKind:
+def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     """Classify a `type 2001` block's top-level `name` (ADR-0012) into one of
     four kinds: `"ordinary"` (absent/blank, or a decorative `Sum`/`Killer`
     label on a genuine cage — `_NAMED_KILLER_CAGE_LABELS`), `"doubler"` (a
     `Doubler` position marker — `_DOUBLER_MARKER_LABELS`), `"s-cell"` (an
     `S-cell`/`Schrödinger` position marker — `_SCELL_MARKER_LABELS`), or
     `"unrecognized"` (a name `decode_link` cannot answer for). Matching is
-    case-insensitive and trimmed."""
+    case-insensitive and trimmed.
+
+    This is the one home the named-cosmetic-cage reads route through — the cage
+    decoder, the S-cell presence and membership channels, marker colorizing,
+    and dev tools that recognize a marker block without decoding the whole
+    link all switch on this kind."""
     if not isinstance(name, str) or not name.strip():
         return "ordinary"
     normalized = name.strip().lower()
@@ -827,25 +832,6 @@ def _cosmetic_cage_name_kind(name: object) -> _CosmeticCageNameKind:
     if normalized in _SCELL_MARKER_LABELS:
         return "s-cell"
     return "unrecognized"
-
-
-def is_scell_marker_name(name: object) -> bool:
-    """True when a `type 2001` block's top-level `name` reads as the
-    `S-cell`/`Schrödinger` marker (`_cosmetic_cage_name_kind`'s `"s-cell"`
-    branch), public for a dev tool that needs to recognize a marker block
-    without decoding the whole link — `scripts/verify_links.py`'s
-    `fill_witness` uses it to find the cage whose `value` a solved S-cell pair
-    must be stamped back onto (ADR-0014)."""
-    return _cosmetic_cage_name_kind(name) == "s-cell"
-
-
-def is_doubler_marker_name(name: object) -> bool:
-    """True when a `type 2001` block's top-level `name` reads as the `Doubler`
-    modifier marker (`_cosmetic_cage_name_kind`'s `"doubler"` branch), public
-    for the same dev-tool need as `is_scell_marker_name` — `verify_links`'s
-    `fill_witness` finds the Doubler block to mark every solver-found modifier
-    cell in its cage."""
-    return _cosmetic_cage_name_kind(name) == "doubler"
 
 
 @dataclass(frozen=True)
@@ -877,8 +863,8 @@ def _cosmetic_cage_constraints(
     ignore_unknown_named_cages: bool = False,
 ) -> _CosmeticCageDecode:
     """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
-    (`_cosmetic_cage_name_kind`, ADR-0012): an ordinary block graduates to
-    killer-cage `Constraint`s (ADR-0008) exactly as before — cells and value
+    (`cosmetic_cage_kind`, ADR-0012): an ordinary block graduates to
+    killer-cage `Constraint`s (ADR-0008) — cells and value
     nest under `cages`, the same wire shape as a `type 301` block, each cage's
     raw `cells` indices mapping row-major to addresses, every non-disabled
     cage emitting a no-repeats `cage` plus a `group-sum` when its numeric
@@ -895,7 +881,7 @@ def _cosmetic_cage_constraints(
     entirely; an empty `cages` list adds nothing."""
     decoded: list[_CosmeticCageDecode] = []
     for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
-        kind = _cosmetic_cage_name_kind(block.get("name"))
+        kind = cosmetic_cage_kind(block.get("name"))
         if kind == "unrecognized":
             if not ignore_unknown_named_cages:
                 msg = f"non-classic link: unrecognized named cage {block['name']!r}"
@@ -922,11 +908,11 @@ def _cosmetic_cage_constraints(
 
 def _is_scell_block(block: dict[Any, Any]) -> bool:
     """True when a `type 2001` block is named `S-cell`/`Schrödinger`
-    (`_SCELL_MARKER_LABELS`, via `_cosmetic_cage_name_kind`). The one predicate
+    (`_SCELL_MARKER_LABELS`, via `cosmetic_cage_kind`). The one predicate
     both S-cell channels share, so presence and pinning agree on the label set
     by construction: `_has_scell_marker_block` reads it for enablement by
     presence, `_scell_marker_values` for pinning by membership (ADR-0014)."""
-    return _cosmetic_cage_name_kind(block.get("name")) == "s-cell"
+    return cosmetic_cage_kind(block.get("name")) == "s-cell"
 
 
 def _scell_marker_values(
@@ -969,7 +955,7 @@ def _has_scell_marker_block(puzzle_data: dict[str, object]) -> bool:
 # The order `colorize_marker_cages` claims `_MARKER_COLOR_PALETTE` slots in
 # when a link carries more than one marker type — S-cell first, so it always
 # wins red over Doubler on a mixed link.
-_MARKER_KIND_PRIORITY: tuple[_CosmeticCageNameKind, ...] = ("s-cell", "doubler")
+_MARKER_KIND_PRIORITY: tuple[CosmeticCageKind, ...] = ("s-cell", "doubler")
 
 
 def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
@@ -990,7 +976,7 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     colored: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", colored["puzzle"])
     blocks = list(_enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE))
-    present_kinds = {_cosmetic_cage_name_kind(block.get("name")) for block in blocks}
+    present_kinds = {cosmetic_cage_kind(block.get("name")) for block in blocks}
     color_of_kind = dict(
         zip(
             (kind for kind in _MARKER_KIND_PRIORITY if kind in present_kinds),
@@ -999,7 +985,7 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
         )
     )
     for block in blocks:
-        color = color_of_kind.get(_cosmetic_cage_name_kind(block.get("name")))
+        color = color_of_kind.get(cosmetic_cage_kind(block.get("name")))
         if color is not None:
             style = cast("dict[str, Any]", block.setdefault("style", {}))
             cage_style = cast("dict[str, Any]", style.setdefault("cage", {}))
