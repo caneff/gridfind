@@ -13,7 +13,10 @@ working states over one puzzle, so no build-once/race-many API is offered
 
 `verdict()` keeps only assemble-solve-classify: applying the
 working state onto the model is `gridfind.applier.apply`, and the broke-path
-diagnosis is `gridfind.layers.regions.reason`.
+diagnosis is `gridfind.layers.regions.reason`. `_build_and_solve` is the shared
+build-and-solve core: `verdict()` classifies its raw result directly, and the
+coming `enumerate_witnesses()` (spec #389, decision #20) reuses the same core
+so the two functions cannot drift in how they assemble or apply the puzzle.
 """
 
 from __future__ import annotations
@@ -24,16 +27,56 @@ from typing import Literal
 from ortools.sat.python import cp_model
 
 from gridfind.applier import apply
-from gridfind.engine import build_engine
+from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.regions import reason, region_map_for_constraints
-from gridfind.puzzle import EMPTY, Puzzle, WorkingState
+from gridfind.puzzle import EMPTY, Constraint, Puzzle, WorkingState
 from gridfind.witness import Witness
 
 VerdictKind = Literal["found", "broke", "unknown"]
 
 DEFAULT_TIME_LIMIT_S = 10.0
 DEFAULT_NUM_WORKERS = 8
+
+
+@dataclass(frozen=True)
+class _BuildSolveResult:
+    """The raw materials of a build-and-solve, unclassified."""
+
+    engine: Engine
+    solver: cp_model.CpSolver
+    status: cp_model.CpSolverStatus
+    canonical: tuple[Constraint, ...]
+
+
+def _build_and_solve(
+    puzzle: Puzzle,
+    working_state: WorkingState,
+    *,
+    time_limit_s: float,
+    num_workers: int,
+) -> _BuildSolveResult:
+    """Build the puzzle, apply the working state, and race a broke-proof
+    against a witness-find. Returns the raw engine/solver/status/constraints
+    for the caller to classify."""
+    # board is not a constraint — the puzzle's board supplies the grid. The
+    # door expands presets and aliases exactly once and hands back both the
+    # canonical constraints (so a layer's constraints_of(name) matches the
+    # canonical types dispatch resolved on — an `x`/`v` clue reaches its
+    # `group-sum` layer as a sum-10/5 constraint) and the stack, compulsory
+    # `board` layer already in it.
+    canonical, layer_stack = build_stack(puzzle.constraints, size=puzzle.board.size)
+    engine = build_engine(layer_stack, tuple(canonical), board=puzzle.board)
+    apply(engine, puzzle, working_state)
+
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = time_limit_s
+    solver.parameters.num_workers = num_workers
+    status = solver.solve(engine.model)
+
+    return _BuildSolveResult(
+        engine=engine, solver=solver, status=status, canonical=tuple(canonical)
+    )
 
 
 @dataclass(frozen=True)
@@ -58,30 +101,19 @@ def verdict(
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
     num_workers: int = DEFAULT_NUM_WORKERS,
 ) -> Verdict:
-    # board is not a constraint — the puzzle's board supplies the grid. The
-    # door expands presets and aliases exactly once and hands back both the
-    # canonical constraints (so a layer's constraints_of(name) matches the
-    # canonical types dispatch resolved on — an `x`/`v` clue reaches its
-    # `group-sum` layer as a sum-10/5 constraint) and the stack, compulsory
-    # `board` layer already in it.
-    canonical, layer_stack = build_stack(puzzle.constraints, size=puzzle.board.size)
-    engine = build_engine(layer_stack, tuple(canonical), board=puzzle.board)
-    apply(engine, puzzle, working_state)
+    solved = _build_and_solve(
+        puzzle, working_state, time_limit_s=time_limit_s, num_workers=num_workers
+    )
 
-    solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = time_limit_s
-    solver.parameters.num_workers = num_workers
-    status = solver.solve(engine.model)
-
-    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        region_map = region_map_for_constraints(canonical, puzzle.board.size)
+    if solved.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
         witness = Witness(
-            grid=engine.grid(),
-            assignment=engine.assignment(solver),
+            grid=solved.engine.grid(),
+            assignment=solved.engine.assignment(solved.solver),
             region_map=region_map,
-            modifiers=engine.discovered_modifiers(solver),
+            modifiers=solved.engine.discovered_modifiers(solved.solver),
         )
         return Verdict(kind="found", witness=witness)
-    if status == cp_model.INFEASIBLE:
+    if solved.status == cp_model.INFEASIBLE:
         return Verdict(kind="broke", reason=reason(puzzle))
     return Verdict(kind="unknown")
