@@ -695,7 +695,7 @@ def test_quattroquadri_breaks_on_a_digit_repeated_within_one_box() -> None:
 
 
 def _killer_cage(cells: tuple[str, ...], total: int) -> tuple[Constraint, Constraint]:
-    """A killer cage's recomposition (spec #240): a no-repeats `cage` plus the
+    """A killer cage's recomposition (ADR-0009): a no-repeats `cage` plus the
     total as a `group-sum`, both over the same cells."""
     return (
         Constraint(type="cage", params={"cells": list(cells)}),
@@ -1322,9 +1322,9 @@ def test_verdict_found_witness_carries_no_modifiers_without_a_modifier_layer() -
 
 
 def test_verdict_found_witness_reports_every_discovered_doubler_as_doubler() -> None:
-    # One-per-house (spec #232 decision #222) puts exactly `size` discovered
-    # modifiers on a bare doubler puzzle — one per row — each named "doubler",
-    # the modifier's own declared type.
+    # One-per-house puts exactly `size` discovered modifiers on a bare doubler
+    # puzzle — one per row — each named "doubler", the modifier's own declared
+    # type.
     puzzle = Puzzle(board=BOARD, constraints=(Constraint(type="doubler"),))
 
     result = verdict(puzzle)

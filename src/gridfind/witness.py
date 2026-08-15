@@ -65,8 +65,8 @@ class Witness:
 
     `modifiers` names every cell the solver discovered as a modifier —
     address to the puzzle's declared modifier type (`"doubler"`), populated
-    from `is_modifier` exactly as `assignment` is from `is_s` (spec #232
-    decision #218). `assignment` still carries the digit, never the modifier's
+    from `is_modifier` exactly as `assignment` is from `is_s`. `assignment`
+    still carries the digit, never the modifier's
     folded value — a given on a modified cell pins the digit, and the value
     derives from it at render/read time, not here. Empty on a puzzle with no
     modifier layer, never `None`."""

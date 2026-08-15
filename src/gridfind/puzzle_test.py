@@ -275,7 +275,7 @@ def test_from_json_treats_an_unknown_directive_kind_as_broken_json() -> None:
 
 def test_working_state_round_trips_a_modifier_directive_on_its_own_channel() -> None:
     # The modifier directive channel is its own field, not folded into
-    # given/candidate/placement (spec #232 decision #218).
+    # given/candidate/placement.
     state = WorkingState(
         modifier_directives=(
             ModifierDirective(address="R1C1", is_modifier=True),

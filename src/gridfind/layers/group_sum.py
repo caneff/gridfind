@@ -13,7 +13,7 @@ bare group-sum therefore permits repeats among its cells — a non-house sum of
 10 over two cells may be met as 5+5. Uniqueness, where a setter wants it, is
 a separate capability composed alongside this one, not folded into it — a
 killer cage is a `cage` (no-repeats) plus a `group-sum` (the total) over the
-same cells, not one bundled layer (spec #240).
+same cells, not one bundled layer (ADR-0009).
 
 Reads each cell's value through `Engine.value_expr` (ADR-0009), blind to how
 that value was built: a plain cell's digit, a doubler's `modifier_value`, an
