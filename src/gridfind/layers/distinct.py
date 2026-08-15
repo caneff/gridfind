@@ -1,8 +1,8 @@
 """One AllDifferent-over-groups layer, parameterized by a partition function.
 
-`rows-distinct`, `cols-distinct`, `regions-distinct` are the same rule — every
-cell in a group holds a different digit — over different groupings of the
-grid. Each is a `DistinctOverGroups` instance built with a **partition
+`rows-distinct`, `cols-distinct`, `regions-distinct`, `diagonal` are the same
+rule — every cell in a group holds a different digit — over different groupings
+of the grid. Each is a `DistinctOverGroups` instance built with a **partition
 function** that reads the live grid and returns its groups; nothing is baked to
 a fixed board size. That mirrors ISS's `House`-over-a-cell-set, with the cell
 sets produced from board geometry rather than frozen at import
@@ -13,9 +13,11 @@ The partition functions are named for the concept they cut, not for the shape
 the classic default happens to make: `regions`, not `boxes` — a jigsaw region
 is no box.
 
-The partition functions live here, local — where grid geometry queries belong
-(per-layer vs. centralized) is open, so they are not centralized
-ahead of that decision.
+Most partition functions live here, local — where grid geometry queries belong
+(per-layer vs. centralized) is open, so they are not centralized ahead of that
+decision. The exception is `diagonals`: `CellGeometry` already exposes the two
+long diagonals as a cell-set (ADR-0004), so this partition cuts them through
+the shared `main_diagonals` rather than growing a second copy of that slice.
 """
 
 from __future__ import annotations

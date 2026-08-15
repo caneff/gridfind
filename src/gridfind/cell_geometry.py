@@ -87,9 +87,13 @@ class CellGeometry:
     def diagonals(self) -> tuple[list[str], list[str]]:
         """The two long diagonals as address cell-sets: the main diagonal
         (top-left to bottom-right) and the anti-diagonal (top-right to
-        bottom-left), each of `size` cells. The X-sudoku layer feeds these to
-        `DistinctOverGroups` (ADR-0004); a future outside-clue reader takes the
-        same sets."""
+        bottom-left), each of `size` cells (ADR-0004).
+
+        The descriptor's exposure of the diagonals for any reader that wants
+        them by address — an outside-clue line-walk, a witness renderer. The
+        X-sudoku layer does not read this property; it cuts the same slice off
+        the content grid through the shared `main_diagonals`, so the two agree
+        without one depending on the other."""
         return main_diagonals(self.grid)
 
     def walk(self, cell: str, delta_row: int, delta_col: int) -> list[str]:
