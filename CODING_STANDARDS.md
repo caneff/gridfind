@@ -84,10 +84,34 @@ to the reviewer of the diff that produced it. Write what the code *does* and
   `(issue #NNN)` trailer: the issue closed when the work merged, its conclusion
   is already in the code and the comment beside it, and the number just
   duplicates what `git blame` gives for free. So write `(ADR-0004)`, not
-  `(issue #157)`. Keep an `issue #`/`spec #` cite only where the sentence
-  explicitly sends the reader there for something not restated — "the full
-  field map is in `docs/research/sudoku-link-formats.md` §4a." A changelog of
-  merge order ("202 first, 301 next, 200 after") is never a citation; cut it.
+  `(issue #157)`. A bare `spec #NNN` / `decision #N` trailer is the same
+  closed-ticket duplication — collapse it into the `ADR-NNNN` that records the
+  decision, or cut it if it only restates the code beside it. Keep an
+  `issue #`/`spec #` cite only where the sentence explicitly sends the reader
+  there for something not restated — "the full field map is in
+  `docs/research/sudoku-link-formats.md` §4a." A changelog of merge order
+  ("202 first, 301 next, 200 after") is never a citation; cut it.
 - **When you change code, delete the comment that describes the old shape.**
   A stale comment is worse than none — it actively lies. If the edit made a
   docstring's claim false, fix the docstring in the same diff.
+
+## Architecture
+
+- **One home per behavior — no parallel implementations.** When two call sites
+  need the same decode, walk, lookup, or assembly, route both through one shared
+  seam; do not hand-roll a second copy that reads the same data a different way.
+  A parallel implementation drifts silently: a fix or new constraint lands in
+  one copy, the other keeps the old behavior, and the two verdicts disagree on
+  the same puzzle with nothing red to show it. This is the repo's dominant
+  refactor — killer cages, the edge-clue decoders, `decode_cell`/`write_cell`,
+  the decoder registry, the region-map resolver, the active/inert predicate, and
+  witness assembly were each collapsed to a single home after a second copy
+  appeared.
+- **Unknown or unmodeled input fails loud — warn to stderr or raise, never
+  drop silently.** An unrecognized flag, layer name, or constraint payload means
+  the code's model of the link is incomplete, and a silent skip turns that into
+  a wrong verdict the caller cannot see. Reject a genuinely unknown name
+  (`UnknownLayerError`); for a constraint the engine cannot yet model but the
+  link legitimately carries, drop it with a stderr warning
+  (`_warn_on_dropped_constraints`, `_warn_dropped_negative`) so the run
+  continues but the gap is visible. Silence is the one forbidden response.
