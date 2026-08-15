@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TypeVar
 
+from gridfind.cell_geometry import main_diagonals
 from gridfind.engine import Engine, sole
 from gridfind.layers._base import emit_house, grid_content
 from gridfind.layers.regions import RegionMap, region_map_for
@@ -65,6 +66,16 @@ def regions(
     at emit time rather than tiling something wrong.
     """
     return _cells_for(grid, region_map_for(len(grid), box_shape=box_shape))
+
+
+def diagonals(
+    grid: Grid, box_shape: tuple[int, int] | None = None
+) -> tuple[list[Cell], list[Cell]]:
+    """The two long diagonals of the grid — the X-sudoku partition. Cut by the
+    shared `main_diagonals` off `CellGeometry`, so the descriptor's cell-sets
+    and this partition read the same slice. `box_shape` is ignored, as for
+    `rows`/`cols`."""
+    return main_diagonals(grid)
 
 
 def regions_from(region_map: RegionMap) -> Partition:

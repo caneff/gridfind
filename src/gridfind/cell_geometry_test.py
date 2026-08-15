@@ -59,6 +59,20 @@ def test_cell_address_formats_rxcy() -> None:
     assert cell_address(3, 1) == "R3C1"
 
 
+def test_diagonals_are_the_two_main_diagonal_cell_sets() -> None:
+    main, anti = cell_geometry(Board(size=3)).diagonals
+
+    assert main == ["R1C1", "R2C2", "R3C3"]
+    assert anti == ["R1C3", "R2C2", "R3C1"]
+
+
+def test_diagonals_are_sized_from_the_board() -> None:
+    main, anti = cell_geometry(Board(size=4)).diagonals
+
+    assert main == ["R1C1", "R2C2", "R3C3", "R4C4"]
+    assert anti == ["R1C4", "R2C3", "R3C2", "R4C1"]
+
+
 def test_step_returns_the_target_cell_in_space() -> None:
     geometry = cell_geometry(Board(size=9))
 
