@@ -26,7 +26,7 @@ from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, MalformedPuzzleError
 from gridfind.layers._base import emit_over_pairs
 from gridfind.puzzle import JsonValue
 
@@ -38,9 +38,14 @@ RelationEmitter = Callable[
 
 @dataclass
 class PairRelation:
+    """`s_blind`: reads a cell through `engine.content`, its single slot —
+    undefined once a widening layer gives a cell a second slot (`build_stack`
+    refuses the combination)."""
+
     name: str
     relation: RelationEmitter
     depends_on: tuple[str, ...] = ("board",)
+    s_blind: bool = True
 
     def register(self, engine: Engine) -> None:
         pass
@@ -50,5 +55,11 @@ class PairRelation:
             # params is the open JSON boundary (object) — cells is the one
             # key every pair relation shares; the rest is the emitter's own.
             addresses = cast("list[str]", clue.params["cells"])
+            if len(addresses) != 2:
+                msg = (
+                    f"{self.name!r} names a pair — expected 2 cells, "
+                    f"got {len(addresses)}"
+                )
+                raise MalformedPuzzleError(msg)
             a, b = (engine.content(address) for address in addresses)
             emit_over_pairs(engine, [(a, b)], self.relation(clue.params))

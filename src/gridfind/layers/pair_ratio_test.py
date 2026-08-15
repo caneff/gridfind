@@ -7,7 +7,7 @@ rather than being satisfied by accident.
 
 import pytest
 
-from gridfind.engine import build_engine
+from gridfind.engine import MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.conftest import pair_ratio_rules
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
@@ -141,6 +141,20 @@ def test_a_ratio_of_one_forces_equality_and_breaks_under_distinctness() -> None:
 
     assert result.kind == "broke"
     assert result.witness is None
+
+
+@pytest.mark.parametrize("cell_count", [1, 3], ids=["too few", "too many"])
+def test_a_pair_ratio_clue_with_the_wrong_cell_count_raises_malformed(
+    cell_count: int,
+) -> None:
+    cells = [f"R1C{i + 1}" for i in range(cell_count)]
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="pair-ratio", params={"cells": cells, "k": 2}),),
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        verdict(puzzle)
 
 
 def test_a_puzzle_mixing_pair_ratio_and_pair_difference_resolves_correctly() -> None:

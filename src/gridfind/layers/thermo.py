@@ -48,8 +48,13 @@ def _non_decreasing(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> N
 
 @dataclass
 class Thermo:
+    """`s_blind`: reads a cell through `engine.content`, its single slot —
+    undefined once a widening layer gives a cell a second slot (`build_stack`
+    refuses the combination)."""
+
     name: str = "thermo"
     depends_on: tuple[str, ...] = ("board",)
+    s_blind: bool = True
 
     def register(self, engine: Engine) -> None:
         pass

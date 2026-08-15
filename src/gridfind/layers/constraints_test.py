@@ -1,7 +1,12 @@
 import pytest
 
 from gridfind.engine import MalformedPuzzleError, build_engine
-from gridfind.layers import UnknownLayerError, build_stack, canonical_identity
+from gridfind.layers import (
+    SBlindLayerError,
+    UnknownLayerError,
+    build_stack,
+    canonical_identity,
+)
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
@@ -92,6 +97,35 @@ def test_regions_distinct_with_a_malformed_matrix_raises() -> None:
 def test_unknown_constraint_type_is_rejected() -> None:
     with pytest.raises(UnknownLayerError):
         build_stack((Constraint(type="not-a-real-rule"),), size=9)
+
+
+@pytest.mark.parametrize(
+    "s_blind_type",
+    ["anti-knight", "anti-king", "thermo", "pair-difference", "pair-ratio"],
+)
+def test_an_s_blind_layer_stacked_with_a_widening_layer_is_refused(
+    s_blind_type: str,
+) -> None:
+    # Each of these reads a cell's single content slot, which has no defined
+    # meaning once schrodinger widens every cell to two.
+    constraints = (Constraint(type=s_blind_type), Constraint(type="schrodinger"))
+
+    with pytest.raises(SBlindLayerError, match=s_blind_type):
+        build_stack(constraints, size=9)
+
+
+def test_an_s_blind_layer_alone_is_unaffected() -> None:
+    # No widening layer in the stack: an s-blind layer is perfectly fine on
+    # its own.
+    _, layers = build_stack((Constraint(type="anti-knight"),), size=9)
+
+    assert len(layers) == 2
+
+
+def test_a_widening_layer_alone_is_unaffected() -> None:
+    _, layers = build_stack((Constraint(type="schrodinger"),), size=9)
+
+    assert len(layers) == 2
 
 
 def test_no_constraints_still_carries_the_compulsory_board_layer() -> None:
