@@ -286,12 +286,14 @@ def decode_link(
     )
     # `sudokumaker` has no engine, so it builds its own descriptor straight
     # from the board it holds rather than re-deriving the `RxCy` address grid
-    # by hand (ADR-0004).
+    # by hand (ADR-0004). `cells` is SudokuMaker's own row-major layout, the
+    # same order `geometry.grid` flattens to, so zipping the two walks both
+    # in lockstep without either side recomputing the other's indexing.
     board = Board(size=size, values=domain)
     geometry = cell_geometry(board)
+    addresses = [address for row in geometry.grid for address in row]
     per_cell: list[_CellDecode] = []
-    for i, cell in enumerate(cells):
-        address = geometry.grid[i // size][i % size]
+    for cell, address in zip(cells, addresses, strict=True):
         per_cell.append(
             _decode_cell(
                 cell,
