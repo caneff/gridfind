@@ -329,6 +329,27 @@ carry either; `sudokumaker.py:157-161`).
   an ordinary cage (`sudokumaker.py:219-221`, `sudokumaker.py:776-779`; spec
   #324).
 
+### 3.9 Global toggles — anti-knight, anti-king, the two diagonals
+
+Four board-wide rules SudokuMaker carries as bare `{type: N}` blocks — no
+payload, the enabled presence is the whole rule. The wire types were read off
+setter-supplied links, never guessed.
+
+- **(a)** Enable the toggle in SudokuMaker's global-constraints panel (exact
+  UI gesture unconfirmed against the live app — see the setter guide's
+  provisional flags).
+- **(b)** A bare block, one per rule: `type 13` anti-knight, `type 12`
+  anti-king, `type 10` negative diagonal (`\`), `type 11` positive diagonal
+  (`/`). The two diagonals also carry a cosmetic `style` (color, thickness)
+  gridfind ignores. The diagonals are **independent** switches — a link may
+  carry one, the other, or both (both together is X-sudoku).
+- **(c)** One `Constraint` per enabled block: `anti-knight`, `anti-king`,
+  `negative-diagonal` (`\`), `positive-diagonal` (`/`). Each diagonal decodes to
+  its own single-diagonal constraint rather than the both-diagonals `diagonal`,
+  so a lone toggle constrains only the diagonal the setter enabled
+  (`_global_toggle_handler`). A cosmetic `style` on the block is ignored.
+- **(d)** *Accept* an enabled block. A `disabled` block is skipped.
+
 ---
 
 ## 4. Accept / ignore / reject — the boundary rules, consolidated

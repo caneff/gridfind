@@ -137,6 +137,41 @@ def test_decode_document_is_the_inverse_of_encode_link() -> None:
     assert decode_document(encode_link(document)) == document
 
 
+@pytest.mark.parametrize(
+    ("block", "constraint_type"),
+    [
+        pytest.param({"type": 12}, "anti-king", id="anti-king"),
+        pytest.param({"type": 13}, "anti-knight", id="anti-knight"),
+        # The real diagonal blocks carry a cosmetic `style` alongside the type;
+        # it is purely visual, so the toggle still decodes to its constraint.
+        pytest.param(
+            {"type": 10, "style": {"color": "#34bbe6ff", "thickness": 0.02}},
+            "negative-diagonal",
+            id="negative-diagonal",
+        ),
+        pytest.param(
+            {"type": 11, "style": {"color": "#34bbe6ff", "thickness": 0.02}},
+            "positive-diagonal",
+            id="positive-diagonal",
+        ),
+    ],
+)
+def test_global_toggle_round_trips_through_encode_and_decode(
+    block: dict[str, object], constraint_type: str
+) -> None:
+    # Each global toggle decodes to its gridfind constraint, and encode_link
+    # reverses it: a document carrying the wire block survives encode -> decode
+    # with the matching Constraint present.
+    document: dict[str, object] = {
+        "formatVersion": "1.5.0",
+        "puzzle": {"cells": _EMPTY_CELLS, "constraints": [*_WIRE_CONSTRAINTS, block]},
+    }
+
+    puzzle, _ = decode_link(encode_link(document))
+
+    assert Constraint(type=constraint_type) in puzzle.constraints
+
+
 def test_write_cell_writes_a_singleton_as_a_given() -> None:
     # write_cell is the one wire-write seam: a length-1 content is a plain given
     # the classic decode reads straight back.
