@@ -96,6 +96,22 @@ class Verdict:
     reason: str | None = None
 
 
+def _witness_from(
+    engine: Engine, solver: cp_model.CpSolver, region_map: RegionMap
+) -> Witness:
+    """Read one solution off the engine into a `Witness`. Both `verdict()`'s
+    found-path and `enumerate_witnesses()`'s phase-2 collector build the witness
+    this one way, so a change to what a witness carries (T3 widens its identity)
+    lands in a single place. `solver` is any reader over the solution — a
+    `CpSolver` or the solution callback standing in for one."""
+    return Witness(
+        grid=engine.grid(),
+        assignment=engine.assignment(solver),
+        region_map=region_map,
+        modifiers=engine.discovered_modifiers(solver),
+    )
+
+
 def verdict(
     puzzle: Puzzle,
     working_state: WorkingState = EMPTY,
@@ -109,12 +125,7 @@ def verdict(
 
     if solved.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
-        witness = Witness(
-            grid=solved.engine.grid(),
-            assignment=solved.engine.assignment(solved.solver),
-            region_map=region_map,
-            modifiers=solved.engine.discovered_modifiers(solved.solver),
-        )
+        witness = _witness_from(solved.engine, solved.solver, region_map)
         return Verdict(kind="found", witness=witness)
     if solved.status == cp_model.INFEASIBLE:
         return Verdict(kind="broke", reason=reason(puzzle))
@@ -162,14 +173,7 @@ class _WitnessCollector(cp_model.CpSolverSolutionCallback):
         if identity in self._seen:
             return
         self._seen.add(identity)
-        self.witnesses.append(
-            Witness(
-                grid=self._engine.grid(),
-                assignment=self._engine.assignment(reader),
-                region_map=self._region_map,
-                modifiers=self._engine.discovered_modifiers(reader),
-            )
-        )
+        self.witnesses.append(_witness_from(self._engine, reader, self._region_map))
         if len(self.witnesses) >= self._limit:
             self.stop_search()
 
