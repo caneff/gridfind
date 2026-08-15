@@ -1,4 +1,4 @@
-"""Tests for the accepted-link setter guide generator (ADR-0013, issue #365).
+"""Tests for the accepted-link setter guide generator (ADR-0013).
 
 Every expectation is derived from the imported decoder constants rather than
 hardcoded, so the suite tracks the `sudokumaker` decoder constants instead of
@@ -96,7 +96,6 @@ def _assert_found_link_embedded(page: str, stem: str) -> None:
 
 
 def test_every_setter_facing_constraint_row_links_a_found_example() -> None:
-    # Each supported-constraint-type row carries a working "found" corpus link.
     page = setter_guide.render()
     for entry in _SETTER_FACING_ENTRIES:
         _assert_found_link_embedded(page, setter_guide._EXAMPLE_LINK_STEMS[entry.name])

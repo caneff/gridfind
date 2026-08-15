@@ -192,7 +192,7 @@ def _caged_2001_blocks(link: str) -> list[dict[str, Any]]:
 def test_composition_sum_rides_a_named_sum_cage(builder: Callable[[], str]) -> None:
     # The doubler / S-cell + sum composition carries its sum on a `Sum`-named
     # cosmetic cage: no cage-bearing cosmetic block is left unnamed, so no live
-    # rule rides an unnamed cage the coming warn-drop would silence (spec #431).
+    # rule rides an unnamed cage the coming warn-drop would silence.
     blocks = _caged_2001_blocks(builder())
     assert blocks, "expected at least one cage-bearing cosmetic block"
     for block in blocks:
@@ -204,8 +204,8 @@ def test_sumless_cage_stays_a_bare_named_cage_and_reads_broke(
 ) -> None:
     # A `Sum`-named cage with an empty value emits a live no-repeats `cage`
     # (and no `group-sum`), and that no-repeats rule alone breaks the board.
-    # Naming it moves the rule off the unnamed cosmetic path (spec #431)
-    # without changing the verdict.
+    # Naming it moves the rule off the unnamed cosmetic path without changing
+    # the verdict.
     link = syn.broke_cosmetic_cage_sumless_4x4()
     puzzle, _ = decode_link(link)
     assert any(c.type == "cage" for c in puzzle.constraints)
@@ -238,8 +238,6 @@ def test_found_doubled_scell_17cage_witness_never_doubles_a_digit_twice() -> Non
     # no two discovered doublers may share any doubled digit. Read the invariant
     # off the returned witness — each doubler contributes the digits its cell
     # displays (both for an S-cell), and those contributions must be disjoint.
-    # Before the fix `verdict` could hand back R1C3={3,4}, R3C4={0,4} with 4
-    # doubled twice; the found witness now carries all-distinct doubled digits.
     link = syn.found_doubled_scell_17cage_4x4()
     puzzle, state = decode_link(link)
     result = verdict(puzzle, state)

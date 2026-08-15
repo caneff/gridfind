@@ -12,7 +12,7 @@ A `found` case gets two layers of assertion: the front-door contract (exit
 `validate_witness` recovers the grid the CLI printed and checks it against
 the `Puzzle` `decode_link` recovers from the same link, never calling
 `verdict()` itself. A `broke` case trusts the curator's label: exit 1,
-`broke` on stdout, nothing more (map #168 decision 2). An `invalid` case is a
+`broke` on stdout, nothing more. An `invalid` case is a
 malformed link the front door refuses before any verdict: exit 2, the error
 on stderr.
 

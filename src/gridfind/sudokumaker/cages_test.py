@@ -17,8 +17,6 @@ from gridfind.puzzle import Constraint
 from gridfind.sudokumaker import decode_link
 from gridfind.sudokumaker.conftest import constraint_link
 
-# --- type 301 killer cage ------------------------------------------------
-
 
 def test_cage_decodes_to_region_only_cage_constraint(
     capsys: pytest.CaptureFixture[str],
@@ -66,9 +64,6 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
-
-
-# --- type 2001 cosmetic cage graduating to a killer cage (ADR-0008) ------
 
 
 def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
@@ -185,9 +180,6 @@ def test_multiple_named_cosmetic_cages_each_decode_to_their_own_constraint() -> 
     )
 
 
-# --- unnamed / unrecognized: no rule, loud warn-drop (ADR-0012, #435) ----
-
-
 @pytest.mark.parametrize(
     "cages",
     [
@@ -232,9 +224,6 @@ def test_unrecognized_named_cage_warns_and_drops(
 
     assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
     assert "Foobar" in capsys.readouterr().err
-
-
-# --- type 300 thermometer ------------------------------------------------
 
 
 def test_normal_thermo_decodes_to_ordered_path_constraint() -> None:
@@ -309,9 +298,6 @@ def test_thermo_style_is_ignored() -> None:
         Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
         in puzzle.constraints
     )
-
-
-# --- disabled / empty is a quiet no-op for each caged family -------------
 
 
 @pytest.mark.parametrize(

@@ -63,7 +63,7 @@ def test_schrodinger_aliases_share_the_s_cell_role() -> None:
 def test_every_registered_shape_currently_needs_cells() -> None:
     # Both shapes built so far (cage-selector, cell-marker) need a cage's
     # cells — the property carrier-fitness checks a name-bearing carrier
-    # against (ADR-0012, #434).
+    # against (ADR-0012).
     shapes = {component.shape for component in _NAME_REGISTRY.values()}
     assert shapes == {"cage-selector", "cell-marker"}
     assert all(_shape_needs_cells(shape) for shape in shapes)

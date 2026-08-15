@@ -248,10 +248,10 @@ def test_center_marks_layer_a_consistency_check_on_the_cage_pin(
 def test_retired_variant_flags_are_rejected(
     flag: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # The color channel is gone: the CLI no longer accepts the variant flags,
-    # so argparse refuses them (exit 2) rather than silently ignoring them.
-    # --ignore-unknown-named-cages retired alongside it (ADR-0012, #435): the
-    # uniform warn-drop policy leaves no refusal for it to downgrade.
+    # The CLI does not accept the variant flags: argparse refuses them
+    # (exit 2) rather than silently ignoring them. `--ignore-unknown-named-cages`
+    # is refused the same way (ADR-0012): the uniform warn-drop policy leaves
+    # no refusal for it to downgrade.
     link = _classic_schrodinger_solution_link()
 
     with pytest.raises(SystemExit) as exc:
@@ -289,7 +289,7 @@ def _classic_named_cage_link(name: str, cage_value: int) -> str:
 def test_unrecognized_named_cage_warns_and_drops(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # An unrecognized name carries no rule (ADR-0012, #435): the cage is
+    # An unrecognized name carries no rule (ADR-0012): the cage is
     # dropped with a loud stderr warning, and the rest of the link — a
     # complete, valid solution grid with no other constraint — still verdicts
     # found.

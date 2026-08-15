@@ -242,9 +242,6 @@ def test_a_cage_holding_a_proper_subset_of_the_domain_is_found() -> None:
     assert len(set(digits)) == len(digits)
 
 
-# --- per-cage distinctness mode --------------------------------------------
-
-
 def test_values_distinct_cage_permits_a_value_distinct_from_its_digits() -> None:
     # R1C1 is forced S with digits {2, 3}: under the default `sum` combine its
     # value is 5. R1C2 is a singleton at 2. A digits-distinct cage would forbid

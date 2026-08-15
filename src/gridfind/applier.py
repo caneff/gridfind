@@ -43,8 +43,8 @@ def apply(engine: Engine, puzzle: Puzzle, working_state: WorkingState) -> None:
     digit landing on a Schrödinger S-cell's upper half — see
     `_apply_placement`. Directives apply last, restricting the two axes
     `engine.restrict` can't reach (S-cell-ness and the second content slot)
-    — see `_apply_s_directives`. Declared-modifier directives (a doubler's red
-    bit) apply last of all, pinning the modifier layer's `is_modifier` — see
+    — see `_apply_s_directives`. Declared-modifier directives (a doubler's
+    marker cage) apply last of all, pinning the modifier layer's `is_modifier` — see
     `_apply_modifier_directives`."""
     for given in puzzle.givens:
         engine.restrict(given.address, {given.digit})
@@ -177,8 +177,8 @@ def _apply_one_s_directive(
 def _apply_modifier_directives(
     engine: Engine, directives: tuple[ModifierDirective, ...]
 ) -> None:
-    """Apply the declared-modifier directives (a doubler read off a link's red
-    bit) by pinning `is_modifier` — the free per-cell boolean the modifier
+    """Apply the declared-modifier directives (a doubler read off a link's
+    marker cage) by pinning `is_modifier` — the free per-cell boolean the modifier
     layer discovers. Each directive fixes one cell to modifier or not; the
     layer's one-per-house and distinct-digit transversal then verify the
     declared set, so an ill-placed declaration solves to broke.

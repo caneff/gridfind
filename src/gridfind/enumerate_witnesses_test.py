@@ -147,7 +147,7 @@ def test_s_cell_content_distinguishes_completions_sharing_a_first_digit_grid() -
     # hold two completions that share every first digit but place the S-cell on
     # the other cell of the line — same d0, different two-digit content. An
     # identity keyed on d0 alone merges each such pair into four; the full
-    # identity keeps the S-cell pair and counts six (ADR-0015, story #10).
+    # identity keeps the S-cell pair and counts six (ADR-0015).
     s_puzzle = Puzzle(
         board=Board(size=2, values=range(3)),
         constraints=(
@@ -173,7 +173,7 @@ def test_doubler_placement_distinguishes_completions_sharing_a_first_digit_grid(
     # one first-digit grid. The doubler is one per row, column, and box with all
     # digits different; this grid admits four such placements. Each is a distinct
     # completion on its modifier placement alone — an identity keyed on d0 alone
-    # counts one (story #11).
+    # counts one.
     grid = ((1, 2, 3, 4), (3, 4, 1, 2), (2, 1, 4, 3), (4, 3, 2, 1))
     givens = tuple(
         Given(address=f"R{r + 1}C{c + 1}", digit=digit)
@@ -250,8 +250,8 @@ def test_phase_two_timeout_returns_partial_witnesses_not_exhaustive() -> None:
     # Phase 1 finds, so phase 2 runs; with a limit far above the true count the
     # search can only stop on the clock, not the limit. A budget too small to
     # enumerate all 17280 completions returns the ones found so far with
-    # `exhaustive=False` — the caller keeps the partial set and knows more exist
-    # (story #16). The budget has wide margin either way: phase 1 is one fast
+    # `exhaustive=False` — the caller keeps the partial set and knows more
+    # exist. The budget has wide margin either way: phase 1 is one fast
     # feasibility solve, and exhausting 17280 single-worker takes seconds, so
     # 0.5s reliably finds some and never all. The count itself is
     # timing-dependent, so the assertion pins the contract, not a number.
@@ -266,7 +266,7 @@ def test_phase_two_timeout_returns_partial_witnesses_not_exhaustive() -> None:
 def test_phase_one_timeout_with_nothing_found_returns_unknown_empty() -> None:
     # A zero-second budget lets phase 1 do no work, so it decides nothing and
     # returns `unknown` with an empty tuple — distinct from `broke`, which
-    # proves no completion exists (story #15). Zero seconds models the
+    # proves no completion exists. Zero seconds models the
     # phase-1-exhausted-the-budget case with no dependence on machine speed: no
     # solve can finish in zero time.
     result = enumerate_witnesses(_mixed_stack_puzzle(), limit=5, time_limit_s=0.0)
@@ -286,7 +286,7 @@ def test_witnesses_are_pairwise_distinct_and_within_limit(
     size: int, domain: int, limit: int
 ) -> None:
     # For any small board and limit, the returned witnesses are pairwise
-    # distinct and number at most `limit` (story #13). An unconstrained board
+    # distinct and number at most `limit`. An unconstrained board
     # has domain**cells completions, always feasible, so every draw returns
     # `found` and exercises both truncation (limit below the count) and
     # exhaustion (limit at or above it).
@@ -306,8 +306,8 @@ def test_witnesses_are_pairwise_distinct_and_within_limit(
 )
 def test_exhaustive_result_is_stable_under_higher_limit(size: int, domain: int) -> None:
     # When `exhaustive` is True, the enumeration saw every completion, so
-    # re-running with a higher limit returns the same set and the same count
-    # (story #17). A generous first limit reaches exhaustion on these small
+    # re-running with a higher limit returns the same set and the same count.
+    # A generous first limit reaches exhaustion on these small
     # boards; the rare draw whose true count exceeds it is dropped by `assume`.
     puzzle = Puzzle(board=Board(size=size, values=range(1, domain + 1)))
 
