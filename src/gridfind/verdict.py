@@ -1,4 +1,5 @@
-"""The one seam: verdict(puzzle, working_state=EMPTY) -> found | broke | unknown.
+"""The verdict seam: verdict(puzzle) -> found | broke | unknown, and
+enumerate_witnesses(puzzle, limit=N) -> up to N distinct completions.
 
 Races a broke-proof against a witness-find by handing CP-SAT's portfolio
 solver a pure-satisfaction model — whichever is decidable first is what the
@@ -14,22 +15,23 @@ working states over one puzzle, so no build-once/race-many API is offered
 `verdict()` keeps only assemble-solve-classify: applying the
 working state onto the model is `gridfind.applier.apply`, and the broke-path
 diagnosis is `gridfind.layers.regions.reason`. `_build_and_solve` is the shared
-build-and-solve core: `verdict()` classifies its raw result directly, and the
-coming `enumerate_witnesses()` (spec #389, decision #20) reuses the same core
-so the two functions cannot drift in how they assemble or apply the puzzle.
+build-and-solve core: `verdict()` classifies its raw result directly, and
+`enumerate_witnesses()` (spec #389, decision #20) reuses the same core for its
+phase 1, so the two functions cannot drift in how they assemble or apply the
+puzzle.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 from ortools.sat.python import cp_model
 
 from gridfind.applier import apply
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
-from gridfind.layers.regions import reason, region_map_for_constraints
+from gridfind.layers.regions import RegionMap, reason, region_map_for_constraints
 from gridfind.puzzle import EMPTY, Constraint, Puzzle, WorkingState
 from gridfind.witness import Witness
 
@@ -117,3 +119,99 @@ def verdict(
     if solved.status == cp_model.INFEASIBLE:
         return Verdict(kind="broke", reason=reason(puzzle))
     return Verdict(kind="unknown")
+
+
+@dataclass(frozen=True)
+class Enumeration:
+    """`enumerate_witnesses()`'s answer: up to `limit` distinct completions.
+
+    `witnesses` are pairwise distinct on their identity (two completions differ
+    iff their full per-cell assignment differs — ADR-0015). `exhaustive` is
+    True only when phase 2 proved it saw every completion, so it went unstopped
+    by the `limit`. `reason` carries the broke explanation `verdict()` gives,
+    None otherwise. There is deliberately no singular `.witness` accessor: an
+    exact-count question must not degrade into "give me one and drop the rest"
+    (decisions #382, #385)."""
+
+    kind: VerdictKind
+    witnesses: tuple[Witness, ...] = ()
+    exhaustive: bool = False
+    reason: str | None = None
+
+
+class _WitnessCollector(cp_model.CpSolverSolutionCallback):
+    """Collects distinct witnesses from phase 2's `enumerate_all_solutions`
+    stream, dedups them on the identity tuple, and stops the search once
+    `limit` have landed. A solution callback reads a solution through the same
+    `.value()` seam a `CpSolver` does, so it stands in for one where the engine
+    reads an assignment — the read stays single-sourced in `engine`."""
+
+    def __init__(self, engine: Engine, region_map: RegionMap, limit: int) -> None:
+        super().__init__()
+        self._engine = engine
+        self._region_map = region_map
+        self._limit = limit
+        self._seen: set[tuple[int, ...]] = set()
+        self.witnesses: list[Witness] = []
+
+    def on_solution_callback(self) -> None:
+        reader = cast("cp_model.CpSolver", self)
+        identity = tuple(
+            reader.value(self._engine.d0(address)) for address in self._engine.cells
+        )
+        if identity in self._seen:
+            return
+        self._seen.add(identity)
+        self.witnesses.append(
+            Witness(
+                grid=self._engine.grid(),
+                assignment=self._engine.assignment(reader),
+                region_map=self._region_map,
+                modifiers=self._engine.discovered_modifiers(reader),
+            )
+        )
+        if len(self.witnesses) >= self._limit:
+            self.stop_search()
+
+
+def enumerate_witnesses(
+    puzzle: Puzzle,
+    working_state: WorkingState = EMPTY,
+    *,
+    limit: int,
+    time_limit_s: float = DEFAULT_TIME_LIMIT_S,
+    num_workers: int = DEFAULT_NUM_WORKERS,
+) -> Enumeration:
+    """Up to `limit` distinct completions of the puzzle. Phase 1 is the same
+    portfolio solve `verdict()` runs; only a `found` phase 1 reaches phase 2,
+    which re-solves the same model with `enumerate_all_solutions` and collects
+    distinct witnesses. One wall budget spans both phases — phase 2 gets what
+    phase 1 left."""
+    if limit <= 0:
+        msg = f"limit must be positive, got {limit}"
+        raise ValueError(msg)
+
+    solved = _build_and_solve(
+        puzzle, working_state, time_limit_s=time_limit_s, num_workers=num_workers
+    )
+    if solved.status == cp_model.INFEASIBLE:
+        return Enumeration(kind="broke", reason=reason(puzzle))
+    if solved.status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return Enumeration(kind="unknown")
+
+    region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
+    collector = _WitnessCollector(solved.engine, region_map, limit)
+    solver = cp_model.CpSolver()
+    solver.parameters.enumerate_all_solutions = True
+    solver.parameters.num_workers = 1
+    solver.parameters.symmetry_level = 0
+    solver.parameters.max_time_in_seconds = max(
+        0.0, time_limit_s - solved.solver.wall_time
+    )
+    status = solver.solve(solved.engine.model, collector)
+
+    return Enumeration(
+        kind="found",
+        witnesses=tuple(collector.witnesses),
+        exhaustive=status == cp_model.OPTIMAL,
+    )
