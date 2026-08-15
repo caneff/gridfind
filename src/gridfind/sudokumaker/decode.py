@@ -18,6 +18,7 @@ from gridfind.cell_geometry import cell_geometry
 from gridfind.puzzle import Board, Constraint, Puzzle, WorkingState
 from gridfind.sudokumaker.boundary import (
     _board_size,
+    _bucket_constraints_by_type,
     _digit_domain,
     _schrodinger_domain,
     decode_document,
@@ -73,6 +74,10 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
+    # One pass over puzzle_data["constraints"], grouped by wire `type`, so every
+    # per-type decoder below selects its own type's blocks by one dict lookup
+    # (via `_enabled_blocks`).
+    buckets = _bucket_constraints_by_type(puzzle_data)
 
     cells = puzzle_data["cells"]
     # A named `S-cell`/`Schrödinger` block splits into two signals. Its
@@ -82,8 +87,8 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     # (ADR-0014). Its *membership* pins known S-cells: each named address maps
     # to its marker cage's own `value`, the pair/half/bare source (ADR-0014)
     # the S-cell branch of the per-cell decode reads.
-    scell_values = _scell_marker_values(puzzle_data, size)
-    is_schrodinger = _has_scell_marker_block(puzzle_data)
+    scell_values = _scell_marker_values(buckets, size)
+    is_schrodinger = _has_scell_marker_block(buckets)
     domain = (
         _schrodinger_domain(puzzle_data, size)
         if is_schrodinger
@@ -117,12 +122,12 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     # constraints, so it is dispatched by hand rather than through the
     # registry's generic two-argument, constraints-only call.
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
-    cosmetic_cage_decode = _cosmetic_cage_constraints(puzzle_data, size)
+    cosmetic_cage_decode = _cosmetic_cage_constraints(buckets, size)
     constraints.extend(cosmetic_cage_decode.constraints)
     for kind, decoded_type in DECODER_REGISTRY.items():
         if kind == _COSMETIC_CAGE_TYPE or decoded_type.handler is None:
             continue
-        constraints.extend(decoded_type.handler(puzzle_data, size))
+        constraints.extend(decoded_type.handler(buckets, size))
     if is_schrodinger:
         constraints.append(Constraint("schrodinger"))
     if cosmetic_cage_decode.modifier_directives:

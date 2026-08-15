@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from gridfind.puzzle import Constraint, ModifierDirective
-from gridfind.sudokumaker.boundary import _enabled_blocks
+from gridfind.sudokumaker.boundary import ConstraintBuckets, _enabled_blocks
 from gridfind.sudokumaker.cells import _addresses
 from gridfind.sudokumaker.markers import (
     _COSMETIC_CAGE_TYPE,
@@ -49,7 +49,7 @@ def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
     return decoded
 
 
-def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+def _cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 301` killer cages as `Constraint`s: each cage's raw `cells`
     indices map row-major to addresses (`_addresses`), so `[18, 19]` on a
     9-board is R3C1/R3C2. Every cage decodes to a no-repeats `cage`; a positive
@@ -58,7 +58,7 @@ def _cage_constraints(puzzle_data: dict[str, object], size: int) -> list[Constra
     absent `value`. A `disabled` block is skipped entirely; an empty `cages`
     list adds nothing."""
     decoded: list[Constraint] = []
-    for block in _enabled_blocks(puzzle_data, _CAGE_TYPE):
+    for block in _enabled_blocks(buckets, _CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         for cage in cages:
             addresses = _addresses(cage["cells"], size)
@@ -121,7 +121,7 @@ def _warn_dropped_cosmetic_cage(block: dict[str, Any], kind: CosmeticCageKind) -
 
 
 def _cosmetic_cage_constraints(
-    puzzle_data: dict[str, object], size: int
+    buckets: ConstraintBuckets, size: int
 ) -> _CosmeticCageDecode:
     """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
     (`cosmetic_cage_kind`, ADR-0012): a `Sum`/`Killer`-labelled block
@@ -142,7 +142,7 @@ def _cosmetic_cage_constraints(
     warns nothing, the same as any other empty block. A `disabled` block is
     skipped entirely."""
     decoded: list[_CosmeticCageDecode] = []
-    for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE):
+    for block in _enabled_blocks(buckets, _COSMETIC_CAGE_TYPE):
         kind = cosmetic_cage_kind(block.get("name"))
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         if kind in ("unnamed", "unrecognized"):
@@ -167,7 +167,7 @@ def _cosmetic_cage_constraints(
     return _CosmeticCageDecode.concat(decoded)
 
 
-def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+def _thermo_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 300` thermometers as `thermo` `Constraint`s: each path's raw indices
     map row-major to addresses, order
     preserved (bulb first) — order is the whole point of a line, unlike
@@ -176,7 +176,7 @@ def _thermo_constraints(puzzle_data: dict[str, object], size: int) -> list[Const
     `thermometers` list adds nothing. The cosmetic `style` object is
     ignored."""
     decoded: list[Constraint] = []
-    for block in _enabled_blocks(puzzle_data, _THERMO_TYPE):
+    for block in _enabled_blocks(buckets, _THERMO_TYPE):
         slow = bool(block.get("slow", False))
         paths = cast("list[list[int]]", block.get("thermometers", []))
         for path in paths:

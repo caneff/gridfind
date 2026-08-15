@@ -16,7 +16,11 @@ from __future__ import annotations
 import json
 from typing import Any, Literal, cast
 
-from gridfind.sudokumaker.boundary import _enabled_blocks
+from gridfind.sudokumaker.boundary import (
+    ConstraintBuckets,
+    _bucket_constraints_by_type,
+    _enabled_blocks,
+)
 from gridfind.sudokumaker.cells import _addresses
 from gridfind.sudokumaker.naming import _aliases_by_role, _named_component
 
@@ -76,9 +80,7 @@ def _is_scell_block(block: dict[Any, Any]) -> bool:
     return cosmetic_cage_kind(block.get("name")) == "s-cell"
 
 
-def _scell_marker_values(
-    puzzle_data: dict[str, object], size: int
-) -> dict[str, object]:
+def _scell_marker_values(buckets: ConstraintBuckets, size: int) -> dict[str, object]:
     """Every cell address declared an S-cell by a `type 2001` cosmetic-cage
     block named `S-cell`/`Schrödinger`, mapped to its
     marker cage's own raw `value` (ADR-0014) — the pair/half/bare source
@@ -92,14 +94,14 @@ def _scell_marker_values(
     rule would not."""
     return {
         address: cage.get("value")
-        for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE)
+        for block in _enabled_blocks(buckets, _COSMETIC_CAGE_TYPE)
         if _is_scell_block(block)
         for cage in cast("list[dict[str, Any]]", block.get("cages", []))
         for address in _addresses(cage["cells"], size)
     }
 
 
-def _has_scell_marker_block(puzzle_data: dict[str, object]) -> bool:
+def _has_scell_marker_block(buckets: ConstraintBuckets) -> bool:
     """True when an enabled `type 2001` cosmetic-cage block is named
     `S-cell`/`Schrödinger`, regardless of whether it
     names any cells. This block *presence* enables Schrödinger mode (ADR-0014):
@@ -107,10 +109,8 @@ def _has_scell_marker_block(puzzle_data: dict[str, object]) -> bool:
     every cell the `is_s` freedom the solver discovers S-cells with. An empty
     block means "discover them all"; a block that names cells additionally
     pins those as known S-cells (`_scell_marker_values`)."""
-    return any(
-        _is_scell_block(block)
-        for block in _enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE)
-    )
+    blocks = _enabled_blocks(buckets, _COSMETIC_CAGE_TYPE)
+    return any(_is_scell_block(block) for block in blocks)
 
 
 # The order `colorize_marker_cages` claims `_MARKER_COLOR_PALETTE` slots in
@@ -136,7 +136,8 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     so a decode of the result agrees with a decode of `document`."""
     colored: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", colored["puzzle"])
-    blocks = list(_enabled_blocks(puzzle_data, _COSMETIC_CAGE_TYPE))
+    buckets = _bucket_constraints_by_type(puzzle_data)
+    blocks = list(_enabled_blocks(buckets, _COSMETIC_CAGE_TYPE))
     present_kinds = {cosmetic_cage_kind(block.get("name")) for block in blocks}
     color_of_kind = dict(
         zip(

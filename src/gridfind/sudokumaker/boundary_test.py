@@ -23,7 +23,11 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import decode_document, decode_link, encode_link
-from gridfind.sudokumaker.boundary import _enabled_blocks, _schrodinger_domain
+from gridfind.sudokumaker.boundary import (
+    _bucket_constraints_by_type,
+    _enabled_blocks,
+    _schrodinger_domain,
+)
 from gridfind.sudokumaker.conftest import (
     CLASSIC_CONSTRAINTS,
     EMPTY_CELLS,
@@ -221,25 +225,62 @@ def test_schrodinger_domain_widens_by_one_honoring_min_digit(
     assert _schrodinger_domain(puzzle_data, 9) == expected
 
 
+def test_bucket_constraints_by_type_groups_by_wire_type_in_order() -> None:
+    # decode_link's single pass over puzzle_data["constraints"]: blocks land in
+    # the bucket keyed by their own type, in wire order, including a disabled
+    # one — enablement is `_enabled_blocks`'s read-time concern, not the
+    # bucket's.
+    buckets = _bucket_constraints_by_type(
+        {
+            "constraints": [
+                {"type": 300, "id": "first"},
+                {"type": 301, "id": "other-type"},
+                {"type": 300, "id": "disabled", "disabled": True},
+                "not-a-dict",
+                {"id": "no-type"},
+                {"type": 300, "id": "second"},
+            ]
+        }
+    )
+
+    assert [block["id"] for block in buckets[300]] == ["first", "disabled", "second"]
+    assert [block["id"] for block in buckets[301]] == ["other-type"]
+
+
+def test_bucket_constraints_by_type_yields_empty_for_a_non_list_constraints() -> None:
+    assert _bucket_constraints_by_type({"constraints": "bad"}) == {}
+
+
+def test_bucket_constraints_by_type_drops_a_bool_type() -> None:
+    # `bool` is an `int` subclass, but a wire `type` is never a bool: a block
+    # with `"type": True` is malformed and dropped, not bucketed under key 1
+    # where it would collide with real type-1 blocks (mirrors `_as_int`).
+    buckets = _bucket_constraints_by_type(
+        {"constraints": [{"type": True, "id": "boolish"}, {"type": 1, "id": "real"}]}
+    )
+
+    assert [block["id"] for block in buckets[1]] == ["real"]
+
+
 def test_enabled_blocks_yields_only_enabled_blocks_of_the_asked_type() -> None:
     # The shared enablement filter every per-type decoder iterates behind: it
-    # yields the blocks of one type in wire order, and folds the three guards —
-    # a disabled block is skipped (the setter switched it off), a block of
-    # another type is skipped, and a non-dict block is ignored.
-    puzzle_data: dict[str, object] = {
-        "constraints": [
-            {"type": 300, "id": "first"},
-            {"type": 301, "id": "other-type"},
-            {"type": 300, "id": "disabled", "disabled": True},
-            "not-a-dict",
-            {"type": 300, "id": "second"},
-        ]
-    }
+    # yields a bucketed type's blocks in wire order, skipping a disabled one
+    # (the setter switched it off).
+    buckets = _bucket_constraints_by_type(
+        {
+            "constraints": [
+                {"type": 300, "id": "first"},
+                {"type": 301, "id": "other-type"},
+                {"type": 300, "id": "disabled", "disabled": True},
+                {"type": 300, "id": "second"},
+            ]
+        }
+    )
 
-    kept = [block["id"] for block in _enabled_blocks(puzzle_data, 300)]
+    kept = [block["id"] for block in _enabled_blocks(buckets, 300)]
 
     assert kept == ["first", "second"]
 
 
-def test_enabled_blocks_yields_nothing_when_constraints_is_not_a_list() -> None:
-    assert list(_enabled_blocks({"constraints": "bad"}, 300)) == []
+def test_enabled_blocks_yields_nothing_for_an_unbucketed_type() -> None:
+    assert list(_enabled_blocks({}, 300)) == []

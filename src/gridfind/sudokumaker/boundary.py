@@ -1,9 +1,10 @@
 """The document boundary: lz-string decompress a SudokuMaker `?puzzle=` link
 to its JSON document (`decode_document`) and compress one back
 (`encode_link`), the size/domain fields every decode reads off that document
-(`_board_size`, `_digit_domain`, `_schrodinger_domain`), and the shared
-enabled-block walk (`_enabled_blocks`) every per-type decoder in the package
-iterates behind.
+(`_board_size`, `_digit_domain`, `_schrodinger_domain`), the one-pass
+type bucketing (`_bucket_constraints_by_type`) `decode_link` runs once per
+link, and the shared enabled-block walk (`_enabled_blocks`) every per-type
+decoder in the package indexes into that bucket through.
 """
 
 from __future__ import annotations
@@ -112,24 +113,43 @@ def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
     return range(min_digit, min_digit + size + 1)
 
 
-def _enabled_blocks(
-    puzzle_data: dict[str, object], type_: int
-) -> Iterator[dict[Any, Any]]:
-    """Every enabled constraint block of one `type` from the link, in wire
-    order — the shared front the per-type decoders (XV, kropki, cage) and
-    `_regions_matrix` all iterate behind. Folds the three guards
-    every decoder needs: a non-list `constraints` yields nothing, a non-dict
-    block is skipped, and a `disabled` block is skipped (the setter switched it
-    off, so
-    it is not part of the puzzle even for a type gridfind decodes). `Any` in the
-    element type keeps the decoded-JSON boundary, as elsewhere in this module."""
+# `puzzle_data["constraints"]` bucketed by wire `type`, in wire order —
+# `_bucket_constraints_by_type`'s return, and what `_enabled_blocks` indexes
+# into by type. `Any` in the element type keeps the decoded-JSON boundary,
+# as elsewhere in this module.
+ConstraintBuckets = dict[int, list[dict[Any, Any]]]
+
+
+def _bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuckets:
+    """`puzzle_data["constraints"]` grouped by wire `type` in one pass —
+    `decode_link` runs this once per link and threads the result to every
+    per-type decoder, so each decoder selects its own type's blocks by one
+    dict lookup. A non-list `constraints` buckets to nothing; a non-dict block,
+    or one whose `type` is not an int — a `bool` is not one, matching `_as_int`
+    — is dropped (no per-type decoder can ever select it by wire `type`).
+    Enabled/disabled filtering stays a per-read concern in `_enabled_blocks` —
+    a bucket carries a type's disabled blocks too, since
+    `_warn_on_dropped_constraints` needs to see them."""
+    buckets: ConstraintBuckets = {}
     blocks = puzzle_data.get("constraints", [])
     if not isinstance(blocks, list):
-        return
+        return buckets
     for block in blocks:
-        if (
-            isinstance(block, dict)
-            and block.get("type") == type_
-            and block.get("disabled") is not True
-        ):
+        if not isinstance(block, dict):
+            continue
+        kind = block.get("type")
+        if isinstance(kind, int) and not isinstance(kind, bool):
+            buckets.setdefault(kind, []).append(block)
+    return buckets
+
+
+def _enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[Any, Any]]:
+    """Every enabled constraint block of one `type` from the pre-bucketed
+    table (`_bucket_constraints_by_type`), in wire order — the shared front
+    the per-type decoders (XV, kropki, cage) and `_regions_matrix` all iterate
+    behind. Folds the one guard every decoder needs beyond the bucket lookup:
+    a `disabled` block is skipped (the setter switched it off, so it is not
+    part of the puzzle even for a type gridfind decodes)."""
+    for block in buckets.get(type_, []):
+        if block.get("disabled") is not True:
             yield block

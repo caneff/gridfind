@@ -9,10 +9,10 @@ from __future__ import annotations
 from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.layers.regions import region_map_for
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker.boundary import _enabled_blocks
+from gridfind.sudokumaker.boundary import ConstraintBuckets, _enabled_blocks
 
 
-def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Constraint]:
+def _regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `regions-distinct` constraint for an `N`x`N` board, or `[]` when
     the link carries no regions at all — a Latin square. Returns a list, not
     `Constraint | None`, so a `DECODER_REGISTRY` entry's handler shares the
@@ -28,7 +28,7 @@ def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Cons
     `disabled: true` type-1 block is skipped — a real link may
     carry a disabled duplicate alongside the live one. Never validated here — a
     malformed matrix surfaces from `verdict`, not decode."""
-    matrix = _regions_matrix(puzzle_data)
+    matrix = _regions_matrix(buckets)
     if matrix is None:
         return []
     if size in BOX_SHAPE and matrix == _classic_regions_for(size):
@@ -36,10 +36,10 @@ def _regions_constraints(puzzle_data: dict[str, object], size: int) -> list[Cons
     return [Constraint("regions-distinct", params={"regions": matrix})]
 
 
-def _regions_matrix(puzzle_data: dict[str, object]) -> object | None:
+def _regions_matrix(buckets: ConstraintBuckets) -> object | None:
     """The enabled `type 1` regions matrix from the link, or `None` when the
     link carries no live jigsaw block."""
-    for block in _enabled_blocks(puzzle_data, 1):
+    for block in _enabled_blocks(buckets, 1):
         return block.get("regions")
     return None
 
