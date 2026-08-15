@@ -1,7 +1,8 @@
 """Tests for the accepted-link setter guide generator (ADR-0013, issue #365).
 
 Every expectation is derived from the imported decoder constants rather than
-hardcoded, so the suite tracks `sudokumaker.py` instead of drifting from it."""
+hardcoded, so the suite tracks the `sudokumaker` decoder constants instead of
+drifting from them."""
 
 from __future__ import annotations
 
