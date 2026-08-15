@@ -1,9 +1,9 @@
 """The document boundary: lz-string decompress a SudokuMaker `?puzzle=` link
 to its JSON document (`decode_document`) and compress one back
 (`encode_link`), the size/domain fields every decode reads off that document
-(`_board_size`, `_digit_domain`, `_schrodinger_domain`), the one-pass
-type bucketing (`_bucket_constraints_by_type`) `decode_link` runs once per
-link, and the shared enabled-block walk (`_enabled_blocks`) every per-type
+(`board_size`, `digit_domain`, `schrodinger_domain`), the one-pass
+type bucketing (`bucket_constraints_by_type`) `decode_link` runs once per
+link, and the shared enabled-block walk (`enabled_blocks`) every per-type
 decoder in the package indexes into that bucket through.
 """
 
@@ -48,7 +48,7 @@ def encode_link(document: dict[str, object]) -> str:
     return f"https://sudokumaker.app/?puzzle={payload}"
 
 
-def _board_size(puzzle_data: dict[str, object]) -> int:
+def board_size(puzzle_data: dict[str, object]) -> int:
     """The board's size `N` read from the link, most specific first (§4b): a
     `width` (with `height`, else derived from the cell count), else a `size`,
     else the classic default `9` — SudokuMaker omits `size`/`width` only when
@@ -63,11 +63,11 @@ def _board_size(puzzle_data: dict[str, object]) -> int:
         raise ValueError(msg)
     count = len(cells)
     if "width" in puzzle_data:
-        cols = _as_int(puzzle_data["width"], "width")
+        cols = as_int(puzzle_data["width"], "width")
         height = puzzle_data.get("height")
-        rows = _as_int(height, "height") if height is not None else count // (cols or 1)
+        rows = as_int(height, "height") if height is not None else count // (cols or 1)
     elif "size" in puzzle_data:
-        rows = cols = _as_int(puzzle_data["size"], "size")
+        rows = cols = as_int(puzzle_data["size"], "size")
     else:
         rows = cols = _CLASSIC_SIZE
     if rows != cols:
@@ -79,7 +79,7 @@ def _board_size(puzzle_data: dict[str, object]) -> int:
     return rows
 
 
-def _as_int(value: object, field: str) -> int:
+def as_int(value: object, field: str) -> int:
     """A link header field that must be an integer, or a `ValueError` naming it
     (a `bool` is not an `int` here — a `True` width is a malformed link)."""
     if not isinstance(value, int) or isinstance(value, bool):
@@ -88,48 +88,48 @@ def _as_int(value: object, field: str) -> int:
     return value
 
 
-def _digit_domain(puzzle_data: dict[str, object], size: int) -> range:
+def digit_domain(puzzle_data: dict[str, object], size: int) -> range:
     """The board's digit domain (§4b): `minDigit`..`maxDigit` when the link
     carries them, else the implicit `1..N`. `maxDigit` defaults to a full
     `N`-wide span from `minDigit`, and the span is validated against N
     (`maxDigit - minDigit + 1 == N`) — a domain that doesn't fit the board is
     refused. A classic link omits both, so this is `1..9`, unchanged."""
-    min_digit = _as_int(puzzle_data.get("minDigit", 1), "minDigit")
-    max_digit = _as_int(puzzle_data.get("maxDigit", min_digit + size - 1), "maxDigit")
+    min_digit = as_int(puzzle_data.get("minDigit", 1), "minDigit")
+    max_digit = as_int(puzzle_data.get("maxDigit", min_digit + size - 1), "maxDigit")
     if max_digit - min_digit + 1 != size:
         msg = f"non-classic link: domain {min_digit}..{max_digit} is not {size} digits"
         raise ValueError(msg)
     return range(min_digit, max_digit + 1)
 
 
-def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
+def schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
     """The board's digit domain under the classic Schrödinger reading:
     `minDigit` through `minDigit + N`, an `N + 1`-wide span carrying the
     `k = 1` extra digit the classic Schrödinger rule derives, not reads. When
     the link declares no `minDigit`, the extra digit defaults to `0` prepended
     below the base `1…N`, giving the classic `0…N` (ADR-0014); an explicit
     `minDigit` is honored as-is."""
-    min_digit = _as_int(puzzle_data.get("minDigit", 0), "minDigit")
+    min_digit = as_int(puzzle_data.get("minDigit", 0), "minDigit")
     return range(min_digit, min_digit + size + 1)
 
 
 # `puzzle_data["constraints"]` bucketed by wire `type`, in wire order —
-# `_bucket_constraints_by_type`'s return, and what `_enabled_blocks` indexes
+# `bucket_constraints_by_type`'s return, and what `enabled_blocks` indexes
 # into by type. `Any` in the element type keeps the decoded-JSON boundary,
 # as elsewhere in this module.
 ConstraintBuckets = dict[int, list[dict[Any, Any]]]
 
 
-def _bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuckets:
+def bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuckets:
     """`puzzle_data["constraints"]` grouped by wire `type` in one pass —
     `decode_link` runs this once per link and threads the result to every
     per-type decoder, so each decoder selects its own type's blocks by one
     dict lookup. A non-list `constraints` buckets to nothing; a non-dict block,
-    or one whose `type` is not an int — a `bool` is not one, matching `_as_int`
+    or one whose `type` is not an int — a `bool` is not one, matching `as_int`
     — is dropped (no per-type decoder can ever select it by wire `type`).
-    Enabled/disabled filtering stays a per-read concern in `_enabled_blocks` —
+    Enabled/disabled filtering stays a per-read concern in `enabled_blocks` —
     a bucket carries a type's disabled blocks too, since
-    `_warn_on_dropped_constraints` needs to see them."""
+    `warn_on_dropped_constraints` needs to see them."""
     buckets: ConstraintBuckets = {}
     blocks = puzzle_data.get("constraints", [])
     if not isinstance(blocks, list):
@@ -143,9 +143,9 @@ def _bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuc
     return buckets
 
 
-def _enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[Any, Any]]:
+def enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[Any, Any]]:
     """Every enabled constraint block of one `type` from the pre-bucketed
-    table (`_bucket_constraints_by_type`), in wire order — the shared front
+    table (`bucket_constraints_by_type`), in wire order — the shared front
     the per-type decoders (XV, kropki, cage) and `_regions_matrix` all iterate
     behind. Folds the one guard every decoder needs beyond the bucket lookup:
     a `disabled` block is skipped (the setter switched it off, so it is not
