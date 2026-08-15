@@ -46,14 +46,6 @@ def test_region_map_for_falls_back_to_the_boards_box_tiling() -> None:
     assert region_map[0] == [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)]
 
 
-def test_region_map_for_prefers_a_supplied_region_map() -> None:
-    # A supplied map is the same region map from a different source, so it
-    # passes through untouched — even at a size with no box convention.
-    supplied = [[(1, 1), (1, 2)], [(2, 1), (2, 2)]]
-
-    assert region_map_for(5, supplied) == supplied
-
-
 def test_region_map_for_refuses_a_size_with_no_box_convention() -> None:
     # The refusal lives on the fallback: only a board asking to be tiled by
     # convention needs a convention to exist.

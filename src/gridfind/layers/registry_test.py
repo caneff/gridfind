@@ -8,14 +8,13 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
     #
     # gridfind.layers is internal-only, so its committed
     # public surface is these names — the one door from constraints to a layer
-    # stack (`build_stack`), `canonical_identity`, and the two errors it
+    # stack (`build_stack`), and the two errors it
     # raises (`UnknownLayerError`, `SBlindLayerError`).
     # Registries and layer classes are internal.
     assert set(gridfind.layers.__all__) == {
         "SBlindLayerError",
         "UnknownLayerError",
         "build_stack",
-        "canonical_identity",
     }
     # Every advertised name must actually resolve — a dangling `__all__` entry
     # breaks `from gridfind.layers import X` for py.typed consumers.

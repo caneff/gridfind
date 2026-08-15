@@ -39,7 +39,7 @@ from gridfind.sudokumaker.regions import _regions_constraints
 # off real links (the two diagonals also carry a cosmetic `style` gridfind
 # ignores). The two diagonals are independent switches: negative is the `\`
 # main diagonal, positive the `/` anti-diagonal, so gridfind decodes each to
-# its own single-diagonal constraint rather than the both-diagonals `diagonal`.
+# its own single-diagonal constraint, never a combined one.
 _NEGATIVE_DIAGONAL_TYPE = 10
 _POSITIVE_DIAGONAL_TYPE = 11
 _ANTI_KING_TYPE = 12

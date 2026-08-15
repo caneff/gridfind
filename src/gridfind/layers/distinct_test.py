@@ -76,7 +76,7 @@ def test_regions_from_cuts_the_grid_by_the_supplied_map() -> None:
     grid = _grid(2)
     supplied = [[(1, 1), (2, 2)], [(1, 2), (2, 1)]]
 
-    groups = [sorted(g) for g in regions_from(supplied)(grid, None)]
+    groups = [sorted(g) for g in regions_from(supplied)(grid)]
 
     assert sorted(groups) == [["r0c0", "r1c1"], ["r0c1", "r1c0"]]
 

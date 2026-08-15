@@ -1440,10 +1440,14 @@ def test_verdict_found_for_a_clean_anti_king_puzzle() -> None:
 
 def test_verdict_broke_for_a_repeat_on_the_main_diagonal() -> None:
     # Two givens on the main diagonal hold the same digit. A bare board allows
-    # it; the diagonal layer forbids it.
+    # it; the negative-diagonal + positive-diagonal pair a real decoded
+    # X-sudoku carries forbids it.
     assert_layer_newly_breaks(
         smaller=(),
-        full=(Constraint(type="diagonal"),),
+        full=(
+            Constraint(type="negative-diagonal"),
+            Constraint(type="positive-diagonal"),
+        ),
         givens=(Given(address="R1C1", digit=1), Given(address="R2C2", digit=1)),
         board=Board(size=4),
     )
@@ -1453,7 +1457,10 @@ def test_verdict_broke_for_a_repeat_on_the_anti_diagonal() -> None:
     # The anti-diagonal of a 4x4: R1C4, R2C3, R3C2, R4C1.
     assert_layer_newly_breaks(
         smaller=(),
-        full=(Constraint(type="diagonal"),),
+        full=(
+            Constraint(type="negative-diagonal"),
+            Constraint(type="positive-diagonal"),
+        ),
         givens=(Given(address="R1C4", digit=1), Given(address="R2C3", digit=1)),
         board=Board(size=4),
     )
@@ -1463,7 +1470,10 @@ def test_verdict_found_for_a_clean_x_sudoku_puzzle() -> None:
     result = verdict(
         Puzzle(
             board=Board(size=4),
-            constraints=(Constraint(type="diagonal"),),
+            constraints=(
+                Constraint(type="negative-diagonal"),
+                Constraint(type="positive-diagonal"),
+            ),
             givens=(
                 Given(address="R1C1", digit=1),
                 Given(address="R2C2", digit=2),
