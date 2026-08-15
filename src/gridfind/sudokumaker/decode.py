@@ -77,9 +77,9 @@ def decode_link(
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = _board_size(puzzle_data)
     _warn_on_dropped_constraints(puzzle_data)
-    # One pass over puzzle_data["constraints"], grouped by wire `type` — every
-    # per-type decoder below indexes into this bucket (via `_enabled_blocks`)
-    # instead of re-scanning the whole list.
+    # One pass over puzzle_data["constraints"], grouped by wire `type`, so every
+    # per-type decoder below selects its own type's blocks by one dict lookup
+    # (via `_enabled_blocks`).
     buckets = _bucket_constraints_by_type(puzzle_data)
 
     cells = puzzle_data["cells"]

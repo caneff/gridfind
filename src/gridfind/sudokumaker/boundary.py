@@ -115,18 +115,18 @@ def _schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
 
 # `puzzle_data["constraints"]` bucketed by wire `type`, in wire order —
 # `_bucket_constraints_by_type`'s return, and what `_enabled_blocks` indexes
-# into instead of re-scanning the whole list per type. `Any` in the element
-# type keeps the decoded-JSON boundary, as elsewhere in this module.
+# into by type. `Any` in the element type keeps the decoded-JSON boundary,
+# as elsewhere in this module.
 ConstraintBuckets = dict[int, list[dict[Any, Any]]]
 
 
 def _bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuckets:
     """`puzzle_data["constraints"]` grouped by wire `type` in one pass —
     `decode_link` runs this once per link and threads the result to every
-    per-type decoder, so bucketing replaces what used to be one full scan of
-    the constraint list per registered type. A non-list `constraints` buckets
-    to nothing; a non-dict block or one with no integer `type` is dropped
-    (no per-type decoder can ever select it by wire `type` either way).
+    per-type decoder, so each decoder selects its own type's blocks by one
+    dict lookup. A non-list `constraints` buckets to nothing; a non-dict block,
+    or one whose `type` is not an int — a `bool` is not one, matching `_as_int`
+    — is dropped (no per-type decoder can ever select it by wire `type`).
     Enabled/disabled filtering stays a per-read concern in `_enabled_blocks` —
     a bucket carries a type's disabled blocks too, since
     `_warn_on_dropped_constraints` needs to see them."""
@@ -138,7 +138,7 @@ def _bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuc
         if not isinstance(block, dict):
             continue
         kind = block.get("type")
-        if isinstance(kind, int):
+        if isinstance(kind, int) and not isinstance(kind, bool):
             buckets.setdefault(kind, []).append(block)
     return buckets
 

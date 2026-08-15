@@ -251,6 +251,17 @@ def test_bucket_constraints_by_type_yields_empty_for_a_non_list_constraints() ->
     assert _bucket_constraints_by_type({"constraints": "bad"}) == {}
 
 
+def test_bucket_constraints_by_type_drops_a_bool_type() -> None:
+    # `bool` is an `int` subclass, but a wire `type` is never a bool: a block
+    # with `"type": True` is malformed and dropped, not bucketed under key 1
+    # where it would collide with real type-1 blocks (mirrors `_as_int`).
+    buckets = _bucket_constraints_by_type(
+        {"constraints": [{"type": True, "id": "boolish"}, {"type": 1, "id": "real"}]}
+    )
+
+    assert [block["id"] for block in buckets[1]] == ["real"]
+
+
 def test_enabled_blocks_yields_only_enabled_blocks_of_the_asked_type() -> None:
     # The shared enablement filter every per-type decoder iterates behind: it
     # yields a bucketed type's blocks in wire order, skipping a disabled one
