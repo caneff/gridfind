@@ -64,6 +64,42 @@ class CellGeometry:
     box_shape: tuple[int, int] | None
     grid: list[list[str]]
 
+    def step(self, cell: str, delta_row: int, delta_col: int) -> str | None:
+        """The cell `delta_row` rows and `delta_col` cols from `cell`, or `None`
+        when no cell is declared there.
+
+        The target is resolved against the **declared cell-address set**
+        (membership), never a `1 <= row <= size` bounds check — the cell-space
+        contract that lets off-grid cells (#399) extend the space without a
+        reopen. This is the one knowing deviation from ISS's grid-clipping
+        `traverse`. `cell` itself must be a declared address.
+        """
+        positions = _positions(self.grid)
+        row, col = positions[cell]
+        target = cell_address(row + delta_row, col + delta_col)
+        return target if target in positions else None
+
+    def walk(self, cell: str, delta_row: int, delta_col: int) -> list[str]:
+        """The ordered line of cells reached by repeated `step` from `cell` in
+        the `(delta_row, delta_col)` direction, until it leaves the cell space.
+        Excludes `cell`; empty when the first step is already off-space."""
+        line: list[str] = []
+        current = self.step(cell, delta_row, delta_col)
+        while current is not None:
+            line.append(current)
+            current = self.step(current, delta_row, delta_col)
+        return line
+
+
+def _positions(grid: list[list[str]]) -> dict[str, tuple[int, int]]:
+    """Every declared cell's 1-based `(row, col)`, keyed by address — the
+    membership set the stepper resolves against."""
+    return {
+        address: (row, col)
+        for row, addresses in enumerate(grid, 1)
+        for col, address in enumerate(addresses, 1)
+    }
+
 
 def cell_geometry(board: BoardShape) -> CellGeometry:
     """Build the descriptor from a board's fixed facts (ADR-0004 decision 3)

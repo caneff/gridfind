@@ -1,4 +1,6 @@
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from gridfind.cell_geometry import BOX_SHAPE, cell_address, cell_geometry
 from gridfind.puzzle import Board
@@ -50,6 +52,61 @@ def test_cell_geometry_grid_is_the_row_major_rxcy_address_grid() -> None:
 
 def test_cell_address_formats_rxcy() -> None:
     assert cell_address(3, 1) == "R3C1"
+
+
+def test_step_returns_the_target_cell_in_space() -> None:
+    geometry = cell_geometry(Board(size=9))
+
+    # A knight's hop: down 2, right 1.
+    assert geometry.step("R1C1", 2, 1) == "R3C2"
+
+
+def test_step_returns_none_stepping_off_the_declared_space() -> None:
+    geometry = cell_geometry(Board(size=9))
+
+    # Up 2 from row 1 leaves the space — no cell is declared at row -1.
+    assert geometry.step("R1C1", -2, 1) is None
+
+
+@given(
+    row=st.integers(min_value=1, max_value=9),
+    col=st.integers(min_value=1, max_value=9),
+    delta_row=st.integers(min_value=-3, max_value=3),
+    delta_col=st.integers(min_value=-3, max_value=3),
+)
+def test_step_resolves_by_membership_not_a_bounds_check(
+    row: int, col: int, delta_row: int, delta_col: int
+) -> None:
+    # The stepper answers with the target's declared address, or None — never
+    # an off-space address. On a full rectangular board membership coincides
+    # with 1..size, which is the property that must hold cell-by-cell.
+    geometry = cell_geometry(Board(size=9))
+    declared = {address for line in geometry.grid for address in line}
+
+    target = geometry.step(cell_address(row, col), delta_row, delta_col)
+
+    in_space = cell_address(row + delta_row, col + delta_col) in declared
+    assert (target is not None) == in_space
+    assert target is None or target in declared
+
+
+def test_step_from_an_undeclared_start_raises() -> None:
+    geometry = cell_geometry(Board(size=4))
+
+    with pytest.raises(KeyError):
+        geometry.step("R9C9", 1, 0)
+
+
+def test_walk_returns_the_ordered_line_and_stops_at_the_boundary() -> None:
+    geometry = cell_geometry(Board(size=4))
+
+    assert geometry.walk("R1C1", 1, 1) == ["R2C2", "R3C3", "R4C4"]
+
+
+def test_walk_from_the_boundary_returns_empty() -> None:
+    geometry = cell_geometry(Board(size=4))
+
+    assert geometry.walk("R4C4", 1, 1) == []
 
 
 def test_box_shape_table_matches_regions_layers_convention() -> None:

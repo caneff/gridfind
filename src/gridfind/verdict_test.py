@@ -1384,3 +1384,55 @@ def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None
     assert result.witness["R1C1"] == (5,)
     assert result.witness.modifiers["R1C1"] == "doubler"
     assert result.witness["R1C2"] == (5,)
+
+
+def test_verdict_broke_for_a_colliding_anti_knight_pair() -> None:
+    # Two givens a knight's hop apart (down 2, right 1) hold the same digit.
+    # A bare board allows it; anti-knight forbids it, so the layer is what
+    # newly breaks the state.
+    assert_layer_newly_breaks(
+        smaller=(),
+        full=(Constraint(type="anti-knight"),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R3C2", digit=1)),
+        board=Board(size=4),
+    )
+
+
+def test_verdict_found_for_a_clean_anti_knight_puzzle() -> None:
+    result = verdict(
+        Puzzle(
+            board=Board(size=4),
+            constraints=(Constraint(type="anti-knight"),),
+            givens=(
+                Given(address="R1C1", digit=1),
+                Given(address="R3C2", digit=2),
+            ),
+        )
+    )
+
+    assert result.kind == "found"
+
+
+def test_verdict_broke_for_a_colliding_anti_king_pair() -> None:
+    # Two givens a king's step apart (the R2C2 diagonal) hold the same digit.
+    assert_layer_newly_breaks(
+        smaller=(),
+        full=(Constraint(type="anti-king"),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R2C2", digit=1)),
+        board=Board(size=4),
+    )
+
+
+def test_verdict_found_for_a_clean_anti_king_puzzle() -> None:
+    result = verdict(
+        Puzzle(
+            board=Board(size=4),
+            constraints=(Constraint(type="anti-king"),),
+            givens=(
+                Given(address="R1C1", digit=1),
+                Given(address="R2C2", digit=2),
+            ),
+        )
+    )
+
+    assert result.kind == "found"

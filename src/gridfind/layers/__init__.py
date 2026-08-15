@@ -31,6 +31,11 @@ from gridfind.layers.distinct import (
 from gridfind.layers.doubler import Doubler
 from gridfind.layers.group_sum import GroupSum
 from gridfind.layers.line_count import LineCountDistinct
+from gridfind.layers.offset_adjacency import (
+    KING_OFFSETS,
+    KNIGHT_OFFSETS,
+    OffsetAdjacency,
+)
 from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
@@ -56,6 +61,8 @@ LAYER_REGISTRY = {
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
     "regions-distinct": DistinctOverGroups("regions-distinct", regions),
     "line-count-distinct": LineCountDistinct(),
+    "anti-knight": OffsetAdjacency("anti-knight", KNIGHT_OFFSETS),
+    "anti-king": OffsetAdjacency("anti-king", KING_OFFSETS),
     "pair-difference": PairRelation("pair-difference", relation=differs_by),
     "pair-ratio": PairRelation("pair-ratio", relation=ratio_of),
     "schrodinger": Schrodinger(),
