@@ -1,8 +1,7 @@
 """Per-cell decode: one wire cell's working-state directives
 (`decode_cell`/`CellDecode`), the S-cell marker-value parse
-(`_scell_directive_from_value`/`_parse_scell_value`), the row-major raw-index
-to cell-address translation cages/markers read cells by (`_address`/
-`_addresses`), and the one wire-write seam for a witness cell (`write_cell`).
+(`_scell_directive_from_value`/`_parse_scell_value`), and the one wire-write
+seam for a witness cell (`write_cell`).
 """
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from gridfind.cell_geometry import cell_address
 from gridfind.puzzle import Candidate, Given, Placement
 from gridfind.s_directives import (
     BareSCell,
@@ -192,16 +190,3 @@ def _parse_digit(text: str) -> int | None:
         return int(text.strip())
     except ValueError:
         return None
-
-
-def _address(index: int, size: int) -> str:
-    """The row-major address of a raw cell `index` on a `size`-wide board: index
-    `18` on a 9-board is R3C1. The single home for SudokuMaker's `i // N`, `i % N`
-    scheme, shared by givens, cages, and thermometers."""
-    return cell_address(index // size + 1, index % size + 1)
-
-
-def _addresses(indices: Iterable[int], size: int) -> list[str]:
-    """`_address` mapped over a cell-index list, order preserved — so a thermo
-    path keeps bulb-first order and a cage's cells read row-major."""
-    return [_address(i, size) for i in indices]

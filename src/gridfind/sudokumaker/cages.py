@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from gridfind.puzzle import Constraint, ModifierDirective
+from gridfind.sudokumaker.addresses import addresses
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
-from gridfind.sudokumaker.cells import _addresses
 from gridfind.sudokumaker.markers import (
     CosmeticCageKind,
     cosmetic_cage_kind,
@@ -37,7 +37,7 @@ def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
 
 def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 301` killer cages as `Constraint`s: each cage's raw `cells`
-    indices map row-major to addresses (`_addresses`), so `[18, 19]` on a
+    indices map row-major to addresses (`addresses`), so `[18, 19]` on a
     9-board is R3C1/R3C2. Every cage decodes to a no-repeats `cage`; a positive
     `value` additionally decodes a `group-sum` over the same cells (ADR-0009) —
     `0` (SudokuMaker's own no-sum cage) decodes to `cage` alone, exactly as an
@@ -47,8 +47,8 @@ def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     for block in enabled_blocks(buckets, CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         for cage in cages:
-            addresses = _addresses(cage["cells"], size)
-            decoded.extend(_killer_cage(addresses, cage.get("value", 0)))
+            cage_addresses = addresses(cage["cells"], size)
+            decoded.extend(_killer_cage(cage_addresses, cage.get("value", 0)))
     return decoded
 
 
@@ -139,16 +139,18 @@ def cosmetic_cage_constraints(
             continue
         if kind == "doubler":
             modifiers = tuple(
-                ModifierDirective(address, is_modifier=True)
+                ModifierDirective(cell_address, is_modifier=True)
                 for cage in cages
-                for address in _addresses(cage["cells"], size)
+                for cell_address in addresses(cage["cells"], size)
             )
             decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
             continue
         constraints: list[Constraint] = []
         for cage in cages:
-            addresses = _addresses(cage["cells"], size)
-            constraints.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(cage)))
+            cage_addresses = addresses(cage["cells"], size)
+            constraints.extend(
+                _killer_cage(cage_addresses, _cosmetic_cage_killer_sum(cage))
+            )
         decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
     return _CosmeticCageDecode.concat(decoded)
 
@@ -166,7 +168,7 @@ def thermo_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint
         slow = bool(block.get("slow", False))
         paths = cast("list[list[int]]", block.get("thermometers", []))
         for path in paths:
-            addresses = _addresses(path, size)
-            params: dict[str, object] = {"path": addresses, "slow": slow}
+            path_addresses = addresses(path, size)
+            params: dict[str, object] = {"path": path_addresses, "slow": slow}
             decoded.append(Constraint("thermo", params=params))
     return decoded
