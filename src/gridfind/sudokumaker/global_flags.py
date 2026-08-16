@@ -1,5 +1,5 @@
 """Global-flag component recognition — the third named-component shape
-(`naming._Shape`, spec #431/#436), alongside `cage-selector`/`cell-marker`: a
+(`naming._Shape`), alongside `cage-selector`/`cell-marker`: a
 name needing no payload at all, recognized through the shared
 `naming.named_component` lookup on either name-bearing carrier — a `type
 1000` custom constraint's `definition.name`, or a `type 2001` cosmetic

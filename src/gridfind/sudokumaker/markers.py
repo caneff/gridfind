@@ -1,7 +1,7 @@
 """Named marker-cage classification (ADR-0012, homed here in #443, routed
 through the name -> shape registry in #434, extended with a parameterized
-`"constant"` kind by ADR-0016, and a payload-less `"somedoku"` kind by spec
-#431/#436): a `type 2001` cosmetic-cage block's top-level
+`"constant"` kind by ADR-0016, and a payload-less `"somedoku"` kind): a
+`type 2001` cosmetic-cage block's top-level
 `name` sorted into `"unnamed"`, `"killer"`, `"doubler"`, `"s-cell"`,
 `"constant"`, `"somedoku"`, or `"unrecognized"` (`cosmetic_cage_kind`), the two
 S-cell channels that read it — enablement by block *presence*
@@ -51,7 +51,7 @@ MARKER_LABELS: dict[str, frozenset[str]] = aliases_by_role()
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
-    ADR-0016 and spec #431/#436) into one of seven kinds: `"unnamed"`
+    ADR-0016) into one of seven kinds: `"unnamed"`
     (absent/blank — a purely decorative block that carries no rule),
     `"killer"` (a recognized `Sum`/`Killer` label that selects the
     killer-cage rule), `"doubler"` (a `Doubler` position marker), `"s-cell"`

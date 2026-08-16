@@ -1,5 +1,5 @@
-"""`global_flags`: the payload-less `Somedoku` global-flag component (spec
-#431/#436) — recognized on either name-bearing carrier, a `type 1000` custom
+"""`global_flags`: the payload-less `Somedoku` global-flag component —
+recognized on either name-bearing carrier, a `type 1000` custom
 constraint's `definition.name` or a `type 2001` cosmetic cage's top-level
 `name`, and decoded through `decode_link` to a single `line-count-distinct`
 constraint in place of the classic `rows-distinct`/`cols-distinct`/
