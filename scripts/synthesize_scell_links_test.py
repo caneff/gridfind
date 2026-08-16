@@ -231,6 +231,21 @@ def test_numeric_cage_graduates_to_a_group_sum_and_reads_found(
     assert (code, first) == (0, "found")
 
 
+def test_unrecognized_named_cage_warns_and_drops_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # "Foobar" matches no entry in naming._NAME_REGISTRY, so the cage carries
+    # no rule (ADR-0012): it's warn-dropped rather than honored as a killer
+    # cage, which would otherwise break on the repeated digit 3 shared by
+    # cells 0 and 6. The verdict is computed from the given solution alone.
+    link = syn.found_cosmetic_cage_unrecognized_4x4()
+    puzzle, _ = decode_link(link)
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+    code, first, err = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+    assert "Foobar" in err
+
+
 def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
