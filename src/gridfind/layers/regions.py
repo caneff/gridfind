@@ -49,9 +49,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from gridfind import layers
 from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.engine import GridfindError, MalformedPuzzleError
+from gridfind.layers import door
 from gridfind.puzzle import Constraint, Puzzle
 
 # A partition of a board into regions of cell addresses, whatever its source.
@@ -154,7 +154,7 @@ def reason(puzzle: Puzzle) -> str | None:
     (a `sudoku` preset carries `regions-distinct` indirectly) rather than
     asking a caller to hand in the already-expanded list, the one door onto
     the region map (`region_map_for_constraints`)."""
-    canonical = layers.expand_constraints(puzzle.constraints)
+    canonical = door.expand_constraints(puzzle.constraints)
     if not any(constraint.type == "regions-distinct" for constraint in canonical):
         return None
     region_map = region_map_for_constraints(canonical, puzzle.board.size)
