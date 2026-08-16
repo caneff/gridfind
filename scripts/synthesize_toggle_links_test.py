@@ -21,6 +21,21 @@ _EXPECTED_CONSTRAINT: dict[str, str] = {
     "broke-anti-king-6x6": "anti-king",
     "found-x-sudoku-4x4": "negative-diagonal",
     "broke-x-sudoku-4x4": "negative-diagonal",
+    "found-negative-diagonal-only-4x4": "negative-diagonal",
+    "broke-negative-diagonal-only-4x4": "negative-diagonal",
+    "found-positive-diagonal-only-4x4": "positive-diagonal",
+    "broke-positive-diagonal-only-4x4": "positive-diagonal",
+}
+
+# The isolation fixtures each set exactly one diagonal toggle; this maps each
+# to the *other* diagonal, which must be absent from the decoded constraints
+# — the fact the coverage-floor x-sudoku pair can't prove, since both of its
+# fixtures carry both diagonals at once.
+_EXCLUDED_DIAGONAL: dict[str, str] = {
+    "found-negative-diagonal-only-4x4": "positive-diagonal",
+    "broke-negative-diagonal-only-4x4": "positive-diagonal",
+    "found-positive-diagonal-only-4x4": "negative-diagonal",
+    "broke-positive-diagonal-only-4x4": "negative-diagonal",
 }
 
 
@@ -41,3 +56,16 @@ def test_link_decodes_to_its_named_toggle_constraint(name: str) -> None:
     puzzle, _ = decode_link(syn.CORPUS[name]())
     constraint_types = {constraint.type for constraint in puzzle.constraints}
     assert _EXPECTED_CONSTRAINT[name] in constraint_types
+
+
+@pytest.mark.parametrize(
+    "name", sorted(_EXCLUDED_DIAGONAL), ids=sorted(_EXCLUDED_DIAGONAL)
+)
+def test_diagonal_only_link_excludes_the_other_diagonal(name: str) -> None:
+    """Each `*-diagonal-only-*` fixture sets exactly one diagonal toggle: the
+    other diagonal must not appear among the decoded constraints, proving the
+    two switches are read independently rather than one standing in for
+    both."""
+    puzzle, _ = decode_link(syn.CORPUS[name]())
+    constraint_types = {constraint.type for constraint in puzzle.constraints}
+    assert _EXCLUDED_DIAGONAL[name] not in constraint_types

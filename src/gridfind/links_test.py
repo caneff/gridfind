@@ -102,7 +102,7 @@ _EXPLICIT_VARIANTS = ("classic", "jigsaw", "schrodinger", "doubler")
 
 def _wire_payload(link: str) -> dict[str, Any]:
     """The raw SudokuMaker puzzle JSON behind a link, mirroring
-    `scripts/inspect_link.py`'s `_decode_payload` — kept local for the same
+    `scripts/inspect_link.py`'s `decode_payload` — kept local for the same
     reason: the coverage gate classifies by raw wire *type*, which
     `decode_link`'s `Puzzle` no longer carries once XV/kropki are rewritten
     onto their own aliased constraint names."""

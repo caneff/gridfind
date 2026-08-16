@@ -27,7 +27,6 @@ from gridfind.sudokumaker.cages import cosmetic_cage_constraints
 from gridfind.sudokumaker.cells import CellDecode, decode_cell
 from gridfind.sudokumaker.markers import has_scell_marker_block, scell_marker_values
 from gridfind.sudokumaker.registry import DECODER_REGISTRY, warn_on_dropped_constraints
-from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 
 
 def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
@@ -130,8 +129,8 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
     cosmetic_cage_decode = cosmetic_cage_constraints(buckets, size)
     constraints.extend(cosmetic_cage_decode.constraints)
-    for kind, decoded_type in DECODER_REGISTRY.items():
-        if kind == COSMETIC_CAGE_TYPE or decoded_type.handler is None:
+    for decoded_type in DECODER_REGISTRY.values():
+        if decoded_type.handler is None:
             continue
         constraints.extend(decoded_type.handler(buckets, size))
     if is_schrodinger:

@@ -20,12 +20,12 @@ from __future__ import annotations
 import json
 from typing import Any, Literal, cast
 
+from gridfind.sudokumaker.addresses import addresses
 from gridfind.sudokumaker.boundary import (
     ConstraintBuckets,
     bucket_constraints_by_type,
     enabled_blocks,
 )
-from gridfind.sudokumaker.cells import _addresses
 from gridfind.sudokumaker.naming import aliases_by_role, named_component
 from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 
@@ -99,7 +99,7 @@ def scell_marker_values(buckets: ConstraintBuckets, size: int) -> dict[str, obje
         for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE)
         if _is_scell_block(block)
         for cage in cast("list[dict[str, Any]]", block.get("cages", []))
-        for address in _addresses(cage["cells"], size)
+        for address in addresses(cage["cells"], size)
     }
 
 
