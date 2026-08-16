@@ -77,7 +77,7 @@ def test_unknown_constraint_type_is_rejected() -> None:
 
 @pytest.mark.parametrize(
     "s_blind_type",
-    ["anti-knight", "anti-king", "thermo", "pair-difference", "pair-ratio"],
+    ["anti-knight", "anti-king", "thermo"],
 )
 def test_an_s_blind_layer_stacked_with_a_widening_layer_is_refused(
     s_blind_type: str,
@@ -88,6 +88,20 @@ def test_an_s_blind_layer_stacked_with_a_widening_layer_is_refused(
 
     with pytest.raises(SBlindLayerError, match=s_blind_type):
         build_stack(constraints, size=9)
+
+
+@pytest.mark.parametrize("pair_relation_type", ["pair-difference", "pair-ratio"])
+def test_a_pair_relation_layer_composes_with_a_widening_layer(
+    pair_relation_type: str,
+) -> None:
+    # Both kropki pair layers read `engine.value_expr`, not a cell's single
+    # content slot, so they carry no `s_blind` flag and stack freely with
+    # schrodinger — unlike anti-knight/anti-king/thermo above.
+    constraints = (Constraint(type=pair_relation_type), Constraint(type="schrodinger"))
+
+    _, layers = build_stack(constraints, size=9)
+
+    assert len(layers) == 3
 
 
 def test_an_s_blind_layer_alone_is_unaffected() -> None:

@@ -224,12 +224,19 @@ The second explicit-pair variant (issue #129, spec #127), landing beside the
 `emit_over_pairs` extraction (#42 decision 5, #128) that its own relation
 shares with `pair-ratio` (both via `PairRelation`) and `thermo`'s
 consecutive-pair walk. A clue names a **pair** and a target `k`; the layer
-constrains the pair's content to differ, in absolute value, by exactly `k`,
+constrains the pair's value to differ, in absolute value, by exactly `k`,
 one rule per clue. Explicit-pair, positive-only, and absolute — like
 `group-sum`'s two-cell case it never asks whether the pair is a **domino**
 and constrains only marked pairs, and either cell may hold the larger value
 (no directed `a - b = k` form). No setter-facing alias in this change;
 kropki-white / consecutive (`k = 1`) can alias later.
+
+Both `pair-difference` and `pair-ratio` read each cell through
+`engine.value_expr` (ADR-0009), not a raw content slot (issue #506) — a
+doubler's `2·value` or an S-cell's combined `s_value` on a plain digit's
+footing, no per-candidate rule (ADR-0010). Neither carries an `s_blind`
+flag, so a kropki-white/black link composes with a doubler or Schrödinger
+board.
 
 - **pair-difference** — the constraint and the rule it emits:
   `{type: pair-difference, cells: [a, b], diff: k}`.

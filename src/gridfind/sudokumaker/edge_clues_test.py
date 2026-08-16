@@ -14,8 +14,14 @@ from hypothesis import strategies as st
 from gridfind.cell_geometry import cell_address
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker import decode_link
-from gridfind.sudokumaker.conftest import constraint_link
+from gridfind.sudokumaker.conftest import (
+    EMPTY_CELLS,
+    WIRE_CONSTRAINTS,
+    constraint_link,
+    encode_document,
+)
 from gridfind.sudokumaker.edge_clues import _edge_to_pair
+from gridfind.verdict import verdict
 
 
 @pytest.mark.parametrize(
@@ -328,3 +334,50 @@ def test_disabled_or_empty_edge_clue_block_decodes_to_nothing_quietly(
 
     assert all(c.type not in decoded_types for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    ("kropki_type", "relation_type"),
+    [(200, "pair-difference"), (201, "pair-ratio")],
+    ids=["white", "black"],
+)
+@pytest.mark.parametrize(
+    ("modifier_block", "min_digit"),
+    [
+        pytest.param(
+            {"name": "Doubler", "type": 2001, "cages": [{"value": "", "cells": [0]}]},
+            None,
+            id="doubler",
+        ),
+        pytest.param(
+            {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]}, 0, id="s-cell"
+        ),
+    ],
+)
+def test_a_positive_kropki_link_composes_with_a_doubler_or_s_cell_board(
+    kropki_type: int,
+    relation_type: str,
+    modifier_block: dict[str, object],
+    min_digit: int | None,
+) -> None:
+    # Both kropki colours dropped their `s_blind` flag (lifted onto
+    # `value_expr`, the same seam XV already reads) — a link carrying a
+    # positive kropki clue and a doubler or S-cell marker used to raise
+    # `SBlindLayerError` at verdict time; it now decodes and resolves.
+    document: dict[str, object] = {
+        "cells": EMPTY_CELLS,
+        "constraints": [
+            *WIRE_CONSTRAINTS,
+            {"type": kropki_type, "clues": [{"value": 1, "edge": 75}]},
+            modifier_block,
+        ],
+    }
+    if min_digit is not None:
+        document["minDigit"] = min_digit
+    payload = encode_document(document)
+
+    puzzle, state = decode_link(payload)
+
+    assert any(c.type == relation_type for c in puzzle.constraints)
+    result = verdict(puzzle, state)
+    assert result.kind in ("found", "broke")

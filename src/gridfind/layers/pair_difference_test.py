@@ -6,7 +6,10 @@ cannot make on its own — that a clue emitted its *own* rule rather than being
 satisfied by accident.
 """
 
+from typing import cast
+
 import pytest
+from ortools.sat.python import cp_model
 
 from gridfind.engine import MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
@@ -163,3 +166,57 @@ def test_a_puzzle_mixing_group_sum_and_pair_difference_resolves_correctly() -> N
     assert result.witness is not None
     assert result.witness["R1C2"][0] == 4  # 1 + 4 == 5
     assert abs(result.witness["R3C3"][0] - result.witness["R3C4"][0]) == 2
+
+
+def test_pair_difference_reads_the_doubled_value_when_a_cell_is_the_modifier() -> None:
+    # 9 is unreachable as |d0 - 1| for any digit 1-9 (max 8), but reachable
+    # once R1C1 doubles: |2*5 - 1| == 9. Forcing R1C1 to be the modifier
+    # isolates the claim — the relation only balances if it read R1C1's
+    # folded value, not its raw digit.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _pair_difference(("R1C1", "R1C2"), 9)),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C2") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.d0("R1C1")) == 5
+
+
+def test_pair_difference_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # Mirrors group_sum_test's doubled-S-cell coverage: a cell marked both a
+    # modifier and an S-cell is worth 2*s_value (ADR-0010). R1C1's digits
+    # combine to 3 (1+2), doubled to 6; R1C2 is a plain 2, so the difference
+    # the relation must read is 4 — only true if it reads the folded value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _pair_difference(("R1C1", "R1C2"), 4),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 1)
+    engine.model.add(content[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 2)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)

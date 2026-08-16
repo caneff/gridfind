@@ -38,14 +38,16 @@ RelationEmitter = Callable[
 
 @dataclass
 class PairRelation:
-    """`s_blind`: reads a cell through `engine.content`, its single slot —
-    undefined once a widening layer gives a cell a second slot (`build_stack`
-    refuses the combination)."""
+    """Reads each pair's cells through `engine.value_expr` (ADR-0009), the
+    same seam `group-sum` and a values-distinct `cage` already read: a plain
+    digit, a doubler's `2·value`, or an S-cell's combined `s_value` (no
+    per-candidate rule). No `s_blind` flag — unlike `thermo` or
+    `offset_adjacency`, this family never reads a cell's raw content slot, so
+    it composes freely with a widening (Schrödinger) layer."""
 
     name: str
     relation: RelationEmitter
     depends_on: tuple[str, ...] = ("board",)
-    s_blind: bool = True
 
     def register(self, engine: Engine) -> None:
         pass
@@ -61,5 +63,13 @@ class PairRelation:
                     f"got {len(addresses)}"
                 )
                 raise MalformedPuzzleError(msg)
-            a, b = (engine.content(address) for address in addresses)
+            # value_expr always reifies an actual solver variable (a plain
+            # cell's content, a doubler's modifier_value, an S-cell's
+            # s_value) rather than a compound expression, so the relation
+            # emitters — which name their own aux vars off a/b — narrow back
+            # to IntVar, same as engine.content.
+            a, b = (
+                cast("cp_model.IntVar", engine.value_expr(address))
+                for address in addresses
+            )
             emit_over_pairs(engine, [(a, b)], self.relation(clue.params))
