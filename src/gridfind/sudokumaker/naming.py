@@ -120,7 +120,8 @@ def named_component(name: object) -> _NamedComponent | None:
 
 def aliases_by_role() -> dict[str, frozenset[str]]:
     """Every normalized `_NAME_REGISTRY` name, grouped by the specific role it
-    resolves to (`"killer"`, `"doubler"`, `"s-cell"`) rather than by shape —
+    resolves to (`"killer"`, `"doubler"`, `"s-cell"`, `"constant"`) rather than
+    by shape —
     the presentation grouping `setter_guide` renders as one canonical label
     plus its "other accepted names" per role (ADR-0013)."""
     groups: dict[str, set[str]] = {}
