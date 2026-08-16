@@ -360,10 +360,9 @@ def test_a_positive_kropki_link_composes_with_a_doubler_or_s_cell_board(
     modifier_block: dict[str, object],
     min_digit: int | None,
 ) -> None:
-    # Both kropki colours dropped their `s_blind` flag (lifted onto
-    # `value_expr`, the same seam XV already reads) — a link carrying a
-    # positive kropki clue and a doubler or S-cell marker used to raise
-    # `SBlindLayerError` at verdict time; it now decodes and resolves.
+    # Both kropki colours read `value_expr` (the same seam XV reads), not a
+    # single content slot, so a positive kropki clue composes with a doubler
+    # or S-cell marker board rather than refusing it as `s_blind`.
     document: dict[str, object] = {
         "cells": EMPTY_CELLS,
         "constraints": [

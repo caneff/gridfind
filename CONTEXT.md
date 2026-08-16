@@ -232,7 +232,7 @@ and constrains only marked pairs, and either cell may hold the larger value
 kropki-white / consecutive (`k = 1`) can alias later.
 
 Both `pair-difference` and `pair-ratio` read each cell through
-`engine.value_expr` (ADR-0009), not a raw content slot (issue #506) — a
+`engine.value_expr` (ADR-0009), not a raw content slot — a
 doubler's `2·value` or an S-cell's combined `s_value` on a plain digit's
 footing, no per-candidate rule (ADR-0010). Neither carries an `s_blind`
 flag, so a kropki-white/black link composes with a doubler or Schrödinger
