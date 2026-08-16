@@ -265,8 +265,7 @@ def test_from_json_refuses_an_s_cell_pin_with_a_mis_sized_pair() -> None:
 def test_from_json_treats_an_unknown_directive_kind_as_broken_json() -> None:
     # "Malformed" is content-only (ADR-0006, CONTEXT.md): a structurally broken
     # save — an unknown directive kind — is ordinary broken JSON, a KeyError,
-    # never a MalformedPuzzleError. KeyError is not a MalformedPuzzleError, so
-    # this pins the line the prior attempt crossed by leaking a raw ValueError.
+    # never a MalformedPuzzleError.
     text = json.dumps(
         {
             "places": [],

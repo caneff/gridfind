@@ -293,7 +293,7 @@ def _classic_named_cage_link(name: str, cage_value: int) -> str:
 def test_unrecognized_named_cage_warns_and_drops(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # An unrecognized name carries no rule (ADR-0012, #435): the cage is
+    # An unrecognized name carries no rule (ADR-0012): the cage is
     # dropped with a loud stderr warning, and the rest of the link — a
     # complete, valid solution grid with no other constraint — still verdicts
     # found.

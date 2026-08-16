@@ -11,37 +11,26 @@ from collections.abc import Callable
 from typing import Any, cast
 
 from gridfind.cell_geometry import cell_address
-from gridfind.layers import ALIAS_REGISTRY
+from gridfind.layers.door import ALIAS_REGISTRY
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker.boundary import ConstraintBuckets, _as_int, _enabled_blocks
+from gridfind.sudokumaker.boundary import ConstraintBuckets, as_int, enabled_blocks
+from gridfind.sudokumaker.wire_types import (
+    KROPKI_BLACK_TYPE,
+    KROPKI_WHITE_TYPE,
+    XV_TYPE,
+)
 
-# type 202 is XV: `clues: [{value, edge}], negative:
-# [...]`. `value` selects the existing group-sum alias — 10 is X, 5 is V
-# — never a raw `sum`, so a puzzle carrying both an XV clue and
-# a literal group-sum on the same cells still hits the alias's own
-# fixed-param conflict check in `expand_constraints`. Read off
-# `gridfind.layers.ALIAS_REGISTRY` rather than restated here — the
-# sum each alias fixes is stated once, in the registry that also builds it.
-_XV_TYPE = 202
+# `value` selects the existing group-sum alias — 10 is X, 5 is V — never a
+# raw `sum`, so a puzzle carrying both an XV clue and a literal group-sum on
+# the same cells still hits the alias's own fixed-param conflict check in
+# `expand_constraints`. Read off `gridfind.layers.door.ALIAS_REGISTRY` rather than
+# restated here — the sum each alias fixes is stated once, in the registry
+# that also builds it.
 _XV_ALIASES: dict[int, str] = {
     cast("int", fixed["sum"]): alias
     for alias, (canonical, fixed) in ALIAS_REGISTRY.items()
     if canonical == "group-sum" and "sum" in fixed
 }
-
-# type 200 is white-kropki: `clues: [{value, edge}],
-# negative: [...]`, the same wire shape as XV. The type number *is* the
-# white/black discriminator — 200 is white/difference, 201 black/ratio — so
-# `value` is the target difference, honored verbatim onto the existing
-# `pair-difference` layer (a labelled non-1 value is never coerced to 1).
-_KROPKI_WHITE_TYPE = 200
-
-# type 201 is black-kropki: the same `clues:
-# [{value, edge}], negative: [...]` wire shape as white kropki, `value` read
-# as the target integer ratio `k` onto the `pair-ratio` layer (a labelled
-# non-2 dot is never coerced to 2). A non-integer `value` raises at decode —
-# modeling a wrong verdict would be worse than refusing the link.
-_KROPKI_BLACK_TYPE = 201
 
 
 def _warn_dropped_negative(block: dict[str, Any], label: str) -> None:
@@ -106,7 +95,7 @@ def _edge_clue_constraints(
     `build_clue` carries the single per-type variation — an alias lookup, a
     `diff`, a ratio `k`."""
     decoded: list[Constraint] = []
-    for block in _enabled_blocks(buckets, type_):
+    for block in enabled_blocks(buckets, type_):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
         for clue in clues:
             a, b = _edge_to_pair(clue["edge"], size)
@@ -115,7 +104,7 @@ def _edge_clue_constraints(
     return decoded
 
 
-def _xv_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+def xv_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 202` XV clues as aliased group-sum `Constraint`s: `value`
     selects the existing `x`/`v` alias (10/5), or the link is refused — no
     other value names an XV sum. See `_edge_clue_constraints` for the walk."""
@@ -131,10 +120,10 @@ def _xv_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
             raise ValueError(msg)
         return Constraint(alias, params={"cells": [a, b]})
 
-    return _edge_clue_constraints(buckets, size, _XV_TYPE, build, "XV")
+    return _edge_clue_constraints(buckets, size, XV_TYPE, build, "XV")
 
 
-def _kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 200` white-kropki clues as `pair-difference` `Constraint`s:
     `value` is the target difference passed verbatim as `diff` — a labelled
     non-1 dot is honored at that value, never coerced to the consecutive
@@ -145,23 +134,21 @@ def _kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
         return Constraint("pair-difference", params={"cells": [a, b], "diff": value})
 
     return _edge_clue_constraints(
-        buckets, size, _KROPKI_WHITE_TYPE, build, "white-kropki"
+        buckets, size, KROPKI_WHITE_TYPE, build, "white-kropki"
     )
 
 
-def _black_kropki_constraints(
-    buckets: ConstraintBuckets, size: int
-) -> list[Constraint]:
+def black_kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 201` black-kropki clues as `pair-ratio` `Constraint`s: `value`
     is the target integer ratio `k`, honored verbatim — a labelled non-2 dot
-    is never coerced to 2. `value` must be an int (`_as_int`); a non-integer
+    is never coerced to 2. `value` must be an int (`as_int`); a non-integer
     ratio raises `ValueError` at decode rather than modeling a wrong verdict.
     See `_edge_clue_constraints` for the walk."""
 
     def build(value: object, a: str, b: str) -> Constraint:
-        k = _as_int(value, "black-kropki value")
+        k = as_int(value, "black-kropki value")
         return Constraint("pair-ratio", params={"cells": [a, b], "k": k})
 
     return _edge_clue_constraints(
-        buckets, size, _KROPKI_BLACK_TYPE, build, "black-kropki"
+        buckets, size, KROPKI_BLACK_TYPE, build, "black-kropki"
     )

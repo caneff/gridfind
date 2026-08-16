@@ -96,9 +96,6 @@ def _s_cell_cage_link(
     )
 
 
-# --- cosmetic_cage_kind: the name -> kind classifier ---------------------
-
-
 @pytest.mark.parametrize(
     ("name", "expected"),
     [
@@ -150,9 +147,6 @@ def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> No
         assert cosmetic_cage_kind(name) == role
 
 
-# --- Doubler marker cage -------------------------------------------------
-
-
 def test_doubler_named_cage_emits_modifier_directives_and_no_cage() -> None:
     # A `Doubler`-named cosmetic cage is a position marker, not a killer
     # cage: every cell it contains decodes to a discovered-modifier
@@ -202,8 +196,7 @@ def test_doubler_marker_name_is_case_insensitive_and_trimmed(name: str) -> None:
 
 def test_doubler_marker_cell_with_a_given_still_decodes_both() -> None:
     # A doubler holds one digit worth twice its value — the marker and the
-    # digit are orthogonal, so a given on a marked cell still lands, exactly
-    # as the legacy red-bit path.
+    # digit are orthogonal, so a given on a marked cell still lands.
     cells = list(EMPTY_CELLS)
     cells[0] = {"given": True, "value": 3}
     payload = encode_document(
@@ -246,12 +239,12 @@ def test_doubler_constraint_is_synthesized_once_across_marker_blocks() -> None:
 
 
 def test_a_red_cell_alone_is_not_a_doubler() -> None:
-    # The color channel is retired: declared doublers arrive only through a
-    # `Doubler` marker cage, so a bare red `colors` bit carries no meaning and
-    # stands up no `doubler` constraint or modifier directive.
+    # Declared doublers arrive only through a `Doubler` marker cage, so a bare
+    # red `colors` bit carries no meaning and stands up no `doubler` constraint
+    # or modifier directive.
     regions_4x4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
     cells: list[dict[str, object]] = [{} for _ in range(16)]
-    cells[0] = {"colors": 2}  # the retired red bit, ignored on decode
+    cells[0] = {"colors": 2}  # a bare colors bit is inert, ignored on decode
     payload = encode_document(
         {
             "cells": cells,
@@ -264,9 +257,6 @@ def test_a_red_cell_alone_is_not_a_doubler() -> None:
 
     assert Constraint("doubler") not in puzzle.constraints
     assert state.modifier_directives == ()
-
-
-# --- S-cell marker cage: directives, domain, Schrödinger presence --------
 
 
 def test_s_cell_named_cage_declares_s_cells_and_emits_no_cage() -> None:
@@ -490,9 +480,6 @@ def test_schrodinger_marker_ignores_cosmetic_and_disabled_constraints() -> None:
     assert regions_constraint == Constraint("regions-distinct")
 
 
-# --- settled digits under an S-cell mode ---------------------------------
-
-
 @pytest.mark.parametrize(
     "cell",
     [{"value": 5}, {"given": True, "value": 5}],
@@ -574,9 +561,8 @@ def test_settled_value_on_a_non_marker_cell_is_a_singleton_pin_under_schrodinger
 
 
 def test_a_single_link_decodes_both_doubler_and_s_cell_markers() -> None:
-    # The retired color channel forced doubler xor S-cell (they shared the red
-    # bit); named marker cages carry the variant instead, so one link may hold
-    # both — a `Doubler` block and an `S-cell` block side by side, each decoded.
+    # Named marker cages carry the variant, so one link may hold both — a
+    # `Doubler` block and an `S-cell` block side by side, each decoded.
     payload = encode_document(
         {
             "cells": EMPTY_CELLS,
@@ -601,9 +587,6 @@ def test_a_single_link_decodes_both_doubler_and_s_cell_markers() -> None:
     # The S-cell marker widened the domain by the classic k=1 extra digit,
     # defaulting to 0 at the bottom: 0…N.
     assert puzzle.board == Board(size=9, values=range(10))
-
-
-# --- colorize_marker_cages: the cosmetic display color -------------------
 
 
 def _marker_link(

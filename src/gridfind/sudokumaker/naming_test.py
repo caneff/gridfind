@@ -14,9 +14,9 @@ from hypothesis import strategies as st
 
 from gridfind.sudokumaker.naming import (
     _NAME_REGISTRY,
-    _named_component,
     _normalize_component_name,
-    _shape_needs_cells,
+    named_component,
+    shape_needs_cells,
 )
 
 
@@ -32,28 +32,28 @@ def test_normalize_component_name_rejects_blank_and_non_string() -> None:
 
 
 def test_named_component_is_none_for_an_unrecognized_name() -> None:
-    assert _named_component("Whimsy") is None
+    assert named_component("Whimsy") is None
 
 
 def test_sum_and_killer_share_the_killer_role_and_cage_selector_shape() -> None:
-    assert _named_component("Sum") == _named_component("Killer")
-    component = _named_component("Sum")
+    assert named_component("Sum") == named_component("Killer")
+    component = named_component("Sum")
     assert component is not None
     assert component.role == "killer"
     assert component.shape == "cage-selector"
 
 
 def test_doubler_is_a_cell_marker() -> None:
-    component = _named_component("Doubler")
+    component = named_component("Doubler")
     assert component is not None
     assert component.role == "doubler"
     assert component.shape == "cell-marker"
 
 
 def test_schrodinger_aliases_share_the_s_cell_role() -> None:
-    umlaut = _named_component("Schrödinger")
-    ascii_fold = _named_component("Schrodinger")
-    s_cell = _named_component("S-cell")
+    umlaut = named_component("Schrödinger")
+    ascii_fold = named_component("Schrodinger")
+    s_cell = named_component("S-cell")
     assert umlaut == ascii_fold == s_cell
     assert s_cell is not None
     assert s_cell.role == "s-cell"
@@ -63,10 +63,10 @@ def test_schrodinger_aliases_share_the_s_cell_role() -> None:
 def test_every_registered_shape_currently_needs_cells() -> None:
     # Both shapes built so far (cage-selector, cell-marker) need a cage's
     # cells — the property carrier-fitness checks a name-bearing carrier
-    # against (ADR-0012, #434).
+    # against (ADR-0012).
     shapes = {component.shape for component in _NAME_REGISTRY.values()}
     assert shapes == {"cage-selector", "cell-marker"}
-    assert all(_shape_needs_cells(shape) for shape in shapes)
+    assert all(shape_needs_cells(shape) for shape in shapes)
 
 
 @hyp_given(
@@ -81,7 +81,7 @@ def test_a_registered_name_survives_case_and_whitespace_variation(
     name = "doubler".upper() if upper else "doubler"
     varied = f"{padding}{name}{padding}"
 
-    component = _named_component(varied)
+    component = named_component(varied)
 
     assert component is not None
     assert component.role == "doubler"

@@ -43,8 +43,8 @@ def apply(engine: Engine, puzzle: Puzzle, working_state: WorkingState) -> None:
     digit landing on a Schrödinger S-cell's upper half — see
     `_apply_placement`. Directives apply last, restricting the two axes
     `engine.restrict` can't reach (S-cell-ness and the second content slot)
-    — see `_apply_s_directives`. Declared-modifier directives (a doubler's red
-    bit) apply last of all, pinning the modifier layer's `is_modifier` — see
+    — see `_apply_s_directives`. Declared-modifier directives (a doubler's
+    marker cage) apply last of all, pinning the modifier layer's `is_modifier` — see
     `_apply_modifier_directives`."""
     for given in puzzle.givens:
         engine.restrict(given.address, {given.digit})
@@ -61,17 +61,14 @@ def _apply_placement(engine: Engine, placement: Placement) -> None:
     literal d0 = d. On an
     ordinary board `content` is length 1, so this collapses to exactly the
     same `d0 == d` a given states; on a Schrödinger board it also honors a
-    placement that a solve later reveals as an S-cell's upper half. Reuses
-    the same reified-holds OR idiom the half-S-cell directive uses —
-    `engine.reify_holds` over `engine.contents(address)` — rather than
+    placement that a solve later reveals as an S-cell's upper half. Shares
+    `_require_digit_in_content` with the half-S-cell directive rather than
     hand-rolling the membership OR. No `is_s` gate needed: the schrodinger
     layer's per-cell sentinel already makes `d1 == d` unsatisfiable for a
     singleton, so the OR collapses on its own."""
     address, digit = placement.address, placement.digit
     content = engine.contents(address)  # off-board raises here
-    _require_in_domain(engine, address, (digit,))
-    holds = engine.reify_holds(content, digit, f"placement.{address}")
-    engine.model.add_bool_or(holds)
+    _require_digit_in_content(engine, address, content, digit, f"placement.{address}")
 
 
 def _apply_directives[Directive: _AddressedDirective](
@@ -158,9 +155,9 @@ def _apply_one_s_directive(
     elif isinstance(directive, BareSCell):
         engine.model.add(is_s[address] == 1)
     elif isinstance(directive, HalfSCell):
-        _require_in_domain(engine, address, (directive.digit,))
-        holds = engine.reify_holds(content, directive.digit, f"half.{address}")
-        engine.model.add_bool_or(holds)
+        _require_digit_in_content(
+            engine, address, content, directive.digit, f"half.{address}"
+        )
         engine.model.add(is_s[address] == 1)
     elif isinstance(directive, SCellMarkRestriction):
         allowed = [(digit,) for digit in sorted(directive.digits)]
@@ -177,8 +174,8 @@ def _apply_one_s_directive(
 def _apply_modifier_directives(
     engine: Engine, directives: tuple[ModifierDirective, ...]
 ) -> None:
-    """Apply the declared-modifier directives (a doubler read off a link's red
-    bit) by pinning `is_modifier` — the free per-cell boolean the modifier
+    """Apply the declared-modifier directives (a doubler read off a link's
+    marker cage) by pinning `is_modifier` — the free per-cell boolean the modifier
     layer discovers. Each directive fixes one cell to modifier or not; the
     layer's one-per-house and distinct-digit transversal then verify the
     declared set, so an ill-placed declaration solves to broke.
@@ -205,6 +202,22 @@ def _apply_one_modifier_directive(
     content: list[cp_model.IntVar],
 ) -> None:
     engine.model.add(is_modifier[directive.address] == int(directive.is_modifier))
+
+
+def _require_digit_in_content(
+    engine: Engine,
+    address: str,
+    content: list[cp_model.IntVar],
+    digit: int,
+    label: str,
+) -> None:
+    """Fix `digit` into one of `content`'s slots — either slot on a
+    Schrödinger cell — after confirming it's on the board. The idiom an
+    ordinary placement and a half-S-cell pin both need: `reify_holds` builds
+    the membership OR, `add_bool_or` pins it true."""
+    _require_in_domain(engine, address, (digit,))
+    holds = engine.reify_holds(content, digit, label)
+    engine.model.add_bool_or(holds)
 
 
 def _require_in_domain(engine: Engine, address: str, digits: tuple[int, ...]) -> None:

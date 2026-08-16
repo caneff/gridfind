@@ -1,7 +1,7 @@
 """`boundary`: the link's outer envelope and its size/domain derivation.
 
-`decode_document`/`encode_link` are the compress/decompress door; `_board_size`,
-`_digit_domain`, and `_schrodinger_domain` read the grid's shape and digit range
+`decode_document`/`encode_link` are the compress/decompress door; `board_size`,
+`digit_domain`, and `schrodinger_domain` read the grid's shape and digit range
 off the raw puzzle block. These are exercised through `decode_link` where a real
 link is the honest input, and directly where the helper's own edge cases (the
 Schrödinger domain's default and explicit `minDigit`) are the point.
@@ -24,9 +24,9 @@ from gridfind.puzzle import (
 )
 from gridfind.sudokumaker import decode_document, decode_link, encode_link
 from gridfind.sudokumaker.boundary import (
-    _bucket_constraints_by_type,
-    _enabled_blocks,
-    _schrodinger_domain,
+    bucket_constraints_by_type,
+    enabled_blocks,
+    schrodinger_domain,
 )
 from gridfind.sudokumaker.conftest import (
     CLASSIC_CONSTRAINTS,
@@ -222,15 +222,15 @@ def test_four_by_four_link_decodes_at_the_right_size() -> None:
 def test_schrodinger_domain_widens_by_one_honoring_min_digit(
     puzzle_data: dict[str, object], expected: range
 ) -> None:
-    assert _schrodinger_domain(puzzle_data, 9) == expected
+    assert schrodinger_domain(puzzle_data, 9) == expected
 
 
 def test_bucket_constraints_by_type_groups_by_wire_type_in_order() -> None:
     # decode_link's single pass over puzzle_data["constraints"]: blocks land in
     # the bucket keyed by their own type, in wire order, including a disabled
-    # one — enablement is `_enabled_blocks`'s read-time concern, not the
+    # one — enablement is `enabled_blocks`'s read-time concern, not the
     # bucket's.
-    buckets = _bucket_constraints_by_type(
+    buckets = bucket_constraints_by_type(
         {
             "constraints": [
                 {"type": 300, "id": "first"},
@@ -248,14 +248,14 @@ def test_bucket_constraints_by_type_groups_by_wire_type_in_order() -> None:
 
 
 def test_bucket_constraints_by_type_yields_empty_for_a_non_list_constraints() -> None:
-    assert _bucket_constraints_by_type({"constraints": "bad"}) == {}
+    assert bucket_constraints_by_type({"constraints": "bad"}) == {}
 
 
 def test_bucket_constraints_by_type_drops_a_bool_type() -> None:
     # `bool` is an `int` subclass, but a wire `type` is never a bool: a block
     # with `"type": True` is malformed and dropped, not bucketed under key 1
-    # where it would collide with real type-1 blocks (mirrors `_as_int`).
-    buckets = _bucket_constraints_by_type(
+    # where it would collide with real type-1 blocks (mirrors `as_int`).
+    buckets = bucket_constraints_by_type(
         {"constraints": [{"type": True, "id": "boolish"}, {"type": 1, "id": "real"}]}
     )
 
@@ -266,7 +266,7 @@ def test_enabled_blocks_yields_only_enabled_blocks_of_the_asked_type() -> None:
     # The shared enablement filter every per-type decoder iterates behind: it
     # yields a bucketed type's blocks in wire order, skipping a disabled one
     # (the setter switched it off).
-    buckets = _bucket_constraints_by_type(
+    buckets = bucket_constraints_by_type(
         {
             "constraints": [
                 {"type": 300, "id": "first"},
@@ -277,10 +277,10 @@ def test_enabled_blocks_yields_only_enabled_blocks_of_the_asked_type() -> None:
         }
     )
 
-    kept = [block["id"] for block in _enabled_blocks(buckets, 300)]
+    kept = [block["id"] for block in enabled_blocks(buckets, 300)]
 
     assert kept == ["first", "second"]
 
 
 def test_enabled_blocks_yields_nothing_for_an_unbucketed_type() -> None:
-    assert list(_enabled_blocks({}, 300)) == []
+    assert list(enabled_blocks({}, 300)) == []

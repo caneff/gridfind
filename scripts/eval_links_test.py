@@ -402,8 +402,8 @@ def test_render_page_offers_an_end_state_with_a_close_control() -> None:
     # test_finish_endpoint_stops_the_server.)
     html = render_page([("found-cage-4x4", _FOUND)])
 
-    assert 'id="done"' in html  # the end-state screen
-    assert ">Close</button>" in html  # its Close control
+    assert 'id="done"' in html
+    assert ">Close</button>" in html
 
 
 def test_finish_endpoint_stops_the_server() -> None:
@@ -430,4 +430,4 @@ def test_finish_endpoint_stops_the_server() -> None:
         serve.join(timeout=5)
 
     assert status == 200
-    assert not serve.is_alive()  # the server really stopped
+    assert not serve.is_alive()

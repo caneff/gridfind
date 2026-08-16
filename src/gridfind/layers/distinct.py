@@ -97,7 +97,7 @@ class DistinctOverGroups:
 
     With no `schrodinger` layer in the stack, every cell's content stays
     width 1 and each group gets a plain `add_all_different`. With
-    `schrodinger` present, `is_s` rides on the structure registry (never a
+    `schrodinger` present, `is_s` rides in through `engine.is_s()` (never a
     direct reference to that layer) and each group instead gets the is_S-
     gated counting rule `emit_house` builds, over content already widened to
     length 2 by the time this runs in phase 2.
@@ -111,7 +111,7 @@ class DistinctOverGroups:
         pass
 
     def emit(self, engine: Engine) -> None:
-        is_s = engine.structures.get("is_s")
+        is_s = engine.is_s()
         groups = self.partition(grid_content(engine))
         for index, group in enumerate(groups):
             cells = list(group)

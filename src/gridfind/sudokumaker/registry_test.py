@@ -117,7 +117,7 @@ def test_cage_shaped_name_on_a_type_1000_constraint_warns_and_names_it(
     # A cage-selector (Sum/Killer) or cell-marker (Doubler/S-cell/Schrödinger)
     # name needs a cage's cells; a type 1000 custom constraint has none, so the
     # shared recognizer's carrier-fitness check fails and it warn-drops, naming
-    # the component that was stranded on the wrong carrier (#434).
+    # the component that was stranded on the wrong carrier.
     payload = constraint_link({"type": 1000, "definition": {"name": name}})
 
     puzzle, _ = decode_link(payload)

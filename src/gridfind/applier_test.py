@@ -1,5 +1,5 @@
 """The working-state applier's modifier-directive path: a declared modifier
-cell (a doubler read off a link's red bit) pins `is_modifier` on the built
+cell (a doubler read off a link's marker cage) pins `is_modifier` on the built
 model, and a directive with no modifier layer to honor it is malformed —
 mirroring the Schrödinger-directive rules `apply` already enforces."""
 

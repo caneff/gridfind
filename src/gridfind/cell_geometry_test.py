@@ -82,7 +82,7 @@ def test_step_from_an_undeclared_start_raises() -> None:
 def _holed_geometry() -> CellGeometry:
     # A 3x3 address space with an interior hole: R2C2 is not declared. The hole
     # is what tells membership apart from a `1 <= row <= size` bounds check —
-    # the cell-space contract that no full-board link can reach (#399).
+    # the cell-space contract that no full-board link can reach.
     grid = [
         ["R1C1", "R1C2", "R1C3"],
         ["R2C1", "R2C3"],

@@ -1,8 +1,7 @@
 """Per-cell decode: one wire cell's working-state directives
-(`_decode_cell`/`_CellDecode`), the S-cell marker-value parse
-(`_scell_directive_from_value`/`_parse_scell_value`), the row-major raw-index
-to cell-address translation cages/markers read cells by (`_address`/
-`_addresses`), and the one wire-write seam for a witness cell (`write_cell`).
+(`decode_cell`/`CellDecode`), the S-cell marker-value parse
+(`_scell_directive_from_value`/`_parse_scell_value`), and the one wire-write
+seam for a witness cell (`write_cell`).
 """
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from gridfind.cell_geometry import cell_address
 from gridfind.puzzle import Candidate, Given, Placement
 from gridfind.s_directives import (
     BareSCell,
@@ -36,9 +34,9 @@ _MAX_SINGLE_DIGIT = 9
 
 
 @dataclass(frozen=True)
-class _CellDecode:
+class CellDecode:
     """The working-state directives one cell decodes to — the return of
-    `_decode_cell`, which hands a cell's directives back as one value. A cell
+    `decode_cell`, which hands a cell's directives back as one value. A cell
     touches only a few of the four channels: a plain
     `given`, a `placement`, a `candidate` set, or a Schrödinger `s_directive`
     (optionally with a stray-marks candidate beside it). All empty is a cell
@@ -55,8 +53,8 @@ class _CellDecode:
     s_directives: tuple[SDirective, ...] = ()
 
     @classmethod
-    def concat(cls, decodes: Iterable[_CellDecode]) -> _CellDecode:
-        """One `_CellDecode` merging every cell's, each channel concatenated in
+    def concat(cls, decodes: Iterable[CellDecode]) -> CellDecode:
+        """One `CellDecode` merging every cell's, each channel concatenated in
         cell order — the board-level directive set `decode_link` reads."""
         decodes = list(decodes)
         return cls(
@@ -91,7 +89,7 @@ def _write_s_cell(cell: dict[str, Any], a: int, b: int) -> None:
     cell["candidates"] = (1 << a) | (1 << b)
 
 
-def _decode_cell(
+def decode_cell(
     cell: dict[str, Any],
     address: str,
     domain: range,
@@ -99,7 +97,7 @@ def _decode_cell(
     is_schrodinger: bool = False,
     is_scell_marker: bool = False,
     scell_value: object = None,
-) -> _CellDecode:
+) -> CellDecode:
     """One cell's working-state directives — the single home for per-cell
     decode, dispatched by the cell's marker membership. A cell in an `S-cell`
     marker cage (`is_scell_marker`) is a declared S-cell: its marker cage's own
@@ -113,7 +111,7 @@ def _decode_cell(
     the S-cell reading. Doubler-ness rides on the marker cage,
     not the cell, so a marked doubler cell still decodes its digit here
     unchanged. A cell that carries nothing gridfind represents — a cosmetic
-    color, a corner mark, `{}` — decodes to an empty `_CellDecode`."""
+    color, a corner mark, `{}` — decodes to an empty `CellDecode`."""
     if is_scell_marker:
         directive = _scell_directive_from_value(address, scell_value, domain)
         directives: tuple[SDirective, ...] = (directive,)
@@ -123,17 +121,17 @@ def _decode_cell(
                 directives += (SCellMarkRestriction(address, marks),)
         if "value" in cell:
             directives += (SingletonPin(address, cell["value"]),)
-        return _CellDecode(s_directives=directives)
+        return CellDecode(s_directives=directives)
     if "value" in cell:
         if is_schrodinger:
-            return _CellDecode(s_directives=(SingletonPin(address, cell["value"]),))
+            return CellDecode(s_directives=(SingletonPin(address, cell["value"]),))
         if cell.get("given"):
-            return _CellDecode(givens=(Given(address, cell["value"]),))
-        return _CellDecode(places=(Placement(address, cell["value"]),))
+            return CellDecode(givens=(Given(address, cell["value"]),))
+        return CellDecode(places=(Placement(address, cell["value"]),))
     if "candidates" in cell:
         digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
-        return _CellDecode(candidates=(Candidate(address, digits),))
-    return _CellDecode()
+        return CellDecode(candidates=(Candidate(address, digits),))
+    return CellDecode()
 
 
 def _scell_directive_from_value(
@@ -192,16 +190,3 @@ def _parse_digit(text: str) -> int | None:
         return int(text.strip())
     except ValueError:
         return None
-
-
-def _address(index: int, size: int) -> str:
-    """The row-major address of a raw cell `index` on a `size`-wide board: index
-    `18` on a 9-board is R3C1. The single home for SudokuMaker's `i // N`, `i % N`
-    scheme, shared by givens, cages, and thermometers."""
-    return cell_address(index // size + 1, index % size + 1)
-
-
-def _addresses(indices: Iterable[int], size: int) -> list[str]:
-    """`_address` mapped over a cell-index list, order preserved — so a thermo
-    path keeps bulb-first order and a cage's cells read row-major."""
-    return [_address(i, size) for i in indices]

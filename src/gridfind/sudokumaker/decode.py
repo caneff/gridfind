@@ -17,20 +17,16 @@ from typing import Any
 from gridfind.cell_geometry import cell_geometry
 from gridfind.puzzle import Board, Constraint, Puzzle, WorkingState
 from gridfind.sudokumaker.boundary import (
-    _board_size,
-    _bucket_constraints_by_type,
-    _digit_domain,
-    _schrodinger_domain,
+    board_size,
+    bucket_constraints_by_type,
     decode_document,
+    digit_domain,
+    schrodinger_domain,
 )
-from gridfind.sudokumaker.cages import _cosmetic_cage_constraints
-from gridfind.sudokumaker.cells import _CellDecode, _decode_cell
-from gridfind.sudokumaker.markers import (
-    _COSMETIC_CAGE_TYPE,
-    _has_scell_marker_block,
-    _scell_marker_values,
-)
-from gridfind.sudokumaker.registry import DECODER_REGISTRY, _warn_on_dropped_constraints
+from gridfind.sudokumaker.cages import cosmetic_cage_constraints
+from gridfind.sudokumaker.cells import CellDecode, decode_cell
+from gridfind.sudokumaker.markers import has_scell_marker_block, scell_marker_values
+from gridfind.sudokumaker.registry import DECODER_REGISTRY, warn_on_dropped_constraints
 
 
 def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
@@ -72,12 +68,12 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     (`is_s == 0`), not a plain given/placement: the wire's `given` flag does
     not affect the S-cell reading (ADR-0014)."""
     puzzle_data: Any = decode_document(link)["puzzle"]
-    size = _board_size(puzzle_data)
-    _warn_on_dropped_constraints(puzzle_data)
+    size = board_size(puzzle_data)
+    warn_on_dropped_constraints(puzzle_data)
     # One pass over puzzle_data["constraints"], grouped by wire `type`, so every
     # per-type decoder below selects its own type's blocks by one dict lookup
-    # (via `_enabled_blocks`).
-    buckets = _bucket_constraints_by_type(puzzle_data)
+    # (via `enabled_blocks`).
+    buckets = bucket_constraints_by_type(puzzle_data)
 
     cells = puzzle_data["cells"]
     # A named `S-cell`/`Schrödinger` block splits into two signals. Its
@@ -87,12 +83,12 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     # (ADR-0014). Its *membership* pins known S-cells: each named address maps
     # to its marker cage's own `value`, the pair/half/bare source (ADR-0014)
     # the S-cell branch of the per-cell decode reads.
-    scell_values = _scell_marker_values(buckets, size)
-    is_schrodinger = _has_scell_marker_block(buckets)
+    scell_values = scell_marker_values(buckets, size)
+    is_schrodinger = has_scell_marker_block(buckets)
     domain = (
-        _schrodinger_domain(puzzle_data, size)
+        schrodinger_domain(puzzle_data, size)
         if is_schrodinger
-        else _digit_domain(puzzle_data, size)
+        else digit_domain(puzzle_data, size)
     )
     # `sudokumaker` has no engine, so it builds its own descriptor straight
     # from the board it holds rather than re-deriving the `RxCy` address grid
@@ -102,10 +98,10 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     board = Board(size=size, values=domain)
     geometry = cell_geometry(board)
     addresses = [address for row in geometry.grid for address in row]
-    per_cell: list[_CellDecode] = []
+    per_cell: list[CellDecode] = []
     for cell, address in zip(cells, addresses, strict=True):
         per_cell.append(
-            _decode_cell(
+            decode_cell(
                 cell,
                 address,
                 domain,
@@ -114,7 +110,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
                 scell_value=scell_values.get(address),
             )
         )
-    decoded = _CellDecode.concat(per_cell)
+    decoded = CellDecode.concat(per_cell)
 
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
@@ -122,10 +118,10 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     # constraints, so it is dispatched by hand rather than through the
     # registry's generic two-argument, constraints-only call.
     constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
-    cosmetic_cage_decode = _cosmetic_cage_constraints(buckets, size)
+    cosmetic_cage_decode = cosmetic_cage_constraints(buckets, size)
     constraints.extend(cosmetic_cage_decode.constraints)
-    for kind, decoded_type in DECODER_REGISTRY.items():
-        if kind == _COSMETIC_CAGE_TYPE or decoded_type.handler is None:
+    for decoded_type in DECODER_REGISTRY.values():
+        if decoded_type.handler is None:
             continue
         constraints.extend(decoded_type.handler(buckets, size))
     if is_schrodinger:

@@ -61,7 +61,7 @@ def classify_constraint(constraint: dict[str, object]) -> str:
     return "inert"
 
 
-def _decode_payload(link: str) -> dict[str, object]:
+def decode_payload(link: str) -> dict[str, object]:
     """The SudokuMaker puzzle JSON behind a `?puzzle=` link (or bare payload).
 
     Delegates to `decode_document`'s boundary decode and keeps only the
@@ -109,7 +109,7 @@ def inspect_link(link: str) -> str:
     """One report line: size, givens, the constraint types present, each
     classification bucket that isn't empty, and the verdict."""
     # JSON values are untyped past the decode boundary — poke at them as Any.
-    data: Any = _decode_payload(link)
+    data: Any = decode_payload(link)
     cells = data.get("cells") or []
     constraints = data.get("constraints") or []
 

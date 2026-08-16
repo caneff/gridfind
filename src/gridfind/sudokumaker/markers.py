@@ -2,11 +2,11 @@
 through the name -> shape registry in #434): a `type 2001` cosmetic-cage
 block's top-level `name` sorted into `"unnamed"`, `"killer"`, `"doubler"`,
 `"s-cell"`, or `"unrecognized"` (`cosmetic_cage_kind`), the two S-cell channels
-that read it — enablement by block *presence* (`_has_scell_marker_block`) and
-pinning by cell *membership* (`_scell_marker_values`) — and the display-only
+that read it — enablement by block *presence* (`has_scell_marker_block`) and
+pinning by cell *membership* (`scell_marker_values`) — and the display-only
 marker colorizer (`colorize_marker_cages`) that ranks the marker kinds a link
 actually carries onto a fixed palette. The public `MARKER_LABELS` dict is the
-role -> accepted-names table, built once from `naming._aliases_by_role` and read
+role -> accepted-names table, built once from `naming.aliases_by_role` and read
 directly by `setter_guide.py`'s cage-name-alias rendering — the public seam that
 keeps it off `naming`'s private grouping.
 """
@@ -16,21 +16,14 @@ from __future__ import annotations
 import json
 from typing import Any, Literal, cast
 
+from gridfind.sudokumaker.addresses import addresses
 from gridfind.sudokumaker.boundary import (
     ConstraintBuckets,
-    _bucket_constraints_by_type,
-    _enabled_blocks,
+    bucket_constraints_by_type,
+    enabled_blocks,
 )
-from gridfind.sudokumaker.cells import _addresses
-from gridfind.sudokumaker.naming import _aliases_by_role, _named_component
-
-# type 2001 is a cosmetic-cage block: `{cages: [{value: str, cells: [...]}]}`,
-# the same nested wire shape as a `type 301` killer block — SudokuMaker's
-# decoration tool, not the killer-cage tool (ADR-0008). A numeric string
-# `value` graduates a cage to a real killer sum, the only channel an
-# out-of-range cage sum (a doubler inside a cage) reaches gridfind through,
-# since the killer-cage tool refuses to store one.
-_COSMETIC_CAGE_TYPE = 2001
+from gridfind.sudokumaker.naming import aliases_by_role, named_component
+from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 
 # A low-saturation display palette for named marker cages, cosmetic only —
 # written onto the `type 2001` block's own `color` field, a field
@@ -42,11 +35,11 @@ _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 CosmeticCageKind = Literal["unnamed", "killer", "doubler", "s-cell", "unrecognized"]
 
 # Role -> its accepted `type 2001` names, the public seam `setter_guide.py`
-# reads for cage-name-alias rendering. Built from `naming._aliases_by_role` so
+# reads for cage-name-alias rendering. Built from `naming.aliases_by_role` so
 # the alias data keeps one home (the name -> shape registry); this exposes it
 # publicly without a second copy. `cosmetic_cage_kind` classifies through
-# `naming._named_component`, not this table, so the two cannot drift.
-MARKER_LABELS: dict[str, frozenset[str]] = _aliases_by_role()
+# `naming.named_component`, not this table, so the two cannot drift.
+MARKER_LABELS: dict[str, frozenset[str]] = aliases_by_role()
 
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
@@ -59,13 +52,13 @@ def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     `"unrecognized"` share the same fate downstream — a loud stderr warn-drop,
     never a rule (ADR-0012) — but stay distinct kinds here since the warning
     they produce names the block differently. Matching is case-insensitive
-    and trimmed, via the shared `naming._named_component` lookup.
+    and trimmed, via the shared `naming.named_component` lookup.
 
     This is the one home the named-cosmetic-cage reads route through — the cage
     decoder, the S-cell presence and membership channels, marker colorizing,
     and dev tools that recognize a marker block without decoding the whole
     link all switch on this kind."""
-    component = _named_component(name)
+    component = named_component(name)
     if component is None:
         return "unrecognized" if isinstance(name, str) and name.strip() else "unnamed"
     return component.role
@@ -75,41 +68,41 @@ def _is_scell_block(block: dict[Any, Any]) -> bool:
     """True when a `type 2001` block is named `S-cell`/`Schrödinger`
     (`cosmetic_cage_kind`, backed by the `naming` registry). The one predicate
     both S-cell channels share, so presence and pinning agree on the label set
-    by construction: `_has_scell_marker_block` reads it for enablement by
-    presence, `_scell_marker_values` for pinning by membership (ADR-0014)."""
+    by construction: `has_scell_marker_block` reads it for enablement by
+    presence, `scell_marker_values` for pinning by membership (ADR-0014)."""
     return cosmetic_cage_kind(block.get("name")) == "s-cell"
 
 
-def _scell_marker_values(buckets: ConstraintBuckets, size: int) -> dict[str, object]:
+def scell_marker_values(buckets: ConstraintBuckets, size: int) -> dict[str, object]:
     """Every cell address declared an S-cell by a `type 2001` cosmetic-cage
     block named `S-cell`/`Schrödinger`, mapped to its
     marker cage's own raw `value` (ADR-0014) — the pair/half/bare source
-    `_decode_cell` reads for that address. A multi-cell cage's `value` applies
+    `decode_cell` reads for that address. A multi-cell cage's `value` applies
     uniformly to every cell it contains (CONTEXT.md `marker cage`). The
     mapping's key set doubles as the address set that routes a cell through the
     S-cell branch — the *membership* channel that pins known S-cells. It does
-    not enable the mode: `_has_scell_marker_block` reads block *presence* for
+    not enable the mode: `has_scell_marker_block` reads block *presence* for
     that, so an empty block enables Schrödinger with this mapping empty
     (ADR-0014). A `disabled` block contributes nothing, exactly as its cage
     rule would not."""
     return {
         address: cage.get("value")
-        for block in _enabled_blocks(buckets, _COSMETIC_CAGE_TYPE)
+        for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE)
         if _is_scell_block(block)
         for cage in cast("list[dict[str, Any]]", block.get("cages", []))
-        for address in _addresses(cage["cells"], size)
+        for address in addresses(cage["cells"], size)
     }
 
 
-def _has_scell_marker_block(buckets: ConstraintBuckets) -> bool:
+def has_scell_marker_block(buckets: ConstraintBuckets) -> bool:
     """True when an enabled `type 2001` cosmetic-cage block is named
     `S-cell`/`Schrödinger`, regardless of whether it
     names any cells. This block *presence* enables Schrödinger mode (ADR-0014):
     the domain widens to `0…N` and a `schrodinger` constraint stands up, giving
     every cell the `is_s` freedom the solver discovers S-cells with. An empty
     block means "discover them all"; a block that names cells additionally
-    pins those as known S-cells (`_scell_marker_values`)."""
-    blocks = _enabled_blocks(buckets, _COSMETIC_CAGE_TYPE)
+    pins those as known S-cells (`scell_marker_values`)."""
+    blocks = enabled_blocks(buckets, COSMETIC_CAGE_TYPE)
     return any(_is_scell_block(block) for block in blocks)
 
 
@@ -136,8 +129,8 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     so a decode of the result agrees with a decode of `document`."""
     colored: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", colored["puzzle"])
-    buckets = _bucket_constraints_by_type(puzzle_data)
-    blocks = list(_enabled_blocks(buckets, _COSMETIC_CAGE_TYPE))
+    buckets = bucket_constraints_by_type(puzzle_data)
+    blocks = list(enabled_blocks(buckets, COSMETIC_CAGE_TYPE))
     present_kinds = {cosmetic_cage_kind(block.get("name")) for block in blocks}
     color_of_kind = dict(
         zip(

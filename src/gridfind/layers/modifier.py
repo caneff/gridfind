@@ -1,21 +1,21 @@
-"""The general modifier-placement layer: `is_modifier`, one-per-house,
-distinct-digit transversal.
+"""The modifier layers: `ModifierPlacement` (`is_modifier`, one-per-house,
+distinct-digit transversal) and `Modifier`, the shared base every concrete
+modifier type (`Doubler` and its siblings) composes it through.
 
-Registers a per-cell free boolean `is_modifier` and states the placement
-rule every discovered-modifier puzzle shares: exactly one modifier per row,
-per column, and per box, and the modified cells' digits are all-different (a
-distinct-digit transversal over every real digit a cell contributes — `d0` for
-a plain cell, and an S-cell's `d1` too, since a doubled S-cell doubles both of
-its digits). Composing with `schrodinger` needs no guard against a cell being
-both modifier and S-cell: a non-S-cell's `d1` is a sentinel above every real
-digit, so it never enters the count. "All-different" is capped at-most-once
-per digit, not a
-bijection with `board.values` — `schrodinger` always widens `values` past
-`board.size`, and the one-per-house rule fixes the modifier count at exactly
-`board.size`, so a bijection would make every composed board infeasible. No
-value change lives here — placement only. A future modifier type (a
-doubler) reuses this layer and supplies only its own value fold; nothing
-here is doubler-specific.
+`ModifierPlacement` registers a per-cell free boolean `is_modifier` and
+states the placement rule every discovered-modifier puzzle shares: exactly
+one modifier per row, per column, and per box, and the modified cells'
+digits are all-different (a distinct-digit transversal over every real digit
+a cell contributes — `d0` for a plain cell, and an S-cell's `d1` too, since a
+doubled S-cell doubles both of its digits). Composing with `schrodinger`
+needs no guard against a cell being both modifier and S-cell: a non-S-cell's
+`d1` is a sentinel above every real digit, so it never enters the count.
+"All-different" is capped at-most-once per digit, not a bijection with
+`board.values` — `schrodinger` always widens `values` past `board.size`, and
+the one-per-house rule fixes the modifier count at exactly `board.size`, so a
+bijection would make every composed board infeasible. No value change lives
+here — placement only. `Modifier`, below, owns the value fold; each concrete
+supplies only its own value expression and bounds (ADR-0016).
 
 Unlike `is_s` (which `schrodinger` derives from content shape, and which
 `distinct`'s counting rule picks up on its own), nothing else makes a cell a
@@ -36,7 +36,7 @@ not here.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 from ortools.sat.python import cp_model
@@ -111,3 +111,79 @@ class ModifierPlacement:
                 )
                 holds.append(holds_digit)
             engine.model.add(sum(holds) <= 1)
+
+
+@dataclass
+class Modifier:
+    """The shared base every discovered-modifier type composes: registers
+    `modifier_type` and each cell's `modifier_value` on top of
+    `ModifierPlacement`'s unchanged placement rule (one-per-house, the
+    distinct-digit transversal). A concrete supplies exactly two hooks —
+    `value_when_modified`, the expression a modified cell's value takes over
+    its `underlying` value, and `modified_bounds`, that expression's integer
+    range given the underlying value's own `(low, high)` — and nothing else;
+    the value-fold plumbing (the free/discovered branch wiring, the IntVar
+    sizing, the `modifier_type` registration) lives here once.
+
+    `modifier_value` is sized to cover both branches: the free branch stays
+    within the underlying value's own `(low, high)`, the discovered branch
+    within `modified_bounds(low, high)`, so the variable's domain spans their
+    union rather than assuming either branch is the tighter one.
+    """
+
+    name: str
+    depends_on: tuple[str, ...] = ("board",)
+    _placement: ModifierPlacement = field(default_factory=ModifierPlacement, repr=False)
+
+    def value_when_modified(
+        self, underlying: cp_model.LinearExprT
+    ) -> cp_model.LinearExprT:
+        """The expression a modified cell's value takes, over its `underlying`
+        value beneath the modifier. Every concrete supplies its own."""
+        raise NotImplementedError
+
+    def modified_bounds(self, low: int, high: int) -> tuple[int, int]:
+        """`value_when_modified`'s integer range given the underlying value's
+        own `(low, high)`, so the base can size `modifier_value`'s domain to
+        cover both branches. Every concrete supplies its own."""
+        raise NotImplementedError
+
+    def register(self, engine: Engine) -> None:
+        # Register the value structures in phase 1, like schrodinger's
+        # `s_value`, so every phase-2 reader (a killer `group-sum`, a
+        # values-distinct `cage`) sees `modifier_value` no matter its own emit
+        # order — a decoded link synthesizes a modifier constraint last, so a
+        # phase-2 registration would arrive after those readers had already run.
+        self._placement.register(engine)
+        engine.register_structure(
+            "modifier_type", dict.fromkeys(engine.cells, self.name)
+        )
+        is_modifier = cast(
+            "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
+        )
+        modifier_value: dict[str, cp_model.IntVar] = {}
+        for address in engine.cells:
+            # The value beneath the modifier — the cell's `base_value`, which
+            # is its combined `s_value` for an S-cell and its digit otherwise
+            # — so a concrete's fold never has to know a schrödinger layer
+            # sits under it.
+            underlying = engine.base_value(address)
+            domain = underlying.proto.domain
+            low, high = min(domain), max(domain)
+            modified_low, modified_high = self.modified_bounds(low, high)
+            value = engine.model.new_int_var(
+                min(low, modified_low),
+                max(high, modified_high),
+                f"{address}.modifier_value",
+            )
+            engine.model.add(value == underlying).only_enforce_if(
+                is_modifier[address].negated()
+            )
+            engine.model.add(
+                value == self.value_when_modified(underlying)
+            ).only_enforce_if(is_modifier[address])
+            modifier_value[address] = value
+        engine.register_structure("modifier_value", modifier_value)
+
+    def emit(self, engine: Engine) -> None:
+        self._placement.emit(engine)

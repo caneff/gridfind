@@ -17,6 +17,12 @@ shared diagonal — so the puzzle breaks *because of* the toggle, not the givens
 alone. Each `found-*` fixture is a lightly-clued board the toggle leaves
 solvable. Anti-king has no solution on a 4x4 (the boxes force a diagonal
 repeat), so its pair lives on a 6x6, where an anti-king solution exists.
+
+The two diagonals are independent switches, but both x-sudoku fixtures carry
+both at once — a decoder that swapped or dropped one diagonal would still
+pass green. The `*-negative-diagonal-only-*`/`*-positive-diagonal-only-*`
+fixtures each set exactly one diagonal toggle, so a collision on that
+diagonal alone can only turn `broke` if the switch decoded to the right one.
 """
 
 from __future__ import annotations
@@ -24,14 +30,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-# The toggle wire types are imported from the decoder — their one home — so the
-# corpus builds off the same numbers the decoder reads by, never a second copy.
+# The toggle wire types are imported from wire_types.py — their one shared
+# home — so the corpus builds off the same numbers the decoder reads by,
+# never a second copy.
 from gridfind.sudokumaker import encode_link
-from gridfind.sudokumaker.registry import (
-    _ANTI_KING_TYPE,
-    _ANTI_KNIGHT_TYPE,
-    _NEGATIVE_DIAGONAL_TYPE,
-    _POSITIVE_DIAGONAL_TYPE,
+from gridfind.sudokumaker.wire_types import (
+    ANTI_KING_TYPE,
+    ANTI_KNIGHT_TYPE,
+    NEGATIVE_DIAGONAL_TYPE,
+    POSITIVE_DIAGONAL_TYPE,
 )
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
@@ -61,7 +68,7 @@ def _index(size: int, row: int, col: int) -> int:
 def _toggle_block(wire_type: int) -> dict[str, object]:
     """One SudokuMaker toggle constraint block. The diagonals carry the app's
     cosmetic style; the anti-knight/anti-king toggles are bare."""
-    if wire_type in (_NEGATIVE_DIAGONAL_TYPE, _POSITIVE_DIAGONAL_TYPE):
+    if wire_type in (NEGATIVE_DIAGONAL_TYPE, POSITIVE_DIAGONAL_TYPE):
         return {"type": wire_type, "style": dict(_DIAGONAL_STYLE)}
     return {"type": wire_type}
 
@@ -95,7 +102,7 @@ def found_anti_knight_4x4() -> str:
     """4x4 anti-knight, `found` — two clues the anti-knight rule leaves
     solvable."""
     return _link(
-        box_h=2, box_w=2, givens={(1, 1): 1, (1, 2): 2}, toggles=[_ANTI_KNIGHT_TYPE]
+        box_h=2, box_w=2, givens={(1, 1): 1, (1, 2): 2}, toggles=[ANTI_KNIGHT_TYPE]
     )
 
 
@@ -103,14 +110,14 @@ def broke_anti_knight_4x4() -> str:
     """4x4 anti-knight, `broke` — R1C1 and R3C2 are a knight's hop apart and
     hold the same digit: legal under classic, forbidden under anti-knight."""
     return _link(
-        box_h=2, box_w=2, givens={(1, 1): 1, (3, 2): 1}, toggles=[_ANTI_KNIGHT_TYPE]
+        box_h=2, box_w=2, givens={(1, 1): 1, (3, 2): 1}, toggles=[ANTI_KNIGHT_TYPE]
     )
 
 
 def found_anti_king_6x6() -> str:
     """6x6 anti-king, `found` — a 4x4 has no anti-king solution (its boxes
     force a diagonal repeat), so the anti-king pair lives on a 6x6."""
-    return _link(box_h=2, box_w=3, givens={(1, 1): 1}, toggles=[_ANTI_KING_TYPE])
+    return _link(box_h=2, box_w=3, givens={(1, 1): 1}, toggles=[ANTI_KING_TYPE])
 
 
 def broke_anti_king_6x6() -> str:
@@ -118,7 +125,7 @@ def broke_anti_king_6x6() -> str:
     different boxes and hold the same digit: legal under classic, forbidden
     under anti-king."""
     return _link(
-        box_h=2, box_w=3, givens={(2, 3): 1, (3, 4): 1}, toggles=[_ANTI_KING_TYPE]
+        box_h=2, box_w=3, givens={(2, 3): 1, (3, 4): 1}, toggles=[ANTI_KING_TYPE]
     )
 
 
@@ -129,7 +136,7 @@ def found_x_sudoku_4x4() -> str:
         box_h=2,
         box_w=2,
         givens={(1, 1): 1, (1, 2): 2},
-        toggles=[_NEGATIVE_DIAGONAL_TYPE, _POSITIVE_DIAGONAL_TYPE],
+        toggles=[NEGATIVE_DIAGONAL_TYPE, POSITIVE_DIAGONAL_TYPE],
     )
 
 
@@ -140,7 +147,55 @@ def broke_x_sudoku_4x4() -> str:
         box_h=2,
         box_w=2,
         givens={(1, 1): 1, (3, 3): 1},
-        toggles=[_NEGATIVE_DIAGONAL_TYPE, _POSITIVE_DIAGONAL_TYPE],
+        toggles=[NEGATIVE_DIAGONAL_TYPE, POSITIVE_DIAGONAL_TYPE],
+    )
+
+
+def found_negative_diagonal_only_4x4() -> str:
+    """4x4, `found` — only the negative diagonal (`\\`) toggle is on, the
+    positive diagonal left off, so type 10 is exercised alone."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (1, 2): 2},
+        toggles=[NEGATIVE_DIAGONAL_TYPE],
+    )
+
+
+def broke_negative_diagonal_only_4x4() -> str:
+    """4x4, `broke` — only the negative diagonal toggle is on. R1C1 and R3C3
+    share the negative diagonal and hold the same digit; the same pair does
+    not share the positive diagonal, so a decoder that swapped or dropped the
+    diagonal would leave this `found`, not `broke`."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (3, 3): 1},
+        toggles=[NEGATIVE_DIAGONAL_TYPE],
+    )
+
+
+def found_positive_diagonal_only_4x4() -> str:
+    """4x4, `found` — only the positive diagonal (`/`) toggle is on, the
+    negative diagonal left off, so type 11 is exercised alone."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (1, 2): 2},
+        toggles=[POSITIVE_DIAGONAL_TYPE],
+    )
+
+
+def broke_positive_diagonal_only_4x4() -> str:
+    """4x4, `broke` — only the positive diagonal toggle is on. R1C4 and R3C2
+    share the positive diagonal and hold the same digit; the same pair does
+    not share the negative diagonal, so a decoder that swapped or dropped the
+    diagonal would leave this `found`, not `broke`."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 4): 1, (3, 2): 1},
+        toggles=[POSITIVE_DIAGONAL_TYPE],
     )
 
 
@@ -154,6 +209,10 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-anti-king-6x6": broke_anti_king_6x6,
     "found-x-sudoku-4x4": found_x_sudoku_4x4,
     "broke-x-sudoku-4x4": broke_x_sudoku_4x4,
+    "found-negative-diagonal-only-4x4": found_negative_diagonal_only_4x4,
+    "broke-negative-diagonal-only-4x4": broke_negative_diagonal_only_4x4,
+    "found-positive-diagonal-only-4x4": found_positive_diagonal_only_4x4,
+    "broke-positive-diagonal-only-4x4": broke_positive_diagonal_only_4x4,
 }
 
 

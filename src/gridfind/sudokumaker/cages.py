@@ -9,32 +9,18 @@ it).
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, cast
 
 from gridfind.puzzle import Constraint, ModifierDirective
-from gridfind.sudokumaker.boundary import ConstraintBuckets, _enabled_blocks
-from gridfind.sudokumaker.cells import _addresses
+from gridfind.sudokumaker.addresses import addresses
+from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 from gridfind.sudokumaker.markers import (
-    _COSMETIC_CAGE_TYPE,
     CosmeticCageKind,
     cosmetic_cage_kind,
 )
-
-# type 301 is a killer-cage block: `cages: [{cells, value}]`. A
-# positive `value` is the killer sum, decoded onto a `group-sum` alongside the
-# `cage` (no-repeats) constraint, both over the same cells (ADR-0009) — 0 is
-# SudokuMaker's own no-sum cage, decoding to `cage` alone, exactly as `value`
-# absent.
-_CAGE_TYPE = 301
-
-# type 300 is a thermometer block: `slow: bool,
-# thermometers: [[cell indices, ordered, bulb first], …]`. Each path becomes
-# its own `thermo` Constraint; `slow` rides through onto every path in the
-# block. The strict-vs-non-strict split is the `thermo` layer's concern, not
-# the decoder's.
-_THERMO_TYPE = 300
+from gridfind.sudokumaker.wire_types import CAGE_TYPE, COSMETIC_CAGE_TYPE, THERMO_TYPE
 
 
 def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
@@ -49,20 +35,36 @@ def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
     return decoded
 
 
-def _cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+def _killer_cages(
+    cages: list[dict[str, Any]],
+    size: int,
+    sum_of: Callable[[dict[str, Any]], int | None],
+) -> list[Constraint]:
+    """Walk `cages`' raw `cells` indices to addresses (row-major, `addresses`)
+    and decode each to a killer cage (`_killer_cage`) — the walk a `type 301`
+    block and a `Sum`/`Killer`-named `type 2001` block share, differing only
+    in where a cage's total comes from: `sum_of` reads it straight off the
+    wire `value` int for a killer cage, or parses the cosmetic cage's string
+    `value` label for a cosmetic one."""
+    decoded: list[Constraint] = []
+    for cage in cages:
+        cage_addresses = addresses(cage["cells"], size)
+        decoded.extend(_killer_cage(cage_addresses, sum_of(cage)))
+    return decoded
+
+
+def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 301` killer cages as `Constraint`s: each cage's raw `cells`
-    indices map row-major to addresses (`_addresses`), so `[18, 19]` on a
+    indices map row-major to addresses (`addresses`), so `[18, 19]` on a
     9-board is R3C1/R3C2. Every cage decodes to a no-repeats `cage`; a positive
     `value` additionally decodes a `group-sum` over the same cells (ADR-0009) —
     `0` (SudokuMaker's own no-sum cage) decodes to `cage` alone, exactly as an
     absent `value`. A `disabled` block is skipped entirely; an empty `cages`
     list adds nothing."""
     decoded: list[Constraint] = []
-    for block in _enabled_blocks(buckets, _CAGE_TYPE):
+    for block in enabled_blocks(buckets, CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
-        for cage in cages:
-            addresses = _addresses(cage["cells"], size)
-            decoded.extend(_killer_cage(addresses, cage.get("value", 0)))
+        decoded.extend(_killer_cages(cages, size, lambda cage: cage.get("value", 0)))
     return decoded
 
 
@@ -120,7 +122,7 @@ def _warn_dropped_cosmetic_cage(block: dict[str, Any], kind: CosmeticCageKind) -
     print(msg, file=sys.stderr)
 
 
-def _cosmetic_cage_constraints(
+def cosmetic_cage_constraints(
     buckets: ConstraintBuckets, size: int
 ) -> _CosmeticCageDecode:
     """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
@@ -134,7 +136,7 @@ def _cosmetic_cage_constraints(
     contains and **no** `cage`/`group-sum` — the block's `cages` still supply
     the cell list, just not a killer rule. An `S-cell`/`Schrödinger`-marked
     block emits nothing here: its cells become S-cell working-state directives
-    in the per-cell decode pass (`_scell_marker_values` gathers them, cage
+    in the per-cell decode pass (`scell_marker_values` gathers them, cage
     `value` and all), not a cage rule. An **unnamed** block, or one whose name
     gridfind does not recognize, carries no rule at all — only a recognized
     name selects one. A non-empty one is dropped with a loud stderr warning
@@ -142,7 +144,7 @@ def _cosmetic_cage_constraints(
     warns nothing, the same as any other empty block. A `disabled` block is
     skipped entirely."""
     decoded: list[_CosmeticCageDecode] = []
-    for block in _enabled_blocks(buckets, _COSMETIC_CAGE_TYPE):
+    for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE):
         kind = cosmetic_cage_kind(block.get("name"))
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         if kind in ("unnamed", "unrecognized"):
@@ -153,21 +155,18 @@ def _cosmetic_cage_constraints(
             continue
         if kind == "doubler":
             modifiers = tuple(
-                ModifierDirective(address, is_modifier=True)
+                ModifierDirective(cell_address, is_modifier=True)
                 for cage in cages
-                for address in _addresses(cage["cells"], size)
+                for cell_address in addresses(cage["cells"], size)
             )
             decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
             continue
-        constraints: list[Constraint] = []
-        for cage in cages:
-            addresses = _addresses(cage["cells"], size)
-            constraints.extend(_killer_cage(addresses, _cosmetic_cage_killer_sum(cage)))
+        constraints = _killer_cages(cages, size, _cosmetic_cage_killer_sum)
         decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
     return _CosmeticCageDecode.concat(decoded)
 
 
-def _thermo_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+def thermo_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 300` thermometers as `thermo` `Constraint`s: each path's raw indices
     map row-major to addresses, order
     preserved (bulb first) — order is the whole point of a line, unlike
@@ -176,11 +175,11 @@ def _thermo_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     `thermometers` list adds nothing. The cosmetic `style` object is
     ignored."""
     decoded: list[Constraint] = []
-    for block in _enabled_blocks(buckets, _THERMO_TYPE):
+    for block in enabled_blocks(buckets, THERMO_TYPE):
         slow = bool(block.get("slow", False))
         paths = cast("list[list[int]]", block.get("thermometers", []))
         for path in paths:
-            addresses = _addresses(path, size)
-            params: dict[str, object] = {"path": addresses, "slow": slow}
+            path_addresses = addresses(path, size)
+            params: dict[str, object] = {"path": path_addresses, "slow": slow}
             decoded.append(Constraint("thermo", params=params))
     return decoded

@@ -2,7 +2,7 @@
 back out.
 
 `fill_witness` is asserted by round-trip only (never by the intermediate
-document shape, per spec #244's testing decision): feed a synthesised
+document shape): feed a synthesised
 decoded document and a `Witness` through it, re-encode, then `decode_link`
 the result and confirm the witness digits come back — singletons as givens,
 Schrödinger S-cells as their 2-tuple. `verify_link` is covered end to end on
@@ -128,7 +128,7 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
     puzzle, state = decode_link(url)
 
     # Every non-S-cell address is a settled digit under a Schrödinger layer,
-    # so it round-trips as a singleton pin (spec #348), never a plain given.
+    # so it round-trips as a singleton pin, never a plain given.
     assert SCellPin(s_cell_address, frozenset({a, b})) in state.s_directives
     assert puzzle.givens == ()
     assert {
@@ -256,7 +256,7 @@ def test_emit_solution_link_stamps_the_board_size() -> None:
     # `decode_link` recover this 2x2 at all.
     size = 2
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
-    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})  # no size
+    link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
     grid = _grid(size)
     addresses = [address for row in grid for address in row]
     witness = Witness(

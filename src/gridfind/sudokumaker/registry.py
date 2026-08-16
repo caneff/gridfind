@@ -1,6 +1,6 @@
 """`DECODER_REGISTRY`: the one table wire-type -> (handler, live-data payload
 keys, display name, setter-facing doc) that `decode_link` dispatches through,
-`_warn_on_dropped_constraints` treats as the already-modeled ruleset, and
+`warn_on_dropped_constraints` treats as the already-modeled ruleset, and
 `has_live_data` reads `live_keys` from. Also the global-toggle types
 (anti-knight, anti-king, the two diagonals) and their shared handler factory
 `_global_toggle_handler` — bare enabled-presence-is-the-rule blocks that exist
@@ -16,34 +16,27 @@ from dataclasses import dataclass
 from typing import Any
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker.boundary import ConstraintBuckets, _enabled_blocks
-from gridfind.sudokumaker.cages import (
-    _CAGE_TYPE,
-    _THERMO_TYPE,
-    _cage_constraints,
-    _thermo_constraints,
-)
+from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
+from gridfind.sudokumaker.cages import cage_constraints, thermo_constraints
 from gridfind.sudokumaker.edge_clues import (
-    _KROPKI_BLACK_TYPE,
-    _KROPKI_WHITE_TYPE,
-    _XV_TYPE,
-    _black_kropki_constraints,
-    _kropki_constraints,
-    _xv_constraints,
+    black_kropki_constraints,
+    kropki_constraints,
+    xv_constraints,
 )
-from gridfind.sudokumaker.markers import _COSMETIC_CAGE_TYPE
-from gridfind.sudokumaker.naming import _named_component, _shape_needs_cells
-from gridfind.sudokumaker.regions import _regions_constraints
-
-# SudokuMaker's global toggles — bare `{type: N}` blocks, one per rule, read
-# off real links (the two diagonals also carry a cosmetic `style` gridfind
-# ignores). The two diagonals are independent switches: negative is the `\`
-# main diagonal, positive the `/` anti-diagonal, so gridfind decodes each to
-# its own single-diagonal constraint, never a combined one.
-_NEGATIVE_DIAGONAL_TYPE = 10
-_POSITIVE_DIAGONAL_TYPE = 11
-_ANTI_KING_TYPE = 12
-_ANTI_KNIGHT_TYPE = 13
+from gridfind.sudokumaker.naming import named_component, shape_needs_cells
+from gridfind.sudokumaker.regions import regions_constraints
+from gridfind.sudokumaker.wire_types import (
+    ANTI_KING_TYPE,
+    ANTI_KNIGHT_TYPE,
+    CAGE_TYPE,
+    COSMETIC_CAGE_TYPE,
+    KROPKI_BLACK_TYPE,
+    KROPKI_WHITE_TYPE,
+    NEGATIVE_DIAGONAL_TYPE,
+    POSITIVE_DIAGONAL_TYPE,
+    THERMO_TYPE,
+    XV_TYPE,
+)
 
 
 def _global_toggle_handler(
@@ -56,7 +49,7 @@ def _global_toggle_handler(
     `disabled` block contributes nothing (the setter switched the rule off)."""
 
     def handler(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
-        for _ in _enabled_blocks(buckets, wire_type):
+        for _ in enabled_blocks(buckets, wire_type):
             return [Constraint(constraint_type)]
         return []
 
@@ -86,7 +79,7 @@ class DecodedType:
     the unconditional rows/cols, and `type 2001` cosmetic cages are dispatched
     by hand for their richer `_CosmeticCageDecode` return; `type 1`'s regions
     live behind
-    `_regions_constraints` like every other generically-dispatched handler),
+    `regions_constraints` like every other generically-dispatched handler),
     `live_keys` are the payload keys that mark this type's wire shape as
     carrying a real rule (read by `has_live_data`, generalized to unmodeled
     types too), `name` labels it in the decoder's own warnings, and
@@ -101,17 +94,17 @@ class DecodedType:
 
 
 # The one table wire-type -> (handler, live-data payload keys, display name):
-# `decode_link` dispatches through it, `_warn_on_dropped_constraints` treats
+# `decode_link` dispatches through it, `warn_on_dropped_constraints` treats
 # its keys as the already-modeled ruleset, and `has_live_data` reads its
 # `live_keys` — adding a link type is one row here, not three hand-synced
 # call sites.
 DECODER_REGISTRY: dict[int, DecodedType] = {
     0: DecodedType(handler=None, live_keys=(), name="givens", setter_doc=None),
     1: DecodedType(
-        handler=_regions_constraints, live_keys=(), name="regions", setter_doc=None
+        handler=regions_constraints, live_keys=(), name="regions", setter_doc=None
     ),
-    _KROPKI_WHITE_TYPE: DecodedType(
-        handler=_kropki_constraints,
+    KROPKI_WHITE_TYPE: DecodedType(
+        handler=kropki_constraints,
         live_keys=("clues", "negative"),
         name="white-kropki",
         setter_doc=SetterDoc(
@@ -124,8 +117,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " raises ValueError. disabled blocks are skipped.",
         ),
     ),
-    _KROPKI_BLACK_TYPE: DecodedType(
-        handler=_black_kropki_constraints,
+    KROPKI_BLACK_TYPE: DecodedType(
+        handler=black_kropki_constraints,
         live_keys=("clues", "negative"),
         name="black-kropki",
         setter_doc=SetterDoc(
@@ -139,8 +132,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " edge. disabled blocks are skipped.",
         ),
     ),
-    _XV_TYPE: DecodedType(
-        handler=_xv_constraints,
+    XV_TYPE: DecodedType(
+        handler=xv_constraints,
         live_keys=("clues", "negative"),
         name="XV",
         setter_doc=SetterDoc(
@@ -154,8 +147,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " blocks are skipped.",
         ),
     ),
-    _CAGE_TYPE: DecodedType(
-        handler=_cage_constraints,
+    CAGE_TYPE: DecodedType(
+        handler=cage_constraints,
         live_keys=("cages",),
         name="killer-cage",
         setter_doc=SetterDoc(
@@ -169,7 +162,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " an empty cages list adds nothing.",
         ),
     ),
-    _COSMETIC_CAGE_TYPE: DecodedType(
+    COSMETIC_CAGE_TYPE: DecodedType(
         handler=None,
         live_keys=("cages",),
         name="cosmetic-cage",
@@ -189,8 +182,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " disabled blocks are skipped.",
         ),
     ),
-    _THERMO_TYPE: DecodedType(
-        handler=_thermo_constraints,
+    THERMO_TYPE: DecodedType(
+        handler=thermo_constraints,
         live_keys=("thermometers",),
         name="thermo",
         setter_doc=SetterDoc(
@@ -203,8 +196,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " thermometers list adds nothing.",
         ),
     ),
-    _NEGATIVE_DIAGONAL_TYPE: DecodedType(
-        handler=_global_toggle_handler(_NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
+    NEGATIVE_DIAGONAL_TYPE: DecodedType(
+        handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
         live_keys=(),
         name="negative-diagonal",
         setter_doc=SetterDoc(
@@ -216,8 +209,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " cosmetic style is ignored.",
         ),
     ),
-    _POSITIVE_DIAGONAL_TYPE: DecodedType(
-        handler=_global_toggle_handler(_POSITIVE_DIAGONAL_TYPE, "positive-diagonal"),
+    POSITIVE_DIAGONAL_TYPE: DecodedType(
+        handler=_global_toggle_handler(POSITIVE_DIAGONAL_TYPE, "positive-diagonal"),
         live_keys=(),
         name="positive-diagonal",
         setter_doc=SetterDoc(
@@ -229,8 +222,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " cosmetic style is ignored.",
         ),
     ),
-    _ANTI_KING_TYPE: DecodedType(
-        handler=_global_toggle_handler(_ANTI_KING_TYPE, "anti-king"),
+    ANTI_KING_TYPE: DecodedType(
+        handler=_global_toggle_handler(ANTI_KING_TYPE, "anti-king"),
         live_keys=(),
         name="anti-king",
         setter_doc=SetterDoc(
@@ -241,8 +234,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             verdict="Accept an enabled block. A disabled block is skipped.",
         ),
     ),
-    _ANTI_KNIGHT_TYPE: DecodedType(
-        handler=_global_toggle_handler(_ANTI_KNIGHT_TYPE, "anti-knight"),
+    ANTI_KNIGHT_TYPE: DecodedType(
+        handler=_global_toggle_handler(ANTI_KNIGHT_TYPE, "anti-knight"),
         live_keys=(),
         name="anti-knight",
         setter_doc=SetterDoc(
@@ -269,17 +262,17 @@ _LIVE_LIST_KEYS: tuple[str, ...] = tuple(
 # registry without listing it here, so the two never drift.
 _TOGGLE_WIRE_TYPES = frozenset(
     {
-        _NEGATIVE_DIAGONAL_TYPE,
-        _POSITIVE_DIAGONAL_TYPE,
-        _ANTI_KING_TYPE,
-        _ANTI_KNIGHT_TYPE,
+        NEGATIVE_DIAGONAL_TYPE,
+        POSITIVE_DIAGONAL_TYPE,
+        ANTI_KING_TYPE,
+        ANTI_KNIGHT_TYPE,
     }
 )
 
 
 def _carrier_supplies_cage_cells(constraint: dict[Any, Any]) -> bool:
     """True when `constraint` itself carries a `cages` list naming cells — the
-    payload a cage-selector/cell-marker name needs (`naming._shape_needs_cells`).
+    payload a cage-selector/cell-marker name needs (`naming.shape_needs_cells`).
     `type 2001`/`type 301` blocks carry this; a `type 1000` custom constraint's
     payload lives under `input.groups` instead, so it never does."""
     cages = constraint.get("cages")
@@ -288,7 +281,7 @@ def _carrier_supplies_cage_cells(constraint: dict[Any, Any]) -> bool:
     )
 
 
-def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
+def warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     """Ignore every constraint gridfind doesn't model, warning to
     stderr for any that carries live data — so a verdict is never silently
     computed under a smaller ruleset than the link states.
@@ -300,7 +293,7 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     so it is not part of
     the puzzle even for a type gridfind knows how to decode. A remaining
     enabled unmodeled constraint whose `definition.name` names a
-    cage-selector/cell-marker component (`naming._named_component`, #434) whose
+    cage-selector/cell-marker component (`naming.named_component`, #434) whose
     shape needs a cage's cells the constraint doesn't carry
     (`_carrier_supplies_cage_cells`) is a misplaced declaration — dropped
     loudly, naming the component, regardless of whether its own payload would
@@ -328,10 +321,10 @@ def _warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         if kind in DECODER_REGISTRY:
             continue
         name = constraint_name(constraint)
-        component = _named_component(name)
+        component = named_component(name)
         if (
             component is not None
-            and _shape_needs_cells(component.shape)
+            and shape_needs_cells(component.shape)
             and not _carrier_supplies_cage_cells(constraint)
         ):
             msg = (
@@ -358,7 +351,7 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
 
     `cages` is a killer-cage block's (`type 301`) payload. It is decoded now,
-    so `_warn_on_dropped_constraints` skips it — this entry marks
+    so `warn_on_dropped_constraints` skips it — this entry marks
     a populated cage block `active` for `scripts/inspect_link.py`, exactly as
     the `clues` entry does for decoded XV (`type 202`): a decoded variant still
     carries a live rule the dev tool must not report as inert. A `type 2001`
