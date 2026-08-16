@@ -38,13 +38,10 @@ domain with no repeats" check covers both without a schrodinger branch.
 
 from __future__ import annotations
 
-import re
-
 from gridfind import grid_text
+from gridfind.cell_geometry import _row_col
 from gridfind.layers.regions import region_map_for_constraints
 from gridfind.puzzle import Puzzle
-
-_ADDRESS_RE = re.compile(r"R(\d+)C(\d+)")
 
 Cell = tuple[int, ...]
 
@@ -68,7 +65,7 @@ def validate_witness(rendered: str, puzzle: Puzzle) -> bool:
         return False
 
     for given in puzzle.givens:
-        row, col = _parse_address(given.address)
+        row, col = _row_col(given.address)
         if grid[row - 1][col - 1] != (given.digit,):
             return False
     return True
@@ -119,11 +116,3 @@ def _regions(puzzle: Puzzle, size: int, grid: list[list[Cell]]) -> list[list[Cel
         return []
     region_map = region_map_for_constraints(puzzle.constraints, size)
     return [[grid[row - 1][col - 1] for row, col in group] for group in region_map]
-
-
-def _parse_address(address: str) -> tuple[int, int]:
-    match = _ADDRESS_RE.fullmatch(address)
-    if match is None:
-        msg = f"malformed cell address: {address!r}"
-        raise ValueError(msg)
-    return int(match.group(1)), int(match.group(2))
