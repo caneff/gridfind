@@ -100,7 +100,7 @@ while the messy expansion lives in the builder.
 
 **gridfind stance: MIRROR the chokepoint, DEVIATE on mechanism — built (#44).**
 gridfind already has one-to-many inside a layer (`regions-distinct` loops regions;
-`line-count-distinct` loops rows). The dispatch mechanism is the
+`line-count-distinct` loops rows and columns). The dispatch mechanism is the
 **`LAYER_REGISTRY` dict** (`type → Layer`), read by `resolve_constraints` — not a
 literal `switch`. ISS uses a switch partly because JS lacks a clean class registry;
 Python's dict-of-instances *is* that registry. Same chokepoint idea, lazier
