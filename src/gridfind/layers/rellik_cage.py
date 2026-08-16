@@ -1,8 +1,8 @@
 """The `rellik-cage` layer: an anti-cage subset-sum ban.
 
 A rellik (anti-) cage forbids any non-empty group of its cells from summing
-to a chosen forbidden total — the reference solver's Rellik rule (spec
-#427, decided in the grilling #415). Uniqueness is not this layer's job: a
+to a chosen forbidden total — the reference solver's Rellik rule.
+Uniqueness is not this layer's job: a
 rellik cage is a `cage` (`distinct-over: "digit"`) composed alongside this
 layer over the same cells, exactly as a killer cage composes `cage` with
 `group-sum` (ADR-0009) — this layer states no distinctness rule and reads
@@ -25,7 +25,7 @@ each cell's own `value_expr` domain, so a modifier's widened range is
 already accounted for). This is a **sound over-approximation** — it never
 assumes the composed `cage`'s distinctness, so it never drops a group that
 could reach the target even where a setter left the no-repeats half off
-(the correctness floor spec #427 names). A tighter, distinct-digit-aware
+(the correctness floor). A tighter, distinct-digit-aware
 band is available as a future optimization if a real puzzle's group count
 ever bites; this ships the sound version only.
 """

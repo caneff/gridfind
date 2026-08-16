@@ -784,7 +784,7 @@ def test_killer_cage_sum_over_an_s_cell_reads_the_value_seam() -> None:
 
 
 def _rellik_cage(cells: tuple[str, ...], target: int) -> tuple[Constraint, Constraint]:
-    """A rellik cage's composition (spec #427): a no-repeats `cage` plus the
+    """A rellik cage's composition: a no-repeats `cage` plus the
     forbidden total as a `rellik-cage`, both over the same cells."""
     return (
         Constraint(type="cage", params={"cells": list(cells)}),
