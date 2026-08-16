@@ -18,9 +18,12 @@ The engine->layer contract a layer author codes against (`Layer`, `add_cell`,
 
 from __future__ import annotations
 
+from typing import cast
+
 from gridfind.engine import GridfindError, Layer, MalformedPuzzleError
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
+from gridfind.layers.constant_modifier import ConstantModifier
 from gridfind.layers.distinct import (
     DistinctOverGroups,
     cols,
@@ -73,6 +76,7 @@ LAYER_REGISTRY = {
     "schrodinger": Schrodinger(),
     "cage": Cage(),
     "doubler": Doubler(),
+    "constant": ConstantModifier(),
     "group-sum": GroupSum(),
     "thermo": Thermo(),
 }
@@ -153,19 +157,22 @@ def build_stack(
     its own constraints — the layer, not the layer twice. An
     unrecognized `type` is rejected.
 
-    A `regions-distinct` constraint carrying `params["regions"]`
-    is the one type-directed exception: the door resolves it through the
-    shared `region_map_for_constraints` rather than
-    re-deriving the jigsaw-vs-box branch inline, and builds a fresh
-    `DistinctOverGroups` closed over that partition instead of dispatching
-    to the registry's box-tiling default. The layer itself stays
-    param-agnostic; only the function it is built with differs.
+    A `regions-distinct` constraint carrying `params["regions"]`, and a
+    `constant` constraint carrying `params["value"]`, are the two
+    type-directed exceptions: `regions-distinct` resolves through the shared
+    `region_map_for_constraints` rather than re-deriving the jigsaw-vs-box
+    branch inline, and builds a fresh `DistinctOverGroups` closed over that
+    partition; `constant` builds a fresh `ConstantModifier(value=k)` instead
+    of dispatching to the registry's `k = 0` nullifier default (ADR-0016).
+    Both layers stay param-agnostic; only the instance the door builds them
+    with differs.
 
-    The bare, no-`params["regions"]` case is left to `setdefault` below
-    rather than also routed through the resolver: it must keep returning
-    the registry's one shared `DistinctOverGroups` instance (tests key off
-    that identity), and the resolver would build a fresh closure per call
-    instead.
+    The bare, no-param case of either — `regions-distinct` with no
+    `params["regions"]`, `constant` with no `params["value"]` — is left to
+    `setdefault` below rather than also routed through its special case: it
+    must keep returning the registry's one shared instance (tests key off
+    that identity for `regions-distinct`; `constant`'s shared instance is
+    already the `k = 0` default the special case would otherwise rebuild).
     """
     canonical = expand_constraints(constraints)
     layers: dict[str, Layer] = {"board": LAYER_REGISTRY["board"]}
@@ -178,6 +185,9 @@ def build_stack(
             layers[constraint.type] = DistinctOverGroups(
                 constraint.type, regions_from(region_map)
             )
+        elif constraint.type == "constant" and "value" in constraint.params:
+            value = cast("int", constraint.params["value"])
+            layers[constraint.type] = ConstantModifier(value=value)
         else:
             layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
     refuse_s_blind_over_widening(layers)
