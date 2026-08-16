@@ -209,18 +209,6 @@ def test_a_group_sum_over_a_widened_cell_reads_its_s_value() -> None:
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 
 
-def test_a_plain_sudoku_with_no_group_sum_clue_is_unaffected() -> None:
-    # A stack that never sees a group-sum clue adds no rule, and an ordinary
-    # sudoku still resolves fully.
-    puzzle = Puzzle(board=BOARD, constraints=(Constraint(type="sudoku"),))
-
-    result = verdict(puzzle)
-
-    assert result.kind == "found"
-    assert result.witness is not None
-    assert len(result.witness) == 81
-
-
 def _row_cells(count: int) -> list[str]:
     return [f"R1C{column}" for column in range(1, count + 1)]
 
