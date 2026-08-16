@@ -409,6 +409,34 @@ def broke_cosmetic_cage_sumless_4x4() -> str:
     return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
 
 
+def found_cosmetic_cage_unrecognized_4x4() -> str:
+    """4x4, `found` — a fully-given classic solution (the same 2x2-box Latin
+    grid `cli_test.py`'s `_classic_named_cage_link` uses) carrying a `type
+    2001` cosmetic cage named `"Foobar"`, a name `naming._NAME_REGISTRY`
+    doesn't answer for. The cage sits over cells `{0, 6}` (different boxes,
+    rows, and columns), both holding solution digit 3: a `Sum`/`Killer`-named
+    cage over the same cells would break immediately, since a killer cage
+    forbids a repeated digit among its own cells (ADR-0012). Because
+    `cosmetic_cage_kind` reports `"unrecognized"`, the cage is warn-dropped
+    instead, so the verdict is computed from the given solution alone and
+    reads found — proving the drop, not a coincidence, is what keeps it
+    found."""
+    solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
+    cells: list[dict[str, object]] = [{"given": True, "value": d} for d in solution]
+    constraints: list[dict[str, object]] = [
+        {"type": 0},
+        {"type": 1, "regions": _DOUBLER_REGIONS},
+        {
+            "name": "Foobar",
+            "type": 2001,
+            "cages": [{"value": "6", "cells": [0, 6]}],
+            "style": _authored_cage_style(),
+        },
+    ]
+    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
+    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+
+
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The
 # filename stem's first token is the e2e verdict (`found`/`broke`/`invalid`);
 # the drift-guard test re-runs each `fn` and refuses a hand-edited file.
@@ -427,6 +455,7 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-doubler-4x4": broke_doubler_4x4,
     "broke-cosmetic-cage-sumless-4x4": broke_cosmetic_cage_sumless_4x4,
     "found-cosmetic-cage-4x4": found_cosmetic_cage_4x4,
+    "found-cosmetic-cage-unrecognized-4x4": found_cosmetic_cage_unrecognized_4x4,
 }
 
 
