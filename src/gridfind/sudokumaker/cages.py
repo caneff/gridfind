@@ -9,7 +9,7 @@ it).
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -35,6 +35,24 @@ def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
     return decoded
 
 
+def _killer_cages(
+    cages: list[dict[str, Any]],
+    size: int,
+    sum_of: Callable[[dict[str, Any]], int | None],
+) -> list[Constraint]:
+    """Walk `cages`' raw `cells` indices to addresses (row-major, `addresses`)
+    and decode each to a killer cage (`_killer_cage`) — the walk a `type 301`
+    block and a `Sum`/`Killer`-named `type 2001` block share, differing only
+    in where a cage's total comes from: `sum_of` reads it straight off the
+    wire `value` int for a killer cage, or parses the cosmetic cage's string
+    `value` label for a cosmetic one."""
+    decoded: list[Constraint] = []
+    for cage in cages:
+        cage_addresses = addresses(cage["cells"], size)
+        decoded.extend(_killer_cage(cage_addresses, sum_of(cage)))
+    return decoded
+
+
 def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 301` killer cages as `Constraint`s: each cage's raw `cells`
     indices map row-major to addresses (`addresses`), so `[18, 19]` on a
@@ -46,9 +64,7 @@ def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     decoded: list[Constraint] = []
     for block in enabled_blocks(buckets, CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
-        for cage in cages:
-            cage_addresses = addresses(cage["cells"], size)
-            decoded.extend(_killer_cage(cage_addresses, cage.get("value", 0)))
+        decoded.extend(_killer_cages(cages, size, lambda cage: cage.get("value", 0)))
     return decoded
 
 
@@ -145,12 +161,7 @@ def cosmetic_cage_constraints(
             )
             decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
             continue
-        constraints: list[Constraint] = []
-        for cage in cages:
-            cage_addresses = addresses(cage["cells"], size)
-            constraints.extend(
-                _killer_cage(cage_addresses, _cosmetic_cage_killer_sum(cage))
-            )
+        constraints = _killer_cages(cages, size, _cosmetic_cage_killer_sum)
         decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
     return _CosmeticCageDecode.concat(decoded)
 
