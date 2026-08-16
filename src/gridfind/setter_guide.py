@@ -53,6 +53,16 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
         "found-cage-4x4",
     ),
     (
+        "equality",
+        MARKER_LABELS["equality"],
+        (
+            "Equality cage — all digits distinct, with equal counts of "
+            "even/odd and low/high digits; an odd cell count is refused as "
+            "malformed"
+        ),
+        "found-equality-4x4",
+    ),
+    (
         "doubler",
         MARKER_LABELS["doubler"],
         "Doubler position marker",

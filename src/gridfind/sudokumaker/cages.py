@@ -39,6 +39,21 @@ def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
     return decoded
 
 
+def _equality_cages(cages: list[dict[str, Any]], size: int) -> list[Constraint]:
+    """Walk `cages`' raw `cells` indices to addresses and decode each to an
+    equality cage: a no-repeats `cage` plus `equality-cage` over the same
+    cells (ADR-0009's composition shape) — no numeric argument, unlike a
+    killer cage's `group-sum`, so a cage's `value` label is never read here.
+    An odd cell count is not refused at this seam: `equality-cage` itself
+    raises `MalformedPuzzleError` once the puzzle reaches emit."""
+    decoded: list[Constraint] = []
+    for cage in cages:
+        cage_addresses = addresses(cage["cells"], size)
+        decoded.append(Constraint("cage", params={"cells": cage_addresses}))
+        decoded.append(Constraint("equality-cage", params={"cells": cage_addresses}))
+    return decoded
+
+
 def _killer_cages(
     cages: list[dict[str, Any]],
     size: int,
@@ -192,7 +207,11 @@ def cosmetic_cage_constraints(
     and value nest under `cages`, the same wire shape as a `type 301` block,
     each cage's raw `cells` indices mapping row-major to addresses, every
     non-disabled cage emitting a no-repeats `cage` plus a `group-sum` when its
-    numeric non-zero string `value` carries a total (ADR-0009). A
+    numeric non-zero string `value` carries a total (ADR-0009). An
+    `Equality`-labelled block graduates the same cells to `cage` +
+    `equality-cage` instead (`_equality_cages`) — no numeric argument, so its
+    `value` is never read; an odd cell count is not refused here, only once
+    the puzzle reaches emit (spec #427). A
     `Doubler`/`Constant <N>`/`Nullifier`-marked block instead emits one
     `ModifierDirective(is_modifier=True)` per cell it contains and **no**
     `cage`/`group-sum` — the block's `cages` still supply the cell list, just
@@ -240,6 +259,11 @@ def cosmetic_cage_constraints(
                 value = component.value if component is not None else None
                 modifier_declarations.append((kind, value))
             decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
+            continue
+        if kind == "equality":
+            decoded.append(
+                _CosmeticCageDecode(constraints=tuple(_equality_cages(cages, size)))
+            )
             continue
         constraints = _killer_cages(cages, size, _cosmetic_cage_killer_sum)
         decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))

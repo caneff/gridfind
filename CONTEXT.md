@@ -393,6 +393,8 @@ forces a cell to become an S-cell.
   through. gridfind reads the block's top-level `name`, and only a recognized
   name selects a rule (ADR-0012): a cage named `Sum` or `Killer` decodes **as a
   killer cage** (a `cage` plus a `group-sum` when its label is a number); a cage
+  named `Equality` decodes **as an equality cage** (a `cage` plus an
+  `equality-cage`, no numeric argument — its label is never read); a cage
   named `Doubler`, `S-cell`, or `Schrödinger` is a **marker cage** that declares
   positions instead of a constraint. An **unnamed** cage and an **unrecognized**
   name both carry no rule — gridfind warn-drops each to stderr, naming the block,

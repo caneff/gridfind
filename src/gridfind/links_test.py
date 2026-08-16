@@ -94,10 +94,11 @@ _NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
 
 # The link-reachable variants that don't map one-to-one onto a DECODER_REGISTRY
 # wire type: classic and jigsaw both ride wire type 1 (told apart by their
-# decoded regions shape), and Schrödinger and doubler each arrive by a named
-# marker cage that synthesizes their constraint, never a wire type of their
-# own (ADR-0007/0008).
-_EXPLICIT_VARIANTS = ("classic", "jigsaw", "schrodinger", "doubler")
+# decoded regions shape), Schrödinger and doubler each arrive by a named
+# marker cage that synthesizes their constraint, and equality arrives by a
+# named cage-selector cage that graduates to `cage` + `equality-cage` — none
+# of the three own a wire type of their own (ADR-0007/0008, spec #427).
+_EXPLICIT_VARIANTS = ("classic", "jigsaw", "schrodinger", "doubler", "equality")
 
 
 def _wire_payload(link: str) -> dict[str, Any]:
@@ -140,11 +141,14 @@ def _variant_tags(argv: list[str]) -> set[int | str]:
     constraint_types = {c.type for c in puzzle.constraints}
     schrodinger = "schrodinger" in constraint_types
     doubler = "doubler" in constraint_types
+    equality = "equality-cage" in constraint_types
     tags: set[int | str] = set()
     if schrodinger:
         tags.add("schrodinger")
     if doubler:
         tags.add("doubler")
+    if equality:
+        tags.add("equality")
     # classic vs jigsaw is a plain link's own identity; a Schrödinger or doubler
     # case carries its variant marker and doesn't double as classic coverage.
     if not schrodinger and not doubler:
