@@ -1,7 +1,7 @@
 """rellik-cage behaviour, tested at the seams the issue names: `verdict`
 (mirroring `cage_test.py`), the emit seam via solver FEASIBLE/INFEASIBLE
 with pinned cells, and the value channel via `modifier_value`/`s_value`
-pinning (spec #427, issue #515).
+pinning.
 
 A rellik (anti-) cage forbids any non-empty group of its cells from summing
 to a chosen forbidden total. This file proves this layer's own behaviour in
