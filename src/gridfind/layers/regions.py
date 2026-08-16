@@ -77,6 +77,19 @@ def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
     ]
 
 
+def to_region_numbers(size: int, region_map: RegionMap) -> list[int]:
+    """A region map as SudokuMaker's flat, row-major `type 1` array: entry
+    `(row - 1) * size + (col - 1)` is the number of the region holding cell
+    `RxCy`. The one home for serializing a `RegionMap` to the wire form,
+    shared by the decode-time classic-tiling check and the corpus synthesizers.
+    """
+    region_numbers = [0] * (size * size)
+    for number, region in enumerate(region_map):
+        for row, col in region:
+            region_numbers[(row - 1) * size + (col - 1)] = number
+    return region_numbers
+
+
 def region_map_for(size: int) -> RegionMap:
     """The region map a `size`x`size` board tiles by convention — the
     `BOX_SHAPE` table by size. A setter's own jigsaw map goes through

@@ -20,7 +20,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from gridfind.layers.regions import box_regions, to_region_numbers
 from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker.addresses import cell_index
 from gridfind.sudokumaker.wire_types import KROPKI_WHITE_TYPE
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
@@ -29,23 +31,6 @@ LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links
 # default 1, so honoring it verbatim is the only way either fixture's
 # verdict can be right.
 _LABELLED_DIFF = 3
-
-
-def _regions(box_h: int, box_w: int) -> list[int]:
-    """The classic box tiling of a `box_h`x`box_w`-box board as SudokuMaker's
-    flat, row-major region-id array — the `type 1` matrix a boxed link ships."""
-    size = box_h * box_w
-    boxes_per_row = size // box_w
-    labels = [0] * (size * size)
-    for row in range(size):
-        for col in range(size):
-            labels[row * size + col] = (row // box_h) * boxes_per_row + col // box_w
-    return labels
-
-
-def _index(size: int, row: int, col: int) -> int:
-    """The flat row-major cell index of 1-based `RxCy` on a size-N board."""
-    return (row - 1) * size + (col - 1)
 
 
 def _horizontal_edge(size: int, row: int, col: int) -> int:
@@ -71,10 +56,11 @@ def _link(
     size = box_h * box_w
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
     for (row, col), value in givens.items():
-        cells[_index(size, row, col)] = {"given": True, "value": value}
+        cells[cell_index(row, col, size)] = {"given": True, "value": value}
+    region_numbers = to_region_numbers(size, box_regions(size, box_h, box_w))
     constraints: list[dict[str, object]] = [
         {"type": 0},
-        {"type": 1, "regions": _regions(box_h, box_w)},
+        {"type": 1, "regions": region_numbers},
         {
             "type": KROPKI_WHITE_TYPE,
             "clues": [

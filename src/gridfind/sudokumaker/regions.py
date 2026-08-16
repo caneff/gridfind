@@ -1,13 +1,13 @@
 """The `type 1` regions block: `regions-distinct` for an `N`x`N` board, or
 nothing at all when the link carries no regions (`regions_constraints`),
 built on the matrix read (`_regions_matrix`) and the classic box tiling a
-present matrix is compared against (`_classic_regions_for`).
+present matrix is compared against (`to_region_numbers`).
 """
 
 from __future__ import annotations
 
 from gridfind.cell_geometry import BOX_SHAPE
-from gridfind.layers.regions import region_map_for
+from gridfind.layers.regions import region_map_for, to_region_numbers
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 
@@ -31,7 +31,7 @@ def regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     matrix = _regions_matrix(buckets)
     if matrix is None:
         return []
-    if size in BOX_SHAPE and matrix == _classic_regions_for(size):
+    if size in BOX_SHAPE and matrix == to_region_numbers(size, region_map_for(size)):
         return [Constraint("regions-distinct")]
     return [Constraint("regions-distinct", params={"regions": matrix})]
 
@@ -42,14 +42,3 @@ def _regions_matrix(buckets: ConstraintBuckets) -> object | None:
     for block in enabled_blocks(buckets, 1):
         return block.get("regions")
     return None
-
-
-def _classic_regions_for(size: int) -> list[int]:
-    """The standard box partition of an `N`x`N` board as SudokuMaker's flat,
-    row-major region-id array — the matrix a `type 1` block equal to it is
-    just the classic tiling of (no params needed)."""
-    labels = [0] * (size * size)
-    for region_id, box in enumerate(region_map_for(size)):
-        for row, col in box:
-            labels[(row - 1) * size + (col - 1)] = region_id
-    return labels
