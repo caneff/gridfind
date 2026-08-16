@@ -40,6 +40,7 @@ from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.regions import region_map_for_constraints
+from gridfind.layers.rellik_cage import RellikCage
 from gridfind.layers.s_blind import refuse_s_blind_over_widening
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.layers.thermo import Thermo
@@ -67,6 +68,7 @@ LAYER_REGISTRY = {
     "doubler": Doubler(),
     "constant": ConstantModifier(),
     "group-sum": GroupSum(),
+    "rellik-cage": RellikCage(),
     "thermo": Thermo(),
 }
 

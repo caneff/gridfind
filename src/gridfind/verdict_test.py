@@ -768,6 +768,80 @@ def test_killer_cage_sum_over_an_s_cell_reads_the_value_seam() -> None:
     assert result.witness is not None
 
 
+def _rellik_cage(cells: tuple[str, ...], target: int) -> tuple[Constraint, Constraint]:
+    """A rellik cage's composition (spec #427): a no-repeats `cage` plus the
+    forbidden total as a `rellik-cage`, both over the same cells."""
+    return (
+        Constraint(type="cage", params={"cells": list(cells)}),
+        Constraint(type="rellik-cage", params={"cells": list(cells), "sum": target}),
+    )
+
+
+def test_rellik_cage_satisfiable_resolves_found() -> None:
+    cells = ("R1C1", "R1C2", "R1C3")
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_rellik_cage(cells, 5),
+        givens=(Given(address="R1C1", digit=1),),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    digits = [result.witness[address][0] for address in cells]
+    assert len(set(digits)) == len(digits)
+
+
+def test_rellik_cage_forced_to_the_forbidden_total_resolves_broke() -> None:
+    # Only two digits left for the pair once both are given, and their sum
+    # is exactly the forbidden total.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_rellik_cage(("R1C1", "R1C2"), 5),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C2", digit=3)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_rellik_cage_no_repeats_half_still_breaks_a_forced_repeat() -> None:
+    # 1 + 1 avoids the forbidden total 5 but repeats a digit — the cage's
+    # no-repeats half breaks it even though the rellik half alone would be
+    # satisfied, proving the two composed rules both bind.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_rellik_cage(("R1C1", "R1C2"), 5),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=1)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_rellik_cage_over_an_s_cell_reads_the_value_seam() -> None:
+    # A rellik cage on a Schrödinger board completes: the ban half reads
+    # each cell's value through `value_expr`, so an S-cell folds in as its
+    # `s_value` rather than raising "not Schrödinger-ready".
+    puzzle = Puzzle(
+        board=Board(size=4, values=range(5)),
+        constraints=(
+            Constraint(type="schrodinger"),
+            *_rellik_cage(("R1C1", "R1C2"), 100),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+
+
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
     # A contradiction unrelated to region sizing (two conflicting givens on
     # one cell) must not get blamed on a region that is well within the
