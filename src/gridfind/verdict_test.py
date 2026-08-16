@@ -439,6 +439,21 @@ def test_line_count_distinct_found_when_row_counts_are_satisfiable() -> None:
     assert len({result.witness[f"R1C{c}"] for c in range(1, 10)}) == 1
 
 
+def test_line_count_distinct_breaks_when_a_column_exceeds_its_target() -> None:
+    # Column 1's target is 1 distinct digit. Two different givens in it force
+    # 2, while each row still carries only its own single given digit — still
+    # satisfiable on the row side alone — proving the column pass is
+    # genuinely enforced, not decorative.
+    assert_layer_newly_breaks(
+        (),
+        (Constraint(type="line-count-distinct"),),
+        (
+            Given(address="R1C1", digit=1),
+            Given(address="R2C1", digit=2),
+        ),
+    )
+
+
 def test_line_count_distinct_breaks_when_a_full_row_has_too_few_distinct_digits() -> (
     None
 ):

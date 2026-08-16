@@ -1,10 +1,11 @@
 """The `line-count-distinct` layer: its rule, and its dependency contract.
 
-The rule — row *n* holds exactly *n* distinct digits — is read back here from
-the rules the layer emits. It is also proved end to end through
-`verdict` in `verdict_test.py`, against a returned completion; the two are
-different claims. This one says the layer states the right target for every
-row, including rows a satisfiable witness would have satisfied by accident.
+The rule — row *n* and column *n* each hold exactly *n* distinct digits — is
+read back here from the rules the layer emits. It is also proved end to end
+through `verdict` in `verdict_test.py`, against a returned completion; the
+two are different claims. This one says the layer states the right target
+for every row and column, including lines a satisfiable witness would have
+satisfied by accident.
 """
 
 import pytest
@@ -22,11 +23,11 @@ def test_line_count_distinct_requires_board() -> None:
 
 
 @pytest.mark.parametrize("size", [4, 9], ids=["4x4", "9x9"])
-def test_line_count_distinct_asks_row_n_for_n_distinct_digits(
+def test_line_count_distinct_asks_row_and_col_n_for_n_distinct_digits(
     size: int,
 ) -> None:
-    """somedoku's rule, stated per row, and sized off the board rather than a
-    fixed 9x9."""
+    """somedoku's rule, stated per row and per column, and sized off the
+    board rather than a fixed 9x9."""
     engine = build_engine(
         [GridCells(), LineCountDistinct()],
         board=Board(size=size),
@@ -34,4 +35,7 @@ def test_line_count_distinct_asks_row_n_for_n_distinct_digits(
 
     targets = distinct_count_targets(engine)
 
-    assert targets == {f"row{n}": n for n in range(1, size + 1)}
+    assert targets == {
+        **{f"row{n}": n for n in range(1, size + 1)},
+        **{f"col{n}": n for n in range(1, size + 1)},
+    }
