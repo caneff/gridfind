@@ -10,22 +10,19 @@ rather than accidentally shipping an empty list.
 
 from __future__ import annotations
 
-import json
-import urllib.parse
+from typing import Any, cast
 
 import pytest
 import synthesize_negative_edge_links as syn
-from lzstring import LZString
 
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import decode_document, decode_link
 
 
 def _wire_negative(link: str) -> list[object]:
-    payload = link.split("?puzzle=", 1)[-1]
-    raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
-    data = json.loads(raw)["puzzle"]
-    block = next(c for c in data["constraints"] if c.get("type") == 200)
-    return block["negative"]
+    puzzle = cast("dict[str, Any]", decode_document(link)["puzzle"])
+    constraints = cast("list[dict[str, Any]]", puzzle["constraints"])
+    block = next(c for c in constraints if c.get("type") == 200)
+    return cast("list[object]", block["negative"])
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
