@@ -12,8 +12,8 @@ Exits non-zero when any hole exists, so it can gate later.
 
 The feature universe is read from `DECODER_REGISTRY` (every wire type gridfind
 decodes) plus the cosmetic-cage marker kinds, so a newly decodable type appears
-automatically. A modifier with no decode channel (the `constant` nullifier,
-ADR-0016) has no registry row and no marker kind, so it correctly never appears.
+automatically. A modifier reaches the universe only through one of those two
+channels: a registry row or a marker kind.
 """
 
 from __future__ import annotations

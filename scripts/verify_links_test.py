@@ -210,6 +210,31 @@ def test_fill_witness_folds_a_discovered_doubler_into_the_cage() -> None:
     }
 
 
+def test_fill_witness_folds_a_discovered_constant_into_the_cage() -> None:
+    # A constant modifier the solver found but the source link never declared is
+    # folded into the `Constant` cage, so every modifier cell is marked by cage —
+    # the same discovery path as the doubler, routed through `cosmetic_cage_kind`.
+    size = 4
+    grid = _grid(size)
+    addresses = [address for row in grid for address in row]
+    declared, discovered = 6, 9
+    witness = Witness(
+        grid=grid,
+        assignment=dict.fromkeys(addresses, (1,)),
+        region_map=[],
+        modifiers={addresses[declared]: "constant", addresses[discovered]: "constant"},
+    )
+    document = _document(size, _marker_block("Constant 5", declared))
+
+    filled = fill_witness(document, witness, size)
+
+    _, state = decode_link(encode_link(filled))
+    assert set(state.modifier_directives) == {
+        ModifierDirective(addresses[declared], is_modifier=True),
+        ModifierDirective(addresses[discovered], is_modifier=True),
+    }
+
+
 def test_verify_link_reports_a_solution_link_for_a_found_case() -> None:
     # A fully-given, already-valid 2x2 Latin square: rows {1,2}/{2,1},
     # columns {1,2}/{2,1} — trivially found, so filling in the witness

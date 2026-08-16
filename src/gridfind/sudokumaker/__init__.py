@@ -34,9 +34,13 @@ color or declared out of band. An `S-cell`/`Schrödinger`-named cage relaxes the
 `minDigit` guard to read the widened domain, declares its cells S-cells, and
 synthesizes the `schrodinger` constraint from marker presence alone (CONTEXT.md
 `schrodinger` layer); a `Doubler`-named cage marks its cells modifiers and
-stands up the `doubler` constraint the same way. Every link — Schrödinger or
-not — ignores the unmodeled constraint types and `disabled` blocks a real link
-carries, warning to stderr only when a dropped one carried live data.
+stands up the `doubler` constraint the same way. A `Constant <N>`/`Nullifier`-
+named cage is the second modifier variant (ADR-0016): it marks its cells
+modifiers too, but stands up the `constant` constraint carrying `k` read from
+the name itself (`Nullifier` = `Constant 0`) rather than a fixed doubling.
+Every link — Schrödinger or not — ignores the unmodeled constraint types and
+`disabled` blocks a real link carries, warning to stderr only when a dropped
+one carried live data.
 
 Deliberately kept as `ValueError`, not folded into `MalformedPuzzleError`:
 every rejection here fires before a `Puzzle` exists at all — it
@@ -47,6 +51,17 @@ from `verdict`, same as it would for a hand-built `Puzzle`. Conflating the two
 would cost a caller the ability to tell "this share link doesn't decode" from
 "this puzzle doesn't hold together" — a distinction worth keeping since only
 one of them means the *link* is bad.
+
+One narrow exception (ADR-0016 decisions 3-4): a marker cage carrying a
+per-cage `value` field, a link mixing `Doubler` and `Constant` marker cages,
+or two `Constant` cages naming different `k`, raise `MalformedPuzzleError`
+rather than `ValueError`. These are not "gridfind can't answer this link
+shape" — the shape is perfectly readable — they are the link stating
+conflicting or misplaced facts about a puzzle-wide value, the same kind of
+defect a hand-built `Puzzle` would surface at `verdict`. `Puzzle.__init__`
+raising `MalformedPuzzleError` for a malformed `Board` is the existing
+precedent for that class firing from inside a constructor step, not only from
+`verdict`.
 
 No engine, no `verdict` call. Schema in, model out.
 

@@ -19,11 +19,11 @@ def test_universe_tracks_registry_and_cage_kinds() -> None:
     # A decodable wire type shows up by its registry name.
     assert "anti-king" in universe
     assert "white-kropki" in universe
-    # Each cosmetic-cage marker kind is its own row.
+    # Each cosmetic-cage marker kind is its own row, including `constant` now
+    # that it decodes (ADR-0016).
     assert "cage:doubler" in universe
     assert "cage:s-cell" in universe
-    # The `constant` modifier has no decode channel, so it must not appear.
-    assert not any("constant" in feature for feature in universe)
+    assert "cage:constant" in universe
 
 
 def test_link_features_reads_types_and_cage_kind() -> None:

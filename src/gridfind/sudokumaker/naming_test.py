@@ -9,6 +9,7 @@ normalization directly.
 
 from __future__ import annotations
 
+import pytest
 from hypothesis import given as hyp_given
 from hypothesis import strategies as st
 
@@ -48,6 +49,42 @@ def test_doubler_is_a_cell_marker() -> None:
     assert component is not None
     assert component.role == "doubler"
     assert component.shape == "cell-marker"
+
+
+def test_nullifier_is_the_k_0_spelling_of_constant() -> None:
+    component = named_component("Nullifier")
+    assert component is not None
+    assert component.role == "constant"
+    assert component.shape == "cell-marker"
+    assert component.value == 0
+
+
+@pytest.mark.parametrize(
+    ("name", "expected_value"),
+    [
+        ("Constant 5", 5),
+        ("constant 5", 5),
+        ("  Constant   5  ", 5),
+        ("Constant -3", -3),
+        ("Constant 0", 0),
+    ],
+    ids=["titlecase", "lowercase", "padded", "negative", "explicit-zero"],
+)
+def test_constant_n_parses_the_trailing_integer(name: str, expected_value: int) -> None:
+    component = named_component(name)
+    assert component is not None
+    assert component.role == "constant"
+    assert component.shape == "cell-marker"
+    assert component.value == expected_value
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Constant", "Constant xyz", "Constant 5 extra", "Constant 5.5", "Nullifier 5"],
+    ids=["bare", "non-numeric", "trailing-text", "float", "nullifier-with-number"],
+)
+def test_constant_with_no_parseable_integer_is_unrecognized(name: str) -> None:
+    assert named_component(name) is None
 
 
 def test_schrodinger_aliases_share_the_s_cell_role() -> None:

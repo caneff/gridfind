@@ -1,10 +1,11 @@
 """`markers`: the named cosmetic cages that declare a puzzle feature rather than
-a constraint — `Doubler` and `S-cell` — plus the classifier and the display
-colorizer.
+a constraint — `Doubler`, `Constant <N>` / `Nullifier`, and `S-cell` — plus the
+classifier and the display colorizer.
 
 `cosmetic_cage_kind` is the one home that reads a cage's name into its kind
-(unnamed / killer / doubler / s-cell / unrecognized, ADR-0012). A `Doubler` cage emits
-modifier directives; an `S-cell` cage declares S-cells, infers Schrödinger-ness
+(unnamed / killer / doubler / s-cell / constant / unrecognized, ADR-0012). A
+`Doubler` or `Constant` cage emits modifier directives; an `S-cell` cage
+declares S-cells, infers Schrödinger-ness
 from its mere presence, and sources each cell's pin/half/bare directive from its
 own `value` (ADR-0014). `colorize_marker_cages` writes the cosmetic display
 color a re-emitted link needs, reading `_MARKER_COLOR_PALETTE` from beside it.
@@ -108,6 +109,11 @@ def _s_cell_cage_link(
         ("  doubler ", "doubler"),
         ("S-cell", "s-cell"),
         ("Schrödinger", "s-cell"),
+        ("Nullifier", "constant"),
+        ("Constant 5", "constant"),
+        ("Constant -3", "constant"),
+        ("Constant", "unrecognized"),
+        ("Constant xyz", "unrecognized"),
         ("Whimsy", "unrecognized"),
     ],
     ids=[
@@ -120,25 +126,34 @@ def _s_cell_cage_link(
         "doubler-padded",
         "s-cell",
         "schrodinger",
+        "nullifier",
+        "constant-n",
+        "constant-negative",
+        "bare-constant",
+        "constant-non-numeric",
         "unknown",
     ],
 )
 def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> None:
-    # The public five-way classifier is the one home every named-cosmetic-cage
-    # read routes through (ADR-0012): unnamed, killer cage, Doubler marker,
-    # S-cell marker, or an unrecognized name — the decoder warn-drops both
-    # unnamed and unrecognized.
+    # The public six-way classifier is the one home every named-cosmetic-cage
+    # read routes through (ADR-0012, extended by ADR-0016): unnamed, killer
+    # cage, Doubler marker, S-cell marker, Constant/Nullifier marker, or an
+    # unrecognized name — the decoder warn-drops both unnamed and
+    # unrecognized, so a bare `Constant` with no parseable integer stays
+    # unrecognized rather than silently becoming `k = 0`.
     assert cosmetic_cage_kind(name) == expected
 
 
-def test_marker_labels_covers_killer_doubler_and_s_cell_roles() -> None:
+def test_marker_labels_covers_killer_doubler_s_cell_and_constant_roles() -> None:
     # MARKER_LABELS is the public role -> accepted-names table setter_guide.py's
     # cage-name-alias rows read directly; every name-bearing role
-    # cosmetic_cage_kind recognizes has an entry here.
-    assert set(MARKER_LABELS) == {"killer", "doubler", "s-cell"}
+    # cosmetic_cage_kind recognizes has an entry here. `constant`'s only
+    # static alias is `Nullifier` — `Constant <N>` is parameterized, not a
+    # fixed name (ADR-0016).
+    assert set(MARKER_LABELS) == {"killer", "doubler", "s-cell", "constant"}
 
 
-@pytest.mark.parametrize("role", ["killer", "doubler", "s-cell"])
+@pytest.mark.parametrize("role", ["killer", "doubler", "s-cell", "constant"])
 def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
     # Every name MARKER_LABELS lists under a role must classify to that role
     # through cosmetic_cage_kind. MARKER_LABELS and cosmetic_cage_kind both
@@ -257,6 +272,175 @@ def test_a_red_cell_alone_is_not_a_doubler() -> None:
 
     assert Constraint("doubler") not in puzzle.constraints
     assert state.modifier_directives == ()
+
+
+def test_constant_marker_cage_decodes_to_constant_constraint_and_modifiers() -> None:
+    # A `Constant <N>`-named cosmetic cage is a position marker, not a killer
+    # cage, exactly like `Doubler`: every cell it contains decodes to a
+    # discovered-modifier directive, and the block emits no
+    # `cage`/`group-sum` at all. Unlike `Doubler`, `k` rides on the name and
+    # lands on the synthesized `constant` constraint's `value` param
+    # (ADR-0016).
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {
+                    "name": "Constant 5",
+                    "type": 2001,
+                    "cages": [{"cells": [0, 1]}],
+                },
+            ],
+        }
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+    assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
+    assert Constraint("constant", params={"value": 5}) in puzzle.constraints
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+
+
+def test_nullifier_marker_cage_decodes_as_constant_zero() -> None:
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"name": "Nullifier", "type": 2001, "cages": [{"cells": [0]}]},
+            ],
+        }
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+    assert Constraint("constant", params={"value": 0}) in puzzle.constraints
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Constant 5", "constant 5", "  CONSTANT   5  "],
+    ids=["titlecase", "lowercase", "padded-upper-with-extra-space"],
+)
+def test_constant_marker_name_is_case_insensitive_and_trimmed(name: str) -> None:
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"name": name, "type": 2001, "cages": [{"cells": [0]}]},
+            ],
+        }
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+    assert Constraint("constant", params={"value": 5}) in puzzle.constraints
+
+
+def test_bare_constant_marker_cage_warns_and_drops(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # No parseable integer in the name stays unrecognized (ADR-0016) — never
+    # silently `k = 0`, the same warn-drop fate as any unrecognized name.
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"name": "Constant", "type": 2001, "cages": [{"cells": [0]}]},
+            ],
+        }
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert state.modifier_directives == ()
+    assert all(c.type != "constant" for c in puzzle.constraints)
+    assert "Constant" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Doubler", "Constant 5"],
+    ids=["doubler", "constant"],
+)
+def test_marker_cage_with_a_per_cage_value_field_is_refused(name: str) -> None:
+    # A modifier's `k` is a puzzle-wide fact declared by the cage name; a
+    # per-cage `value` field is a channel two cages could disagree on, so it
+    # is refused outright rather than silently ignored (ADR-0016 decision 3).
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"name": name, "type": 2001, "cages": [{"value": "3", "cells": [0]}]},
+            ],
+        }
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        decode_link(payload)
+
+
+def test_link_mixing_doubler_and_constant_marker_cages_is_refused() -> None:
+    # One modifier type per puzzle (ADR-0016 decision 4): a link declaring
+    # both a Doubler and a Constant marker cage is refused rather than
+    # silently merged.
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"name": "Doubler", "type": 2001, "cages": [{"cells": [0]}]},
+                {"name": "Constant 5", "type": 2001, "cages": [{"cells": [1]}]},
+            ],
+        }
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        decode_link(payload)
+
+
+def test_two_constant_marker_cages_disagreeing_on_k_is_refused() -> None:
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"name": "Constant 5", "type": 2001, "cages": [{"cells": [0]}]},
+                {"name": "Constant 7", "type": 2001, "cages": [{"cells": [1]}]},
+            ],
+        }
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        decode_link(payload)
+
+
+def test_two_constant_marker_cages_agreeing_on_k_decode_once() -> None:
+    # Two blocks naming the same k are consistent, not a conflict — the
+    # synthesized `constant` constraint still appears once.
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"name": "Constant 5", "type": 2001, "cages": [{"cells": [0]}]},
+                {"name": "Constant 5", "type": 2001, "cages": [{"cells": [1]}]},
+            ],
+        }
+    )
+
+    puzzle, state = decode_link(payload)
+
+    assert puzzle.constraints.count(Constraint("constant", params={"value": 5})) == 1
+    assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
+    assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
 
 
 def test_s_cell_named_cage_declares_s_cells_and_emits_no_cage() -> None:

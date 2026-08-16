@@ -32,12 +32,17 @@ from gridfind.sudokumaker.registry import DECODER_REGISTRY, warn_on_dropped_cons
 def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a square-N
     `Puzzle` + `WorkingState`, sizing the board and domain from the link
-    itself. Raises `ValueError` on a link gridfind can't answer.
+    itself. Raises `ValueError` on a link gridfind can't answer, and
+    `MalformedPuzzleError` on the narrower case of a modifier marker cage
+    declaring conflicting facts about a puzzle-wide value (ADR-0016 decisions
+    3-4, detailed in `cosmetic_cage_constraints`'s own docstring).
 
-    Doublers and S-cells are **inferred from the link's named marker cages**,
-    never declared out of band — a `type 2001` cosmetic-cage block whose
-    top-level `name` reads as a marker stands up its variant on its own, and a
-    single link may carry both a `Doubler` and an `S-cell` block at once.
+    Doublers, constant modifiers, and S-cells are **inferred from the link's
+    named marker cages**, never declared out of band — a `type 2001`
+    cosmetic-cage block whose top-level `name` reads as a marker stands up its
+    variant on its own, and a single link may carry both a modifier marker
+    block and an `S-cell` block at once (though not both a `Doubler` and a
+    `Constant`/`Nullifier` block — one modifier type per puzzle).
 
     A `type 2001` cosmetic-cage block whose top-level `name` names a
     recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
@@ -51,6 +56,10 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     `cage`/`group-sum` for that block — and stands up the `doubler` constraint.
     The marker is orthogonal to the cell's digit: a doubler holds one digit
     worth twice its value, so a given or placement on a marked cell still lands.
+    A block named `Constant <N>`/`Nullifier` is the analogous constant-modifier
+    marker: the same per-cell `ModifierDirective`s, but the synthesized
+    constraint is `constant` carrying `k` read from the name (`Nullifier` is
+    the `k = 0` spelling) rather than a fixed `doubler` (ADR-0016).
 
     A `type 2001` block named `S-cell`/`Schrödinger` is the analogous S-cell
     marker: each contained cell is a declared S-cell reading its marker cage's
@@ -126,8 +135,8 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
         constraints.extend(decoded_type.handler(buckets, size))
     if is_schrodinger:
         constraints.append(Constraint("schrodinger"))
-    if cosmetic_cage_decode.modifier_directives:
-        constraints.append(Constraint("doubler"))
+    if cosmetic_cage_decode.modifier_constraint is not None:
+        constraints.append(cosmetic_cage_decode.modifier_constraint)
 
     puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=decoded.givens)
     state = WorkingState(

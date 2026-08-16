@@ -1,14 +1,18 @@
 """Named marker-cage classification (ADR-0012, homed here in #443, routed
-through the name -> shape registry in #434): a `type 2001` cosmetic-cage
-block's top-level `name` sorted into `"unnamed"`, `"killer"`, `"doubler"`,
-`"s-cell"`, or `"unrecognized"` (`cosmetic_cage_kind`), the two S-cell channels
-that read it — enablement by block *presence* (`has_scell_marker_block`) and
-pinning by cell *membership* (`scell_marker_values`) — and the display-only
-marker colorizer (`colorize_marker_cages`) that ranks the marker kinds a link
-actually carries onto a fixed palette. The public `MARKER_LABELS` dict is the
-role -> accepted-names table, built once from `naming.aliases_by_role` and read
-directly by `setter_guide.py`'s cage-name-alias rendering — the public seam that
-keeps it off `naming`'s private grouping.
+through the name -> shape registry in #434, extended with a parameterized
+`"constant"` kind by ADR-0016): a `type 2001` cosmetic-cage block's top-level
+`name` sorted into `"unnamed"`, `"killer"`, `"doubler"`, `"s-cell"`,
+`"constant"`, or `"unrecognized"` (`cosmetic_cage_kind`), the two S-cell
+channels that read it — enablement by block *presence*
+(`has_scell_marker_block`) and pinning by cell *membership*
+(`scell_marker_values`) — and the display-only marker colorizer
+(`colorize_marker_cages`) that ranks the marker kinds a link actually carries
+onto a fixed palette. The public `MARKER_LABELS` dict is the role ->
+accepted-names table, built once from `naming.aliases_by_role` and read
+directly by `setter_guide.py`'s cage-name-alias rendering — the public seam
+that keeps it off `naming`'s private grouping; `"constant"`'s only static
+alias is `Nullifier`, since `Constant <N>` is a parameterized name naming.py
+parses rather than a fixed key.
 """
 
 from __future__ import annotations
@@ -32,7 +36,9 @@ from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 # types (`_MARKER_KIND_PRIORITY`, near `colorize_marker_cages`).
 _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 
-CosmeticCageKind = Literal["unnamed", "killer", "doubler", "s-cell", "unrecognized"]
+CosmeticCageKind = Literal[
+    "unnamed", "killer", "doubler", "s-cell", "constant", "unrecognized"
+]
 
 # Role -> its accepted `type 2001` names, the public seam `setter_guide.py`
 # reads for cage-name-alias rendering. Built from `naming.aliases_by_role` so
@@ -43,12 +49,15 @@ MARKER_LABELS: dict[str, frozenset[str]] = aliases_by_role()
 
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
-    """Classify a `type 2001` block's top-level `name` (ADR-0012) into one of
-    five kinds: `"unnamed"` (absent/blank — a purely decorative block that
-    carries no rule), `"killer"` (a recognized `Sum`/`Killer` label that
-    selects the killer-cage rule), `"doubler"` (a `Doubler` position marker),
-    `"s-cell"` (an `S-cell`/`Schrödinger` position marker), or
-    `"unrecognized"` (a name `decode_link` cannot answer for). `"unnamed"` and
+    """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
+    ADR-0016) into one of six kinds: `"unnamed"` (absent/blank — a purely
+    decorative block that carries no rule), `"killer"` (a recognized
+    `Sum`/`Killer` label that selects the killer-cage rule), `"doubler"` (a
+    `Doubler` position marker), `"s-cell"` (an `S-cell`/`Schrödinger` position
+    marker), `"constant"` (a `Constant <N>`/`Nullifier` position marker whose
+    `k` is read from the name itself), or `"unrecognized"` (a name
+    `decode_link` cannot answer for — a bare `Constant` with no parseable
+    integer lands here too, never silently `k = 0`). `"unnamed"` and
     `"unrecognized"` share the same fate downstream — a loud stderr warn-drop,
     never a rule (ADR-0012) — but stay distinct kinds here since the warning
     they produce names the block differently. Matching is case-insensitive
@@ -108,8 +117,11 @@ def has_scell_marker_block(buckets: ConstraintBuckets) -> bool:
 
 # The order `colorize_marker_cages` claims `_MARKER_COLOR_PALETTE` slots in
 # when a link carries more than one marker type — S-cell first, so it always
-# wins red over Doubler on a mixed link.
-_MARKER_KIND_PRIORITY: tuple[CosmeticCageKind, ...] = ("s-cell", "doubler")
+# wins red over Doubler/Constant on a mixed link. A link mixing Doubler and
+# Constant marker cages is refused at decode time (ADR-0016), but this
+# raw-JSON colorizer runs before any decode validation, so both still rank
+# here for a document that pairs one of them with S-cell.
+_MARKER_KIND_PRIORITY: tuple[CosmeticCageKind, ...] = ("s-cell", "doubler", "constant")
 
 
 def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
