@@ -46,14 +46,14 @@ def fill_witness(
     untouched, so `size`/`type` survive and the emitted link opens as the same
     puzzle.
 
-    The solver discovers S-cells and doublers the source link never declared,
-    and gridfind reads both only from named marker cages, never cell colors —
-    so `_mark_witness_variants` extends each marker block to cover every
-    variant cell the witness holds. A discovered S-cell joins the `S-cell`
-    block as a single-cell cage carrying its solved pair (spec #349); a
-    discovered doubler joins the `Doubler` block's cage. The emitted solution
-    then marks every S-cell and doubler by cage alone, and its own re-decode
-    agrees with the witness it was built from."""
+    The solver discovers S-cells and modifiers (doublers or constants) the
+    source link never declared, and gridfind reads them only from named marker
+    cages, never cell colors — so `_mark_witness_variants` extends each marker
+    block to cover every variant cell the witness holds. A discovered S-cell
+    joins the `S-cell` block as a single-cell cage carrying its solved pair
+    (spec #349); a discovered modifier joins its marker block's cage. The
+    emitted solution then marks every S-cell and modifier by cage alone, and
+    its own re-decode agrees with the witness it was built from."""
     filled: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", filled["puzzle"])
     cells = cast("list[dict[str, Any]]", puzzle_data["cells"])
@@ -68,12 +68,13 @@ def _mark_witness_variants(
     puzzle_data: dict[str, object], witness: Witness, size: int
 ) -> None:
     """Extend each named marker block to cover every variant cell the witness
-    holds, so the emitted link marks S-cells and doublers by cage alone. The
+    holds, so the emitted link marks S-cells and modifiers by cage alone. The
     `S-cell` block gains a single-cell cage per witness S-cell not already
     caged, each stamped with its solved pair `"a,b"`; an existing cage whose
     cells solved to one pair is stamped too, and a cage whose cells disagree
-    (only reachable from a bare multi-cell cage) is left as-is. The `Doubler`
-    block's cage gains every witness modifier cell it lacks."""
+    (only reachable from a bare multi-cell cage) is left as-is. The modifier
+    block (`Doubler` or `Constant`) gains every witness modifier cell it
+    lacks."""
     constraints = puzzle_data.get("constraints", [])
     if not isinstance(constraints, list):
         return
@@ -87,8 +88,8 @@ def _mark_witness_variants(
         kind = cosmetic_cage_kind(block.get("name"))
         if kind == "s-cell":
             _mark_scell_block(typed_block, witness, size, index_of)
-        elif kind == "doubler":
-            _mark_doubler_block(typed_block, witness, index_of)
+        elif kind in ("doubler", "constant"):
+            _mark_modifier_block(typed_block, witness, index_of)
 
 
 def _mark_scell_block(
@@ -115,11 +116,13 @@ def _mark_scell_block(
             cages.append({"value": f"{a},{b}", "cells": [index]})
 
 
-def _mark_doubler_block(
+def _mark_modifier_block(
     block: dict[str, Any], witness: Witness, index_of: dict[str, int]
 ) -> None:
-    """Fold every witness modifier cell into the Doubler block's single cage,
-    so all doublers the solver found are marked by cage."""
+    """Fold every witness modifier cell into the marker block's single cage, so
+    all modifiers the solver found — doublers or constants — are marked by
+    cage. A link carries only one modifier type, so its witness modifiers are
+    all that type."""
     cages = cast("list[dict[str, Any]]", block.setdefault("cages", [{"cells": []}]))
     cage = cages[0]
     modifiers = {index_of[address] for address in witness.modifiers}
