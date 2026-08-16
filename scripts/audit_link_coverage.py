@@ -18,19 +18,24 @@ ADR-0016) has no registry row and no marker kind, so it correctly never appears.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, get_args
 
 # inspect_link owns the raw-payload decode and the disabled/known/active/inert
 # classification; reuse both instead of a second decode of the same link.
-from inspect_link import _decode_payload, classify_constraint
+from inspect_link import classify_constraint, decode_payload
 
 from gridfind.sudokumaker.markers import CosmeticCageKind, cosmetic_cage_kind
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
+from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 
 _LINKS_DIR = Path(__file__).resolve().parents[1] / "src" / "gridfind" / "links"
-_COSMETIC_CAGE_TYPE = 2001
+
+# The two verdict sides a corpus link declares through its filename prefix. A
+# feature covered on only one side (or neither) is a hole.
+_SIDES = ("found", "broke")
 
 
 def feature_universe() -> list[str]:
@@ -55,22 +60,32 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
         decoded = DECODER_REGISTRY.get(constraint.get("type"))
         if decoded is not None:
             features.add(decoded.name)
-        if constraint.get("type") == _COSMETIC_CAGE_TYPE:
+        if constraint.get("type") == COSMETIC_CAGE_TYPE:
             features.add(f"cage:{cosmetic_cage_kind(constraint.get('name'))}")
     return features
 
 
 def build_coverage(links_dir: Path) -> dict[str, dict[str, int]]:
     """Tally, per feature, how many `found-` and how many `broke-` links
-    exercise it. Only these two verdict sides count — `invalid-` links are
-    decode-error cases, not verdict coverage."""
-    coverage = {feature: {"found": 0, "broke": 0} for feature in feature_universe()}
+    exercise it. Only these two verdict sides count — an `invalid-` link is a
+    decode-error case, not verdict coverage. Any other prefix is an unexpected
+    corpus filename: warn to stderr (the repo's fail-loud norm) rather than let
+    it slip out of the tally unseen."""
+    coverage: dict[str, dict[str, int]] = {
+        feature: dict.fromkeys(_SIDES, 0) for feature in feature_universe()
+    }
     for link_file in sorted(links_dir.glob("*.txt")):
         side = link_file.name.split("-", 1)[0]
-        if side not in ("found", "broke"):
+        if side == "invalid":
             continue
-        for feature in link_features(_decode_payload(link_file.read_text().strip())):
-            coverage.setdefault(feature, {"found": 0, "broke": 0})[side] += 1
+        if side not in _SIDES:
+            print(
+                f"skipping unexpected corpus filename: {link_file.name}",
+                file=sys.stderr,
+            )
+            continue
+        for feature in link_features(decode_payload(link_file.read_text().strip())):
+            coverage.setdefault(feature, dict.fromkeys(_SIDES, 0))[side] += 1
     return coverage
 
 
@@ -78,7 +93,7 @@ def find_holes(coverage: dict[str, dict[str, int]]) -> list[str]:
     """One message per feature missing a `found` or a `broke` link (or both)."""
     holes: list[str] = []
     for feature, counts in coverage.items():
-        missing = [side for side in ("found", "broke") if counts[side] == 0]
+        missing = [side for side in _SIDES if counts[side] == 0]
         if missing:
             holes.append(f"{feature}: no {' and no '.join(missing)} link")
     return holes

@@ -13,11 +13,11 @@ from pathlib import Path
 
 import pytest
 from inspect_link import (
-    _decode_payload,
     _display_size,
     _fmt_bucket,
     _split_args,
     classify_constraint,
+    decode_payload,
     inspect_link,
     main,
 )
@@ -153,12 +153,12 @@ def test_main_reports_unknown_flag_without_decoding_it() -> None:
 
 
 def test_decode_payload_matches_decode_document() -> None:
-    """`_decode_payload` and `decode_document` read the same boundary — the
+    """`decode_payload` and `decode_document` read the same boundary — the
     corpus's `puzzle` block must agree byte-for-byte, whichever one decoded
     it."""
     for path in _LINK_CASES:
         link = path.read_text().split()[-1]
-        assert _decode_payload(link) == decode_document(link)["puzzle"], path.stem
+        assert decode_payload(link) == decode_document(link)["puzzle"], path.stem
 
 
 # Golden report lines for every corpus link that `decode_link` accepts,
