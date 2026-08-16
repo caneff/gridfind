@@ -214,7 +214,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
     "broke-somedoku-9x9": (
-        "9x9 · 81 cells · 2 givens · types {0,1,1000} ·"
+        "9x9 · 81 cells · 2 givens · types {1000} ·"
         " inert: 1000(Somedoku) · verdict: broke"
     ),
     "broke-thermo-4x4": (
@@ -290,7 +290,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 0 givens · types {0,2001} · inert: 2001 · verdict: found"
     ),
     "found-somedoku-9x9": (
-        "9x9 · 81 cells · 0 givens · types {0,1,1000} ·"
+        "9x9 · 81 cells · 0 givens · types {1000} ·"
         " inert: 1000(Somedoku) · verdict: found"
     ),
     "found-thermo-4x4": (

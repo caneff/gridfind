@@ -5,71 +5,62 @@ SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.encode_link`, so a reviewer can read exactly what each
 fixture exercises and regenerate the whole set with `main()`.
 
-Somedoku declares itself through a `type 1000` custom constraint named
-`Somedoku` (`definition.name`) — the carrier the setter's real link uses
-(spec #436, grilling #405): a programmed SudokuMaker constraint gridfind
-cannot execute, recognized by name alone. A standard 9x9 `type 1` regions
-block rides alongside it, exactly as a setter's own document carries one
-regardless of variant; `decode_link` skips it once the somedoku flag is
-read, since a somedoku grid has no boxes.
+The document is the setter's own Somedoku template, captured verbatim in
+`somedoku_template.json` and re-encoded with each fixture's givens. A real
+Somedoku puzzle is a standalone grid: its only constraint is the `type 1000`
+custom constraint named `Somedoku` (`definition.name`), which carries the
+full component definition SudokuMaker needs to register and render it
+(ADR-0017). It has **no** `type 1` regions block and no boxes — so the
+template carries none, and the synthesized links open on SudokuMaker.com
+exactly as the setter's do. gridfind recognizes somedoku by the constraint's
+name alone; it never reads the component's programmed logic, cells, or value.
 
-`found-somedoku-9x9` mirrors the setter's real link: zero givens, which the
+`found-somedoku-9x9` is the blank template — zero givens, which the
 row-*n*/col-*n* distinct-count rule alone leaves solvable. `broke-somedoku-9x9`
 adds two givens in column 1 — column 1's target is 1 distinct digit, but two
 different given digits already force 2, so it breaks on the column pass
-alone (#512) while every row still carries at most its own single given
+alone (ADR-0017) while every row still carries at most its own single given
 digit.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
-from gridfind.layers.regions import box_regions, to_region_numbers
 from gridfind.sudokumaker import encode_link
 from gridfind.sudokumaker.addresses import cell_index
-from gridfind.sudokumaker.wire_types import CUSTOM_CONSTRAINT_TYPE
 
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
+_HERE = Path(__file__).resolve().parent
+LINKS_DIR = _HERE.parent / "src" / "gridfind" / "links"
+_TEMPLATE_PATH = _HERE / "somedoku_template.json"
 
 _SIZE = 9
-_BOX_H = 3
-_BOX_W = 3
 
 
-def _somedoku_block() -> dict[str, object]:
-    """The `type 1000` custom-constraint carrier a setter's own Somedoku
-    puzzle uses — its cells and value are noise `decode_link` never reads,
-    so only `definition.name` is load-bearing."""
-    return {"type": CUSTOM_CONSTRAINT_TYPE, "definition": {"name": "Somedoku"}}
+def _template() -> dict[str, Any]:
+    """The setter's own blank Somedoku document — its full `type 1000`
+    definition and no regions block — loaded fresh so each caller mutates a
+    private copy. `Any` values: it is opaque parsed JSON we only re-encode."""
+    return json.loads(_TEMPLATE_PATH.read_text())
 
 
 def _link(givens: dict[tuple[int, int], int]) -> str:
-    """Assemble a 9x9 SudokuMaker document carrying the given clues and the
-    Somedoku flag, then encode it to an openable link."""
+    """Re-encode the Somedoku template with the given clues to an openable
+    link. Every non-given cell stays the template's empty `{}`."""
+    document = _template()
     cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
     for (row, col), value in givens.items():
         cells[cell_index(row, col, _SIZE)] = {"given": True, "value": value}
-    region_numbers = to_region_numbers(_SIZE, box_regions(_SIZE, _BOX_H, _BOX_W))
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {
-            "cells": cells,
-            "size": _SIZE,
-            "constraints": [
-                {"type": 0},
-                {"type": 1, "regions": region_numbers},
-                _somedoku_block(),
-            ],
-        },
-    }
+    document["puzzle"]["cells"] = cells
     return encode_link(document)
 
 
 def found_somedoku_9x9() -> str:
-    """9x9 somedoku, `found` — zero givens, mirroring the setter's real
-    link; the row-n/col-n distinct-count rule alone is satisfiable."""
+    """9x9 somedoku, `found` — the blank template, zero givens; the
+    row-n/col-n distinct-count rule alone is satisfiable."""
     return _link(givens={})
 
 
