@@ -232,6 +232,9 @@ _GOLDEN_REPORTS = {
     "found-classic-4x4": "4x4 · 16 cells · 4 givens · types {0,1} · verdict: found",
     "found-classic-6x6": "6x6 · 36 cells · 6 givens · types {0,1} · verdict: found",
     "found-classic-9x9": "9x9 · 81 cells · 3 givens · types {0,1} · verdict: found",
+    "found-cosmetic-cage-4x4": (
+        "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
+    ),
     "found-doubled-scell-17cage-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001x2 ·"
         " inert: 2001 · verdict: found"
