@@ -17,6 +17,7 @@ Grid-puzzle constraint solving and validation: given a partly-built grid puzzle,
 - Source: `src/gridfind/`; tests are interleaved as `*_test.py` next to the code
 - **Debugging a SudokuMaker link** (why it rejects, what constraints it carries) → `uv run python scripts/inspect_link.py '<link>' ...` — decodes and classifies each constraint (known/disabled/active/inert) and prints the verdict, one line per link. Reach for this instead of hand-rolling a decode probe.
 - **Building a test link** — corpus links under `src/gridfind/links/` are synthesized in code, never hand-authored on SudokuMaker.com: assemble a puzzle document and run it through `sudokumaker.encode_link` (the exact reverse of `decode_link`). See `src/gridfind/cli_test.py` for the classic-Schrödinger synthesis pattern, and `scripts/synthesize_scell_links.py` (`main` regenerates the whole S-cell corpus) for the marking-case set.
+- **Eyeball a branch's new eval links** ("show me the eval page") → `just eval-links --changed` in its worktree; open the printed localhost URL to review each new link's verdict by eye.
 
 ## Conventions (summary — full rules in CODING_STANDARDS.md)
 
