@@ -2,7 +2,7 @@
 third explicit-pair variant expressed as a `PairRelation`
 relation-emitter.
 
-A pair-ratio clue names two cells whose contents stand in a fixed integer
+A pair-ratio clue names two cells whose values stand in a fixed integer
 ratio `k`, undirected — either cell may hold the larger value. `ratio_of` is
 the relation-emitter `LAYER_REGISTRY["pair-ratio"]` builds its `PairRelation`
 with: given a clue's params, it reads the target `k` and returns the `rel`
@@ -20,6 +20,11 @@ carrying no implied distinctness (that
 is `cage`'s job). A `k == 1` clue forces `a == b`, which resolves `broke`
 under distinctness as a natural consequence of the rest of the stack, not a
 case special-cased here.
+
+Reads each cell's value through `PairRelation`'s `engine.value_expr` seam
+(ADR-0009) — a plain digit, a doubler's `2·value`, or an S-cell's combined
+`s_value` — never a raw content slot, so it carries no `s_blind` flag and
+composes with a doubler or Schrödinger board.
 """
 
 from __future__ import annotations
