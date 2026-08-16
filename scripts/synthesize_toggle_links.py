@@ -17,6 +17,12 @@ shared diagonal — so the puzzle breaks *because of* the toggle, not the givens
 alone. Each `found-*` fixture is a lightly-clued board the toggle leaves
 solvable. Anti-king has no solution on a 4x4 (the boxes force a diagonal
 repeat), so its pair lives on a 6x6, where an anti-king solution exists.
+
+The two diagonals are independent switches, but both x-sudoku fixtures carry
+both at once — a decoder that swapped or dropped one diagonal would still
+pass green. The `*-negative-diagonal-only-*`/`*-positive-diagonal-only-*`
+fixtures each set exactly one diagonal toggle, so a collision on that
+diagonal alone can only turn `broke` if the switch decoded to the right one.
 """
 
 from __future__ import annotations
@@ -145,6 +151,54 @@ def broke_x_sudoku_4x4() -> str:
     )
 
 
+def found_negative_diagonal_only_4x4() -> str:
+    """4x4, `found` — only the negative diagonal (`\\`) toggle is on, the
+    positive diagonal left off, so type 10 is exercised alone."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (1, 2): 2},
+        toggles=[NEGATIVE_DIAGONAL_TYPE],
+    )
+
+
+def broke_negative_diagonal_only_4x4() -> str:
+    """4x4, `broke` — only the negative diagonal toggle is on. R1C1 and R3C3
+    share the negative diagonal and hold the same digit; the same pair does
+    not share the positive diagonal, so a decoder that swapped or dropped the
+    diagonal would leave this `found`, not `broke`."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (3, 3): 1},
+        toggles=[NEGATIVE_DIAGONAL_TYPE],
+    )
+
+
+def found_positive_diagonal_only_4x4() -> str:
+    """4x4, `found` — only the positive diagonal (`/`) toggle is on, the
+    negative diagonal left off, so type 11 is exercised alone."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (1, 2): 2},
+        toggles=[POSITIVE_DIAGONAL_TYPE],
+    )
+
+
+def broke_positive_diagonal_only_4x4() -> str:
+    """4x4, `broke` — only the positive diagonal toggle is on. R1C4 and R3C2
+    share the positive diagonal and hold the same digit; the same pair does
+    not share the negative diagonal, so a decoder that swapped or dropped the
+    diagonal would leave this `found`, not `broke`."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 4): 1, (3, 2): 1},
+        toggles=[POSITIVE_DIAGONAL_TYPE],
+    )
+
+
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The
 # filename stem's first token is the e2e verdict (`found`/`broke`); the
 # drift-guard test re-runs each `fn` and refuses a hand-edited file.
@@ -155,6 +209,10 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-anti-king-6x6": broke_anti_king_6x6,
     "found-x-sudoku-4x4": found_x_sudoku_4x4,
     "broke-x-sudoku-4x4": broke_x_sudoku_4x4,
+    "found-negative-diagonal-only-4x4": found_negative_diagonal_only_4x4,
+    "broke-negative-diagonal-only-4x4": broke_negative_diagonal_only_4x4,
+    "found-positive-diagonal-only-4x4": found_positive_diagonal_only_4x4,
+    "broke-positive-diagonal-only-4x4": broke_positive_diagonal_only_4x4,
 }
 
 
