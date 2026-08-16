@@ -73,7 +73,7 @@ The decode is split by responsibility across this package's modules —
 `boundary` (document decompress/compress, size/domain, the shared
 enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
-`global_flags` (the payload-less `Somedoku` component, spec #431/#436),
+`global_flags` (the payload-less `Somedoku` component),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
 (`DECODER_REGISTRY`), and `decode` (`decode_link` itself, the one function
 that threads all of them together). `decode_link`/`encode_link` are the

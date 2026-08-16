@@ -5,7 +5,7 @@ The decode is split by responsibility across the package's other modules —
 `boundary` (document decompress/compress, size/domain, the shared
 enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
-`global_flags` (the payload-less `Somedoku` component, spec #431/#436),
+`global_flags` (the payload-less `Somedoku` component),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), and `registry`
 (`DECODER_REGISTRY`) — with `decode_link` here as the one function that
 threads all of them together.
@@ -80,7 +80,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     not affect the S-cell reading (ADR-0014).
 
     A `type 1000` custom constraint or a `type 2001` cosmetic cage named
-    `Somedoku` (case-insensitive, trimmed, either carrier — spec #431/#436)
+    `Somedoku` (case-insensitive, trimmed, either carrier)
     is a **global flag**: its cells and value, whichever carrier's payload
     it rides, are ignored entirely, and its bare presence stands up the
     `line-count-distinct` constraint in place of the classic

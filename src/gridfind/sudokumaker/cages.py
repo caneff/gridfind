@@ -210,7 +210,7 @@ def cosmetic_cage_constraints(
     likewise emits nothing here — it carries no cell-level reading at all,
     cells and value alike ignored — its mere presence is read separately
     (`global_flags.has_somedoku_component`) and turns on the `line-count-
-    distinct` constraint puzzle-wide (spec #431/#436). An **unnamed** block, or one
+    distinct` constraint puzzle-wide. An **unnamed** block, or one
     whose name gridfind does not recognize (a bare `Constant` with no
     parseable integer included), carries no rule at all — only a recognized
     name selects one. A non-empty one is dropped with a loud stderr warning

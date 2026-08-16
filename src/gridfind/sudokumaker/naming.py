@@ -1,8 +1,8 @@
-"""The name -> shape registry (ADR-0012, extended in #434): the one table
+"""The name -> shape registry (ADR-0012): the one table
 gridfind consults when a component's declared name selects a rule. A
 `cage-selector` name (`Sum`, `Killer`) picks the killer-cage rule; a
 `cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`) declares a cage's cells
-a position marker instead; a `global-flag` name (`Somedoku`, spec #431/#436)
+a position marker instead; a `global-flag` name (`Somedoku`)
 needs no payload at all — its cells and value, if the carrier even has them,
 are ignored, and presence of the name alone selects its rule. The two
 cell-needing shapes fail carrier-fitness on a name-bearing carrier that has
@@ -66,7 +66,7 @@ class _NamedComponent:
 # spelling and its ASCII fold are the same marker. `Nullifier` is the static
 # `k = 0` spelling of `"constant"`; `Constant <N>` at any other `k` is not a
 # static key here — see `_parsed_constant_component`. `Somedoku` is the sole
-# `global-flag` name (spec #431/#436): its own role, needing no payload.
+# `global-flag` name: its own role, needing no payload.
 _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "sum": _NamedComponent(role="killer", shape="cage-selector"),
     "killer": _NamedComponent(role="killer", shape="cage-selector"),

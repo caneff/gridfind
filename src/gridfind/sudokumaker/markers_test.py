@@ -140,7 +140,7 @@ def _s_cell_cage_link(
 )
 def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> None:
     # The public seven-way classifier is the one home every named-cosmetic-cage
-    # read routes through (ADR-0012, extended by ADR-0016 and spec #431/#436):
+    # read routes through (ADR-0012, extended by ADR-0016):
     # unnamed, killer cage, Doubler marker, S-cell marker, Constant/Nullifier
     # marker, Somedoku global flag, or an unrecognized name — the decoder
     # warn-drops both unnamed and unrecognized, so a bare `Constant` with no

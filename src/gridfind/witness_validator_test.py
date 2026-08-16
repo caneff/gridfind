@@ -47,8 +47,8 @@ LATIN_SQUARE_PUZZLE = Puzzle(
     constraints=(Constraint(type="rows-distinct"), Constraint(type="cols-distinct")),
 )
 
-# Neither rows-distinct nor cols-distinct at all — a somedoku puzzle
-# (spec #431/#436), which runs on `line-count-distinct` alone; its witness's
+# Neither rows-distinct nor cols-distinct at all — a somedoku puzzle,
+# which runs on `line-count-distinct` alone; its witness's
 # rows/columns are deliberately not full permutations of the domain.
 SOMEDOKU_PUZZLE = Puzzle(
     board=Board(size=4),
