@@ -206,7 +206,11 @@ def cosmetic_cage_constraints(
     `k`s is refused with `MalformedPuzzleError`. An `S-cell`/`Schrödinger`-
     marked block emits nothing here: its cells become S-cell working-state
     directives in the per-cell decode pass (`scell_marker_values` gathers
-    them, cage `value` and all), not a cage rule. An **unnamed** block, or one
+    them, cage `value` and all), not a cage rule. A `Somedoku`-marked block
+    likewise emits nothing here — it carries no cell-level reading at all,
+    cells and value alike ignored — its mere presence is read separately
+    (`global_flags.has_somedoku_component`) and turns on the `line-count-
+    distinct` constraint puzzle-wide (spec #431/#436). An **unnamed** block, or one
     whose name gridfind does not recognize (a bare `Constant` with no
     parseable integer included), carries no rule at all — only a recognized
     name selects one. A non-empty one is dropped with a loud stderr warning
@@ -222,7 +226,7 @@ def cosmetic_cage_constraints(
             if cages:
                 _warn_dropped_cosmetic_cage(block, kind)
             continue
-        if kind == "s-cell":
+        if kind in ("s-cell", "somedoku"):
             continue
         if kind in ("doubler", "constant"):
             _refuse_marker_cage_value_field(cages, kind)

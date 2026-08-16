@@ -2,15 +2,15 @@
 gridfind consults when a component's declared name selects a rule. A
 `cage-selector` name (`Sum`, `Killer`) picks the killer-cage rule; a
 `cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`) declares a cage's cells
-a position marker instead. Both shapes need a cage's cells, so a name-bearing
-carrier that has none — a `type 1000` custom constraint's `definition.name`,
-unlike a `type 2001` cosmetic cage's top-level `name` — fails carrier-fitness
-for either shape (`shape_needs_cells`); `sudokumaker.registry` reads that to
-warn-drop a cage-shaped name stranded on the wrong carrier.
-
-Deliberately two shapes wide: a `global-flag` shape (a name needing no
-payload) arrives with spec #405's `Somedoku`, a new `_Shape` member and
-`_SHAPE_NEEDS_CELLS` row, no restructuring here.
+a position marker instead; a `global-flag` name (`Somedoku`, spec #431/#436)
+needs no payload at all — its cells and value, if the carrier even has them,
+are ignored, and presence of the name alone selects its rule. The two
+cell-needing shapes fail carrier-fitness on a name-bearing carrier that has
+none — a `type 1000` custom constraint's `definition.name`, unlike a `type
+2001` cosmetic cage's top-level `name` — (`shape_needs_cells`);
+`sudokumaker.registry` reads that to warn-drop a cage-shaped name stranded on
+the wrong carrier. A `global-flag` name needs nothing, so it is admitted on
+both carriers alike.
 
 `_NAME_REGISTRY` is a static key set except for one **parameterized** name
 (ADR-0016): `Constant <N>` carries its own integer, so it cannot live as a
@@ -26,13 +26,15 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-_Shape = Literal["cage-selector", "cell-marker"]
+_Shape = Literal["cage-selector", "cell-marker", "global-flag"]
 
-# Every shape built so far needs a cage's cells; a shape needing nothing
-# (`global-flag`) is a `False` row added here when spec #405 lands.
+# `cage-selector`/`cell-marker` need a cage's cells; `global-flag` needs
+# nothing — its name alone is the whole signal, so carrier-fitness admits it
+# on a carrier with no cells too (`shape_needs_cells`).
 _SHAPE_NEEDS_CELLS: dict[_Shape, bool] = {
     "cage-selector": True,
     "cell-marker": True,
+    "global-flag": False,
 }
 
 
@@ -45,13 +47,14 @@ def shape_needs_cells(shape: _Shape) -> bool:
 @dataclass(frozen=True)
 class _NamedComponent:
     """A name the registry recognizes: `role` is the specific behavior it
-    selects (`cosmetic_cage_kind`'s `"doubler"`/`"s-cell"`/`"constant"`, or
-    `"killer"` for either cage-selector label), `shape` is the payload need
-    carrier-fitness checks, and `value` is the integer a `"constant"` role
-    carries (`k`, read from the name itself — `Constant <N>`/`Nullifier`) —
-    `None` for every other role, which needs no payload of its own."""
+    selects (`cosmetic_cage_kind`'s `"doubler"`/`"s-cell"`/`"constant"`/
+    `"somedoku"`, or `"killer"` for either cage-selector label), `shape` is
+    the payload need carrier-fitness checks, and `value` is the integer a
+    `"constant"` role carries (`k`, read from the name itself — `Constant
+    <N>`/`Nullifier`) — `None` for every other role, which needs no payload
+    of its own."""
 
-    role: Literal["killer", "doubler", "s-cell", "constant"]
+    role: Literal["killer", "doubler", "s-cell", "constant", "somedoku"]
     shape: _Shape
     value: int | None = None
 
@@ -62,7 +65,8 @@ class _NamedComponent:
 # recognized. `S-cell`/`Schrödinger`/`Schrodinger` share `"s-cell"`: the umlaut
 # spelling and its ASCII fold are the same marker. `Nullifier` is the static
 # `k = 0` spelling of `"constant"`; `Constant <N>` at any other `k` is not a
-# static key here — see `_parsed_constant_component`.
+# static key here — see `_parsed_constant_component`. `Somedoku` is the sole
+# `global-flag` name (spec #431/#436): its own role, needing no payload.
 _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "sum": _NamedComponent(role="killer", shape="cage-selector"),
     "killer": _NamedComponent(role="killer", shape="cage-selector"),
@@ -71,6 +75,7 @@ _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "schrödinger": _NamedComponent(role="s-cell", shape="cell-marker"),
     "schrodinger": _NamedComponent(role="s-cell", shape="cell-marker"),
     "nullifier": _NamedComponent(role="constant", shape="cell-marker", value=0),
+    "somedoku": _NamedComponent(role="somedoku", shape="global-flag"),
 }
 
 # `Constant <N>`, case/whitespace-normalized: a leading `constant` token, one

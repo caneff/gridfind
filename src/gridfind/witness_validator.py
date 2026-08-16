@@ -6,11 +6,16 @@ out of the shipped wheel via `source-exclude` in pyproject.toml.
 
 `validate_witness` reverses `Witness.render()` enough to recover the grid of
 cells, then checks it directly: right size, every cell's digit(s) in the
-board's domain, every row/column/region a permutation of it, and every given
-sitting in its cell. It reads a `Puzzle` (typically `sudokumaker.decode_link`'s
-output) but never calls `verdict()` and never touches `Witness` or its
-`render()` — so a defect in the solver or the renderer can't hide behind a
-witness that merely *looks* right to the same code that produced it.
+board's domain, every row/column/region a permutation of it — each checked
+only when the puzzle's own constraints actually carry that rule
+(`rows-distinct`/`cols-distinct`/`regions-distinct`), the same conditional
+reading `_regions` already gives regions, since a puzzle can hold one without
+the other (a somedoku puzzle carries neither, running on `line-count-distinct`
+instead) — and every given sitting in its cell. It reads a `Puzzle`
+(typically `sudokumaker.decode_link`'s output) but never calls `verdict()`
+and never touches `Witness` or its `render()` — so a defect in the solver or
+the renderer can't hide behind a witness that merely *looks* right to the
+same code that produced it.
 
 The parse below reads against `grid_text.py`'s line/token shape, not against
 `witness.py` itself — that contract is the one place both sides
@@ -59,9 +64,15 @@ def validate_witness(rendered: str, puzzle: Puzzle) -> bool:
     if any(digit not in domain for row in grid for cell in row for digit in cell):
         return False
 
-    columns = [[grid[row][col] for row in range(size)] for col in range(size)]
+    constraint_types = {c.type for c in puzzle.constraints}
+    rows = grid if "rows-distinct" in constraint_types else []
+    columns = (
+        [[grid[row][col] for row in range(size)] for col in range(size)]
+        if "cols-distinct" in constraint_types
+        else []
+    )
     regions = _regions(puzzle, size, grid)
-    if any(not _is_permutation(group, domain) for group in (*grid, *columns, *regions)):
+    if any(not _is_permutation(group, domain) for group in (*rows, *columns, *regions)):
         return False
 
     for given in puzzle.givens:

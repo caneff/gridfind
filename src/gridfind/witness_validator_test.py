@@ -47,6 +47,14 @@ LATIN_SQUARE_PUZZLE = Puzzle(
     constraints=(Constraint(type="rows-distinct"), Constraint(type="cols-distinct")),
 )
 
+# Neither rows-distinct nor cols-distinct at all — a somedoku puzzle
+# (spec #431/#436), which runs on `line-count-distinct` alone; its witness's
+# rows/columns are deliberately not full permutations of the domain.
+SOMEDOKU_PUZZLE = Puzzle(
+    board=Board(size=4),
+    constraints=(Constraint(type="line-count-distinct"),),
+)
+
 
 def _build(doc: dict[str, object]) -> tuple[Puzzle, WorkingState]:
     puzzle = Puzzle.from_json(json.dumps(doc["puzzle"]))
@@ -126,6 +134,18 @@ def test_validate_witness_round_trips_a_board_with_no_regions_constraint() -> No
     assert result.witness is not None
 
     assert validate_witness(result.witness.render(), LATIN_SQUARE_PUZZLE) is True
+
+
+def test_validate_witness_round_trips_a_board_with_no_rows_or_cols_constraint() -> None:
+    # With neither rows-distinct nor cols-distinct declared, the validator
+    # must skip both permutation checks rather than wrongly reject a
+    # somedoku witness whose rows/columns aren't full permutations of the
+    # domain by design.
+    result = verdict(SOMEDOKU_PUZZLE)
+    assert result.kind == "found"
+    assert result.witness is not None
+
+    assert validate_witness(result.witness.render(), SOMEDOKU_PUZZLE) is True
 
 
 def test_validate_witness_rejects_a_grid_missing_a_border_line() -> None:

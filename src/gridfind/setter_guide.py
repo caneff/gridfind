@@ -78,6 +78,17 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
         ),
         "found-scell-pin-4x4",
     ),
+    (
+        "somedoku",
+        MARKER_LABELS["somedoku"],
+        (
+            "Global flag turning on the row-n/column-n distinct-count rule in "
+            "place of classic uniqueness; the cage's cells and value are "
+            "ignored, and the same name is also accepted on a type 1000 "
+            "custom constraint"
+        ),
+        "found-somedoku-4x4",
+    ),
 )
 
 

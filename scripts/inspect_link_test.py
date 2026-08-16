@@ -282,6 +282,9 @@ _GOLDEN_REPORTS = {
     "found-schrodinger-6x6": (
         "6x6 · 36 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
+    "found-somedoku-4x4": (
+        "4x4 · 16 cells · 0 givens · types {0,2001} · inert: 2001 · verdict: found"
+    ),
     "found-thermo-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,300} · active: 300x2 · verdict: found"
     ),
