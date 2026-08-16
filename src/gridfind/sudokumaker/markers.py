@@ -23,14 +23,7 @@ from gridfind.sudokumaker.boundary import (
 )
 from gridfind.sudokumaker.cells import _addresses
 from gridfind.sudokumaker.naming import aliases_by_role, named_component
-
-# type 2001 is a cosmetic-cage block: `{cages: [{value: str, cells: [...]}]}`,
-# the same nested wire shape as a `type 301` killer block — SudokuMaker's
-# decoration tool, not the killer-cage tool (ADR-0008). A numeric string
-# `value` graduates a cage to a real killer sum, the only channel an
-# out-of-range cage sum (a doubler inside a cage) reaches gridfind through,
-# since the killer-cage tool refuses to store one.
-_COSMETIC_CAGE_TYPE = 2001
+from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 
 # A low-saturation display palette for named marker cages, cosmetic only —
 # written onto the `type 2001` block's own `color` field, a field
@@ -94,7 +87,7 @@ def scell_marker_values(buckets: ConstraintBuckets, size: int) -> dict[str, obje
     rule would not."""
     return {
         address: cage.get("value")
-        for block in enabled_blocks(buckets, _COSMETIC_CAGE_TYPE)
+        for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE)
         if _is_scell_block(block)
         for cage in cast("list[dict[str, Any]]", block.get("cages", []))
         for address in _addresses(cage["cells"], size)
@@ -109,7 +102,7 @@ def has_scell_marker_block(buckets: ConstraintBuckets) -> bool:
     every cell the `is_s` freedom the solver discovers S-cells with. An empty
     block means "discover them all"; a block that names cells additionally
     pins those as known S-cells (`scell_marker_values`)."""
-    blocks = enabled_blocks(buckets, _COSMETIC_CAGE_TYPE)
+    blocks = enabled_blocks(buckets, COSMETIC_CAGE_TYPE)
     return any(_is_scell_block(block) for block in blocks)
 
 
@@ -137,7 +130,7 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     colored: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", colored["puzzle"])
     buckets = bucket_constraints_by_type(puzzle_data)
-    blocks = list(enabled_blocks(buckets, _COSMETIC_CAGE_TYPE))
+    blocks = list(enabled_blocks(buckets, COSMETIC_CAGE_TYPE))
     present_kinds = {cosmetic_cage_kind(block.get("name")) for block in blocks}
     color_of_kind = dict(
         zip(

@@ -17,33 +17,26 @@ from typing import Any
 
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
-from gridfind.sudokumaker.cages import (
-    _CAGE_TYPE,
-    _THERMO_TYPE,
-    cage_constraints,
-    thermo_constraints,
-)
+from gridfind.sudokumaker.cages import cage_constraints, thermo_constraints
 from gridfind.sudokumaker.edge_clues import (
-    _KROPKI_BLACK_TYPE,
-    _KROPKI_WHITE_TYPE,
-    _XV_TYPE,
     black_kropki_constraints,
     kropki_constraints,
     xv_constraints,
 )
-from gridfind.sudokumaker.markers import _COSMETIC_CAGE_TYPE
 from gridfind.sudokumaker.naming import named_component, shape_needs_cells
 from gridfind.sudokumaker.regions import regions_constraints
-
-# SudokuMaker's global toggles — bare `{type: N}` blocks, one per rule, read
-# off real links (the two diagonals also carry a cosmetic `style` gridfind
-# ignores). The two diagonals are independent switches: negative is the `\`
-# main diagonal, positive the `/` anti-diagonal, so gridfind decodes each to
-# its own single-diagonal constraint, never a combined one.
-_NEGATIVE_DIAGONAL_TYPE = 10
-_POSITIVE_DIAGONAL_TYPE = 11
-_ANTI_KING_TYPE = 12
-_ANTI_KNIGHT_TYPE = 13
+from gridfind.sudokumaker.wire_types import (
+    ANTI_KING_TYPE,
+    ANTI_KNIGHT_TYPE,
+    CAGE_TYPE,
+    COSMETIC_CAGE_TYPE,
+    KROPKI_BLACK_TYPE,
+    KROPKI_WHITE_TYPE,
+    NEGATIVE_DIAGONAL_TYPE,
+    POSITIVE_DIAGONAL_TYPE,
+    THERMO_TYPE,
+    XV_TYPE,
+)
 
 
 def _global_toggle_handler(
@@ -110,7 +103,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
     1: DecodedType(
         handler=regions_constraints, live_keys=(), name="regions", setter_doc=None
     ),
-    _KROPKI_WHITE_TYPE: DecodedType(
+    KROPKI_WHITE_TYPE: DecodedType(
         handler=kropki_constraints,
         live_keys=("clues", "negative"),
         name="white-kropki",
@@ -124,7 +117,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " raises ValueError. disabled blocks are skipped.",
         ),
     ),
-    _KROPKI_BLACK_TYPE: DecodedType(
+    KROPKI_BLACK_TYPE: DecodedType(
         handler=black_kropki_constraints,
         live_keys=("clues", "negative"),
         name="black-kropki",
@@ -139,7 +132,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " edge. disabled blocks are skipped.",
         ),
     ),
-    _XV_TYPE: DecodedType(
+    XV_TYPE: DecodedType(
         handler=xv_constraints,
         live_keys=("clues", "negative"),
         name="XV",
@@ -154,7 +147,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " blocks are skipped.",
         ),
     ),
-    _CAGE_TYPE: DecodedType(
+    CAGE_TYPE: DecodedType(
         handler=cage_constraints,
         live_keys=("cages",),
         name="killer-cage",
@@ -169,7 +162,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " an empty cages list adds nothing.",
         ),
     ),
-    _COSMETIC_CAGE_TYPE: DecodedType(
+    COSMETIC_CAGE_TYPE: DecodedType(
         handler=None,
         live_keys=("cages",),
         name="cosmetic-cage",
@@ -189,7 +182,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " disabled blocks are skipped.",
         ),
     ),
-    _THERMO_TYPE: DecodedType(
+    THERMO_TYPE: DecodedType(
         handler=thermo_constraints,
         live_keys=("thermometers",),
         name="thermo",
@@ -203,8 +196,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " thermometers list adds nothing.",
         ),
     ),
-    _NEGATIVE_DIAGONAL_TYPE: DecodedType(
-        handler=_global_toggle_handler(_NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
+    NEGATIVE_DIAGONAL_TYPE: DecodedType(
+        handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
         live_keys=(),
         name="negative-diagonal",
         setter_doc=SetterDoc(
@@ -216,8 +209,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " cosmetic style is ignored.",
         ),
     ),
-    _POSITIVE_DIAGONAL_TYPE: DecodedType(
-        handler=_global_toggle_handler(_POSITIVE_DIAGONAL_TYPE, "positive-diagonal"),
+    POSITIVE_DIAGONAL_TYPE: DecodedType(
+        handler=_global_toggle_handler(POSITIVE_DIAGONAL_TYPE, "positive-diagonal"),
         live_keys=(),
         name="positive-diagonal",
         setter_doc=SetterDoc(
@@ -229,8 +222,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             " cosmetic style is ignored.",
         ),
     ),
-    _ANTI_KING_TYPE: DecodedType(
-        handler=_global_toggle_handler(_ANTI_KING_TYPE, "anti-king"),
+    ANTI_KING_TYPE: DecodedType(
+        handler=_global_toggle_handler(ANTI_KING_TYPE, "anti-king"),
         live_keys=(),
         name="anti-king",
         setter_doc=SetterDoc(
@@ -241,8 +234,8 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             verdict="Accept an enabled block. A disabled block is skipped.",
         ),
     ),
-    _ANTI_KNIGHT_TYPE: DecodedType(
-        handler=_global_toggle_handler(_ANTI_KNIGHT_TYPE, "anti-knight"),
+    ANTI_KNIGHT_TYPE: DecodedType(
+        handler=_global_toggle_handler(ANTI_KNIGHT_TYPE, "anti-knight"),
         live_keys=(),
         name="anti-knight",
         setter_doc=SetterDoc(
@@ -269,10 +262,10 @@ _LIVE_LIST_KEYS: tuple[str, ...] = tuple(
 # registry without listing it here, so the two never drift.
 _TOGGLE_WIRE_TYPES = frozenset(
     {
-        _NEGATIVE_DIAGONAL_TYPE,
-        _POSITIVE_DIAGONAL_TYPE,
-        _ANTI_KING_TYPE,
-        _ANTI_KNIGHT_TYPE,
+        NEGATIVE_DIAGONAL_TYPE,
+        POSITIVE_DIAGONAL_TYPE,
+        ANTI_KING_TYPE,
+        ANTI_KNIGHT_TYPE,
     }
 )
 
