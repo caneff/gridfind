@@ -29,6 +29,7 @@ from gridfind.layers.distinct import (
     rows,
 )
 from gridfind.layers.doubler import Doubler
+from gridfind.layers.equality_cage import EqualityCage
 from gridfind.layers.group_sum import GroupSum
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.offset_adjacency import (
@@ -69,6 +70,7 @@ LAYER_REGISTRY = {
     "constant": ConstantModifier(),
     "group-sum": GroupSum(),
     "rellik-cage": RellikCage(),
+    "equality-cage": EqualityCage(),
     "thermo": Thermo(),
 }
 

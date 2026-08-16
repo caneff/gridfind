@@ -857,6 +857,92 @@ def test_rellik_cage_over_an_s_cell_reads_the_value_seam() -> None:
     assert result.witness is not None
 
 
+def _equality_cage(cells: tuple[str, ...]) -> tuple[Constraint, Constraint]:
+    """An equality cage's composition: a no-repeats `cage` plus the
+    even/low/high balance as an `equality-cage`, both over the same cells."""
+    return (
+        Constraint(type="cage", params={"cells": list(cells)}),
+        Constraint(type="equality-cage", params={"cells": list(cells)}),
+    )
+
+
+def test_equality_cage_satisfiable_resolves_found() -> None:
+    cells = ("R1C1", "R1C2", "R1C3", "R1C4")
+    puzzle = Puzzle(board=BOARD, constraints=_equality_cage(cells))
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    digits = [result.witness[address][0] for address in cells]
+    assert len(set(digits)) == len(digits)
+    assert sum(1 for d in digits if d % 2 == 0) == 2
+    assert sum(1 for d in digits if d < 5) == 2
+    assert sum(1 for d in digits if d > 5) == 2
+
+
+def test_equality_cage_unbalanced_givens_resolve_broke() -> None:
+    # Three odd givens: the fourth, free cell can supply at most one more
+    # even digit, so the even count can never reach the required 2 —
+    # infeasible independent of the composed cage's no-repeats half.
+    cells = ("R1C1", "R1C2", "R1C3", "R1C4")
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_equality_cage(cells),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=9),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_equality_cage_no_repeats_half_still_breaks_a_forced_repeat() -> None:
+    # 3, 3, 8, 6 balances even (8, 6) / odd (3, 3) and low (3, 3) / high (8,
+    # 6) evenly, but repeats the digit 3 — the cage's no-repeats half breaks
+    # it even though the equality half alone would be satisfied, proving the
+    # two composed rules both bind.
+    cells = ("R1C1", "R1C2", "R1C3", "R1C4")
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=_equality_cage(cells),
+        givens=(
+            Given(address="R1C1", digit=3),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=8),
+            Given(address="R1C4", digit=6),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_equality_cage_over_an_s_cell_reads_the_value_seam() -> None:
+    # An equality cage on a Schrödinger board completes: the balance reads
+    # each cell's value through `value_expr`, so an S-cell folds in as its
+    # `s_value` rather than raising "not Schrödinger-ready".
+    puzzle = Puzzle(
+        board=Board(size=4, values=range(1, 6)),
+        constraints=(
+            Constraint(type="schrodinger"),
+            *_equality_cage(("R1C1", "R1C2", "R1C3", "R1C4")),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+
+
 def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
     # A contradiction unrelated to region sizing (two conflicting givens on
     # one cell) must not get blamed on a region that is well within the
