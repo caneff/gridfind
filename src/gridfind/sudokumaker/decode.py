@@ -87,9 +87,9 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     `rows-distinct`/`cols-distinct`/`regions-distinct` triplet — a somedoku
     grid runs on its own row-*n*/col-*n* distinct-count rule alone, no boxes
     and no classic uniqueness, which a row or column short of size `N`
-    could never satisfy alongside `line-count-distinct` at once. A disabled
-    `Somedoku` block, on either carrier, contributes nothing and the classic
-    triplet decodes as usual."""
+    could never satisfy alongside `line-count-distinct` at once (ADR-0017). A
+    disabled `Somedoku` block, on either carrier, contributes nothing and the
+    classic triplet decodes as usual."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = board_size(puzzle_data)
     warn_on_dropped_constraints(puzzle_data)
