@@ -59,6 +59,16 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
         "found-doubler-4x4",
     ),
     (
+        "constant",
+        MARKER_LABELS["constant"],
+        (
+            "Constant modifier position marker; k is read from the cage name "
+            "itself (Constant 5, Constant -3, …) rather than a per-cage value — "
+            "Nullifier is the k = 0 spelling"
+        ),
+        "found-constant-4x4",
+    ),
+    (
         "s-cell",
         MARKER_LABELS["s-cell"],
         (

@@ -11,10 +11,18 @@ warn-drop a cage-shaped name stranded on the wrong carrier.
 Deliberately two shapes wide: a `global-flag` shape (a name needing no
 payload) arrives with spec #405's `Somedoku`, a new `_Shape` member and
 `_SHAPE_NEEDS_CELLS` row, no restructuring here.
+
+`_NAME_REGISTRY` is a static key set except for one **parameterized** name
+(ADR-0016): `Constant <N>` carries its own integer, so it cannot live as a
+fixed dict key like every other name. `named_component` falls to
+`_parsed_constant_component` when a normalized name misses the static table,
+parsing the trailing integer off a leading `constant` token; `Nullifier`, the
+`k = 0` spelling, stays a static entry since it needs no payload of its own.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -37,19 +45,24 @@ def shape_needs_cells(shape: _Shape) -> bool:
 @dataclass(frozen=True)
 class _NamedComponent:
     """A name the registry recognizes: `role` is the specific behavior it
-    selects (`cosmetic_cage_kind`'s `"doubler"`/`"s-cell"`, or `"killer"` for
-    either cage-selector label), `shape` is the payload need carrier-fitness
-    checks."""
+    selects (`cosmetic_cage_kind`'s `"doubler"`/`"s-cell"`/`"constant"`, or
+    `"killer"` for either cage-selector label), `shape` is the payload need
+    carrier-fitness checks, and `value` is the integer a `"constant"` role
+    carries (`k`, read from the name itself — `Constant <N>`/`Nullifier`) —
+    `None` for every other role, which needs no payload of its own."""
 
-    role: Literal["killer", "doubler", "s-cell"]
+    role: Literal["killer", "doubler", "s-cell", "constant"]
     shape: _Shape
+    value: int | None = None
 
 
 # The normalized-name -> component table (case-insensitive, trimmed — see
 # `_normalize_component_name`). `Sum`/`Killer` share the `"killer"` role: both
 # select the plain killer-cage rule, the name itself discarded once
 # recognized. `S-cell`/`Schrödinger`/`Schrodinger` share `"s-cell"`: the umlaut
-# spelling and its ASCII fold are the same marker.
+# spelling and its ASCII fold are the same marker. `Nullifier` is the static
+# `k = 0` spelling of `"constant"`; `Constant <N>` at any other `k` is not a
+# static key here — see `_parsed_constant_component`.
 _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "sum": _NamedComponent(role="killer", shape="cage-selector"),
     "killer": _NamedComponent(role="killer", shape="cage-selector"),
@@ -57,7 +70,27 @@ _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "s-cell": _NamedComponent(role="s-cell", shape="cell-marker"),
     "schrödinger": _NamedComponent(role="s-cell", shape="cell-marker"),
     "schrodinger": _NamedComponent(role="s-cell", shape="cell-marker"),
+    "nullifier": _NamedComponent(role="constant", shape="cell-marker", value=0),
 }
+
+# `Constant <N>`, case/whitespace-normalized: a leading `constant` token, one
+# or more spaces, then the integer `k` — the one shape a parameterized name
+# takes (ADR-0016). Anything else (a bare `constant`, non-numeric or
+# trailing text after the integer) does not match and stays unrecognized,
+# never coerced to `k = 0`.
+_CONSTANT_NAME_PATTERN = re.compile(r"^constant\s+(-?\d+)$")
+
+
+def _parsed_constant_component(normalized: str) -> _NamedComponent | None:
+    """`normalized` read as `Constant <N>`, or `None` when it doesn't match —
+    `named_component`'s fallback once the static `_NAME_REGISTRY` lookup
+    misses."""
+    match = _CONSTANT_NAME_PATTERN.match(normalized)
+    if match is None:
+        return None
+    return _NamedComponent(
+        role="constant", shape="cell-marker", value=int(match.group(1))
+    )
 
 
 def _normalize_component_name(name: object) -> str | None:
@@ -72,11 +105,17 @@ def named_component(name: object) -> _NamedComponent | None:
     """The registry entry `name` declares, or `None` when absent/blank or
     unrecognized — the shared lookup both carriers' name-extraction steps
     feed (a `type 2001` cosmetic cage's top-level `name`, a `type 1000`
-    custom constraint's `definition.name` via `registry.constraint_name`)."""
+    custom constraint's `definition.name` via `registry.constraint_name`).
+    A static `_NAME_REGISTRY` hit wins; a miss falls to
+    `_parsed_constant_component` for the one parameterized name,
+    `Constant <N>`."""
     normalized = _normalize_component_name(name)
     if normalized is None:
         return None
-    return _NAME_REGISTRY.get(normalized)
+    component = _NAME_REGISTRY.get(normalized)
+    if component is not None:
+        return component
+    return _parsed_constant_component(normalized)
 
 
 def aliases_by_role() -> dict[str, frozenset[str]]:
