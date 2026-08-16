@@ -16,7 +16,7 @@ layer file, because more than one layer needs them.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from ortools.sat.python import cp_model
 
@@ -41,25 +41,39 @@ def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
 
 
 def emit_distinct_count(
-    engine: Engine, cells: list[cp_model.IntVar], *, target: int, label: str
+    engine: Engine, slots: list[cp_model.IntVar], *, target: int, label: str
 ) -> None:
-    """Rule: exactly `target` distinct values appear across `cells`, repeats
+    """Rule: exactly `target` distinct values appear across `slots`, repeats
     allowed — a counting rule, unlike an AllDifferent. For each
-    candidate digit, a reified "present" bool tracks whether any cell holds
-    it; the digit count is the sum of those bools.
+    candidate digit, a reified "present" bool tracks whether any slot holds
+    it; the digit count is the sum of those bools. An S-cell contributes two
+    slots, so both its digits count.
 
-    That is **one** rule, emitted at a cost of O(cells x digits) solver
+    That is **one** rule, emitted at a cost of O(slots x digits) solver
     constraints — over 160 for a 9-cell row, the price of the counting rule
     rather than a sign of many rules.
     """
     board = engine.board
     present_per_digit = []
     for digit in board.values:
-        holds_digit = engine.reify_holds(cells, digit, label)
+        holds_digit = engine.reify_holds(slots, digit, label)
         present = engine.model.new_bool_var(f"{label}.present{digit}")
         engine.model.add_max_equality(present, holds_digit)
         present_per_digit.append(present)
     engine.model.add(sum(present_per_digit) == target)
+
+
+def flatten_slots(
+    cells: Iterable[Iterable[cp_model.IntVar]],
+) -> list[cp_model.IntVar]:
+    """A house's per-cell content lists as one flat slot list — `d0` always,
+    `d1` too where a cell is an S-cell. A non-S-cell's `d1` sits on its own
+    sentinel, always above every real digit, so digit-presence reification
+    over the flat list drops it on its own with no is_S gate. The single home
+    for this walk: `emit_house` and `line-count-distinct` both read a house's
+    slots this way.
+    """
+    return [slot for content in cells for slot in content]
 
 
 def emit_house(
@@ -77,7 +91,7 @@ def emit_house(
     forces exactly `len(values) - len(cells)` cells to their second slot —
     the S-cell count per house EMERGES, nothing here states it.
     """
-    slots = [slot for content in cells for slot in content]
+    slots = flatten_slots(cells)
     for digit in engine.board.values:
         holds_digit = engine.reify_holds(slots, digit, label)
         engine.model.add(sum(holds_digit) == 1)
