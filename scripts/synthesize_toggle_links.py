@@ -24,14 +24,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-# The toggle wire types are imported from the decoder — their one home — so the
-# corpus builds off the same numbers the decoder reads by, never a second copy.
+# The toggle wire types are imported from wire_types.py — their one shared
+# home — so the corpus builds off the same numbers the decoder reads by,
+# never a second copy.
 from gridfind.sudokumaker import encode_link
-from gridfind.sudokumaker.registry import (
-    _ANTI_KING_TYPE,
-    _ANTI_KNIGHT_TYPE,
-    _NEGATIVE_DIAGONAL_TYPE,
-    _POSITIVE_DIAGONAL_TYPE,
+from gridfind.sudokumaker.wire_types import (
+    ANTI_KING_TYPE,
+    ANTI_KNIGHT_TYPE,
+    NEGATIVE_DIAGONAL_TYPE,
+    POSITIVE_DIAGONAL_TYPE,
 )
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
@@ -61,7 +62,7 @@ def _index(size: int, row: int, col: int) -> int:
 def _toggle_block(wire_type: int) -> dict[str, object]:
     """One SudokuMaker toggle constraint block. The diagonals carry the app's
     cosmetic style; the anti-knight/anti-king toggles are bare."""
-    if wire_type in (_NEGATIVE_DIAGONAL_TYPE, _POSITIVE_DIAGONAL_TYPE):
+    if wire_type in (NEGATIVE_DIAGONAL_TYPE, POSITIVE_DIAGONAL_TYPE):
         return {"type": wire_type, "style": dict(_DIAGONAL_STYLE)}
     return {"type": wire_type}
 
@@ -95,7 +96,7 @@ def found_anti_knight_4x4() -> str:
     """4x4 anti-knight, `found` — two clues the anti-knight rule leaves
     solvable."""
     return _link(
-        box_h=2, box_w=2, givens={(1, 1): 1, (1, 2): 2}, toggles=[_ANTI_KNIGHT_TYPE]
+        box_h=2, box_w=2, givens={(1, 1): 1, (1, 2): 2}, toggles=[ANTI_KNIGHT_TYPE]
     )
 
 
@@ -103,14 +104,14 @@ def broke_anti_knight_4x4() -> str:
     """4x4 anti-knight, `broke` — R1C1 and R3C2 are a knight's hop apart and
     hold the same digit: legal under classic, forbidden under anti-knight."""
     return _link(
-        box_h=2, box_w=2, givens={(1, 1): 1, (3, 2): 1}, toggles=[_ANTI_KNIGHT_TYPE]
+        box_h=2, box_w=2, givens={(1, 1): 1, (3, 2): 1}, toggles=[ANTI_KNIGHT_TYPE]
     )
 
 
 def found_anti_king_6x6() -> str:
     """6x6 anti-king, `found` — a 4x4 has no anti-king solution (its boxes
     force a diagonal repeat), so the anti-king pair lives on a 6x6."""
-    return _link(box_h=2, box_w=3, givens={(1, 1): 1}, toggles=[_ANTI_KING_TYPE])
+    return _link(box_h=2, box_w=3, givens={(1, 1): 1}, toggles=[ANTI_KING_TYPE])
 
 
 def broke_anti_king_6x6() -> str:
@@ -118,7 +119,7 @@ def broke_anti_king_6x6() -> str:
     different boxes and hold the same digit: legal under classic, forbidden
     under anti-king."""
     return _link(
-        box_h=2, box_w=3, givens={(2, 3): 1, (3, 4): 1}, toggles=[_ANTI_KING_TYPE]
+        box_h=2, box_w=3, givens={(2, 3): 1, (3, 4): 1}, toggles=[ANTI_KING_TYPE]
     )
 
 
@@ -129,7 +130,7 @@ def found_x_sudoku_4x4() -> str:
         box_h=2,
         box_w=2,
         givens={(1, 1): 1, (1, 2): 2},
-        toggles=[_NEGATIVE_DIAGONAL_TYPE, _POSITIVE_DIAGONAL_TYPE],
+        toggles=[NEGATIVE_DIAGONAL_TYPE, POSITIVE_DIAGONAL_TYPE],
     )
 
 
@@ -140,7 +141,7 @@ def broke_x_sudoku_4x4() -> str:
         box_h=2,
         box_w=2,
         givens={(1, 1): 1, (3, 3): 1},
-        toggles=[_NEGATIVE_DIAGONAL_TYPE, _POSITIVE_DIAGONAL_TYPE],
+        toggles=[NEGATIVE_DIAGONAL_TYPE, POSITIVE_DIAGONAL_TYPE],
     )
 
 

@@ -14,34 +14,23 @@ from gridfind.cell_geometry import cell_address
 from gridfind.layers import ALIAS_REGISTRY
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, as_int, enabled_blocks
+from gridfind.sudokumaker.wire_types import (
+    KROPKI_BLACK_TYPE,
+    KROPKI_WHITE_TYPE,
+    XV_TYPE,
+)
 
-# type 202 is XV: `clues: [{value, edge}], negative:
-# [...]`. `value` selects the existing group-sum alias — 10 is X, 5 is V
-# — never a raw `sum`, so a puzzle carrying both an XV clue and
-# a literal group-sum on the same cells still hits the alias's own
-# fixed-param conflict check in `expand_constraints`. Read off
-# `gridfind.layers.ALIAS_REGISTRY` rather than restated here — the
-# sum each alias fixes is stated once, in the registry that also builds it.
-_XV_TYPE = 202
+# `value` selects the existing group-sum alias — 10 is X, 5 is V — never a
+# raw `sum`, so a puzzle carrying both an XV clue and a literal group-sum on
+# the same cells still hits the alias's own fixed-param conflict check in
+# `expand_constraints`. Read off `gridfind.layers.ALIAS_REGISTRY` rather than
+# restated here — the sum each alias fixes is stated once, in the registry
+# that also builds it.
 _XV_ALIASES: dict[int, str] = {
     cast("int", fixed["sum"]): alias
     for alias, (canonical, fixed) in ALIAS_REGISTRY.items()
     if canonical == "group-sum" and "sum" in fixed
 }
-
-# type 200 is white-kropki: `clues: [{value, edge}],
-# negative: [...]`, the same wire shape as XV. The type number *is* the
-# white/black discriminator — 200 is white/difference, 201 black/ratio — so
-# `value` is the target difference, honored verbatim onto the existing
-# `pair-difference` layer (a labelled non-1 value is never coerced to 1).
-_KROPKI_WHITE_TYPE = 200
-
-# type 201 is black-kropki: the same `clues:
-# [{value, edge}], negative: [...]` wire shape as white kropki, `value` read
-# as the target integer ratio `k` onto the `pair-ratio` layer (a labelled
-# non-2 dot is never coerced to 2). A non-integer `value` raises at decode —
-# modeling a wrong verdict would be worse than refusing the link.
-_KROPKI_BLACK_TYPE = 201
 
 
 def _warn_dropped_negative(block: dict[str, Any], label: str) -> None:
@@ -131,7 +120,7 @@ def xv_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
             raise ValueError(msg)
         return Constraint(alias, params={"cells": [a, b]})
 
-    return _edge_clue_constraints(buckets, size, _XV_TYPE, build, "XV")
+    return _edge_clue_constraints(buckets, size, XV_TYPE, build, "XV")
 
 
 def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
@@ -145,7 +134,7 @@ def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint
         return Constraint("pair-difference", params={"cells": [a, b], "diff": value})
 
     return _edge_clue_constraints(
-        buckets, size, _KROPKI_WHITE_TYPE, build, "white-kropki"
+        buckets, size, KROPKI_WHITE_TYPE, build, "white-kropki"
     )
 
 
@@ -161,5 +150,5 @@ def black_kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Cons
         return Constraint("pair-ratio", params={"cells": [a, b], "k": k})
 
     return _edge_clue_constraints(
-        buckets, size, _KROPKI_BLACK_TYPE, build, "black-kropki"
+        buckets, size, KROPKI_BLACK_TYPE, build, "black-kropki"
     )
