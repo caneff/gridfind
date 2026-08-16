@@ -1,5 +1,5 @@
 """The `type 1` regions block: `regions-distinct` for an `N`x`N` board, or
-nothing at all when the link carries no regions (`_regions_constraints`),
+nothing at all when the link carries no regions (`regions_constraints`),
 built on the matrix read (`_regions_matrix`) and the classic box tiling a
 present matrix is compared against (`_classic_regions_for`).
 """
@@ -9,10 +9,10 @@ from __future__ import annotations
 from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.layers.regions import region_map_for
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker.boundary import ConstraintBuckets, _enabled_blocks
+from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 
 
-def _regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+def regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `regions-distinct` constraint for an `N`x`N` board, or `[]` when
     the link carries no regions at all — a Latin square. Returns a list, not
     `Constraint | None`, so a `DECODER_REGISTRY` entry's handler shares the
@@ -39,7 +39,7 @@ def _regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrai
 def _regions_matrix(buckets: ConstraintBuckets) -> object | None:
     """The enabled `type 1` regions matrix from the link, or `None` when the
     link carries no live jigsaw block."""
-    for block in _enabled_blocks(buckets, 1):
+    for block in enabled_blocks(buckets, 1):
         return block.get("regions")
     return None
 

@@ -5,7 +5,7 @@ gridfind consults when a component's declared name selects a rule. A
 a position marker instead. Both shapes need a cage's cells, so a name-bearing
 carrier that has none — a `type 1000` custom constraint's `definition.name`,
 unlike a `type 2001` cosmetic cage's top-level `name` — fails carrier-fitness
-for either shape (`_shape_needs_cells`); `sudokumaker.registry` reads that to
+for either shape (`shape_needs_cells`); `sudokumaker.registry` reads that to
 warn-drop a cage-shaped name stranded on the wrong carrier.
 
 Deliberately two shapes wide: a `global-flag` shape (a name needing no
@@ -28,7 +28,7 @@ _SHAPE_NEEDS_CELLS: dict[_Shape, bool] = {
 }
 
 
-def _shape_needs_cells(shape: _Shape) -> bool:
+def shape_needs_cells(shape: _Shape) -> bool:
     """Whether `shape`'s payload need includes a cage's cells — the property
     carrier-fitness checks a name-bearing carrier against."""
     return _SHAPE_NEEDS_CELLS[shape]
@@ -68,7 +68,7 @@ def _normalize_component_name(name: object) -> str | None:
     return name.strip().lower()
 
 
-def _named_component(name: object) -> _NamedComponent | None:
+def named_component(name: object) -> _NamedComponent | None:
     """The registry entry `name` declares, or `None` when absent/blank or
     unrecognized — the shared lookup both carriers' name-extraction steps
     feed (a `type 2001` cosmetic cage's top-level `name`, a `type 1000`
@@ -79,7 +79,7 @@ def _named_component(name: object) -> _NamedComponent | None:
     return _NAME_REGISTRY.get(normalized)
 
 
-def _aliases_by_role() -> dict[str, frozenset[str]]:
+def aliases_by_role() -> dict[str, frozenset[str]]:
     """Every normalized `_NAME_REGISTRY` name, grouped by the specific role it
     resolves to (`"killer"`, `"doubler"`, `"s-cell"`) rather than by shape —
     the presentation grouping `setter_guide` renders as one canonical label

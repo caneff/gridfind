@@ -1,10 +1,10 @@
 """`cells`: one grid cell decoded to its directives, and the wire-write inverse.
 
-`_decode_cell` turns a single wire cell into the given/placement/candidate it
+`decode_cell` turns a single wire cell into the given/placement/candidate it
 carries; `write_cell` is its inverse for the re-encoder; `_parse_scell_value`
-reads the S-cell marker's own `value` string into 0, 1, or 2 digits. The two
-private helpers are this module's own parse/transform seams, imported from
-beside the test rather than through the package door.
+reads the S-cell marker's own `value` string into 0, 1, or 2 digits — a
+module-private parse seam, imported from beside the test rather than through
+the package door.
 """
 
 import pytest
@@ -18,7 +18,7 @@ from gridfind.puzzle import (
     WorkingState,
 )
 from gridfind.sudokumaker import decode_link, write_cell
-from gridfind.sudokumaker.cells import _CellDecode, _decode_cell, _parse_scell_value
+from gridfind.sudokumaker.cells import CellDecode, _parse_scell_value, decode_cell
 from gridfind.sudokumaker.conftest import (
     EMPTY_CELLS,
     WIRE_CONSTRAINTS,
@@ -49,31 +49,31 @@ def test_write_cell_writes_a_schrodinger_pair_as_two_center_marks() -> None:
         (
             {"given": True, "value": 5},
             range(1, 10),
-            _CellDecode(givens=(Given("R1C1", 5),)),
+            CellDecode(givens=(Given("R1C1", 5),)),
         ),
         (
             {"value": 5},
             range(1, 10),
-            _CellDecode(places=(Placement("R1C1", 5),)),
+            CellDecode(places=(Placement("R1C1", 5),)),
         ),
         (
             {"candidates": (1 << 2) | (1 << 5)},
             range(1, 10),
-            _CellDecode(candidates=(Candidate("R1C1", frozenset({2, 5})),)),
+            CellDecode(candidates=(Candidate("R1C1", frozenset({2, 5})),)),
         ),
-        ({}, range(1, 10), _CellDecode()),
+        ({}, range(1, 10), CellDecode()),
     ],
     ids=["given", "placement", "candidate", "empty"],
 )
 def test_decode_cell_returns_one_cells_directives(
     cell: dict[str, object],
     domain: range,
-    expected: _CellDecode,
+    expected: CellDecode,
 ) -> None:
-    # _decode_cell is the one home for per-cell decode: it returns the directives
+    # decode_cell is the one home for per-cell decode: it returns the directives
     # a single cell yields as one value. A non-marker cell decodes its plain
     # given/placement/candidate; the S-cell marker path is covered in markers.
-    assert _decode_cell(cell, "R1C1", domain) == expected
+    assert decode_cell(cell, "R1C1", domain) == expected
 
 
 def test_colors_and_corner_marks_leave_the_state_empty() -> None:
