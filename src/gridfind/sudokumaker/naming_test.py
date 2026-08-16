@@ -51,6 +51,14 @@ def test_doubler_is_a_cell_marker() -> None:
     assert component.shape == "cell-marker"
 
 
+def test_somedoku_is_a_global_flag() -> None:
+    component = named_component("Somedoku")
+    assert component is not None
+    assert component.role == "somedoku"
+    assert component.shape == "global-flag"
+    assert component.value is None
+
+
 def test_nullifier_is_the_k_0_spelling_of_constant() -> None:
     component = named_component("Nullifier")
     assert component is not None
@@ -97,13 +105,15 @@ def test_schrodinger_aliases_share_the_s_cell_role() -> None:
     assert s_cell.shape == "cell-marker"
 
 
-def test_every_registered_shape_currently_needs_cells() -> None:
-    # Both shapes built so far (cage-selector, cell-marker) need a cage's
-    # cells — the property carrier-fitness checks a name-bearing carrier
-    # against (ADR-0012).
+def test_registered_shapes_and_their_cell_need() -> None:
+    # cage-selector/cell-marker need a cage's cells — the property
+    # carrier-fitness checks a name-bearing carrier against (ADR-0012);
+    # global-flag needs nothing, admitted on any carrier (spec #431/#436).
     shapes = {component.shape for component in _NAME_REGISTRY.values()}
-    assert shapes == {"cage-selector", "cell-marker"}
-    assert all(shape_needs_cells(shape) for shape in shapes)
+    assert shapes == {"cage-selector", "cell-marker", "global-flag"}
+    assert shape_needs_cells("cage-selector")
+    assert shape_needs_cells("cell-marker")
+    assert not shape_needs_cells("global-flag")
 
 
 @hyp_given(

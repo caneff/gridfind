@@ -114,6 +114,8 @@ def _s_cell_cage_link(
         ("Constant -3", "constant"),
         ("Constant", "unrecognized"),
         ("Constant xyz", "unrecognized"),
+        ("Somedoku", "somedoku"),
+        ("  somedoku ", "somedoku"),
         ("Whimsy", "unrecognized"),
     ],
     ids=[
@@ -131,29 +133,40 @@ def _s_cell_cage_link(
         "constant-negative",
         "bare-constant",
         "constant-non-numeric",
+        "somedoku",
+        "somedoku-padded-lower",
         "unknown",
     ],
 )
 def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> None:
-    # The public six-way classifier is the one home every named-cosmetic-cage
-    # read routes through (ADR-0012, extended by ADR-0016): unnamed, killer
-    # cage, Doubler marker, S-cell marker, Constant/Nullifier marker, or an
-    # unrecognized name — the decoder warn-drops both unnamed and
-    # unrecognized, so a bare `Constant` with no parseable integer stays
-    # unrecognized rather than silently becoming `k = 0`.
+    # The public seven-way classifier is the one home every named-cosmetic-cage
+    # read routes through (ADR-0012, extended by ADR-0016 and spec #431/#436):
+    # unnamed, killer cage, Doubler marker, S-cell marker, Constant/Nullifier
+    # marker, Somedoku global flag, or an unrecognized name — the decoder
+    # warn-drops both unnamed and unrecognized, so a bare `Constant` with no
+    # parseable integer stays unrecognized rather than silently becoming
+    # `k = 0`.
     assert cosmetic_cage_kind(name) == expected
 
 
-def test_marker_labels_covers_killer_doubler_s_cell_and_constant_roles() -> None:
+def test_marker_labels_covers_every_role() -> None:
     # MARKER_LABELS is the public role -> accepted-names table setter_guide.py's
     # cage-name-alias rows read directly; every name-bearing role
     # cosmetic_cage_kind recognizes has an entry here. `constant`'s only
     # static alias is `Nullifier` — `Constant <N>` is parameterized, not a
     # fixed name (ADR-0016).
-    assert set(MARKER_LABELS) == {"killer", "doubler", "s-cell", "constant"}
+    assert set(MARKER_LABELS) == {
+        "killer",
+        "doubler",
+        "s-cell",
+        "constant",
+        "somedoku",
+    }
 
 
-@pytest.mark.parametrize("role", ["killer", "doubler", "s-cell", "constant"])
+@pytest.mark.parametrize(
+    "role", ["killer", "doubler", "s-cell", "constant", "somedoku"]
+)
 def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
     # Every name MARKER_LABELS lists under a role must classify to that role
     # through cosmetic_cage_kind. MARKER_LABELS and cosmetic_cage_kind both

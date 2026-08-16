@@ -5,6 +5,7 @@ The decode is split by responsibility across the package's other modules —
 `boundary` (document decompress/compress, size/domain, the shared
 enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
+`global_flags` (the payload-less `Somedoku` component, spec #431/#436),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), and `registry`
 (`DECODER_REGISTRY`) — with `decode_link` here as the one function that
 threads all of them together.
@@ -25,6 +26,7 @@ from gridfind.sudokumaker.boundary import (
 )
 from gridfind.sudokumaker.cages import cosmetic_cage_constraints
 from gridfind.sudokumaker.cells import CellDecode, decode_cell
+from gridfind.sudokumaker.global_flags import has_somedoku_component
 from gridfind.sudokumaker.markers import has_scell_marker_block, scell_marker_values
 from gridfind.sudokumaker.registry import DECODER_REGISTRY, warn_on_dropped_constraints
 
@@ -75,7 +77,19 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     constraint. Once that layer exists, every cell's settled `given`/bare
     `value` placement — marked or not — decodes to a **singleton pin**
     (`is_s == 0`), not a plain given/placement: the wire's `given` flag does
-    not affect the S-cell reading (ADR-0014)."""
+    not affect the S-cell reading (ADR-0014).
+
+    A `type 1000` custom constraint or a `type 2001` cosmetic cage named
+    `Somedoku` (case-insensitive, trimmed, either carrier — spec #431/#436)
+    is a **global flag**: its cells and value, whichever carrier's payload
+    it rides, are ignored entirely, and its bare presence stands up the
+    `line-count-distinct` constraint in place of the classic
+    `rows-distinct`/`cols-distinct`/`regions-distinct` triplet — a somedoku
+    grid runs on its own row-*n*/col-*n* distinct-count rule alone, no boxes
+    and no classic uniqueness, which a row or column short of size `N`
+    could never satisfy alongside `line-count-distinct` at once. A disabled
+    `Somedoku` block, on either carrier, contributes nothing and the classic
+    triplet decodes as usual."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = board_size(puzzle_data)
     warn_on_dropped_constraints(puzzle_data)
@@ -83,6 +97,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     # per-type decoder below selects its own type's blocks by one dict lookup
     # (via `enabled_blocks`).
     buckets = bucket_constraints_by_type(puzzle_data)
+    is_somedoku = has_somedoku_component(buckets)
 
     cells = puzzle_data["cells"]
     # A named `S-cell`/`Schrödinger` block splits into two signals. Its
@@ -123,14 +138,24 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
 
     # SudokuMaker leaves rows/cols implicit under `type 0`; gridfind makes both
     # explicit — rows/cols always bare, everything else via DECODER_REGISTRY.
+    # A somedoku puzzle runs on `line-count-distinct` alone in their place
+    # (classic uniqueness is incompatible with a distinct-count target below
+    # `N`), and skips `type 1`'s regions/box rule the same way — a somedoku
+    # grid carries no boxes.
     # The cosmetic-cage type alone returns modifier directives alongside its
     # constraints, so it is dispatched by hand rather than through the
     # registry's generic two-argument, constraints-only call.
-    constraints = [Constraint("rows-distinct"), Constraint("cols-distinct")]
+    constraints = (
+        [Constraint("line-count-distinct")]
+        if is_somedoku
+        else [Constraint("rows-distinct"), Constraint("cols-distinct")]
+    )
     cosmetic_cage_decode = cosmetic_cage_constraints(buckets, size)
     constraints.extend(cosmetic_cage_decode.constraints)
-    for decoded_type in DECODER_REGISTRY.values():
+    for wire_type, decoded_type in DECODER_REGISTRY.items():
         if decoded_type.handler is None:
+            continue
+        if is_somedoku and wire_type == 1:
             continue
         constraints.extend(decoded_type.handler(buckets, size))
     if is_schrodinger:
