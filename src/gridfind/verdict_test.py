@@ -1387,6 +1387,104 @@ def test_verdict_given_on_a_modified_cell_pins_the_digit_value_derives() -> None
     assert result.witness["R1C2"] == (5,)
 
 
+def test_verdict_found_witness_reports_every_discovered_constant_modifier() -> None:
+    # Mirrors the doubler's own version of this test: a bare `constant`
+    # constraint falls to the registry default (k = 0, the nullifier), and
+    # one-per-house still puts exactly `size` discovered modifiers, each
+    # named "constant" — the modifier's own declared type, not "doubler".
+    puzzle = Puzzle(board=BOARD, constraints=(Constraint(type="constant"),))
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert len(result.witness.modifiers) == BOARD.size
+    assert set(result.witness.modifiers.values()) == {"constant"}
+    assert set(result.witness.modifiers).issubset(result.witness.assignment)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [0, 5, -3, 99],
+    ids=["nullifier", "positive", "negative", "above-digit-range"],
+)
+def test_constant_modifier_folds_to_k_regardless_of_digit(value: int) -> None:
+    # R1C1's given digit (9) deliberately mismatches `value`, so the
+    # group-sum only balances if the fold — not the digit — is what's read.
+    # `value` ranges over the nullifier (k=0), a plain positive k, a
+    # negative k, and a k above the digit domain — all equally valid
+    # (ADR-0016).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="constant", params={"value": value}),
+            Constraint(
+                type="group-sum",
+                params={"cells": ["R1C1", "R1C2"], "sum": value + 4},
+            ),
+        ),
+        givens=(Given(address="R1C1", digit=9), Given(address="R1C2", digit=4)),
+    )
+    state = WorkingState(
+        modifier_directives=(ModifierDirective("R1C1", is_modifier=True),)
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C1"] == (9,)
+    assert result.witness.modifiers["R1C1"] == "constant"
+
+
+def test_verdict_names_the_cell_a_sum_forces_to_discover_a_nullifier() -> None:
+    # 1 is below the min reachable by two plain 1-9 digits (2), so the
+    # group-sum clue is only reachable by discovering a nullifier in R1C1 or
+    # R1C2 (mirrors the doubler's own forcing test).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="constant"),
+            Constraint(type="group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 1}),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    discovered = set(result.witness.modifiers) & {"R1C1", "R1C2"}
+    assert len(discovered) == 1
+    assert result.witness.modifiers[discovered.pop()] == "constant"
+
+
+def test_verdict_broke_for_two_nullifiers_in_one_values_distinct_cage() -> None:
+    # R1C1 and R4C4 differ in row, column, and box, so
+    # `ModifierPlacement`'s one-per-house rule permits both as discovered
+    # modifiers; only the values-distinct cage — both worth 0 — is what
+    # should break, since a value is a value regardless of source (ADR-0009).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="constant"),
+            Constraint(
+                type="cage",
+                params={"cells": ["R1C1", "R4C4"], "distinct-over": "value"},
+            ),
+        ),
+    )
+    state = WorkingState(
+        modifier_directives=(
+            ModifierDirective("R1C1", is_modifier=True),
+            ModifierDirective("R4C4", is_modifier=True),
+        )
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
 def test_verdict_broke_for_a_colliding_anti_knight_pair() -> None:
     # Two givens a knight's hop apart (down 2, right 1) hold the same digit.
     # A bare board allows it; anti-knight forbids it, so the layer is what
