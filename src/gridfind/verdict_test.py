@@ -1184,6 +1184,51 @@ def test_verdict_applies_a_schrodinger_pin(
     assert result.kind == expected
 
 
+LINE_COUNT_S_CONSTRAINTS = (
+    Constraint(type="line-count-distinct"),
+    Constraint(type="schrodinger"),
+)
+
+
+def test_line_count_distinct_counts_both_of_an_s_cells_digits_toward_its_row() -> None:
+    """Row 2's target is 2 distinct digits. Pinning an S-cell holding {0, 1}
+    into row 2 and the rest of the row to digits drawn from that same pair
+    keeps row 2 at exactly 2 distinct digits — found, with the S-cell's two
+    digits both present in the row's witness. The S-cell sits in column 2,
+    whose target is also 2, so both line families accept its two distinct
+    digits."""
+    puzzle = Puzzle(board=S_BOARD, constraints=LINE_COUNT_S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=(
+            SingletonPin(address="R2C1", digit=0),
+            SCellPin(address="R2C2", pair=frozenset({0, 1})),
+            SingletonPin(address="R2C3", digit=1),
+            SingletonPin(address="R2C4", digit=0),
+        )
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    row2_digits = {digit for c in range(1, 5) for digit in result.witness[f"R2C{c}"]}
+    assert row2_digits == {0, 1}
+
+
+def test_line_count_distinct_breaks_when_an_s_cell_exceeds_the_row_target() -> None:
+    """Row 1's target is 1 distinct digit. An S-cell's two digits are always
+    distinct (`d0 < d1`), so pinning any S-cell into row 1 breaks it —
+    provable only once both slots are read, not just `d0`."""
+    puzzle = Puzzle(board=S_BOARD, constraints=LINE_COUNT_S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=(SCellPin(address="R1C1", pair=frozenset({0, 4})),)
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
 @pytest.mark.parametrize(
     "directive",
     [
