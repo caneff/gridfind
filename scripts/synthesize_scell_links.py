@@ -360,6 +360,30 @@ def broke_doubler_4x4() -> str:
     )
 
 
+def found_cosmetic_cage_4x4() -> str:
+    """4x4 jigsaw, `found` — a `Sum`-named cosmetic cage whose numeric `value`
+    graduates it to a real killer sum (ADR-0008): cells `{0, 6}`, in different
+    boxes and sharing no row/column, sum to 3 (`{1, 2}`). The board carries no
+    other constraint, so the cage's no-repeats `cage` plus `group-sum` is the
+    only rule beyond plain sudoku, and a completion exists (e.g. cell 0 = 1,
+    cell 6 = 2). The mirror of `broke_cosmetic_cage_sumless_4x4`: a numeric
+    value graduates the cage to a `group-sum`, where an empty one leaves only
+    the bare no-repeats rule."""
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    constraints: list[dict[str, object]] = [
+        {"type": 0},
+        {"type": 1, "regions": _DOUBLER_REGIONS},
+        {
+            "name": "Sum",
+            "type": 2001,
+            "cages": [{"value": "3", "cells": [0, 6]}],
+            "style": _authored_cage_style(),
+        },
+    ]
+    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
+    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+
+
 def broke_cosmetic_cage_sumless_4x4() -> str:
     """4x4 jigsaw, `broke` — a `Sum`-named cosmetic cage with an empty value
     over two cells in different boxes. The empty value emits no `group-sum`, so
@@ -402,6 +426,7 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-doubled-scell-17cage-4x4": found_doubled_scell_17cage_4x4,
     "broke-doubler-4x4": broke_doubler_4x4,
     "broke-cosmetic-cage-sumless-4x4": broke_cosmetic_cage_sumless_4x4,
+    "found-cosmetic-cage-4x4": found_cosmetic_cage_4x4,
 }
 
 

@@ -215,6 +215,22 @@ def test_sumless_cage_stays_a_bare_named_cage_and_reads_broke(
     assert (code, first) == (1, "broke")
 
 
+def test_numeric_cage_graduates_to_a_group_sum_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The mirror of the sumless case above: a `Sum`-named cage with a numeric
+    # value graduates to a real killer sum, emitting both the no-repeats
+    # `cage` and a `group-sum` carrying that value (ADR-0008).
+    link = syn.found_cosmetic_cage_4x4()
+    puzzle, _ = decode_link(link)
+    assert any(c.type == "cage" for c in puzzle.constraints)
+    group_sums = [c for c in puzzle.constraints if c.type == "group-sum"]
+    assert [c.params["sum"] for c in group_sums] == [3]
+    assert all(b.get("name") for b in _caged_2001_blocks(link))
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+
+
 def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
