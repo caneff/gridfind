@@ -11,6 +11,7 @@ import pytest
 from hypothesis import given as hyp_given
 from hypothesis import strategies as st
 
+from gridfind.cell_geometry import cell_address
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker import decode_link
 from gridfind.sudokumaker.conftest import constraint_link
@@ -33,17 +34,13 @@ def test_edge_to_pair_oracle_cases(edge: int, expected: tuple[str, str]) -> None
     assert _edge_to_pair(edge, size=9) == expected
 
 
-def _parse_address(address: str) -> tuple[int, int]:
-    row, _, col = address[1:].partition("C")
-    return int(row), int(col)
-
-
 @st.composite
-def _valid_edges(draw: st.DrawFn) -> tuple[int, int, str]:
-    """A `(size, edge, orientation)` triple where `edge` is a real,
-    in-bounds edge of that orientation on a `size`x`size` board — built from
-    the same `r0, c0` space `_edge_to_pair` inverts, so every draw is valid
-    by construction."""
+def _valid_edges(draw: st.DrawFn) -> tuple[int, int, str, int, int]:
+    """A `(size, edge, orientation, r0, c0)` tuple where `edge` is a real,
+    in-bounds edge of that orientation on a `size`x`size` board, and `r0, c0`
+    is the 0-indexed source cell the edge names — built from the same
+    closed-form formulas `_edge_to_pair` inverts, so every draw is valid by
+    construction and carries its own expected answer."""
     size = draw(st.integers(min_value=2, max_value=15))
     orientation = draw(st.sampled_from(["horizontal", "vertical"]))
     if orientation == "horizontal":
@@ -54,28 +51,25 @@ def _valid_edges(draw: st.DrawFn) -> tuple[int, int, str]:
         r0 = draw(st.integers(min_value=0, max_value=size - 2))
         c0 = draw(st.integers(min_value=0, max_value=size - 1))
         edge = 2 * size * r0 + c0 + size
-    return size, edge, orientation
+    return size, edge, orientation, r0, c0
 
 
 @hyp_given(_valid_edges())
-def test_edge_to_pair_decodes_an_in_bounds_adjacent_pair(
-    case: tuple[int, int, str],
+def test_edge_to_pair_decodes_the_exact_source_cells(
+    case: tuple[int, int, str, int, int],
 ) -> None:
-    size, edge, orientation = case
-    a, b = _edge_to_pair(edge, size)
-    row_a, col_a = _parse_address(a)
-    row_b, col_b = _parse_address(b)
+    # A pair shifted by a constant offset would still be in-bounds and
+    # orthogonally adjacent, so bounds+adjacency alone can't catch it —
+    # assert the exact addresses the same `r0, c0` the edge was built from.
+    size, edge, orientation, r0, c0 = case
 
-    assert 1 <= row_a <= size
-    assert 1 <= col_a <= size
-    assert 1 <= row_b <= size
-    assert 1 <= col_b <= size
+    pair = _edge_to_pair(edge, size)
+
     if orientation == "horizontal":
-        assert row_a == row_b
-        assert col_b == col_a + 1
+        expected = (cell_address(r0 + 1, c0 + 1), cell_address(r0 + 1, c0 + 2))
     else:
-        assert col_a == col_b
-        assert row_b == row_a + 1
+        expected = (cell_address(r0 + 1, c0 + 1), cell_address(r0 + 2, c0 + 1))
+    assert pair == expected
 
 
 def test_edge_to_pair_rejects_an_out_of_bounds_edge() -> None:

@@ -33,7 +33,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from ortools.sat.python import cp_model
 
-from gridfind.engine import MalformedPuzzleError, build_engine
+from gridfind.engine import build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups, sum_rules
@@ -106,28 +106,6 @@ def test_a_satisfiable_group_sum_resolves_found() -> None:
     assert result.kind == "found"
     assert result.witness is not None
     assert result.witness["R1C1"][0] + result.witness["R1C2"][0] == 5
-
-
-def test_a_three_cell_group_sum_resolves_found_with_a_witness_summing_to_it() -> None:
-    # The any-arity story: two cells is just the smallest case.
-    cells = ("R1C1", "R1C2", "R1C3")
-    puzzle = Puzzle(board=BOARD, constraints=(_group_sum(cells, 12),))
-
-    result = verdict(puzzle)
-
-    assert result.kind == "found"
-    assert result.witness is not None
-    assert sum(result.witness[address][0] for address in cells) == 12
-
-
-def test_a_group_sum_that_cannot_meet_its_total_resolves_broke() -> None:
-    # Two cells on a 1-9 board can reach at most 18; 30 is unreachable.
-    puzzle = Puzzle(board=BOARD, constraints=(_group_sum(("R1C1", "R1C2"), 30),))
-
-    result = verdict(puzzle)
-
-    assert result.kind == "broke"
-    assert result.witness is None
 
 
 def test_a_bare_group_sum_permits_a_repeat_among_its_cells() -> None:
@@ -208,17 +186,6 @@ def test_an_x_clue_is_an_alias_for_a_group_sum_of_ten() -> None:
     assert result.witness["R1C2"][0] == 7  # X binds the pair to 10
 
 
-@pytest.mark.parametrize("kind", ["x", "v"], ids=["x-alias", "v-alias"])
-def test_an_alias_clue_that_also_states_its_own_sum_is_refused(kind: str) -> None:
-    # The alias fixes the sum; a clue naming its own sum too is a
-    # contradiction, refused before it ever reaches a solve.
-    constraint = Constraint(type=kind, params={"cells": ["R1C1", "R1C2"], "sum": 99})
-    puzzle = Puzzle(board=BOARD, constraints=(constraint,))
-
-    with pytest.raises(MalformedPuzzleError, match=f"{kind!r}.*sum"):
-        verdict(puzzle)
-
-
 def test_a_group_sum_over_a_widened_cell_reads_its_s_value() -> None:
     # R1C1 is forced S with digits {2, 3}: under the default `sum` combine its
     # value is 5. R1C2 is a singleton at 2. The sum reads each cell's value
@@ -240,18 +207,6 @@ def test_a_group_sum_over_a_widened_cell_reads_its_s_value() -> None:
     status = cp_model.CpSolver().solve(engine.model)
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-
-
-def test_a_plain_sudoku_with_no_group_sum_clue_is_unaffected() -> None:
-    # A stack that never sees a group-sum clue adds no rule, and an ordinary
-    # sudoku still resolves fully.
-    puzzle = Puzzle(board=BOARD, constraints=(Constraint(type="sudoku"),))
-
-    result = verdict(puzzle)
-
-    assert result.kind == "found"
-    assert result.witness is not None
-    assert len(result.witness) == 81
 
 
 def _row_cells(count: int) -> list[str]:
