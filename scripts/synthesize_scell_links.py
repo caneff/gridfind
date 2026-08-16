@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from gridfind.layers.regions import box_regions, to_region_numbers
 from gridfind.sudokumaker import encode_link
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
@@ -63,17 +64,6 @@ def _transversal(size: int, box_h: int, box_w: int) -> dict[int, int]:
     return positions
 
 
-def _regions(size: int, box_h: int, box_w: int) -> list[int]:
-    """The `type 1` region id per cell: which box each cell belongs to, so the
-    board carries its box-distinct constraint explicitly."""
-    boxes_per_row = size // box_w
-    return [
-        (row // box_h) * boxes_per_row + col // box_w
-        for row in range(size)
-        for col in range(size)
-    ]
-
-
 def _base_document(
     box_h: int,
     box_w: int,
@@ -83,12 +73,13 @@ def _base_document(
 ) -> dict[str, object]:
     """Wrap synthesized cells and S-cell marker cages into a SudokuMaker document."""
     size = box_h * box_w
+    region_numbers = to_region_numbers(size, box_regions(size, box_h, box_w))
     puzzle = {
         "cells": cells,
         "size": size,
         "constraints": [
             {"type": 0},
-            {"type": 1, "regions": _regions(size, box_h, box_w)},
+            {"type": 1, "regions": region_numbers},
             {
                 "name": "S-cell",
                 "type": 2001,

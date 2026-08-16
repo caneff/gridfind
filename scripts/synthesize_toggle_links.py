@@ -33,7 +33,9 @@ from pathlib import Path
 # The toggle wire types are imported from wire_types.py — their one shared
 # home — so the corpus builds off the same numbers the decoder reads by,
 # never a second copy.
+from gridfind.layers.regions import box_regions, to_region_numbers
 from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker.addresses import cell_index
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
@@ -46,23 +48,6 @@ LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links
 # The cosmetic style SudokuMaker writes onto a diagonal block. Display-only —
 # `decode_link` ignores it — but carried so the emitted link matches the app's.
 _DIAGONAL_STYLE = {"color": "#34bbe6ff", "thickness": 0.02}
-
-
-def _regions(box_h: int, box_w: int) -> list[int]:
-    """The classic box tiling of a `box_h`x`box_w`-box board as SudokuMaker's
-    flat, row-major region-id array — the `type 1` matrix a boxed link ships."""
-    size = box_h * box_w
-    boxes_per_row = size // box_w
-    labels = [0] * (size * size)
-    for row in range(size):
-        for col in range(size):
-            labels[row * size + col] = (row // box_h) * boxes_per_row + col // box_w
-    return labels
-
-
-def _index(size: int, row: int, col: int) -> int:
-    """The flat row-major cell index of 1-based `RxCy` on a size-N board."""
-    return (row - 1) * size + (col - 1)
 
 
 def _toggle_block(wire_type: int) -> dict[str, object]:
@@ -85,10 +70,11 @@ def _link(
     size = box_h * box_w
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
     for (row, col), value in givens.items():
-        cells[_index(size, row, col)] = {"given": True, "value": value}
+        cells[cell_index(row, col, size)] = {"given": True, "value": value}
+    region_numbers = to_region_numbers(size, box_regions(size, box_h, box_w))
     constraints: list[dict[str, object]] = [
         {"type": 0},
-        {"type": 1, "regions": _regions(box_h, box_w)},
+        {"type": 1, "regions": region_numbers},
         *(_toggle_block(wire_type) for wire_type in toggles),
     ]
     document = {

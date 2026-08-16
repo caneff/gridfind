@@ -22,3 +22,10 @@ def addresses(indices: Iterable[int], size: int) -> list[str]:
     """`address` mapped over a cell-index list, order preserved — so a thermo
     path keeps bulb-first order and a cage's cells read row-major."""
     return [address(i, size) for i in indices]
+
+
+def cell_index(row: int, col: int, size: int) -> int:
+    """The row-major raw cell index of 1-based `RxCy` on a `size`-wide board —
+    the inverse of `address`. R3C1 on a 9-board is index 18. The single home
+    for placing a cell by row/column into SudokuMaker's flat `cells` array."""
+    return (row - 1) * size + (col - 1)
