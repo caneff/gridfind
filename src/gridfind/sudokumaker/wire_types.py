@@ -12,7 +12,10 @@ from __future__ import annotations
 # negative: [...]`, the same wire shape as XV. The type number *is* the
 # white/black discriminator — 200 is white/difference, 201 black/ratio — so
 # `value` is the target difference, honored verbatim onto the existing
-# `pair-difference` layer (a labelled non-1 value is never coerced to 1).
+# `pair-difference` layer (a labelled non-1 value is never coerced to 1). A
+# non-empty `negative` list is enforced (every listed difference forbidden on
+# every unmarked orthogonally-adjacent pair), not dropped — the negative-space
+# mechanism in `sudokumaker.edge_clues`.
 KROPKI_WHITE_TYPE = 200
 
 # type 201 is black-kropki: the same `clues:

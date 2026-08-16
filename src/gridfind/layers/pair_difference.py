@@ -6,7 +6,12 @@ absolute value, by a target `k` — kropki-white / consecutive is the `k = 1`
 case, though no setter-facing alias is added here. `differs_by` is the
 relation-emitter `LAYER_REGISTRY["pair-difference"]` builds its `PairRelation`
 with: given a clue's params, it reads the target `diff` and returns the
-`rel` that pins one pair to it.
+`rel` that pins one pair to it — or, when `params["negate"]` is true, bars
+the pair from it instead (`difference != k`). The negated mode is the
+white-kropki negative rule's mechanism (`sudokumaker.edge_clues`): the same
+emitter, applied over every unmarked orthogonally-adjacent pair, so positive
+and negative clues can never drift onto two different notions of "differs by
+k".
 
 Deliberately narrow, mirroring `group-sum`'s two-cell case: the constraint
 names both cells outright — a **pair**, not a **domino** — and the relation
@@ -41,8 +46,10 @@ def differs_by(
     and returns a `rel` closing over it. `rel` mints one fresh aux var `d`
     per pair, self-named from the pair's own variable names since
     `emit_over_pairs` carries no label: `d == |a - b|`, then pinned `d ==
-    target`."""
+    target` — or, when `params["negate"]` is true, barred from it instead
+    (`d != target`), absent/false otherwise."""
     target = cast("int", params["diff"])
+    negate = bool(params.get("negate", False))
 
     def rel(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:
         # The aux var's span must cover the widest possible |a - b|, read off
@@ -54,6 +61,9 @@ def differs_by(
         span = max(a_domain[-1] - b_domain[0], b_domain[-1] - a_domain[0])
         d = engine.model.new_int_var(0, span, f"{a.name}-{b.name}.diff")
         engine.model.add_abs_equality(d, a - b)
-        engine.model.add(d == target)
+        if negate:
+            engine.model.add(d != target)
+        else:
+            engine.model.add(d == target)
 
     return rel

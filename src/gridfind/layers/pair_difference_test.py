@@ -150,6 +150,42 @@ def test_a_pair_difference_clue_with_the_wrong_cell_count_raises_malformed(
         verdict(puzzle)
 
 
+def _negated_pair_difference(cells: tuple[str, str], diff: int) -> Constraint:
+    return Constraint(
+        type="pair-difference",
+        params={"cells": list(cells), "diff": diff, "negate": True},
+    )
+
+
+def test_a_negated_pair_difference_forbids_that_exact_difference() -> None:
+    # The negative-space mechanism's mode (sudokumaker.edge_clues): the pair
+    # is pinned to the forbidden difference, so no completion exists.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_negated_pair_difference(("R1C1", "R1C2"), 3),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=4)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_negated_pair_difference_allows_every_other_difference() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_negated_pair_difference(("R1C1", "R1C2"), 3),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert abs(result.witness["R1C1"][0] - result.witness["R1C2"][0]) != 3
+
+
 def test_a_puzzle_mixing_group_sum_and_pair_difference_resolves_correctly() -> None:
     puzzle = Puzzle(
         board=BOARD,
