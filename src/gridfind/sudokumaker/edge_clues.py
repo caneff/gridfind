@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import Any, cast
 
 from gridfind.cell_geometry import cell_address
-from gridfind.layers import ALIAS_REGISTRY
+from gridfind.layers.door import ALIAS_REGISTRY
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, as_int, enabled_blocks
 from gridfind.sudokumaker.wire_types import (
@@ -23,7 +23,7 @@ from gridfind.sudokumaker.wire_types import (
 # `value` selects the existing group-sum alias — 10 is X, 5 is V — never a
 # raw `sum`, so a puzzle carrying both an XV clue and a literal group-sum on
 # the same cells still hits the alias's own fixed-param conflict check in
-# `expand_constraints`. Read off `gridfind.layers.ALIAS_REGISTRY` rather than
+# `expand_constraints`. Read off `gridfind.layers.door.ALIAS_REGISTRY` rather than
 # restated here — the sum each alias fixes is stated once, in the registry
 # that also builds it.
 _XV_ALIASES: dict[int, str] = {
