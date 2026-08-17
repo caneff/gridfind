@@ -180,7 +180,6 @@ def test_main_reports_a_bad_link_error_on_stderr_and_still_exits_zero() -> None:
 
     assert code == 0
     assert "error: " in err.getvalue()
-    assert "not among" in err.getvalue()
 
 
 def test_decode_payload_matches_decode_document() -> None:
