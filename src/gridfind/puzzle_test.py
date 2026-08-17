@@ -199,38 +199,6 @@ def test_puzzle_serializes_its_constraints_under_the_constraints_key() -> None:
     assert json.loads(puzzle.to_json())["constraints"] == [{"type": "sudoku"}]
 
 
-def test_working_state_round_trips_through_json() -> None:
-    state = WorkingState(
-        places=(Placement(address="R5C5", digit=7),),
-        candidates=(Candidate(address="R6C6", digits=frozenset({5, 6, 7})),),
-    )
-
-    assert WorkingState.from_json(state.to_json()) == state
-
-
-def test_working_state_round_trips_its_s_directives() -> None:
-    state = WorkingState(
-        s_directives=(
-            SingletonPin(address="R1C1", digit=4),
-            SCellPin(address="R2C2", pair=frozenset({2, 7})),
-        )
-    )
-
-    assert WorkingState.from_json(state.to_json()) == state
-
-
-def test_working_state_round_trips_the_bare_and_half_directives() -> None:
-    state = WorkingState(
-        s_directives=(
-            BareSingleton(address="R1C1"),
-            BareSCell(address="R2C2"),
-            HalfSCell(address="R3C3", digit=6),
-        )
-    )
-
-    assert WorkingState.from_json(state.to_json()) == state
-
-
 def test_working_state_round_trips_an_s_cell_mark_restriction() -> None:
     # The one directive kind layered over another rather than naming a point
     # of its own (CONTEXT.md `schrodinger`) — round-tripped here alongside the

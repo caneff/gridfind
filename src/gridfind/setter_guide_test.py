@@ -83,9 +83,12 @@ def test_every_setter_facing_constraint_type_present() -> None:
 
 
 def test_every_box_size_present() -> None:
-    page = setter_guide.render()
+    # Scoped to the box-sizes table's own rows, not merely somewhere on the
+    # page — the digit for a dropped size still shows up elsewhere in the
+    # HTML/CSS, so an unscoped `in page` check would miss a deleted row.
+    section = _section(setter_guide.render(), "box-sizes")
     for size in BOX_SHAPE:
-        assert str(size) in page
+        assert f"<td>{size}</td>" in section
 
 
 def _section(page: str, section_id: str) -> str:
