@@ -26,9 +26,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from gridfind.cell_geometry import row_col_to_index
 from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import encode_link
-from gridfind.sudokumaker.addresses import cell_index
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
@@ -39,10 +39,10 @@ def _link(*, cage_cols: tuple[int, ...], givens: tuple[tuple[int, int], ...]) ->
     """A sparse 9x9 document with an `Equality`-named cosmetic cage over row 1's
     `cage_cols` cells. `givens` is `(col, value)` pairs placed in row 1, the only
     filled cells; rows 2-9 stay empty."""
-    cage_index_list = [cell_index(1, col, _SIZE) for col in cage_cols]
+    cage_index_list = [row_col_to_index(1, col, _SIZE) for col in cage_cols]
     cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
     for col, value in givens:
-        cells[cell_index(1, col, _SIZE)] = {"given": True, "value": value}
+        cells[row_col_to_index(1, col, _SIZE)] = {"given": True, "value": value}
     region_numbers = box_regions(_SIZE, 3, 3).to_labels(_SIZE)
     document = {
         "formatVersion": "1.5.0",

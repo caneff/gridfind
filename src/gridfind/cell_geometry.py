@@ -45,20 +45,20 @@ def format_address(row: int, col: int) -> str:
     return f"R{row}C{col}"
 
 
-def flat_index(row: int, col: int, size: int) -> int:
+def row_col_to_index(row: int, col: int, size: int) -> int:
     """The 0-based row-major flat position of 1-based `(row, col)` on a
     `size`-wide board: row 3, col 1 on a 9-board is index 18. The one home
     for the `(row-1)*size+(col-1)` arithmetic every flat-array reader (a
     SudokuMaker `cells` array, a `type 1` region-numbers array) needs, so
     both the layer package and the decoder package call this instead of
-    each re-deriving it by hand."""
+    each re-deriving it by hand. The inverse of `index_to_row_col`."""
     return (row - 1) * size + (col - 1)
 
 
-def row_col_of_index(index: int, size: int) -> tuple[int, int]:
+def index_to_row_col(index: int, size: int) -> tuple[int, int]:
     """The 1-based `(row, col)` a 0-based row-major flat `index` names on a
-    `size`-wide board — the inverse of `flat_index`. Index 18 on a 9-board
-    is row 3, col 1."""
+    `size`-wide board — the inverse of `row_col_to_index`. Index 18 on a
+    9-board is row 3, col 1."""
     return index // size + 1, index % size + 1
 
 

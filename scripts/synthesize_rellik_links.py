@@ -18,9 +18,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from gridfind.cell_geometry import row_col_to_index
 from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import encode_link
-from gridfind.sudokumaker.addresses import cell_index
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
@@ -53,7 +53,7 @@ def _document(
     `target`."""
     cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
     for (row, col), value in givens.items():
-        cells[cell_index(row, col, _SIZE)] = {"given": True, "value": value}
+        cells[row_col_to_index(row, col, _SIZE)] = {"given": True, "value": value}
     region_numbers = box_regions(_SIZE, _BOX_H, _BOX_W).to_labels(_SIZE)
     constraints: list[dict[str, object]] = [
         {"type": 0},
@@ -64,7 +64,7 @@ def _document(
             "cages": [
                 {
                     "value": str(target),
-                    "cells": [cell_index(r, c, _SIZE) for r, c in cage_cells],
+                    "cells": [row_col_to_index(r, c, _SIZE) for r, c in cage_cells],
                 }
             ],
             "style": _authored_cage_style(),
