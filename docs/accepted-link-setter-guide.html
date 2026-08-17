@@ -424,9 +424,10 @@ computed silently under a smaller ruleset than the link states:</p>
 <li>A constraint type gridfind does not model, carrying real data, is dropped
 with a warning naming it. An empty or decoration-only block of an unmodeled type
 is dropped quietly.</li>
-<li>A negative-constraint list on a kropki or XV block (the rule that
-<em>un-dotted</em> edges carry no clue) is dropped with a warning; the positive
-dots still decode.</li>
+<li>A negative-constraint list on an XV block (the rule that <em>un-dotted</em>
+edges carry no clue) is dropped with a warning; the positive dots still
+decode. White and black kropki enforce their own negative list instead of
+dropping it.</li>
 </ul>
 
 <h3>Rejected outright</h3>
