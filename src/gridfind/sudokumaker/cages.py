@@ -101,7 +101,7 @@ def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     return decoded
 
 
-def _cosmetic_cage_numeric_value(cage: dict[Any, Any]) -> int | None:
+def _cosmetic_cage_numeric_value(cage: dict[str, Any]) -> int | None:
     """The integer a `type 2001` cosmetic cage's `value` label carries, or
     `None` when it's non-numeric/empty — the killer sum a `Sum`/`Killer`
     cage graduates to (ADR-0008), or the forbidden total a `Rellik`/`Anti`
