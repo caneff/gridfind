@@ -8,14 +8,14 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from gridfind.cell_geometry import format_address
+from gridfind.cell_geometry import flat_index, format_address, row_col_of_index
 
 
 def address(index: int, size: int) -> str:
     """The row-major address of a raw cell `index` on a `size`-wide board: index
     `18` on a 9-board is R3C1. The single home for SudokuMaker's `i // N`, `i % N`
     scheme, shared by cages and thermometers."""
-    return format_address(index // size + 1, index % size + 1)
+    return format_address(*row_col_of_index(index, size))
 
 
 def addresses(indices: Iterable[int], size: int) -> list[str]:
@@ -28,4 +28,4 @@ def cell_index(row: int, col: int, size: int) -> int:
     """The row-major raw cell index of 1-based `RxCy` on a `size`-wide board —
     the inverse of `address`. R3C1 on a 9-board is index 18. The single home
     for placing a cell by row/column into SudokuMaker's flat `cells` array."""
-    return (row - 1) * size + (col - 1)
+    return flat_index(row, col, size)
