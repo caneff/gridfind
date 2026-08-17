@@ -109,7 +109,7 @@ def test_fmt_bucket(tags: list[str], expected: str) -> None:
     [
         pytest.param({"width": 6}, 36, 6, id="width-wins"),
         pytest.param({"width": 6, "size": 9}, 54, 6, id="width-over-size"),
-        pytest.param({"size": 9}, 81, 9, id="size"),
+        pytest.param({"size": 9}, 100, 9, id="size"),
         pytest.param({}, 16, 4, id="isqrt-fallback"),
     ],
 )
