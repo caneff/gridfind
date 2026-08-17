@@ -5,7 +5,7 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.verdict import Enumeration, enumerate_witnesses
 from gridfind.witness import Witness, WitnessIdentity
 
@@ -327,7 +327,7 @@ def test_real_link_multi_witness_enumeration_through_the_library_path() -> None:
     # CLI front door is out of scope here — this drives `enumerate_witnesses`
     # directly.
     link = (_LINKS_DIR / "found-kropki-4x4.txt").read_text().split()[-1]
-    puzzle, working_state = decode_link(link)
+    puzzle, working_state = link_to_puzzle(link)
 
     full = enumerate_witnesses(puzzle, working_state, limit=50)
     assert full.kind == "found"

@@ -2,7 +2,7 @@
 cage's graduation to a killer cage (type 2001, ADR-0008), and thermometers
 (type 300).
 
-Each decodes through `decode_link` to its gridfind constraint(s). A summed cage
+Each decodes through `link_to_puzzle` to its gridfind constraint(s). A summed cage
 recomposes into a no-repeats `cage` plus a `group-sum` over the same cells
 (ADR-0009); a cosmetic cage carrying a numeric label graduates the same way.
 The named-marker cages (`Doubler`, `S-cell`) are a different reading and live
@@ -15,7 +15,7 @@ an unnamed/unrecognized one the decoder warn-drops (ADR-0012).
 import pytest
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.conftest import constraint_link
 
 
@@ -26,7 +26,7 @@ def test_cage_decodes_to_region_only_cage_constraint(
     # its raw indices mapped row-major to addresses ([18, 19] -> R3C1, R3C2).
     payload = constraint_link({"type": 301, "cages": [{"cells": [18, 19], "value": 0}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
     assert capsys.readouterr().err == ""
@@ -40,7 +40,7 @@ def test_cage_with_a_sum_decodes_to_a_cage_plus_a_group_sum(
     # cage's recomposition (ADR-0009). No warning, the sum is honored.
     payload = constraint_link({"type": 301, "cages": [{"cells": [0, 1], "value": 7}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
@@ -61,7 +61,7 @@ def test_multiple_cages_each_decode_to_their_own_constraint() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
@@ -78,7 +78,7 @@ def test_cosmetic_cage_with_numeric_label_decodes_to_a_killer_cage_constraint(
         {"name": "Sum", "type": 2001, "cages": [{"value": "11", "cells": [0, 1, 2]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("cage", params={"cells": ["R1C1", "R1C2", "R1C3"]})
@@ -99,7 +99,7 @@ def test_named_cosmetic_cage_with_a_zero_label_decodes_to_a_bare_cage() -> None:
         {"name": "Killer", "type": 2001, "cages": [{"value": "0", "cells": [0, 1]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert all(c.type != "group-sum" for c in puzzle.constraints)
@@ -121,7 +121,7 @@ def test_named_cosmetic_cage_without_a_numeric_label_decodes_to_a_bare_cage(
         {"name": "Sum", "type": 2001, "cages": [{"value": label, "cells": [0, 1]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert all(c.type != "group-sum" for c in puzzle.constraints)
@@ -143,7 +143,7 @@ def test_named_sum_or_killer_cage_decodes_as_a_killer_cage(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
@@ -174,7 +174,7 @@ def test_named_equality_cage_decodes_to_cage_plus_equality_cage(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
@@ -200,7 +200,7 @@ def test_named_rellik_or_anti_cage_decodes_as_a_rellik_cage(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
@@ -225,7 +225,7 @@ def test_multiple_named_equality_cages_each_decode_to_their_own_constraint() -> 
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
@@ -247,7 +247,7 @@ def test_named_equality_cage_with_an_odd_cell_count_still_decodes() -> None:
         {"name": "Equality", "type": 2001, "cages": [{"cells": [0, 1, 2]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("cage", params={"cells": ["R1C1", "R1C2", "R1C3"]})
@@ -274,7 +274,7 @@ def test_named_rellik_cage_without_a_numeric_label_decodes_to_a_bare_cage(
         {"name": "Rellik", "type": 2001, "cages": [{"value": label, "cells": [0, 1]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert all(c.type != "rellik-cage" for c in puzzle.constraints)
@@ -295,7 +295,7 @@ def test_multiple_named_cosmetic_cages_each_decode_to_their_own_constraint() -> 
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
     assert (
@@ -334,7 +334,7 @@ def test_unnamed_cosmetic_cage_warns_and_drops(
     # emitted for it, and the drop is loud.
     payload = constraint_link({"type": 2001, "cages": cages})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
     assert "unnamed cosmetic cage" in capsys.readouterr().err
@@ -349,7 +349,7 @@ def test_unrecognized_named_cage_warns_and_drops(
         {"name": "Foobar", "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
     assert "Foobar" in capsys.readouterr().err
@@ -360,7 +360,7 @@ def test_normal_thermo_decodes_to_ordered_path_constraint() -> None:
     # [0, 1, 2] -> R1C1, R1C2, R1C3.
     payload = constraint_link({"type": 300, "slow": False, "thermometers": [[0, 1, 2]]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
@@ -377,7 +377,7 @@ def test_multiple_thermo_paths_each_decode_to_their_own_constraint() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
@@ -392,7 +392,7 @@ def test_multiple_thermo_paths_each_decode_to_their_own_constraint() -> None:
 def test_slow_thermo_decodes_with_slow_true_on_the_constraint() -> None:
     payload = constraint_link({"type": 300, "slow": True, "thermometers": [[0, 1, 2]]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": True})
@@ -403,7 +403,7 @@ def test_slow_thermo_decodes_with_slow_true_on_the_constraint() -> None:
 def test_two_cell_thermo_decodes_the_bare_inequality_path() -> None:
     payload = constraint_link({"type": 300, "slow": False, "thermometers": [[0, 1]]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("thermo", params={"path": ["R1C1", "R1C2"], "slow": False})
@@ -421,7 +421,7 @@ def test_thermo_style_is_ignored() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("thermo", params={"path": ["R1C1", "R1C2", "R1C3"], "slow": False})
@@ -467,7 +467,7 @@ def test_disabled_or_empty_caged_block_decodes_to_nothing_quietly(
 ) -> None:
     # A disabled block (setter switched it off) and an empty one (no cages/paths)
     # both add no constraint and warn nothing.
-    puzzle, _ = decode_link(constraint_link(block))
+    puzzle, _ = link_to_puzzle(constraint_link(block))
 
     assert all(c.type not in decoded_types for c in puzzle.constraints)
     assert capsys.readouterr().err == ""

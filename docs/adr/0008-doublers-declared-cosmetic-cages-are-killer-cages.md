@@ -46,7 +46,7 @@ nor the cage — unsound for this puzzle.
    discovered position exported in a solved state — the link is an unsolved
    puzzle carrying the mark, and every ISS special-cell feature is likewise
    setter-declared.
-2. **Doubler decode is flag-gated** — `decode_link(doubler=True)`, reading the
+2. **Doubler decode is flag-gated** — `link_to_puzzle(doubler=True)`, reading the
    red bit by default, mirroring `schrodinger=True`. A bare color bit is
    ambiguous, so the variant is declared, never sniffed.
 3. **Cosmetic (type-2001) cages are honored as killer cages.** A numeric string

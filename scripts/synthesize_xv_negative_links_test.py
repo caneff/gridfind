@@ -13,7 +13,7 @@ import pytest
 import synthesize_xv_negative_links as syn
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
@@ -30,7 +30,7 @@ def test_link_decodes_the_negated_rule_over_the_deciding_pair(name: str) -> None
     """Both fixtures carry no positive XV clue and the same negated `sum !=
     5` constraint over R3C3/R3C4 — only the two links' givens differ, not
     their decoded ruleset."""
-    puzzle, _ = decode_link(syn.CORPUS[name]())
+    puzzle, _ = link_to_puzzle(syn.CORPUS[name]())
     assert not any(c.type in ("x", "v") for c in puzzle.constraints)
     assert (
         Constraint(

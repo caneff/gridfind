@@ -1,14 +1,14 @@
-"""`decode_link`: the whole-assembly decode from a classic SudokuMaker link to
+"""`link_to_puzzle`: the whole-assembly decode from a classic SudokuMaker link to
 gridfind's `Puzzle` + `WorkingState`.
 """
 
 from gridfind.puzzle import Board, Candidate, Given, Placement, Puzzle, WorkingState
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.conftest import CLASSIC_CONSTRAINTS
 
 
 def test_classic_link_decodes_to_expected_puzzle_and_state(classic_link: str) -> None:
-    puzzle, state = decode_link(classic_link)
+    puzzle, state = link_to_puzzle(classic_link)
 
     assert puzzle == Puzzle(
         board=Board(size=9),

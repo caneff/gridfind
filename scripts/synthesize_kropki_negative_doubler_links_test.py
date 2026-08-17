@@ -13,7 +13,7 @@ import pytest
 import synthesize_kropki_negative_doubler_links as syn
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
@@ -32,7 +32,7 @@ def test_link_decodes_the_marked_dot_the_negated_rule_and_the_doubler(
     """Both fixtures carry the same marked positive clue, the same negated
     `diff != 7` constraint over R4C4/R4C5, and a `doubler` constraint — only
     the two links' givens differ, not their decoded ruleset."""
-    puzzle, _ = decode_link(syn.CORPUS[name]())
+    puzzle, _ = link_to_puzzle(syn.CORPUS[name]())
     assert (
         Constraint("pair-difference", params={"cells": ["R1C1", "R1C2"], "diff": 1})
         in puzzle.constraints

@@ -1,5 +1,5 @@
 """The SudokuMaker wire-`type` integer vocabulary: one constant per type
-`decode_link` recognizes, the shared home every per-type decoder and
+`link_to_puzzle` recognizes, the shared home every per-type decoder and
 `registry.DECODER_REGISTRY` import instead of each decoder minting its own
 copy and `registry.py` reaching across the boundary to read it. Public
 (no leading underscore) as a package-internal seam, not part of the

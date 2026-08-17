@@ -43,7 +43,7 @@ through the named-component registry (spec #431).
    rule; a component's cells and value are read on neither carrier.
 
 4. **Decode emits `line-count-distinct` in place of the classic triplet.**
-   `decode_link` swaps `rows-distinct`/`cols-distinct`/`regions-distinct` for
+   `link_to_puzzle` swaps `rows-distinct`/`cols-distinct`/`regions-distinct` for
    a single `line-count-distinct` constraint when the flag is set, and skips
    `type 1`'s regions/box rule the same way — a somedoku grid carries no
    boxes. A disabled `Somedoku` block, on either carrier, decodes to nothing

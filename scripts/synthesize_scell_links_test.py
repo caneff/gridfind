@@ -23,7 +23,7 @@ from gridfind.s_directives import (
     SCellPin,
     SingletonPin,
 )
-from gridfind.sudokumaker import decode_link, link_to_document
+from gridfind.sudokumaker import link_to_document, link_to_puzzle
 from gridfind.verdict import verdict
 
 
@@ -36,7 +36,7 @@ def _front_door(link: str, capsys: pytest.CaptureFixture[str]) -> tuple[int, str
 
 
 def _state(link: str) -> WorkingState:
-    _, state = decode_link(link)
+    _, state = link_to_puzzle(link)
     return state
 
 
@@ -55,7 +55,7 @@ def test_found_pin_declares_one_scell_and_the_solver_discovers_the_rest(
 def test_found_pin_decodes_the_default_zero_to_n_domain() -> None:
     # No fixture declares minDigit; the named S-cell block alone widens the
     # decoded domain to 0…N (ADR-0014).
-    puzzle, _ = decode_link(syn.found_pin())
+    puzzle, _ = link_to_puzzle(syn.found_pin())
     assert puzzle.board.values == range(puzzle.board.size + 1)
 
 
@@ -207,7 +207,7 @@ def test_sumless_cage_stays_a_bare_named_cage_and_reads_broke(
     # Naming it moves the rule off the unnamed cosmetic path without changing
     # the verdict.
     link = syn.broke_cosmetic_cage_sumless_4x4()
-    puzzle, _ = decode_link(link)
+    puzzle, _ = link_to_puzzle(link)
     assert any(c.type == "cage" for c in puzzle.constraints)
     assert all(c.type != "group-sum" for c in puzzle.constraints)
     assert all(b.get("name") for b in _caged_2001_blocks(link))
@@ -222,7 +222,7 @@ def test_numeric_cage_graduates_to_a_group_sum_and_reads_found(
     # value graduates to a real killer sum, emitting both the no-repeats
     # `cage` and a `group-sum` carrying that value (ADR-0008).
     link = syn.found_cosmetic_cage_4x4()
-    puzzle, _ = decode_link(link)
+    puzzle, _ = link_to_puzzle(link)
     assert any(c.type == "cage" for c in puzzle.constraints)
     group_sums = [c for c in puzzle.constraints if c.type == "group-sum"]
     assert [c.params["sum"] for c in group_sums] == [3]
@@ -239,7 +239,7 @@ def test_unrecognized_named_cage_warns_and_drops_and_reads_found(
     # cage, which would otherwise break on the repeated digit 3 shared by
     # cells 0 and 6. The verdict is computed from the given solution alone.
     link = syn.found_cosmetic_cage_unrecognized_4x4()
-    puzzle, _ = decode_link(link)
+    puzzle, _ = link_to_puzzle(link)
     assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
     code, first, err = _front_door(link, capsys)
     assert (code, first) == (0, "found")
@@ -254,7 +254,7 @@ def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
     # witness must carry R1C3 as both two-digit (an S-cell) and `doubler`, so
     # the discovery is a genuine doubled-S-cell solve, not either channel alone.
     link = syn.found_doubled_scell_17cage_4x4()
-    puzzle, state = decode_link(link)
+    puzzle, state = link_to_puzzle(link)
     result = verdict(puzzle, state)
     assert result.kind == "found"
     assert result.witness is not None
@@ -270,7 +270,7 @@ def test_found_doubled_scell_17cage_witness_never_doubles_a_digit_twice() -> Non
     # off the returned witness — each doubler contributes the digits its cell
     # displays (both for an S-cell), and those contributions must be disjoint.
     link = syn.found_doubled_scell_17cage_4x4()
-    puzzle, state = decode_link(link)
+    puzzle, state = link_to_puzzle(link)
     result = verdict(puzzle, state)
     assert result.kind == "found"
     assert result.witness is not None

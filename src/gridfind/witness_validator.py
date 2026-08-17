@@ -14,7 +14,7 @@ via the same `constraint_types` membership test (`_regions` takes its
 puzzle can hold one without the other (a somedoku puzzle carries neither,
 running on `line-count-distinct` instead) — and every given sitting in its
 cell. It reads a `Puzzle`
-(typically `sudokumaker.decode_link`'s output) but never calls `verdict()`
+(typically `sudokumaker.link_to_puzzle`'s output) but never calls `verdict()`
 and never touches `Witness` or its `render()` — so a defect in the solver or
 the renderer can't hide behind a witness that merely *looks* right to the
 same code that produced it.
@@ -27,7 +27,7 @@ cite, so a layout drift in `render()` fails this parse loudly (`None`, then
 Regions come straight off the puzzle's own `regions-distinct` constraint, via
 `region_map_for_constraints` (one door: bare resolves to the board's box tiling, jigsaw
 to `params["regions"]`) — the same shapes
-`decode_link` itself ever emits, so this stays in lockstep with the decoder.
+`link_to_puzzle` itself ever emits, so this stays in lockstep with the decoder.
 That resolver is the same one the witness render path crosses, so a
 render → validate round-trip proves both sides agree on one partition
 instead of each re-deriving it.

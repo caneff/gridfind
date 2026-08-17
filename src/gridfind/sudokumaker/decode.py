@@ -1,4 +1,4 @@
-"""`decode_link`: thread every module's decode piece into one `Puzzle` +
+"""`link_to_puzzle`: thread every module's decode piece into one `Puzzle` +
 `WorkingState`.
 
 The decode is split by responsibility across the package's other modules —
@@ -8,7 +8,7 @@ cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `global_flags` (the payload-less `Somedoku` component),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
 (`DECODER_REGISTRY`), and `dropped` (the drop policy built on it) — with
-`decode_link` here as the one function that threads all of them together.
+`link_to_puzzle` here as the one function that threads all of them together.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from gridfind.sudokumaker.global_flags import has_somedoku_component
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 
-def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
+def link_to_puzzle(link: str) -> tuple[Puzzle, WorkingState]:
     """Map a SudokuMaker `?puzzle=` link (or a bare payload) to a square-N
     `Puzzle` + `WorkingState`, sizing the board and domain from the link
     itself. Raises `ValueError` on a link gridfind can't answer, and

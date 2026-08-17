@@ -29,7 +29,7 @@ from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 
 # A low-saturation display palette for named marker cages, cosmetic only —
 # written onto the `type 2001` block's own `color` field, a field
-# `decode_link` never reads. Index 0 is red: the slot a link's lone marker
+# `link_to_puzzle` never reads. Index 0 is red: the slot a link's lone marker
 # type always takes, and the slot S-cell takes first when a link mixes marker
 # types (`_MARKER_KIND_PRIORITY`, near `colorize_marker_cages`).
 _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
@@ -66,7 +66,7 @@ def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     `"s-cell"` (an `S-cell`/`Schrödinger` position marker), `"constant"` (a
     `Constant <N>`/`Nullifier` position marker whose `k` is read from the name
     itself), `"somedoku"` (the payload-less `Somedoku` global flag — cells and
-    value ignored), or `"unrecognized"` (a name `decode_link` cannot answer
+    value ignored), or `"unrecognized"` (a name `link_to_puzzle` cannot answer
     for — a bare `Constant` with no parseable integer lands here too, never
     silently `k = 0`). `"unnamed"` and `"unrecognized"` share the same fate
     downstream — a loud stderr warn-drop, never a rule (ADR-0012) — but stay
@@ -106,7 +106,7 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     types gives S-cell red and Doubler the next slot. An unnamed cosmetic-cage
     block, a Sum/Killer-labelled one, an unrecognized name, and every other
     constraint type ride through uncolored. The written field is
-    display-only: `decode_link` never reads a cosmetic-cage block's `style`,
+    display-only: `link_to_puzzle` never reads a cosmetic-cage block's `style`,
     so a decode of the result agrees with a decode of `document`."""
     colored: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", colored["puzzle"])

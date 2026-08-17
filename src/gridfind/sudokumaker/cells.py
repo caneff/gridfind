@@ -55,7 +55,7 @@ class CellDecode:
     @classmethod
     def concat(cls, decodes: Iterable[CellDecode]) -> CellDecode:
         """One `CellDecode` merging every cell's, each channel concatenated in
-        cell order — the board-level directive set `decode_link` reads."""
+        cell order — the board-level directive set `link_to_puzzle` reads."""
         decodes = list(decodes)
         return cls(
             givens=tuple(d for c in decodes for d in c.givens),

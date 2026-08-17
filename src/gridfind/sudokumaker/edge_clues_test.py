@@ -3,7 +3,7 @@ black kropki (201) — and the `_edge_to_pair` primitive they share.
 
 `_edge_to_pair` inverts SudokuMaker's edge index to the orthogonally-adjacent
 cell pair it names; it is this module's own transform seam, tested directly.
-Each clue family decodes through `decode_link` to its gridfind constraint. All
+Each clue family decodes through `link_to_puzzle` to its gridfind constraint. All
 three types' negative lists are enforced (the negative-space mechanism).
 """
 
@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 
 from gridfind.cell_geometry import format_address
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.conftest import (
     EMPTY_CELLS,
     WIRE_CONSTRAINTS,
@@ -98,7 +98,7 @@ def test_xv_clue_decodes_to_aliased_group_sum(
 ) -> None:
     payload = constraint_link({"type": 202, "clues": [{"value": value, "edge": edge}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint(alias, params={"cells": cells}) in puzzle.constraints
 
@@ -111,7 +111,7 @@ def test_multiple_xv_clues_each_decode_to_their_own_constraint() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert Constraint("x", params={"cells": ["R4C8", "R5C8"]}) in puzzle.constraints
     assert Constraint("v", params={"cells": ["R6C5", "R7C5"]}) in puzzle.constraints
@@ -124,7 +124,7 @@ def test_xv_negative_rule_forbids_every_listed_sum_over_an_unmarked_pair(
         {"type": 202, "clues": [{"value": 10, "edge": 70}], "negative": [10, 5]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     # The marked pair still decodes its own positive clue...
     assert Constraint("x", params={"cells": ["R4C8", "R5C8"]}) in puzzle.constraints
@@ -146,7 +146,7 @@ def test_xv_negative_rule_exempts_the_marked_edge() -> None:
         {"type": 202, "clues": [{"value": 10, "edge": 70}], "negative": [10, 5]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     for value in (10, 5):
         assert (
@@ -164,7 +164,7 @@ def test_xv_value_that_is_neither_x_nor_v_is_refused() -> None:
     payload = constraint_link({"type": 202, "clues": [{"value": 7, "edge": 70}]})
 
     with pytest.raises(ValueError, match="neither"):
-        decode_link(payload)
+        link_to_puzzle(payload)
 
 
 @pytest.mark.parametrize(
@@ -181,7 +181,7 @@ def test_kropki_clue_decodes_to_pair_difference(
 ) -> None:
     payload = constraint_link({"type": 200, "clues": [{"value": value, "edge": edge}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("pair-difference", params={"cells": cells, "diff": value})
@@ -194,7 +194,7 @@ def test_kropki_honors_a_labelled_non_one_value() -> None:
     # never silently treated as the consecutive (diff 1) default.
     payload = constraint_link({"type": 200, "clues": [{"value": 3, "edge": 75}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("pair-difference", params={"cells": ["R5C3", "R5C4"], "diff": 3})
@@ -210,7 +210,7 @@ def test_multiple_kropki_clues_each_decode_to_their_own_constraint() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("pair-difference", params={"cells": ["R5C3", "R5C4"], "diff": 1})
@@ -229,7 +229,7 @@ def test_kropki_negative_rule_forbids_every_listed_difference_over_an_unmarked_p
         {"type": 200, "clues": [{"value": 1, "edge": 75}], "negative": [1, 2]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     # The marked pair still decodes its own positive clue...
     assert (
@@ -254,7 +254,7 @@ def test_kropki_negative_rule_exempts_the_marked_edge() -> None:
         {"type": 200, "clues": [{"value": 1, "edge": 75}], "negative": [1, 2]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     for value in (1, 2):
         assert (
@@ -269,7 +269,7 @@ def test_kropki_negative_rule_exempts_the_marked_edge() -> None:
 def test_kropki_negative_rule_never_constrains_a_diagonal_pair() -> None:
     payload = constraint_link({"type": 200, "clues": [], "negative": [1]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint(
@@ -302,7 +302,7 @@ def test_kropki_negative_rule_ignores_the_inert_override_boolean(
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint(
@@ -346,7 +346,7 @@ def test_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
         document["minDigit"] = min_digit
     payload = encode_document(document)
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert any(
         c.type == "pair-difference" and c.params.get("negate")
@@ -370,7 +370,7 @@ def test_black_kropki_clue_decodes_to_pair_ratio(
 ) -> None:
     payload = constraint_link({"type": 201, "clues": [{"value": value, "edge": edge}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("pair-ratio", params={"cells": cells, "k": value})
@@ -383,7 +383,7 @@ def test_black_kropki_honors_a_labelled_non_two_value() -> None:
     # never silently treated as the default 2:1.
     payload = constraint_link({"type": 201, "clues": [{"value": 3, "edge": 75}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": 3})
@@ -399,7 +399,7 @@ def test_multiple_black_kropki_clues_each_decode_to_their_own_constraint() -> No
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint("pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": 2})
@@ -418,7 +418,7 @@ def test_black_kropki_negative_rule_forbids_every_listed_ratio_over_an_unmarked_
         {"type": 201, "clues": [{"value": 2, "edge": 75}], "negative": [3, 5]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     # The marked pair still decodes its own positive clue...
     assert (
@@ -442,7 +442,7 @@ def test_black_kropki_negative_rule_exempts_the_marked_edge() -> None:
         {"type": 201, "clues": [{"value": 2, "edge": 75}], "negative": [3, 5]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     for k in (3, 5):
         assert (
@@ -468,7 +468,7 @@ def test_black_kropki_negative_rule_ignores_the_inert_override_boolean(
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert (
         Constraint(
@@ -512,7 +512,7 @@ def test_black_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
         document["minDigit"] = min_digit
     payload = encode_document(document)
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert any(
         c.type == "pair-ratio" and c.params.get("negate") for c in puzzle.constraints
@@ -527,7 +527,7 @@ def test_black_kropki_non_integer_value_raises_at_decode() -> None:
     payload = constraint_link({"type": 201, "clues": [{"value": 2.5, "edge": 75}]})
 
     with pytest.raises(ValueError, match="black-kropki value"):
-        decode_link(payload)
+        link_to_puzzle(payload)
 
 
 @pytest.mark.parametrize(
@@ -562,7 +562,7 @@ def test_disabled_or_empty_edge_clue_block_decodes_to_nothing_quietly(
 ) -> None:
     # A disabled block (setter switched it off) and an empty one (no clues) both
     # add no constraint and warn nothing.
-    puzzle, _ = decode_link(constraint_link(block))
+    puzzle, _ = link_to_puzzle(constraint_link(block))
 
     assert all(c.type not in decoded_types for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
@@ -607,7 +607,7 @@ def test_a_positive_kropki_link_composes_with_a_doubler_or_s_cell_board(
         document["minDigit"] = min_digit
     payload = encode_document(document)
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert any(c.type == relation_type for c in puzzle.constraints)
     result = verdict(puzzle, state)

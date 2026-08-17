@@ -17,7 +17,7 @@ from gridfind.puzzle import (
     Placement,
     WorkingState,
 )
-from gridfind.sudokumaker import decode_link, write_cell
+from gridfind.sudokumaker import link_to_puzzle, write_cell
 from gridfind.sudokumaker.cells import CellDecode, _parse_scell_value, decode_cell
 from gridfind.sudokumaker.conftest import (
     EMPTY_CELLS,
@@ -84,7 +84,7 @@ def test_colors_and_corner_marks_leave_the_state_empty() -> None:
     cells[1] = {"cornerPencilMarks": 8}
     payload = encode_document({"cells": cells, "constraints": WIRE_CONSTRAINTS})
 
-    _, state = decode_link(payload)
+    _, state = link_to_puzzle(payload)
 
     assert state == WorkingState()
 
@@ -97,7 +97,7 @@ def test_settled_value_on_a_non_schrodinger_puzzle_stays_given_or_placement() ->
     cells[1] = {"value": 3}
     payload = encode_document({"cells": cells, "constraints": WIRE_CONSTRAINTS})
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert puzzle.givens == (Given("R1C1", 7),)
     assert state.places == (Placement("R1C2", 3),)

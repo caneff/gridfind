@@ -12,7 +12,7 @@ import pytest
 import synthesize_equality_links as syn
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
@@ -34,6 +34,6 @@ def test_committed_corpus_file_matches_its_synthesizer(name: str) -> None:
     ],
 )
 def test_link_decodes_to_cage_plus_equality_cage(name: str, cells: list[str]) -> None:
-    puzzle, _ = decode_link(syn.CORPUS[name]())
+    puzzle, _ = link_to_puzzle(syn.CORPUS[name]())
     assert Constraint("cage", params={"cells": cells}) in puzzle.constraints
     assert Constraint("equality-cage", params={"cells": cells}) in puzzle.constraints

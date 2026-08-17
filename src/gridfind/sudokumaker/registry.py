@@ -1,5 +1,5 @@
 """`DECODER_REGISTRY`: the one table wire-type -> (handler, live-data payload
-keys, display name) that `decode_link` dispatches through,
+keys, display name) that `link_to_puzzle` dispatches through,
 `dropped.warn_on_dropped_constraints` treats as the already-modeled ruleset,
 and `dropped.has_live_data` reads `live_keys` from. Also the global-toggle
 types (anti-knight, anti-king, the two diagonals) and their shared handler
@@ -57,7 +57,7 @@ def _global_toggle_handler(
 class DecodedType:
     """One SudokuMaker wire-type the decoder recognizes, one row wide: `handler` builds
     this type's `Constraint`s from the link (`None` for a type with nothing to
-    build through `decode_link`'s generic dispatch — a bare `type 0` is just
+    build through `link_to_puzzle`'s generic dispatch — a bare `type 0` is just
     the unconditional rows/cols, and `type 2001` cosmetic cages are dispatched
     by hand for their richer `_CosmeticCageDecode` return; `type 1`'s regions
     live behind
@@ -73,7 +73,7 @@ class DecodedType:
 
 
 # The one table wire-type -> (handler, live-data payload keys, display name):
-# `decode_link` dispatches through it, `dropped.warn_on_dropped_constraints`
+# `link_to_puzzle` dispatches through it, `dropped.warn_on_dropped_constraints`
 # treats its keys as the already-modeled ruleset, and `dropped.has_live_data`
 # reads its `live_keys` — adding a link type is one row here, not three
 # hand-synced call sites.

@@ -68,7 +68,7 @@ single-cell, but a multi-cell one marks all its cells uniformly.
 
 **The variant is inferred, never declared.** Because the name carries the
 declaration, both variants can appear in one grid — a `Doubler` block and an
-`S-cell` block side by side. `decode_link` infers the variant from marker
+`S-cell` block side by side. `link_to_puzzle` infers the variant from marker
 presence: any `S-cell`/`Schrödinger` block turns Schrödinger on (widen the
 domain, synthesize the bare `schrodinger` constraint); any `Doubler` block turns
 the doubler on (synthesize the bare `doubler` constraint). The color read, the
@@ -119,7 +119,7 @@ of the flip ([#433](https://github.com/caneff/gridfind/issues/433)).
   but its channel is now a cage name, not a color mark. Its decision 2 (the
   flag-gated color read) and its rejected "CLI names which color" coexistence
   option are superseded by this ADR. ADR-0008 carries a pointer here.
-- `decode_link` drops its `variant` parameter; it infers the variant itself, so
+- `link_to_puzzle` drops its `variant` parameter; it infers the variant itself, so
   callers (`cli.py`, `witness_validator.py`, the raw-argv `verify_links` /
   `eval_links` scripts) stop constructing a `LinkVariant`. It later drops
   `ignore_unknown_named_cages` too ([#435](https://github.com/caneff/gridfind/issues/435))
