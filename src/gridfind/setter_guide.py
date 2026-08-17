@@ -60,7 +60,7 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
             "even/odd and low/high digits; an odd cell count is refused as "
             "malformed"
         ),
-        "found-equality-4x4",
+        "found-equality-9x9",
     ),
     (
         "doubler",

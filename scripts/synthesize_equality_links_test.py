@@ -27,8 +27,10 @@ def test_committed_corpus_file_matches_its_synthesizer(name: str) -> None:
 @pytest.mark.parametrize(
     ("name", "cells"),
     [
-        ("found-equality-4x4", ["R1C1", "R1C4"]),
-        ("broke-equality-4x4", ["R1C1", "R1C2"]),
+        ("found-equality-9x9", ["R1C1", "R1C4", "R1C6", "R1C7"]),
+        ("broke-equality-parity-9x9", ["R1C2", "R1C4", "R1C6", "R1C7"]),
+        ("broke-equality-rank-9x9", ["R1C1", "R1C2", "R1C3", "R1C4"]),
+        ("broke-equality-middle-9x9", ["R1C2", "R1C4", "R1C5", "R1C7"]),
     ],
 )
 def test_link_decodes_to_cage_plus_equality_cage(name: str, cells: list[str]) -> None:
