@@ -129,6 +129,19 @@ def _mark_modifier_block(
     cage["cells"] = sorted(set(cage.get("cells", [])) | modifiers)
 
 
+def oracle_witness(link: str) -> tuple[str, Witness | None, int]:
+    """Decode `link`, verdict it, and apply the ADR-0007 link-oracle guard: a
+    witness is returned only for a `found` verdict that actually carries one,
+    since a found-but-unwitnessed result has nothing for a caller to show. The
+    one home for decode → verdict → guard, shared by the verify oracle
+    (`verify_link`) and the eval view (`eval_links.eval_link`)."""
+    puzzle, state = decode_link(link)
+    result = verdict(puzzle, state)
+    if result.kind != "found" or result.witness is None:
+        return result.kind, None, puzzle.board.size
+    return result.kind, result.witness, puzzle.board.size
+
+
 def verify_link(argv: Sequence[str]) -> str:
     """One case file's argv (the link is the last token, matching
     `links_test.py`'s loader) reduced to the emitter's report: a found link's
@@ -136,11 +149,10 @@ def verify_link(argv: Sequence[str]) -> str:
     is curated found/broke by filename, so an off-corpus `unknown` reports the
     same as `broke` rather than implying a witness that was never computed."""
     link = argv[-1]
-    puzzle, state = decode_link(link)
-    result = verdict(puzzle, state)
-    if result.kind != "found" or result.witness is None:
+    _, witness, size = oracle_witness(link)
+    if witness is None:
         return "broke"
-    return emit_solution_link(link, result.witness, puzzle.board.size)
+    return emit_solution_link(link, witness, size)
 
 
 def emit_solution_link(link: str, witness: Witness, size: int) -> str:
