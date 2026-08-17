@@ -44,6 +44,14 @@ def test_sum_and_killer_share_the_killer_role_and_cage_selector_shape() -> None:
     assert component.shape == "cage-selector"
 
 
+def test_equality_is_its_own_cage_selector_role() -> None:
+    component = named_component("Equality")
+    assert component is not None
+    assert component.role == "equality"
+    assert component.shape == "cage-selector"
+    assert component != named_component("Sum")
+
+
 def test_rellik_and_anti_share_the_rellik_role_and_cage_selector_shape() -> None:
     assert named_component("Rellik") == named_component("Anti")
     component = named_component("Rellik")

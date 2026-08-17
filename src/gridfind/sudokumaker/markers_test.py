@@ -162,6 +162,7 @@ def test_marker_labels_covers_every_role() -> None:
     # fixed name (ADR-0016).
     assert set(MARKER_LABELS) == {
         "killer",
+        "equality",
         "rellik",
         "doubler",
         "s-cell",
@@ -171,7 +172,8 @@ def test_marker_labels_covers_every_role() -> None:
 
 
 @pytest.mark.parametrize(
-    "role", ["killer", "rellik", "doubler", "s-cell", "constant", "somedoku"]
+    "role",
+    ["killer", "equality", "rellik", "doubler", "s-cell", "constant", "somedoku"],
 )
 def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
     # Every name MARKER_LABELS lists under a role must classify to that role
