@@ -29,7 +29,10 @@ KROPKI_BLACK_TYPE = 201
 # [...]`. `value` selects the existing group-sum alias — 10 is X, 5 is V
 # — never a raw `sum`, so a puzzle carrying both an XV clue and
 # a literal group-sum on the same cells still hits the alias's own
-# fixed-param conflict check in `expand_constraints`.
+# fixed-param conflict check in `expand_constraints`. A non-empty `negative`
+# list is enforced (every listed sum forbidden on every unmarked
+# orthogonally-adjacent pair), not dropped — the negative-space mechanism in
+# `sudokumaker.edge_clues`.
 XV_TYPE = 202
 
 # type 300 is a thermometer block: `slow: bool,

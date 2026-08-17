@@ -3,10 +3,8 @@ black kropki (201) — and the `_edge_to_pair` primitive they share.
 
 `_edge_to_pair` inverts SudokuMaker's edge index to the orthogonally-adjacent
 cell pair it names; it is this module's own transform seam, tested directly.
-Each clue family decodes through `decode_link` to its gridfind constraint.
-White-kropki's and black-kropki's negative lists are enforced (the
-negative-space mechanism); XV's still warns loud and drops while keeping the
-positive clues.
+Each clue family decodes through `decode_link` to its gridfind constraint. All
+three types' negative lists are enforced (the negative-space mechanism).
 """
 
 import pytest
@@ -119,19 +117,45 @@ def test_multiple_xv_clues_each_decode_to_their_own_constraint() -> None:
     assert Constraint("v", params={"cells": ["R6C5", "R7C5"]}) in puzzle.constraints
 
 
-def test_xv_negative_list_warns_but_keeps_positive_clues(
+def test_xv_negative_rule_forbids_every_listed_sum_over_an_unmarked_pair(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = constraint_link(
-        {"type": 202, "clues": [{"value": 10, "edge": 70}], "negative": [1, 2]}
+        {"type": 202, "clues": [{"value": 10, "edge": 70}], "negative": [10, 5]}
     )
 
     puzzle, _ = decode_link(payload)
 
+    # The marked pair still decodes its own positive clue...
     assert Constraint("x", params={"cells": ["R4C8", "R5C8"]}) in puzzle.constraints
-    assert capsys.readouterr().err == (
-        "warning: ignoring XV negative constraint — verdict computed without it\n"
+    # ...and an unrelated orthogonal pair elsewhere on the same board picks up
+    # a negated group-sum for each listed value.
+    for value in (10, 5):
+        assert (
+            Constraint(
+                "group-sum",
+                params={"cells": ["R1C1", "R1C2"], "sum": value, "negate": True},
+            )
+            in puzzle.constraints
+        )
+    assert capsys.readouterr().err == ""
+
+
+def test_xv_negative_rule_exempts_the_marked_edge() -> None:
+    payload = constraint_link(
+        {"type": 202, "clues": [{"value": 10, "edge": 70}], "negative": [10, 5]}
     )
+
+    puzzle, _ = decode_link(payload)
+
+    for value in (10, 5):
+        assert (
+            Constraint(
+                "group-sum",
+                params={"cells": ["R4C8", "R5C8"], "sum": value, "negate": True},
+            )
+            not in puzzle.constraints
+        )
 
 
 def test_xv_value_that_is_neither_x_nor_v_is_refused() -> None:

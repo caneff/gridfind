@@ -1,0 +1,41 @@
+"""Guards for the synthesized xv-negative corpus.
+
+Two axes, both fast (decode only, no solve — the front-door verdict drive
+lives in the on-demand `links_test` e2e suite): the committed file matches
+its synthesizer byte for byte, and each link decodes the negated `sum != 5`
+rule over every orthogonally-adjacent pair, including R3C3/R3C4 — the pair
+the verdict turns on.
+"""
+
+from __future__ import annotations
+
+import pytest
+import synthesize_xv_negative_links as syn
+
+from gridfind.puzzle import Constraint
+from gridfind.sudokumaker import decode_link
+
+
+@pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
+def test_committed_corpus_file_matches_its_synthesizer(name: str) -> None:
+    """The committed corpus is built in code, never hand-authored: each file is
+    exactly its synthesizer's output. A hand-edit (or a stale regenerate) turns
+    this red."""
+    path = syn.LINKS_DIR / f"{name}.txt"
+    assert path.read_text() == syn.CORPUS[name]() + "\n"
+
+
+@pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
+def test_link_decodes_the_negated_rule_over_the_deciding_pair(name: str) -> None:
+    """Both fixtures carry no positive XV clue and the same negated `sum !=
+    5` constraint over R3C3/R3C4 — only the two links' givens differ, not
+    their decoded ruleset."""
+    puzzle, _ = decode_link(syn.CORPUS[name]())
+    assert not any(c.type in ("x", "v") for c in puzzle.constraints)
+    assert (
+        Constraint(
+            "group-sum",
+            params={"cells": ["R3C3", "R3C4"], "sum": 5, "negate": True},
+        )
+        in puzzle.constraints
+    )

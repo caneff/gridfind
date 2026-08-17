@@ -3,17 +3,14 @@ black-kropki (`type 201`) — which share one wire shape (`clues: [{value,
 edge}], negative: [...]`) and one decode walk (`_edge_clue_constraints`) built
 on the shared edge-to-cell-pair primitive `_edge_to_pair`.
 
-White-kropki's and black-kropki's `negative` lists are enforced through the
+All three edge-clue types' `negative` lists are enforced through the
 negative-space mechanism (`_orthogonal_pairs`, `_negative_space_constraints`):
 every orthogonally-adjacent pair a block's clues didn't mark is forbidden
-each listed difference (white) or ratio (black). XV still warns-and-drops
-its own `negative` list — the mechanism is relation-agnostic and built to
-take further consumers, but only the two kropki colours opt in here.
+each listed difference (white), ratio (black), or sum (XV).
 """
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -44,19 +41,6 @@ _XV_ALIASES: dict[int, str] = {
     for alias, (canonical, fixed) in ALIAS_REGISTRY.items()
     if canonical == "group-sum" and "sum" in fixed
 }
-
-
-def _warn_dropped_negative(block: dict[str, Any], label: str) -> None:
-    """Warn to stderr when a kropki/XV `block` carries a non-empty `negative`
-    list: gridfind models only the positive clues, so the verdict
-    is computed without the negative rule and the drop must never be silent."""
-    negative = block.get("negative")
-    if isinstance(negative, list) and negative:
-        print(
-            f"warning: ignoring {label} negative constraint "
-            "— verdict computed without it",
-            file=sys.stderr,
-        )
 
 
 def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
@@ -132,8 +116,8 @@ def _negative_rule(
     """A `negative_rule` closure for `_edge_clue_constraints`: reads the
     block's `negative` list and, if non-empty, applies it through
     `_negative_space_constraints` with `build_negated` as the relation
-    emitter. Shared by `kropki_constraints` and `black_kropki_constraints` so
-    the negative-list handling has one home."""
+    emitter. Shared by `kropki_constraints`, `black_kropki_constraints`, and
+    `xv_constraints` so the negative-list handling has one home."""
 
     def rule(block: dict[str, Any], marked: set[frozenset[str]]) -> list[Constraint]:
         negative = block.get("negative")
@@ -149,9 +133,7 @@ def _edge_clue_constraints(
     size: int,
     type_: int,
     build_clue: Callable[[object, str, str], Constraint],
-    label: str,
-    negative_rule: Callable[[dict[str, Any], set[frozenset[str]]], list[Constraint]]
-    | None = None,
+    negative_rule: Callable[[dict[str, Any], set[frozenset[str]]], list[Constraint]],
 ) -> list[Constraint]:
     """The shared decode walk behind the edge-clue types — XV, white-kropki,
     black-kropki — which share one wire shape (`clues: [{value, edge}],
@@ -162,14 +144,10 @@ def _edge_clue_constraints(
     carries the single per-type variation — an alias lookup, a `diff`, a
     ratio `k`.
 
-    `negative_rule`, when given, replaces the default warn-and-drop for a
-    non-empty `negative` list: called with the block and the set of pairs its
-    own clues just marked, it returns the constraints the negative-space
-    mechanism (`_negative_space_constraints`) derives — the opt-in path a
-    variant takes once it models its own negated relation. Absent
-    `negative_rule`, a non-empty `negative` list is warn-and-dropped to
-    stderr under `label` — the caller's `DECODER_REGISTRY` display name —
-    while its positive clues still decode."""
+    `negative_rule`, called with the block and the set of pairs its own clues
+    just marked, returns the constraints the negative-space mechanism
+    (`_negative_space_constraints`) derives for a non-empty `negative` list —
+    each caller's own opt-in into its negated relation (`_negative_rule`)."""
     decoded: list[Constraint] = []
     for block in enabled_blocks(buckets, type_):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
@@ -178,17 +156,21 @@ def _edge_clue_constraints(
             a, b = _edge_to_pair(clue["edge"], size)
             decoded.append(build_clue(clue["value"], a, b))
             marked.add(frozenset((a, b)))
-        if negative_rule is not None:
-            decoded.extend(negative_rule(block, marked))
-        else:
-            _warn_dropped_negative(block, label)
+        decoded.extend(negative_rule(block, marked))
     return decoded
 
 
 def xv_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     """The `type 202` XV clues as aliased group-sum `Constraint`s: `value`
     selects the existing `x`/`v` alias (10/5), or the link is refused — no
-    other value names an XV sum. See `_edge_clue_constraints` for the walk."""
+    other value names an XV sum. See `_edge_clue_constraints` for the walk.
+
+    A non-empty `negative` list is enforced, not dropped: each of its values
+    is a forbidden sum, applied through the negative-space mechanism
+    (`_negative_space_constraints`) over every orthogonally-adjacent pair the
+    block's own clues didn't mark — `group-sum`'s negated mode (`sum !=
+    s`), the same relation-emitter the positive clues above use (via the
+    `x`/`v` alias)."""
 
     def build(value: object, a: str, b: str) -> Constraint:
         # The XV wire value is a JSON number; the cast satisfies the int-keyed
@@ -201,7 +183,14 @@ def xv_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
             raise ValueError(msg)
         return Constraint(alias, params={"cells": [a, b]})
 
-    return _edge_clue_constraints(buckets, size, XV_TYPE, build, "XV")
+    def build_negated(value: object, a: str, b: str) -> Constraint:
+        return Constraint(
+            "group-sum", params={"cells": [a, b], "sum": value, "negate": True}
+        )
+
+    return _edge_clue_constraints(
+        buckets, size, XV_TYPE, build, _negative_rule(size, build_negated)
+    )
 
 
 def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
@@ -233,7 +222,6 @@ def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint
         size,
         KROPKI_WHITE_TYPE,
         build,
-        "white-kropki",
         _negative_rule(size, build_negated),
     )
 
@@ -269,6 +257,5 @@ def black_kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Cons
         size,
         KROPKI_BLACK_TYPE,
         build,
-        "black-kropki",
         _negative_rule(size, build_negated),
     )

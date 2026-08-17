@@ -8,12 +8,19 @@ structured like `cage`, not like the partition-driven region layer. The
 clue a group-sum of 5, each still passing its own two cells through
 (expanded in `layers/__init__`).
 
-Emits only the total: `sum(cells) == total`, never an `add_all_different`. A
-bare group-sum therefore permits repeats among its cells — a non-house sum of
-10 over two cells may be met as 5+5. Uniqueness, where a setter wants it, is
+Emits only the total: `sum(cells) == total`, or, when a clue's `negate` is
+true, `sum(cells) != total` instead — never an `add_all_different`. A bare
+group-sum therefore permits repeats among its cells — a non-house sum of 10
+over two cells may be met as 5+5. Uniqueness, where a setter wants it, is
 a separate capability composed alongside this one, not folded into it — a
 killer cage is a `cage` (no-repeats) plus a `group-sum` (the total) over the
 same cells, not one bundled layer (ADR-0009).
+
+The negated mode is the XV negative rule's mechanism
+(`sudokumaker.edge_clues`): the same emitter, applied over every unmarked
+orthogonally-adjacent pair, once per value in the wire's `negative` list, so
+positive and negative XV clues can never drift onto two different notions of
+"sums to `s`".
 
 Reads each cell's value through `Engine.value_expr` (ADR-0009), blind to how
 that value was built: a plain cell's digit, a doubler's `modifier_value`, an
@@ -46,4 +53,7 @@ class GroupSum:
             addresses = engine.cell_addresses(clue)
             total = cast("int", clue.params["sum"])
             terms = [engine.value_expr(address) for address in addresses]
-            engine.model.add(sum(terms) == total)
+            if clue.params.get("negate", False):
+                engine.model.add(sum(terms) != total)
+            else:
+                engine.model.add(sum(terms) == total)

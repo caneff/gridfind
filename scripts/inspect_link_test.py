@@ -275,6 +275,9 @@ _GOLDEN_REPORTS = {
     "broke-xv-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,202} · active: 202 · verdict: broke"
     ),
+    "broke-xv-negative-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,202} · active: 202 · verdict: broke"
+    ),
     "found-anti-king-6x6": (
         "6x6 · 36 cells · 1 given · types {0,1,12} · active: 12 · verdict: found"
     ),
@@ -363,6 +366,9 @@ _GOLDEN_REPORTS = {
     "found-xv-9x9": (
         "9x9 · 81 cells · 0 givens · types {0,1,200,202,301} ·"
         " active: 301, 202, 200 · verdict: found"
+    ),
+    "found-xv-negative-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,202} · active: 202 · verdict: found"
     ),
 }
 

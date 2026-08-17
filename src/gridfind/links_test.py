@@ -105,7 +105,9 @@ _NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
 # white-/black-kropki-negative each share their wire type (200/201) with their
 # own plain positive-only decode (told apart by whether a decoded
 # `pair-difference`/`pair-ratio` carries `negate`), so each type's own
-# found/broke pair doesn't also prove its negative rule.
+# found/broke pair doesn't also prove its negative rule. xv-negative is the
+# same story a third time, sharing wire type 202 with plain XV, told apart by
+# whether a decoded `group-sum` carries `negate`.
 _EXPLICIT_VARIANTS = (
     "classic",
     "jigsaw",
@@ -116,6 +118,7 @@ _EXPLICIT_VARIANTS = (
     "rellik",
     "white-kropki-negative",
     "black-kropki-negative",
+    "xv-negative",
 )
 
 
@@ -150,17 +153,17 @@ def _active_wire_types(link: str) -> set[int]:
 def _variant_tags(argv: list[str]) -> set[int | str]:
     """Every link-reachable variant one case file exercises: the explicit
     classic/jigsaw/schrodinger/doubler/somedoku/rellik/white-kropki-negative/
-    black-kropki-negative bucket, plus any DECODER_REGISTRY wire type whose
-    payload carries a live rule. Schrödinger and doubler are inferred from the
-    decoded puzzle's synthesized constraints (a marker cage stands them up);
-    somedoku the same way (a global-flag component stands up
+    black-kropki-negative/xv-negative bucket, plus any DECODER_REGISTRY wire
+    type whose payload carries a live rule. Schrödinger and doubler are
+    inferred from the decoded puzzle's synthesized constraints (a marker cage
+    stands them up); somedoku the same way (a global-flag component stands up
     `line-count-distinct` in place of the classic triplet, ADR-0017); rellik
     the same way again (a named `Rellik`/`Anti` cosmetic cage stands up
     `rellik-cage` alongside classic uniqueness, ADR-0018); classic vs jigsaw is
     told apart by whether the decoded regions-distinct constraint carries a
-    custom `regions` matrix; white-/black-kropki-negative are each told apart
-    from their own plain positive-only decode by whether a decoded
-    `pair-difference`/`pair-ratio` constraint carries `negate`."""
+    custom `regions` matrix; white-/black-kropki-negative/xv-negative are each
+    told apart from their own plain positive-only decode by whether a decoded
+    `pair-difference`/`pair-ratio`/`group-sum` constraint carries `negate`."""
     link = argv[-1]
     puzzle, _ = decode_link(link)
     constraint_types = {c.type for c in puzzle.constraints}
@@ -175,6 +178,9 @@ def _variant_tags(argv: list[str]) -> set[int | str]:
     )
     black_kropki_negative = any(
         c.type == "pair-ratio" and c.params.get("negate") for c in puzzle.constraints
+    )
+    xv_negative = any(
+        c.type == "group-sum" and c.params.get("negate") for c in puzzle.constraints
     )
     tags: set[int | str] = set()
     if schrodinger:
@@ -191,6 +197,8 @@ def _variant_tags(argv: list[str]) -> set[int | str]:
         tags.add("white-kropki-negative")
     if black_kropki_negative:
         tags.add("black-kropki-negative")
+    if xv_negative:
+        tags.add("xv-negative")
     # classic vs jigsaw is a plain link's own identity; a Schrödinger, doubler,
     # or somedoku case carries its own variant marker and doesn't double as
     # classic coverage — somedoku in particular decodes with no
