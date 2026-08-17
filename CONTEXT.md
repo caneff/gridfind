@@ -224,12 +224,13 @@ The second explicit-pair variant (issue #129, spec #127), landing beside the
 `emit_over_pairs` extraction (#42 decision 5, #128) that its own relation
 shares with `pair-ratio` (both via `PairRelation`) and `thermo`'s
 consecutive-pair walk. A clue names a **pair** and a target `k`; the layer
-constrains the pair's value to differ, in absolute value, by exactly `k`,
-one rule per clue. Explicit-pair, positive-only, and absolute — like
-`group-sum`'s two-cell case it never asks whether the pair is a **domino**
-and constrains only marked pairs, and either cell may hold the larger value
-(no directed `a - b = k` form). No setter-facing alias in this change;
-kropki-white / consecutive (`k = 1`) can alias later.
+constrains the pair's value to differ, in absolute value, by exactly `k`
+(or, in its negated mode, to never differ by `k`), one rule per clue.
+Explicit-pair and absolute — like `group-sum`'s two-cell case it never asks
+whether the pair is a **domino** and constrains only the cells it names, and
+either cell may hold the larger value (no directed `a - b = k` form). No
+setter-facing alias in this change; kropki-white / consecutive (`k = 1`) can
+alias later.
 
 Both `pair-difference` and `pair-ratio` read each cell through
 `engine.value_expr` (ADR-0009), not a raw content slot — a
@@ -239,7 +240,13 @@ flag, so a kropki-white/black link composes with a doubler or Schrödinger
 board.
 
 - **pair-difference** — the constraint and the rule it emits:
-  `{type: pair-difference, cells: [a, b], diff: k}`.
+  `{type: pair-difference, cells: [a, b], diff: k}`, or, with `negate: true`,
+  `{type: pair-difference, cells: [a, b], diff: k, negate: true}` for
+  `difference != k`. The negated mode is white-kropki's negative-space
+  mechanism (`sudokumaker.edge_clues`): applied over every
+  orthogonally-adjacent pair a link's positive dots didn't mark, once per
+  value in the wire's `negative` list — the same emitter as the positive
+  mode, so the two can never drift apart.
 
 ---
 

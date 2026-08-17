@@ -3,8 +3,9 @@ black kropki (201) — and the `_edge_to_pair` primitive they share.
 
 `_edge_to_pair` inverts SudokuMaker's edge index to the orthogonally-adjacent
 cell pair it names; it is this module's own transform seam, tested directly.
-Each clue family decodes through `decode_link` to its gridfind constraint, and
-a negative list warns loud while keeping the positive clues.
+Each clue family decodes through `decode_link` to its gridfind constraint.
+White-kropki's negative list is enforced (the negative-space mechanism); XV's
+and black-kropki's still warn loud and drop while keeping the positive clues.
 """
 
 import pytest
@@ -196,7 +197,7 @@ def test_multiple_kropki_clues_each_decode_to_their_own_constraint() -> None:
     )
 
 
-def test_kropki_negative_list_warns_but_keeps_positive_clues(
+def test_kropki_negative_rule_forbids_every_listed_difference_over_an_unmarked_pair(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = constraint_link(
@@ -205,14 +206,129 @@ def test_kropki_negative_list_warns_but_keeps_positive_clues(
 
     puzzle, _ = decode_link(payload)
 
+    # The marked pair still decodes its own positive clue...
     assert (
         Constraint("pair-difference", params={"cells": ["R5C3", "R5C4"], "diff": 1})
         in puzzle.constraints
     )
-    assert capsys.readouterr().err == (
-        "warning: ignoring white-kropki negative constraint "
-        "— verdict computed without it\n"
+    # ...and an unrelated orthogonal pair elsewhere on the same board picks up
+    # a negated pair-difference for each listed value.
+    for value in (1, 2):
+        assert (
+            Constraint(
+                "pair-difference",
+                params={"cells": ["R1C1", "R1C2"], "diff": value, "negate": True},
+            )
+            in puzzle.constraints
+        )
+    assert capsys.readouterr().err == ""
+
+
+def test_kropki_negative_rule_exempts_the_marked_edge() -> None:
+    payload = constraint_link(
+        {"type": 200, "clues": [{"value": 1, "edge": 75}], "negative": [1, 2]}
     )
+
+    puzzle, _ = decode_link(payload)
+
+    for value in (1, 2):
+        assert (
+            Constraint(
+                "pair-difference",
+                params={"cells": ["R5C3", "R5C4"], "diff": value, "negate": True},
+            )
+            not in puzzle.constraints
+        )
+
+
+def test_kropki_negative_rule_never_constrains_a_diagonal_pair() -> None:
+    payload = constraint_link({"type": 200, "clues": [], "negative": [1]})
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint(
+            "pair-difference",
+            params={"cells": ["R1C1", "R2C2"], "diff": 1, "negate": True},
+        )
+        not in puzzle.constraints
+    )
+    assert (
+        Constraint(
+            "pair-difference",
+            params={"cells": ["R2C2", "R1C1"], "diff": 1, "negate": True},
+        )
+        not in puzzle.constraints
+    )
+
+
+def test_kropki_negative_rule_ignores_the_inert_override_boolean(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # overrideNegativeDifferences is not exposed in SudokuMaker and carries no
+    # puzzle meaning — its presence must not spawn a warning or change what
+    # decodes.
+    payload = constraint_link(
+        {
+            "type": 200,
+            "clues": [{"value": 1, "edge": 75}],
+            "negative": [2],
+            "overrideNegativeDifferences": True,
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint(
+            "pair-difference",
+            params={"cells": ["R1C1", "R1C2"], "diff": 2, "negate": True},
+        )
+        in puzzle.constraints
+    )
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    ("modifier_block", "min_digit"),
+    [
+        pytest.param(
+            {"name": "Doubler", "type": 2001, "cages": [{"value": "", "cells": [0]}]},
+            None,
+            id="doubler",
+        ),
+        pytest.param(
+            {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]}, 0, id="s-cell"
+        ),
+    ],
+)
+def test_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
+    modifier_block: dict[str, object],
+    min_digit: int | None,
+) -> None:
+    # The negative rule reuses `differs_by`, the same value_expr-reading
+    # emitter the positive clue uses, so it composes with a doubler/S-cell
+    # board for free rather than refusing it as `s_blind`.
+    document: dict[str, object] = {
+        "cells": EMPTY_CELLS,
+        "constraints": [
+            *WIRE_CONSTRAINTS,
+            {"type": 200, "clues": [{"value": 1, "edge": 75}], "negative": [3]},
+            modifier_block,
+        ],
+    }
+    if min_digit is not None:
+        document["minDigit"] = min_digit
+    payload = encode_document(document)
+
+    puzzle, state = decode_link(payload)
+
+    assert any(
+        c.type == "pair-difference" and c.params.get("negate")
+        for c in puzzle.constraints
+    )
+    result = verdict(puzzle, state)
+    assert result.kind in ("found", "broke")
 
 
 @pytest.mark.parametrize(

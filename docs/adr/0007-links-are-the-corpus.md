@@ -76,9 +76,9 @@ human can confirm in SudokuMaker itself — the app is the oracle, not our own
 
 ## Consequences
 
-- **`line-count-distinct` is code-tested only, permanently.** It has no decoder
-  and no flag path, so no link can ever express it. It is exempt from the policy
-  by nature, not by omission, and `verdict_test.py` is its only home.
+- **Retracted:** `line-count-distinct` now decodes through the somedoku
+  global-flag component and owes (and carries) a `found-*`/`broke-*` pair
+  under the policy like any other link-reachable variant — see ADR-0017.
 
 - **`board`, `rows-distinct`, `cols-distinct` are covered incidentally.** They
   ride inside every classic link and never carry their own, so the policy does

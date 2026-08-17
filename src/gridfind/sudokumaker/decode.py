@@ -6,9 +6,9 @@ The decode is split by responsibility across the package's other modules —
 enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `global_flags` (the payload-less `Somedoku` component),
-`edge_clues` (XV/kropki), `regions` (the `type 1` block), and `registry`
-(`DECODER_REGISTRY`) — with `decode_link` here as the one function that
-threads all of them together.
+`edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
+(`DECODER_REGISTRY`), and `dropped` (the drop policy built on it) — with
+`decode_link` here as the one function that threads all of them together.
 """
 
 from __future__ import annotations
@@ -26,9 +26,10 @@ from gridfind.sudokumaker.boundary import (
 )
 from gridfind.sudokumaker.cages import cosmetic_cage_constraints
 from gridfind.sudokumaker.cells import CellDecode, decode_cell
+from gridfind.sudokumaker.dropped import warn_on_dropped_constraints
 from gridfind.sudokumaker.global_flags import has_somedoku_component
 from gridfind.sudokumaker.markers import has_scell_marker_block, scell_marker_values
-from gridfind.sudokumaker.registry import DECODER_REGISTRY, warn_on_dropped_constraints
+from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 
 def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
@@ -48,7 +49,10 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
 
     A `type 2001` cosmetic-cage block whose top-level `name` names a
     recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
-    decodes as an ordinary killer cage with the name discarded. An unnamed
+    decodes as an ordinary killer cage with the name discarded. A block
+    labelled `Rellik`/`Anti` (ADR-0018) decodes the same walk to a
+    no-repeats `cage` plus a `rellik-cage` instead, its numeric `value`
+    supplying the forbidden total rather than a target sum. An unnamed
     block, or one whose name gridfind does not recognize, carries no rule: a
     non-empty one is dropped with a loud stderr warning naming the block
     (ADR-0012).
@@ -87,9 +91,9 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     `rows-distinct`/`cols-distinct`/`regions-distinct` triplet — a somedoku
     grid runs on its own row-*n*/col-*n* distinct-count rule alone, no boxes
     and no classic uniqueness, which a row or column short of size `N`
-    could never satisfy alongside `line-count-distinct` at once. A disabled
-    `Somedoku` block, on either carrier, contributes nothing and the classic
-    triplet decodes as usual."""
+    could never satisfy alongside `line-count-distinct` at once (ADR-0017). A
+    disabled `Somedoku` block, on either carrier, contributes nothing and the
+    classic triplet decodes as usual."""
     puzzle_data: Any = decode_document(link)["puzzle"]
     size = board_size(puzzle_data)
     warn_on_dropped_constraints(puzzle_data)

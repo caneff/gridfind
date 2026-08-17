@@ -41,3 +41,8 @@ node_modules/
 scripts/.eval-approved.json
 scripts/.eval-flagged.json
 scripts/.eval-flagged-archive.json
+
+# mutmut mutation-testing artifacts (transient)
+mutants/
+.mutmut-cache
+setup.cfg

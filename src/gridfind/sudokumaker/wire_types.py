@@ -12,7 +12,10 @@ from __future__ import annotations
 # negative: [...]`, the same wire shape as XV. The type number *is* the
 # white/black discriminator — 200 is white/difference, 201 black/ratio — so
 # `value` is the target difference, honored verbatim onto the existing
-# `pair-difference` layer (a labelled non-1 value is never coerced to 1).
+# `pair-difference` layer (a labelled non-1 value is never coerced to 1). A
+# non-empty `negative` list is enforced (every listed difference forbidden on
+# every unmarked orthogonally-adjacent pair), not dropped — the negative-space
+# mechanism in `sudokumaker.edge_clues`.
 KROPKI_WHITE_TYPE = 200
 
 # type 201 is black-kropki: the same `clues:
@@ -64,7 +67,7 @@ ANTI_KNIGHT_TYPE = 13
 # type 1000 is a custom constraint: `{definition: {name, ...}, input: {...}}`,
 # SudokuMaker's programmable-logic block. gridfind never interprets the
 # programmed logic itself — it recognizes a `type 1000` block only by its
-# declared `definition.name` (`registry.constraint_name`), the same
+# declared `definition.name` (`dropped.constraint_name`), the same
 # name-only reading a `type 2001` cosmetic cage's top-level `name` gets
 # (`naming.named_component`).
 CUSTOM_CONSTRAINT_TYPE = 1000

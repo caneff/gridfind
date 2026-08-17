@@ -52,6 +52,14 @@ def test_equality_is_its_own_cage_selector_role() -> None:
     assert component != named_component("Sum")
 
 
+def test_rellik_and_anti_share_the_rellik_role_and_cage_selector_shape() -> None:
+    assert named_component("Rellik") == named_component("Anti")
+    component = named_component("Rellik")
+    assert component is not None
+    assert component.role == "rellik"
+    assert component.shape == "cage-selector"
+
+
 def test_doubler_is_a_cell_marker() -> None:
     component = named_component("Doubler")
     assert component is not None

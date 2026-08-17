@@ -204,6 +204,9 @@ _GOLDEN_REPORTS = {
     "broke-kropki-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: broke"
     ),
+    "broke-kropki-negative-4x4": (
+        "4x4 · 16 cells · 4 givens · types {0,1,200} · active: 200 · verdict: broke"
+    ),
     "broke-kropki-non-default-value-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: broke"
     ),
@@ -213,6 +216,9 @@ _GOLDEN_REPORTS = {
     "broke-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: broke"
     ),
+    "broke-rellik-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
+    ),
     "broke-scell-caged-value-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
@@ -221,6 +227,10 @@ _GOLDEN_REPORTS = {
     ),
     "broke-schrodinger-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001 · verdict: broke"
+    ),
+    "broke-somedoku-9x9": (
+        "9x9 · 81 cells · 2 givens · types {1000} ·"
+        " inert: 1000(Somedoku) · verdict: broke"
     ),
     "broke-thermo-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,300} · active: 300 · verdict: broke"
@@ -270,6 +280,9 @@ _GOLDEN_REPORTS = {
     "found-kropki-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: found"
     ),
+    "found-kropki-negative-4x4": (
+        "4x4 · 16 cells · 4 givens · types {0,1,200} · active: 200 · verdict: found"
+    ),
     "found-kropki-non-default-value-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: found"
     ),
@@ -278,6 +291,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"
+    ),
+    "found-rellik-4x4": (
+        "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
     "found-scell-bare-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
@@ -296,6 +312,10 @@ _GOLDEN_REPORTS = {
     ),
     "found-somedoku-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,2001} · inert: 2001 · verdict: found"
+    ),
+    "found-somedoku-9x9": (
+        "9x9 · 81 cells · 0 givens · types {1000} ·"
+        " inert: 1000(Somedoku) · verdict: found"
     ),
     "found-thermo-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,300} · active: 300x2 · verdict: found"

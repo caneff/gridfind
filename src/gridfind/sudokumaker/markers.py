@@ -1,10 +1,10 @@
 """Named marker-cage classification (ADR-0012, homed here in #443, routed
 through the name -> shape registry in #434, extended with a parameterized
-`"constant"` kind by ADR-0016, a payload-less `"somedoku"` kind, and a second
-cage-selector kind `"equality"`): a `type 2001` cosmetic-cage block's top-level
-`name` sorted into `"unnamed"`, `"killer"`, `"equality"`, `"doubler"`,
-`"s-cell"`, `"constant"`, `"somedoku"`, or `"unrecognized"`
-(`cosmetic_cage_kind`), the two
+`"constant"` kind by ADR-0016, a payload-less `"somedoku"` kind, and two more
+cage-selector kinds, `"equality"` and `"rellik"` (ADR-0018)): a `type 2001`
+cosmetic-cage block's top-level `name` sorted into `"unnamed"`, `"killer"`,
+`"equality"`, `"rellik"`, `"doubler"`, `"s-cell"`, `"constant"`, `"somedoku"`,
+or `"unrecognized"` (`cosmetic_cage_kind`), the two
 S-cell channels that read it — enablement by block *presence*
 (`has_scell_marker_block`) and pinning by cell *membership*
 (`scell_marker_values`) — and the display-only marker colorizer
@@ -42,6 +42,7 @@ CosmeticCageKind = Literal[
     "unnamed",
     "killer",
     "equality",
+    "rellik",
     "doubler",
     "s-cell",
     "constant",
@@ -59,18 +60,19 @@ MARKER_LABELS: dict[str, frozenset[str]] = aliases_by_role()
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
-    ADR-0016) into one of eight kinds: `"unnamed"`
+    ADR-0016 and ADR-0018) into one of nine kinds: `"unnamed"`
     (absent/blank — a purely decorative block that carries no rule),
     `"killer"` (a recognized `Sum`/`Killer` label that selects the
     killer-cage rule), `"equality"` (a recognized `Equality` label that
-    selects `cage` + `equality-cage`), `"doubler"` (a `Doubler` position
-    marker), `"s-cell"` (an `S-cell`/`Schrödinger` position marker),
-    `"constant"` (a `Constant <N>`/`Nullifier` position marker whose `k` is
-    read from the name itself), `"somedoku"` (the payload-less `Somedoku`
-    global flag — cells and value ignored), or `"unrecognized"` (a name
-    `decode_link` cannot answer for — a bare `Constant` with no parseable
-    integer lands here too, never silently `k = 0`). `"unnamed"` and
-    `"unrecognized"` share the same fate
+    selects `cage` + `equality-cage`), `"rellik"` (a recognized `Rellik`/`Anti`
+    label that selects the anti-cage subset-sum ban, the cage's numeric value
+    read as the forbidden total), `"doubler"` (a `Doubler` position marker),
+    `"s-cell"` (an `S-cell`/`Schrödinger` position marker), `"constant"` (a
+    `Constant <N>`/`Nullifier` position marker whose `k` is read from the name
+    itself), `"somedoku"` (the payload-less `Somedoku` global flag — cells and
+    value ignored), or `"unrecognized"` (a name `decode_link` cannot answer
+    for — a bare `Constant` with no parseable integer lands here too, never
+    silently `k = 0`). `"unnamed"` and `"unrecognized"` share the same fate
     downstream — a loud stderr warn-drop, never a rule (ADR-0012) — but stay
     distinct kinds here since the warning they produce names the block
     differently. Matching is case-insensitive and trimmed, via the shared

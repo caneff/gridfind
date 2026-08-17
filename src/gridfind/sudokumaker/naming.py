@@ -1,14 +1,15 @@
 """The name -> shape registry (ADR-0012): the one table
 gridfind consults when a component's declared name selects a rule. A
-`cage-selector` name (`Sum`, `Killer`, `Equality`) picks a cage rule — the
-plain killer sum for `Sum`/`Killer`, `cage` + `equality-cage` for
-`Equality`; a `cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`) declares
-a cage's cells a position marker instead; a `global-flag` name (`Somedoku`)
-needs no payload at all — its cells and value, if the carrier even has them,
-are ignored, and presence of the name alone selects its rule. The two
-cell-needing shapes fail carrier-fitness on a name-bearing carrier that has
-none — a `type 1000` custom constraint's `definition.name`, unlike a `type
-2001` cosmetic cage's top-level `name` — (`shape_needs_cells`);
+`cage-selector` name (`Sum`, `Killer`, `Equality`, `Rellik`/`Anti`) picks a
+cage rule — the plain killer sum for `Sum`/`Killer`, `cage` + `equality-cage`
+for `Equality`, the anti-cage subset-sum ban for `Rellik`/`Anti` (ADR-0018); a
+`cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`) declares a cage's cells
+a position marker instead; a `global-flag` name (`Somedoku`) needs no payload
+at all — its cells and value, if the carrier even has them, are ignored, and
+presence of the name alone selects its rule. The two cell-needing shapes fail
+carrier-fitness on a name-bearing carrier that has none — a `type 1000` custom
+constraint's `definition.name`, unlike a `type 2001` cosmetic cage's top-level
+`name` — (`shape_needs_cells`);
 `sudokumaker.registry` reads that to warn-drop a cage-shaped name stranded on
 the wrong carrier. A `global-flag` name needs nothing, so it is admitted on
 both carriers alike.
@@ -56,7 +57,9 @@ class _NamedComponent:
     <N>`/`Nullifier`) — `None` for every other role, which needs no payload
     of its own."""
 
-    role: Literal["killer", "equality", "doubler", "s-cell", "constant", "somedoku"]
+    role: Literal[
+        "killer", "equality", "rellik", "doubler", "s-cell", "constant", "somedoku"
+    ]
     shape: _Shape
     value: int | None = None
 
@@ -65,15 +68,20 @@ class _NamedComponent:
 # `_normalize_component_name`). `Sum`/`Killer` share the `"killer"` role: both
 # select the plain killer-cage rule, the name itself discarded once
 # recognized. `Equality` is its own cage-selector role, selecting `cage` +
-# `equality-cage` instead. `S-cell`/`Schrödinger`/`Schrodinger` share
-# `"s-cell"`: the umlaut spelling and its ASCII fold are the same marker.
-# `Nullifier` is the static `k = 0` spelling of `"constant"`; `Constant <N>`
-# at any other `k` is not a static key here — see `_parsed_constant_component`.
-# `Somedoku` is the sole `global-flag` name: its own role, needing no payload.
+# `equality-cage` instead. `Rellik`/`Anti` share the `"rellik"` role: both
+# select the anti-cage subset-sum ban, the cage's numeric value read as the
+# forbidden total exactly as a killer cage's value is read as its sum.
+# `S-cell`/`Schrödinger`/`Schrodinger` share `"s-cell"`: the umlaut spelling
+# and its ASCII fold are the same marker. `Nullifier` is the static `k = 0`
+# spelling of `"constant"`; `Constant <N>` at any other `k` is not a static key
+# here — see `_parsed_constant_component`. `Somedoku` is the sole `global-flag`
+# name: its own role, needing no payload.
 _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "sum": _NamedComponent(role="killer", shape="cage-selector"),
     "killer": _NamedComponent(role="killer", shape="cage-selector"),
     "equality": _NamedComponent(role="equality", shape="cage-selector"),
+    "rellik": _NamedComponent(role="rellik", shape="cage-selector"),
+    "anti": _NamedComponent(role="rellik", shape="cage-selector"),
     "doubler": _NamedComponent(role="doubler", shape="cell-marker"),
     "s-cell": _NamedComponent(role="s-cell", shape="cell-marker"),
     "schrödinger": _NamedComponent(role="s-cell", shape="cell-marker"),
@@ -114,7 +122,7 @@ def named_component(name: object) -> _NamedComponent | None:
     """The registry entry `name` declares, or `None` when absent/blank or
     unrecognized — the shared lookup both carriers' name-extraction steps
     feed (a `type 2001` cosmetic cage's top-level `name`, a `type 1000`
-    custom constraint's `definition.name` via `registry.constraint_name`).
+    custom constraint's `definition.name` via `dropped.constraint_name`).
     A static `_NAME_REGISTRY` hit wins; a miss falls to
     `_parsed_constant_component` for the one parameterized name,
     `Constant <N>`."""

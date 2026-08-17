@@ -12,9 +12,9 @@ from gridfind.layers.distinct import cols
 @dataclass
 class LineCountDistinct:
     """somedoku's rule: row *n* and column *n* each hold exactly *n* distinct
-    digits, repeats allowed (decision 7 — line-count-distinct). Rides on
-    `board`'s `grid` structure exactly like `rows-distinct`/`cols-distinct` —
-    registers nothing new in phase 1, only emits in phase 2.
+    digits, repeats allowed (ADR-0017). Rides on `board`'s `grid` structure
+    exactly like `rows-distinct`/`cols-distinct` — registers nothing new in
+    phase 1, only emits in phase 2.
     """
 
     name: str = "line-count-distinct"

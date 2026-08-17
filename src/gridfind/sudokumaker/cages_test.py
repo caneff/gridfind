@@ -7,9 +7,9 @@ recomposes into a no-repeats `cage` plus a `group-sum` over the same cells
 (ADR-0009); a cosmetic cage carrying a numeric label graduates the same way.
 The named-marker cages (`Doubler`, `S-cell`) are a different reading and live
 in `markers_test`; here a name is either a `Sum`/`Killer` label that selects
-the killer-cage rule, an `Equality` label that selects `cage` +
-`equality-cage`, or an unnamed/unrecognized one the decoder
-warn-drops (ADR-0012).
+the killer-cage rule, an `Equality` label that selects `cage` + `equality-cage`,
+a `Rellik`/`Anti` label that selects the anti-cage subset-sum ban (ADR-0018), or
+an unnamed/unrecognized one the decoder warn-drops (ADR-0012).
 """
 
 import pytest
@@ -185,6 +185,32 @@ def test_named_equality_cage_decodes_to_cage_plus_equality_cage(
     assert capsys.readouterr().err == ""
 
 
+@pytest.mark.parametrize(
+    "name",
+    ["Rellik", "anti", "  Anti  ", "RELLIK"],
+    ids=["rellik-titlecase", "anti-lowercase", "anti-padded", "rellik-upper"],
+)
+def test_named_rellik_or_anti_cage_decodes_as_a_rellik_cage(
+    name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A cage named `Rellik`/`Anti` (any case, surrounding whitespace) selects
+    # the anti-cage subset-sum ban (ADR-0018): a no-repeats `cage` plus a
+    # `rellik-cage` carrying the label as the forbidden total.
+    payload = constraint_link(
+        {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert (
+        Constraint("rellik-cage", params={"cells": ["R1C1", "R1C2"], "sum": 7})
+        in puzzle.constraints
+    )
+    assert all(c.type != "group-sum" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
 def test_multiple_named_equality_cages_each_decode_to_their_own_constraint() -> None:
     # One block carries many cages under `cages`, exactly as a `type 301`
     # block does.
@@ -231,6 +257,28 @@ def test_named_equality_cage_with_an_odd_cell_count_still_decodes() -> None:
         Constraint("equality-cage", params={"cells": ["R1C1", "R1C2", "R1C3"]})
         in puzzle.constraints
     )
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["0", "Total", ""],
+    ids=["zero-label", "non-numeric-label", "empty-label"],
+)
+def test_named_rellik_cage_without_a_numeric_label_decodes_to_a_bare_cage(
+    label: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A label carrying no forbidden total still leaves a rule: a no-repeats
+    # `cage` with no `rellik-cage`, exactly like a sumless killer cage.
+    payload = constraint_link(
+        {"name": "Rellik", "type": 2001, "cages": [{"value": label, "cells": [0, 1]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert all(c.type != "rellik-cage" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
 
 
 def test_multiple_named_cosmetic_cages_each_decode_to_their_own_constraint() -> None:

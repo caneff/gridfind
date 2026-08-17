@@ -3,7 +3,8 @@ a constraint — `Doubler`, `Constant <N>` / `Nullifier`, and `S-cell` — plus 
 classifier and the display colorizer.
 
 `cosmetic_cage_kind` is the one home that reads a cage's name into its kind
-(unnamed / killer / doubler / s-cell / constant / unrecognized, ADR-0012). A
+(unnamed / killer / rellik / doubler / s-cell / constant / unrecognized,
+ADR-0012, ADR-0018). A
 `Doubler` or `Constant` cage emits modifier directives; an `S-cell` cage
 declares S-cells, infers Schrödinger-ness
 from its mere presence, and sources each cell's pin/half/bare directive from its
@@ -105,6 +106,8 @@ def _s_cell_cage_link(
         ("   ", "unnamed"),
         ("Sum", "killer"),
         ("Killer", "killer"),
+        ("Rellik", "rellik"),
+        ("Anti", "rellik"),
         ("Doubler", "doubler"),
         ("  doubler ", "doubler"),
         ("S-cell", "s-cell"),
@@ -124,6 +127,8 @@ def _s_cell_cage_link(
         "blank",
         "sum-label",
         "killer-label",
+        "rellik-label",
+        "anti-label",
         "doubler",
         "doubler-padded",
         "s-cell",
@@ -158,6 +163,7 @@ def test_marker_labels_covers_every_role() -> None:
     assert set(MARKER_LABELS) == {
         "killer",
         "equality",
+        "rellik",
         "doubler",
         "s-cell",
         "constant",
@@ -166,7 +172,8 @@ def test_marker_labels_covers_every_role() -> None:
 
 
 @pytest.mark.parametrize(
-    "role", ["killer", "equality", "doubler", "s-cell", "constant", "somedoku"]
+    "role",
+    ["killer", "equality", "rellik", "doubler", "s-cell", "constant", "somedoku"],
 )
 def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
     # Every name MARKER_LABELS lists under a role must classify to that role
