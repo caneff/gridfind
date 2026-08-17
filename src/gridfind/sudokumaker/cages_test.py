@@ -8,7 +8,7 @@ recomposes into a no-repeats `cage` plus a `group-sum` over the same cells
 The named-marker cages (`Doubler`, `S-cell`) are a different reading and live
 in `markers_test`; here a name is only ever a `Sum`/`Killer` label that selects
 the killer-cage rule, a `Rellik`/`Anti` label that selects the anti-cage
-subset-sum ban instead (spec #427), or an unnamed/unrecognized one the
+subset-sum ban instead (ADR-0018), or an unnamed/unrecognized one the
 decoder warn-drops (ADR-0012).
 """
 
@@ -162,7 +162,7 @@ def test_named_rellik_or_anti_cage_decodes_as_a_rellik_cage(
     name: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # A cage named `Rellik`/`Anti` (any case, surrounding whitespace) selects
-    # the anti-cage subset-sum ban (spec #427): a no-repeats `cage` plus a
+    # the anti-cage subset-sum ban (ADR-0018): a no-repeats `cage` plus a
     # `rellik-cage` carrying the label as the forbidden total.
     payload = constraint_link(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}

@@ -99,7 +99,7 @@ _NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
 # own (ADR-0007/0008), somedoku arrives by a named `type 1000` custom
 # constraint or `type 2001` cosmetic cage — a global flag, not a registry wire
 # type of its own (ADR-0017) — and rellik arrives by a named `type 2001`
-# cosmetic cage the same way killer does (spec #427), synthesizing its own
+# cosmetic cage the same way killer does (ADR-0018), synthesizing its own
 # `rellik-cage` constraint rather than a registry wire type of its own.
 _EXPLICIT_VARIANTS = (
     "classic",
@@ -147,8 +147,8 @@ def _variant_tags(argv: list[str]) -> set[int | str]:
     (a marker cage stands them up); somedoku the same way (a global-flag
     component stands up `line-count-distinct` in place of the classic
     triplet, ADR-0017); rellik the same way again (a named `Rellik`/`Anti`
-    cosmetic cage stands up `rellik-cage` alongside classic uniqueness, spec
-    #427); classic vs jigsaw is told apart by whether the decoded
+    cosmetic cage stands up `rellik-cage` alongside classic uniqueness,
+    ADR-0018); classic vs jigsaw is told apart by whether the decoded
     regions-distinct constraint carries a custom `regions` matrix."""
     link = argv[-1]
     puzzle, _ = decode_link(link)

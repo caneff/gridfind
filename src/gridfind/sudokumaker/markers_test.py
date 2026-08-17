@@ -4,7 +4,7 @@ classifier and the display colorizer.
 
 `cosmetic_cage_kind` is the one home that reads a cage's name into its kind
 (unnamed / killer / rellik / doubler / s-cell / constant / unrecognized,
-ADR-0012, spec #427). A
+ADR-0012, ADR-0018). A
 `Doubler` or `Constant` cage emits modifier directives; an `S-cell` cage
 declares S-cells, infers Schrödinger-ness
 from its mere presence, and sources each cell's pin/half/bare directive from its

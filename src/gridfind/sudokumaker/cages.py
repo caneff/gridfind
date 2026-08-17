@@ -90,7 +90,7 @@ def _cosmetic_cage_numeric_value(cage: dict[Any, Any]) -> int | None:
     """The integer a `type 2001` cosmetic cage's `value` label carries, or
     `None` when it's non-numeric/empty — the killer sum a `Sum`/`Killer`
     cage graduates to (ADR-0008), or the forbidden total a `Rellik`/`Anti`
-    cage graduates to (spec #427), read by the same string-to-int parse
+    cage graduates to (ADR-0018), read by the same string-to-int parse
     either way. `None` governs only the second constraint (`group-sum` or
     `rellik-cage`): a valueless cosmetic cage still emits its no-repeats
     `cage`, so this is not a liveness gate — every non-disabled cage with
@@ -204,7 +204,7 @@ def cosmetic_cage_constraints(
     buckets: ConstraintBuckets, size: int
 ) -> _CosmeticCageDecode:
     """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
-    (`cosmetic_cage_kind`, ADR-0012, extended by ADR-0016 and spec #427): a
+    (`cosmetic_cage_kind`, ADR-0012, extended by ADR-0016 and ADR-0018): a
     `Sum`/`Killer`-labelled block graduates to killer-cage `Constraint`s
     (ADR-0008) — cells and value nest under `cages`, the same wire shape as a
     `type 301` block, each cage's raw `cells` indices mapping row-major to

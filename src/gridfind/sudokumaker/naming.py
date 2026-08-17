@@ -2,7 +2,7 @@
 gridfind consults when a component's declared name selects a rule. A
 `cage-selector` name (`Sum`, `Killer`, `Rellik`/`Anti`) picks a cage rule —
 `Sum`/`Killer` the killer-cage rule, `Rellik`/`Anti` the anti-cage subset-sum
-ban (spec #427); a `cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`)
+ban (ADR-0018); a `cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`)
 declares a cage's cells a position marker instead; a `global-flag` name
 (`Somedoku`) needs no payload at all — its cells and value, if the carrier
 even has them, are ignored, and presence of the name alone selects its rule.

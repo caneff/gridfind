@@ -7,7 +7,7 @@ fixture exercises and regenerate the whole set with `main()`.
 
 A `type 2001` cosmetic cage named `Rellik` graduates to a no-repeats `cage`
 plus a `rellik-cage` over the same cells, its numeric `value` read as the
-forbidden total (spec #427, ADR-0012's named-marker-cage pattern). Both
+forbidden total (ADR-0018). Both
 fixtures share the forbidden total 3 and a two-cell cage: `found` leaves the
 cage's cells otherwise free, so a completion avoiding sum 3 exists (e.g.
 `1, 4`); `broke` gives the same two cells `1, 2`, forcing the forbidden sum.
