@@ -214,6 +214,10 @@ def eval_link(argv: Sequence[str]) -> LinkView:
     )
 
 
+# pragma: no mutate start — render+server (presentation): HTML/CSS/JS template,
+# the slide/page renderers, and the HTTP handler + main() that serves them. The
+# data layer above this marker (approval/flag logs, stem selection, decode/verdict
+# wiring) stays in mutation scope.
 _PAGE = """<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>gridfind link eval</title>
@@ -478,3 +482,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+# pragma: no mutate end

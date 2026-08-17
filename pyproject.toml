@@ -76,6 +76,14 @@ markers = [
 [tool.coverage.run]
 branch = true
 
+# --- mutmut (mutation testing; run via the mutation-audit skill, not `just check`).
+# `scripts/eval_links.py`'s render+server half (presentation, not logic) is
+# excluded inline via `# pragma: no mutate start/end` — its data layer above
+# that marker stays in scope here.
+[tool.mutmut]
+source_paths = ["src/gridfind", "scripts"]
+runner = "uv run pytest -x"
+
 # --- wheel: don't ship interleaved test files, fixtures, or test-only support ---
 # witness_validator is imported only by the e2e tests (an independent oracle for
 # the CLI's rendered witness); it's not public API, so keep it off the shipped
