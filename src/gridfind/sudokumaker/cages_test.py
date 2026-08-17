@@ -6,10 +6,10 @@ Each decodes through `decode_link` to its gridfind constraint(s). A summed cage
 recomposes into a no-repeats `cage` plus a `group-sum` over the same cells
 (ADR-0009); a cosmetic cage carrying a numeric label graduates the same way.
 The named-marker cages (`Doubler`, `S-cell`) are a different reading and live
-in `markers_test`; here a name is only ever a `Sum`/`Killer` label that selects
-the killer-cage rule, a `Rellik`/`Anti` label that selects the anti-cage
-subset-sum ban instead (ADR-0018), or an unnamed/unrecognized one the
-decoder warn-drops (ADR-0012).
+in `markers_test`; here a name is either a `Sum`/`Killer` label that selects
+the killer-cage rule, an `Equality` label that selects `cage` + `equality-cage`,
+a `Rellik`/`Anti` label that selects the anti-cage subset-sum ban (ADR-0018), or
+an unnamed/unrecognized one the decoder warn-drops (ADR-0012).
 """
 
 import pytest
@@ -155,6 +155,38 @@ def test_named_sum_or_killer_cage_decodes_as_a_killer_cage(
 
 @pytest.mark.parametrize(
     "name",
+    ["Equality", "equality", "  Equality  ", "EQUALITY"],
+    ids=[
+        "equality-titlecase",
+        "equality-lowercase",
+        "equality-padded",
+        "equality-upper",
+    ],
+)
+def test_named_equality_cage_decodes_to_cage_plus_equality_cage(
+    name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A cage named `Equality` (any case, surrounding whitespace) selects the
+    # equality-cage rule: a no-repeats `cage` plus `equality-cage` over the
+    # same cells — the cage's `value` label is never read, unlike
+    # a killer cage's numeric total.
+    payload = constraint_link(
+        {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert (
+        Constraint("equality-cage", params={"cells": ["R1C1", "R1C2"]})
+        in puzzle.constraints
+    )
+    assert all(c.type != "group-sum" for c in puzzle.constraints)
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    "name",
     ["Rellik", "anti", "  Anti  ", "RELLIK"],
     ids=["rellik-titlecase", "anti-lowercase", "anti-padded", "rellik-upper"],
 )
@@ -177,6 +209,54 @@ def test_named_rellik_or_anti_cage_decodes_as_a_rellik_cage(
     )
     assert all(c.type != "group-sum" for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
+
+
+def test_multiple_named_equality_cages_each_decode_to_their_own_constraint() -> None:
+    # One block carries many cages under `cages`, exactly as a `type 301`
+    # block does.
+    payload = constraint_link(
+        {
+            "name": "Equality",
+            "type": 2001,
+            "cages": [
+                {"cells": [0, 1]},
+                {"cells": [18, 19]},
+            ],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in puzzle.constraints
+    assert (
+        Constraint("equality-cage", params={"cells": ["R1C1", "R1C2"]})
+        in puzzle.constraints
+    )
+    assert Constraint("cage", params={"cells": ["R3C1", "R3C2"]}) in puzzle.constraints
+    assert (
+        Constraint("equality-cage", params={"cells": ["R3C1", "R3C2"]})
+        in puzzle.constraints
+    )
+
+
+def test_named_equality_cage_with_an_odd_cell_count_still_decodes() -> None:
+    # Decode itself never refuses an odd cell count — `equality-cage` raises
+    # `MalformedPuzzleError` once the puzzle reaches emit, not
+    # here. The decoder's job is only to graduate the named block.
+    payload = constraint_link(
+        {"name": "Equality", "type": 2001, "cages": [{"cells": [0, 1, 2]}]}
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint("cage", params={"cells": ["R1C1", "R1C2", "R1C3"]})
+        in puzzle.constraints
+    )
+    assert (
+        Constraint("equality-cage", params={"cells": ["R1C1", "R1C2", "R1C3"]})
+        in puzzle.constraints
+    )
 
 
 @pytest.mark.parametrize(
