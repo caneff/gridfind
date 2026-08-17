@@ -6,7 +6,7 @@ name needing no payload at all, recognized through the shared
 cage's top-level `name`. `Somedoku` is the first (and so far only) name
 registered against this shape: its presence alone, on either carrier, turns
 on the puzzle-wide `line-count-distinct` rule, cells and value ignored on
-both.
+both (ADR-0017).
 """
 
 from __future__ import annotations
