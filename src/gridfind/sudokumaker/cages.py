@@ -211,7 +211,7 @@ def cosmetic_cage_constraints(
     `Equality`-labelled block graduates the same cells to `cage` +
     `equality-cage` instead (`_equality_cages`) — no numeric argument, so its
     `value` is never read; an odd cell count is not refused here, only once
-    the puzzle reaches emit (spec #427). A
+    the puzzle reaches emit. A
     `Doubler`/`Constant <N>`/`Nullifier`-marked block instead emits one
     `ModifierDirective(is_modifier=True)` per cell it contains and **no**
     `cage`/`group-sum` — the block's `cages` still supply the cell list, just

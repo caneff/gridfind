@@ -97,7 +97,7 @@ _NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
 # decoded regions shape), Schrödinger and doubler each arrive by a named
 # marker cage that synthesizes their constraint, and equality arrives by a
 # named cage-selector cage that graduates to `cage` + `equality-cage` — none
-# of the three own a wire type of their own (ADR-0007/0008, spec #427).
+# of the three own a wire type of their own (ADR-0007/0008).
 _EXPLICIT_VARIANTS = ("classic", "jigsaw", "schrodinger", "doubler", "equality")
 
 

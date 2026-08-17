@@ -8,7 +8,7 @@ recomposes into a no-repeats `cage` plus a `group-sum` over the same cells
 The named-marker cages (`Doubler`, `S-cell`) are a different reading and live
 in `markers_test`; here a name is either a `Sum`/`Killer` label that selects
 the killer-cage rule, an `Equality` label that selects `cage` +
-`equality-cage` (spec #427), or an unnamed/unrecognized one the decoder
+`equality-cage`, or an unnamed/unrecognized one the decoder
 warn-drops (ADR-0012).
 """
 
@@ -168,7 +168,7 @@ def test_named_equality_cage_decodes_to_cage_plus_equality_cage(
 ) -> None:
     # A cage named `Equality` (any case, surrounding whitespace) selects the
     # equality-cage rule: a no-repeats `cage` plus `equality-cage` over the
-    # same cells (spec #427) — the cage's `value` label is never read, unlike
+    # same cells — the cage's `value` label is never read, unlike
     # a killer cage's numeric total.
     payload = constraint_link(
         {"name": name, "type": 2001, "cages": [{"value": "7", "cells": [0, 1]}]}
@@ -215,7 +215,7 @@ def test_multiple_named_equality_cages_each_decode_to_their_own_constraint() -> 
 
 def test_named_equality_cage_with_an_odd_cell_count_still_decodes() -> None:
     # Decode itself never refuses an odd cell count — `equality-cage` raises
-    # `MalformedPuzzleError` once the puzzle reaches emit (spec #427), not
+    # `MalformedPuzzleError` once the puzzle reaches emit, not
     # here. The decoder's job is only to graduate the named block.
     payload = constraint_link(
         {"name": "Equality", "type": 2001, "cages": [{"cells": [0, 1, 2]}]}

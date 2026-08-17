@@ -313,7 +313,7 @@ def test_odd_cell_equality_cage_exits_two_with_stderr(
     # An `Equality`-named cosmetic cage over an odd cell count (R1C1-R1C3,
     # three cells) decodes cleanly — `cage` + `equality-cage` are graduated
     # regardless of count — but can never balance in halves, so the front
-    # door refuses it as malformed once the puzzle reaches emit (spec #427),
+    # door refuses it as malformed once the puzzle reaches emit,
     # the same MalformedPuzzleError -> exit-2 path any other malformed puzzle
     # takes.
     link = _classic_named_cage_link("Equality", cage_value=0)
