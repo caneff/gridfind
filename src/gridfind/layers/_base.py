@@ -88,20 +88,20 @@ def emit_over_pairs(
     pairs: list[tuple[cp_model.IntVar, cp_model.IntVar]],
     rel: Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None],
 ) -> None:
-    """Rule: `rel(engine, a, b)` holds for every pair in `pairs` — the shared
-    walk behind every explicit-pair variant: `pair-difference` and
-    `pair-ratio` (both via `PairRelation`, decision 5), and `thermo`'s
-    consecutive-pair decomposition.
+    """Rule: `rel(engine, a, b)` holds for every pair in `pairs` — the walk
+    behind a many-cell path decomposed into consecutive pairs, `thermo`'s
+    real user (decision 5). A binary pair relation (`pair-difference`,
+    `pair-ratio`, both via `PairRelation`) names exactly two cells and
+    applies its `rel` to them directly, with no walk of its own.
 
-    A callback rather than a relation-as-data table: the relation a
-    pair-difference or pair-ratio clue wants (an absolute difference, a
-    ratio) is native CP-SAT — `add_abs_equality`, a reified either-or — so
-    encoding it as an AllowedAssignments table would trade a direct
-    primitive for indirection with nothing gained (ADR-0001 keeps the engine
-    seam raw OR-Tools). `rel` closes over whatever per-clue data it needs (a
-    target difference, a target ratio); this helper never learns clue or
-    path structure, so a future path-shaped variant can decompose its own
-    path into consecutive pairs before calling it.
+    A callback rather than a relation-as-data table: the relation a thermo
+    edge wants (a strict or non-strict inequality) is native CP-SAT —
+    `model.add(a < b)` — so encoding it as an AllowedAssignments table would
+    trade a direct primitive for indirection with nothing gained (ADR-0001
+    keeps the engine seam raw OR-Tools). `rel` closes over whatever per-clue
+    data it needs; this helper never learns clue or path structure, so a
+    future path-shaped variant can decompose its own path into consecutive
+    pairs before calling it.
     """
     for a, b in pairs:
         rel(engine, a, b)

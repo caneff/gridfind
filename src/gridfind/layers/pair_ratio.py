@@ -43,8 +43,8 @@ def ratio_of(
 ) -> Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None]:
     """The pair-ratio relation-emitter: reads the clue's target `k` and
     returns a `rel` closing over it. `rel` mints one fresh reified bool `s`
-    per pair, self-named from the pair's own variable names since
-    `emit_over_pairs` carries no label, and pins `a == k*b` under `s`,
+    per pair, self-named from the pair's own variable names since `rel`
+    carries no label of its own, and pins `a == k*b` under `s`,
     `b == k*a` under its negation — undirected, either cell may hold the
     larger value."""
     k = cast("int", params["k"])
