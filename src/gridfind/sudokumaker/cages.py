@@ -258,9 +258,7 @@ def cosmetic_cage_constraints(
 
     This is the one pass `decode_link` makes over the link's `type 2001`
     blocks — cage/modifier constraints, S-cell presence and pinning, and the
-    Somedoku cosmetic-cage carrier all fall out of the same per-block walk,
-    rather than four separate walks over the same data re-deriving each
-    other's block filtering."""
+    Somedoku cosmetic-cage carrier all fall out of the same per-block walk."""
     decoded: list[_CosmeticCageDecode] = []
     modifier_declarations: list[tuple[_ModifierKind, int | None]] = []
     for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE):
