@@ -8,10 +8,12 @@ out of the shipped wheel via `source-exclude` in pyproject.toml.
 cells, then checks it directly: right size, every cell's digit(s) in the
 board's domain, every row/column/region a permutation of it — each checked
 only when the puzzle's own constraints actually carry that rule
-(`rows-distinct`/`cols-distinct`/`regions-distinct`), the same conditional
-reading `_regions` already gives regions, since a puzzle can hold one without
-the other (a somedoku puzzle carries neither, running on `line-count-distinct`
-instead) — and every given sitting in its cell. It reads a `Puzzle`
+(`rows-distinct`/`cols-distinct`/`regions-distinct`), all three houses asking
+via the same `constraint_types` membership test (`_regions` takes its
+`has_regions` answer as a parameter rather than re-deriving it), since a
+puzzle can hold one without the other (a somedoku puzzle carries neither,
+running on `line-count-distinct` instead) — and every given sitting in its
+cell. It reads a `Puzzle`
 (typically `sudokumaker.decode_link`'s output) but never calls `verdict()`
 and never touches `Witness` or its `render()` — so a defect in the solver or
 the renderer can't hide behind a witness that merely *looks* right to the
@@ -71,7 +73,8 @@ def validate_witness(rendered: str, puzzle: Puzzle) -> bool:
         if "cols-distinct" in constraint_types
         else []
     )
-    regions = _regions(puzzle, size, grid)
+    has_regions = "regions-distinct" in constraint_types
+    regions = _regions(puzzle, size, grid, has_regions=has_regions)
     if any(not _is_permutation(group, domain) for group in (*rows, *columns, *regions)):
         return False
 
@@ -117,12 +120,15 @@ def _parse_grid(rendered: str, size: int) -> list[list[Cell]] | None:
     return grid
 
 
-def _regions(puzzle: Puzzle, size: int, grid: list[list[Cell]]) -> list[list[Cell]]:
+def _regions(
+    puzzle: Puzzle, size: int, grid: list[list[Cell]], *, has_regions: bool
+) -> list[list[Cell]]:
     """No `regions-distinct` constraint means no permutation groups to check
     beyond rows/columns — the resolver's own no-regions fallback (one region
     covering the whole board) is a render-only convenience the solver never
-    enforced, not a real group to validate."""
-    has_regions = any(c.type == "regions-distinct" for c in puzzle.constraints)
+    enforced, not a real group to validate. `has_regions` is `validate_witness`'s
+    own `constraint_types` membership test, passed down so rows, columns, and
+    regions all ask "carries rule X" the same way."""
     if not has_regions:
         return []
     region_map = region_map_for_constraints(puzzle.constraints, size)
