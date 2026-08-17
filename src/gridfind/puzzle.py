@@ -149,6 +149,18 @@ class Constraint:
     # dicts do fine.
     params: dict[str, JsonValue] = field(default_factory=dict)
 
+    def to_dict(self) -> dict[str, JsonValue]:
+        return {"type": self.type, **self.params}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JsonValue]) -> Constraint:
+        kind = data["type"]
+        if not isinstance(kind, str):
+            msg = f"constraint 'type' must be a string, got {kind!r}"
+            raise MalformedPuzzleError(msg)
+        params = {key: value for key, value in data.items() if key != "type"}
+        return cls(type=kind, params=params)
+
 
 @dataclass(frozen=True)
 class Puzzle:
@@ -162,7 +174,7 @@ class Puzzle:
         return json.dumps(
             {
                 "board": self.board.to_dict(),
-                "constraints": [{"type": c.type, **c.params} for c in self.constraints],
+                "constraints": [c.to_dict() for c in self.constraints],
                 "givens": [
                     {"address": g.address, "digit": g.digit} for g in self.givens
                 ],
@@ -181,7 +193,7 @@ class Puzzle:
         doc: Any = data  # parsed-JSON boundary, narrowed by the typed helpers
         return cls(
             board=Board.from_dict(doc["board"]),
-            constraints=tuple(_constraint_from_dict(c) for c in doc["constraints"]),
+            constraints=tuple(Constraint.from_dict(c) for c in doc["constraints"]),
             givens=tuple(
                 Given(address=g["address"], digit=g["digit"]) for g in doc["givens"]
             ),
@@ -252,12 +264,3 @@ class WorkingState:
 
 
 EMPTY = WorkingState()
-
-
-def _constraint_from_dict(data: dict[str, JsonValue]) -> Constraint:
-    kind = data["type"]
-    if not isinstance(kind, str):
-        msg = f"constraint 'type' must be a string, got {kind!r}"
-        raise MalformedPuzzleError(msg)
-    params = {key: value for key, value in data.items() if key != "type"}
-    return Constraint(type=kind, params=params)
