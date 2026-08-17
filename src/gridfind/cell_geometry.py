@@ -40,7 +40,7 @@ class BoardShape(Protocol):
     def values(self) -> range: ...
 
 
-def cell_address(row: int, col: int) -> str:
+def format_address(row: int, col: int) -> str:
     """The wire address of a 1-based grid cell: row 3, col 1 is `R3C1`."""
     return f"R{row}C{col}"
 
@@ -79,8 +79,8 @@ class CellGeometry:
         declared = self._declared()
         if cell not in declared:
             raise KeyError(cell)
-        row, col = _row_col(cell)
-        target = cell_address(row + delta_row, col + delta_col)
+        row, col = parse_address(cell)
+        target = format_address(row + delta_row, col + delta_col)
         return target if target in declared else None
 
     def _declared(self) -> frozenset[str]:
@@ -102,9 +102,9 @@ def main_diagonals[Cell](grid: list[list[Cell]]) -> tuple[list[Cell], list[Cell]
     return main, anti
 
 
-def _row_col(address: str) -> tuple[int, int]:
+def parse_address(address: str) -> tuple[int, int]:
     """The 1-based `(row, col)` an `RxCy` address names — the inverse of
-    `cell_address`. Read from the address itself, not a grid index, so a
+    `format_address`. Read from the address itself, not a grid index, so a
     declared set with holes or off-grid cells (#399) still resolves each
     cell to its own coordinates."""
     row, col = address[1:].split("C")
@@ -117,7 +117,7 @@ def cell_geometry(board: BoardShape) -> CellGeometry:
     Every other reader takes the built `CellGeometry` instead of repeating
     this walk."""
     grid = [
-        [cell_address(row, col) for col in range(1, board.size + 1)]
+        [format_address(row, col) for col in range(1, board.size + 1)]
         for row in range(1, board.size + 1)
     ]
     return CellGeometry(

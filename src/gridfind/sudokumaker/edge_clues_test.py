@@ -13,7 +13,7 @@ import pytest
 from hypothesis import given as hyp_given
 from hypothesis import strategies as st
 
-from gridfind.cell_geometry import cell_address
+from gridfind.cell_geometry import format_address
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker import decode_link
 from gridfind.sudokumaker.conftest import (
@@ -74,9 +74,9 @@ def test_edge_to_pair_decodes_the_exact_source_cells(
     pair = _edge_to_pair(edge, size)
 
     if orientation == "horizontal":
-        expected = (cell_address(r0 + 1, c0 + 1), cell_address(r0 + 1, c0 + 2))
+        expected = (format_address(r0 + 1, c0 + 1), format_address(r0 + 1, c0 + 2))
     else:
-        expected = (cell_address(r0 + 1, c0 + 1), cell_address(r0 + 2, c0 + 1))
+        expected = (format_address(r0 + 1, c0 + 1), format_address(r0 + 2, c0 + 1))
     assert pair == expected
 
 
