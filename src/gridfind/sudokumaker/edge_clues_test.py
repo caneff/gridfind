@@ -429,6 +429,33 @@ def test_black_kropki_negative_rule_exempts_the_marked_edge() -> None:
         )
 
 
+def test_black_kropki_negative_rule_ignores_the_inert_override_boolean(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # overrideNegativeRatios is not exposed in SudokuMaker and carries no
+    # puzzle meaning — its presence must not spawn a warning or change what
+    # decodes.
+    payload = constraint_link(
+        {
+            "type": 201,
+            "clues": [{"value": 2, "edge": 75}],
+            "negative": [3],
+            "overrideNegativeRatios": True,
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert (
+        Constraint(
+            "pair-ratio",
+            params={"cells": ["R1C1", "R1C2"], "k": 3, "negate": True},
+        )
+        in puzzle.constraints
+    )
+    assert capsys.readouterr().err == ""
+
+
 @pytest.mark.parametrize(
     ("modifier_block", "min_digit"),
     [
