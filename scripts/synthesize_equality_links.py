@@ -5,11 +5,12 @@ SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.encode_link`, so a reviewer can read exactly what balance
 case a fixture exercises and regenerate the whole set with `main()`.
 
-Every fixture shares one solved 9x9 grid, given in full **except** the cage
-cells, which are left empty. The solver must place them, and column/box
-constraints force each back to its solution value — so the named `Equality`
-cage sees a known digit set and the verdict turns on whether that set balances,
-proven by a real solve rather than a rubber-stamped board.
+Every fixture is a sparse 9x9: row 1's five non-cage columns are given their
+own column digit (`1..9` is a legal first row), and everything else — the four
+cage cells and rows 2-9 — is empty. The five givens force the four cage cells
+to the four complementary digits, so the named `Equality` cage sees a known set
+and the verdict turns on whether that set balances, proven by a real solve over
+an otherwise open grid.
 
 A 9-digit board splits low `{1,2,3,4}` / high `{6,7,8,9}` with `5` the middle
 value in neither half. An equality cage of `N` cells demands `#even == N/2`,
@@ -32,29 +33,20 @@ LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links
 
 _SIZE = 9
 
-# A solved 9x9 grid (band-shifted rows), row-major. Row 1 is the identity
-# `1..9`, so a cage over columns `cols` in row 1 encloses exactly the digit set
-# `cols` — the placement lever every fixture below pulls.
-_SOLUTION: list[list[int]] = [
-    [(3 * (row % 3) + row // 3 + col) % 9 + 1 for col in range(_SIZE)]
-    for row in range(_SIZE)
-]
-
 
 def _link(*, cage_cols: tuple[int, ...]) -> str:
-    """A 9x9 document given in full except row 1's `cage_cols` (1-based), which
-    are left empty and enclosed in an `Equality`-named cosmetic cage. The empty
-    cells force back to their solution digits (the column values `cage_cols`),
-    so the cage judges that digit set."""
+    """A sparse 9x9 document: row 1's non-`cage_cols` columns are given their
+    own digit (row 1 is `1..9`), the `cage_cols` cells are empty and enclosed in
+    an `Equality`-named cosmetic cage, and rows 2-9 are empty. The five row-1
+    givens force the four cage cells to the complementary digit set, so the cage
+    judges exactly `{cage_cols}`."""
+    cage_set = set(cage_cols)
     cage_index_list = [cell_index(1, col, _SIZE) for col in cage_cols]
-    cage_indices = set(cage_index_list)
     cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
-    for row in range(1, _SIZE + 1):
-        for col in range(1, _SIZE + 1):
-            index = cell_index(row, col, _SIZE)
-            if index in cage_indices:
-                continue
-            cells[index] = {"given": True, "value": _SOLUTION[row - 1][col - 1]}
+    for col in range(1, _SIZE + 1):
+        if col in cage_set:
+            continue
+        cells[cell_index(1, col, _SIZE)] = {"given": True, "value": col}
     region_numbers = to_region_numbers(_SIZE, box_regions(_SIZE, 3, 3))
     document = {
         "formatVersion": "1.5.0",
@@ -77,8 +69,7 @@ def _link(*, cage_cols: tuple[int, ...]) -> str:
 
 def found_equality_9x9() -> str:
     """`found` — cage over `{1,4,6,7}`: `#even`=2 (4,6), `#low`=2 (1,4),
-    `#high`=2 (6,7). Every clause holds, so the forced grid is a legal
-    completion."""
+    `#high`=2 (6,7). Every clause holds, so a legal completion exists."""
     return _link(cage_cols=(1, 4, 6, 7))
 
 
