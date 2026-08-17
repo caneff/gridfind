@@ -27,33 +27,43 @@ from gridfind.sudokumaker.wire_types import CAGE_TYPE, COSMETIC_CAGE_TYPE, THERM
 _ModifierKind = Literal["doubler", "constant"]
 
 
-def _killer_cage(addresses: list[str], total: int | None) -> list[Constraint]:
-    """A killer cage over `addresses`: always a no-repeats `cage`, plus a
-    `group-sum` carrying `total` when a total is present (ADR-0009). A zero or
-    `None` total is no total — the cage stands alone."""
+def _cage_with_optional_total(
+    addresses: list[str], total: int | None, total_constraint_type: str
+) -> list[Constraint]:
+    """A cage over `addresses`: always a no-repeats `cage`, plus a
+    `total_constraint_type` constraint carrying `total` when a total is
+    present (ADR-0009) — `"group-sum"` for a killer cage's target sum,
+    `"rellik-cage"` for a rellik cage's forbidden total. A zero or `None`
+    total is no total — the cage stands alone."""
     decoded = [Constraint("cage", params={"cells": addresses})]
     if total:
         decoded.append(
-            Constraint("group-sum", params={"cells": addresses, "sum": total})
+            Constraint(total_constraint_type, params={"cells": addresses, "sum": total})
         )
     return decoded
 
 
-def _killer_cages(
+def _cages_with_optional_total(
     cages: list[dict[str, Any]],
     size: int,
     sum_of: Callable[[dict[str, Any]], int | None],
+    total_constraint_type: str,
 ) -> list[Constraint]:
     """Walk `cages`' raw `cells` indices to addresses (row-major, `addresses`)
-    and decode each to a killer cage (`_killer_cage`) — the walk a `type 301`
-    block and a `Sum`/`Killer`-named `type 2001` block share, differing only
-    in where a cage's total comes from: `sum_of` reads it straight off the
-    wire `value` int for a killer cage, or parses the cosmetic cage's string
-    `value` label for a cosmetic one."""
+    and decode each to a cage (`_cage_with_optional_total`) — the walk a
+    `type 301` block and a `Sum`/`Killer`/`Rellik`/`Anti`-named `type 2001`
+    block share, differing only in where a cage's total comes from: `sum_of`
+    reads it straight off the wire `value` int for a killer cage, or parses
+    the cosmetic cage's string `value` label for a cosmetic one, and in which
+    constraint type (`total_constraint_type`) the total attaches to."""
     decoded: list[Constraint] = []
     for cage in cages:
         cage_addresses = addresses(cage["cells"], size)
-        decoded.extend(_killer_cage(cage_addresses, sum_of(cage)))
+        decoded.extend(
+            _cage_with_optional_total(
+                cage_addresses, sum_of(cage), total_constraint_type
+            )
+        )
     return decoded
 
 
@@ -68,7 +78,11 @@ def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     decoded: list[Constraint] = []
     for block in enabled_blocks(buckets, CAGE_TYPE):
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
-        decoded.extend(_killer_cages(cages, size, lambda cage: cage.get("value", 0)))
+        decoded.extend(
+            _cages_with_optional_total(
+                cages, size, lambda cage: cage.get("value", 0), "group-sum"
+            )
+        )
     return decoded
 
 
@@ -88,34 +102,6 @@ def _cosmetic_cage_numeric_value(cage: dict[Any, Any]) -> int | None:
         return int(value)
     except ValueError:
         return None
-
-
-def _rellik_cage(addresses: list[str], target: int | None) -> list[Constraint]:
-    """A rellik (anti-) cage over `addresses`: always a no-repeats `cage`,
-    plus a `rellik-cage` carrying `target` as the forbidden total when a
-    target is present (mirroring `_killer_cage`'s optional total). A zero or
-    `None` target is no target — the cage stands alone."""
-    decoded = [Constraint("cage", params={"cells": addresses})]
-    if target:
-        decoded.append(
-            Constraint("rellik-cage", params={"cells": addresses, "sum": target})
-        )
-    return decoded
-
-
-def _rellik_cages(
-    cages: list[dict[str, Any]],
-    size: int,
-    sum_of: Callable[[dict[str, Any]], int | None],
-) -> list[Constraint]:
-    """Walk `cages`' raw `cells` indices to addresses and decode each to a
-    rellik cage (`_rellik_cage`) — the same walk `_killer_cages` shares,
-    differing only in which constraint the total attaches to."""
-    decoded: list[Constraint] = []
-    for cage in cages:
-        cage_addresses = addresses(cage["cells"], size)
-        decoded.extend(_rellik_cage(cage_addresses, sum_of(cage)))
-    return decoded
 
 
 @dataclass(frozen=True)
@@ -277,10 +263,14 @@ def cosmetic_cage_constraints(
             decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
             continue
         if kind == "rellik":
-            constraints = _rellik_cages(cages, size, _cosmetic_cage_numeric_value)
+            constraints = _cages_with_optional_total(
+                cages, size, _cosmetic_cage_numeric_value, "rellik-cage"
+            )
             decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
             continue
-        constraints = _killer_cages(cages, size, _cosmetic_cage_numeric_value)
+        constraints = _cages_with_optional_total(
+            cages, size, _cosmetic_cage_numeric_value, "group-sum"
+        )
         decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
     modifier_constraint = _resolve_modifier_constraint(modifier_declarations)
     return replace(
