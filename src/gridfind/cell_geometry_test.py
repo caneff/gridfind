@@ -1,11 +1,13 @@
 import pytest
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from gridfind.cell_geometry import (
     CellGeometry,
     cell_geometry,
+    flat_index,
     format_address,
+    row_col_of_index,
 )
 from gridfind.puzzle import Board
 
@@ -56,6 +58,27 @@ def test_cell_geometry_grid_is_the_row_major_rxcy_address_grid() -> None:
 
 def test_cell_address_formats_rxcy() -> None:
     assert format_address(3, 1) == "R3C1"
+
+
+def test_flat_index_is_row_major_zero_based() -> None:
+    assert flat_index(3, 1, size=9) == 18
+
+
+def test_row_col_of_index_is_the_inverse_of_flat_index() -> None:
+    assert row_col_of_index(18, size=9) == (3, 1)
+
+
+@given(
+    row=st.integers(min_value=1, max_value=20),
+    col=st.integers(min_value=1, max_value=20),
+    size=st.integers(min_value=1, max_value=20),
+)
+def test_flat_index_and_row_col_of_index_round_trip(
+    row: int, col: int, size: int
+) -> None:
+    assume(col <= size)
+
+    assert row_col_of_index(flat_index(row, col, size), size) == (row, col)
 
 
 def test_step_returns_the_target_cell_in_space() -> None:

@@ -43,7 +43,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from gridfind.cell_geometry import BOX_SHAPE
+from gridfind.cell_geometry import BOX_SHAPE, flat_index
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.puzzle import Constraint
 
@@ -107,6 +107,19 @@ def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
         for band_row in range(row_bands)
         for band_col in range(col_bands)
     )
+
+
+def to_region_numbers(size: int, region_map: RegionMap) -> list[int]:
+    """A region map as SudokuMaker's flat, row-major `type 1` array: entry
+    `flat_index(row, col, size)` is the number of the region holding cell
+    `RxCy`. The one home for serializing a `RegionMap` to the wire form,
+    shared by the decode-time classic-tiling check and the corpus synthesizers.
+    """
+    region_numbers = [0] * (size * size)
+    for number, region in enumerate(region_map):
+        for row, col in region:
+            region_numbers[flat_index(row, col, size)] = number
+    return region_numbers
 
 
 def region_map_for(size: int) -> RegionMap:
