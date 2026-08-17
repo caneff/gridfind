@@ -70,6 +70,32 @@ class Board:
             msg = f"a board's values must be a non-empty range, got {self.values!r}"
             raise MalformedPuzzleError(msg)
 
+    def to_dict(self) -> dict[str, JsonValue]:
+        if self.values == _values_from_size(self.size):
+            return {"size": self.size}
+        values = [self.values.start, self.values.stop, self.values.step]
+        return {"size": self.size, "values": values}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JsonValue]) -> Board:
+        size = data["size"]
+        if not isinstance(size, int):
+            msg = f"board 'size' must be an int, got {size!r}"
+            raise MalformedPuzzleError(msg)
+        if "values" not in data:
+            return cls(size=size)
+        values = data["values"]
+        if not isinstance(values, list) or len(values) != _RANGE_PARTS:
+            msg = f"board 'values' must be a [start, stop, step] list, got {values!r}"
+            raise MalformedPuzzleError(msg)
+        start, stop, step = values
+        if not (
+            isinstance(start, int) and isinstance(stop, int) and isinstance(step, int)
+        ):
+            msg = f"board 'values' must be three ints, got {values!r}"
+            raise MalformedPuzzleError(msg)
+        return cls(size=size, values=range(start, stop, step))
+
 
 @dataclass(frozen=True)
 class Given:
@@ -135,7 +161,7 @@ class Puzzle:
     def to_json(self) -> str:
         return json.dumps(
             {
-                "board": _board_to_dict(self.board),
+                "board": self.board.to_dict(),
                 "constraints": [{"type": c.type, **c.params} for c in self.constraints],
                 "givens": [
                     {"address": g.address, "digit": g.digit} for g in self.givens
@@ -154,7 +180,7 @@ class Puzzle:
         re-serializing it for `from_json` to parse again."""
         doc: Any = data  # parsed-JSON boundary, narrowed by the typed helpers
         return cls(
-            board=_board_from_dict(doc["board"]),
+            board=Board.from_dict(doc["board"]),
             constraints=tuple(_constraint_from_dict(c) for c in doc["constraints"]),
             givens=tuple(
                 Given(address=g["address"], digit=g["digit"]) for g in doc["givens"]
@@ -226,31 +252,6 @@ class WorkingState:
 
 
 EMPTY = WorkingState()
-
-
-def _board_to_dict(board: Board) -> dict[str, JsonValue]:
-    if board.values == _values_from_size(board.size):
-        return {"size": board.size}
-    values = [board.values.start, board.values.stop, board.values.step]
-    return {"size": board.size, "values": values}
-
-
-def _board_from_dict(data: dict[str, JsonValue]) -> Board:
-    size = data["size"]
-    if not isinstance(size, int):
-        msg = f"board 'size' must be an int, got {size!r}"
-        raise MalformedPuzzleError(msg)
-    if "values" not in data:
-        return Board(size=size)
-    values = data["values"]
-    if not isinstance(values, list) or len(values) != _RANGE_PARTS:
-        msg = f"board 'values' must be a [start, stop, step] list, got {values!r}"
-        raise MalformedPuzzleError(msg)
-    start, stop, step = values
-    if not (isinstance(start, int) and isinstance(stop, int) and isinstance(step, int)):
-        msg = f"board 'values' must be three ints, got {values!r}"
-        raise MalformedPuzzleError(msg)
-    return Board(size=size, values=range(start, stop, step))
 
 
 def _constraint_from_dict(data: dict[str, JsonValue]) -> Constraint:
