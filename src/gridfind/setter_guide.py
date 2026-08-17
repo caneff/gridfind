@@ -53,6 +53,12 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
         "found-cage-4x4",
     ),
     (
+        "rellik",
+        MARKER_LABELS["rellik"],
+        ("Anti-cage: no group of the cage's cells may sum to its labelled total"),
+        "found-rellik-4x4",
+    ),
+    (
         "doubler",
         MARKER_LABELS["doubler"],
         "Doubler position marker",

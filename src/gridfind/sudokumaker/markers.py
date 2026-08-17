@@ -1,8 +1,9 @@
 """Named marker-cage classification (ADR-0012, homed here in #443, routed
 through the name -> shape registry in #434, extended with a parameterized
-`"constant"` kind by ADR-0016, and a payload-less `"somedoku"` kind): a
+`"constant"` kind by ADR-0016, a payload-less `"somedoku"` kind, and a second
+cage-selector kind, `"rellik"` (ADR-0018)): a
 `type 2001` cosmetic-cage block's top-level
-`name` sorted into `"unnamed"`, `"killer"`, `"doubler"`, `"s-cell"`,
+`name` sorted into `"unnamed"`, `"killer"`, `"rellik"`, `"doubler"`, `"s-cell"`,
 `"constant"`, `"somedoku"`, or `"unrecognized"` (`cosmetic_cage_kind`), the two
 S-cell channels that read it — enablement by block *presence*
 (`has_scell_marker_block`) and pinning by cell *membership*
@@ -38,7 +39,14 @@ from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 
 CosmeticCageKind = Literal[
-    "unnamed", "killer", "doubler", "s-cell", "constant", "somedoku", "unrecognized"
+    "unnamed",
+    "killer",
+    "rellik",
+    "doubler",
+    "s-cell",
+    "constant",
+    "somedoku",
+    "unrecognized",
 ]
 
 # Role -> its accepted `type 2001` names, the public seam `setter_guide.py`
@@ -51,10 +59,12 @@ MARKER_LABELS: dict[str, frozenset[str]] = aliases_by_role()
 
 def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
     """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
-    ADR-0016) into one of seven kinds: `"unnamed"`
+    ADR-0016 and ADR-0018) into one of eight kinds: `"unnamed"`
     (absent/blank — a purely decorative block that carries no rule),
     `"killer"` (a recognized `Sum`/`Killer` label that selects the
-    killer-cage rule), `"doubler"` (a `Doubler` position marker), `"s-cell"`
+    killer-cage rule), `"rellik"` (a recognized `Rellik`/`Anti` label that
+    selects the anti-cage subset-sum ban, the cage's numeric value read as
+    the forbidden total), `"doubler"` (a `Doubler` position marker), `"s-cell"`
     (an `S-cell`/`Schrödinger` position marker), `"constant"` (a `Constant
     <N>`/`Nullifier` position marker whose `k` is read from the name itself),
     `"somedoku"` (the payload-less `Somedoku` global flag — cells and value
