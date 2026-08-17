@@ -44,10 +44,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import NamedTuple
 
-from verify_links import LINKS_DIR, emit_solution_link
-
-from gridfind.sudokumaker import decode_link
-from gridfind.verdict import verdict
+from verify_links import LINKS_DIR, emit_solution_link, oracle_witness
 
 # The durable approval log: link stems a person has eyeballed and accepted.
 # Gitignored — a personal verification record, not a repo fact.
@@ -202,15 +199,14 @@ def eval_link(argv: Sequence[str]) -> LinkView:
     (`colorize_marker_cages`, inside `emit_solution_link`), so red flags what
     gridfind found, not what the setter drew."""
     link = argv[-1]
-    puzzle, state = decode_link(link)
-    result = verdict(puzzle, state)
-    if result.kind != "found" or result.witness is None:
-        return LinkView(result.kind, link, witness_grid=None, solution_link=None)
+    kind, witness, size = oracle_witness(link)
+    if witness is None:
+        return LinkView(kind, link, witness_grid=None, solution_link=None)
     return LinkView(
-        result.kind,
+        kind,
         link,
-        witness_grid=result.witness.render(),
-        solution_link=emit_solution_link(link, result.witness, puzzle.board.size),
+        witness_grid=witness.render(),
+        solution_link=emit_solution_link(link, witness, size),
     )
 
 
