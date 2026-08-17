@@ -77,9 +77,9 @@ def warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     cosmetic-only payload) and dropped quietly, or active (a live
     clue/negative list or a populated group) and dropped loudly, named by its
     `definition.name` when the link carries one. Honoring a specific variant
-    rather than dropping it is the opt-in variant-decoder path; each variant
-    still warns on the part it can't model (a kropki/XV `negative` list),
-    fired from its own decoder instead.
+    rather than dropping it is the opt-in variant-decoder path — the kropki
+    and XV decoders take it for their own `negative` list, enforcing it
+    instead of dropping it.
 
     `has_live_data` is the shared active/inert predicate: this runtime policy
     and `scripts/inspect_link.py`'s `classify_constraint` both

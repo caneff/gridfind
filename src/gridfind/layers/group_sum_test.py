@@ -49,6 +49,12 @@ def _group_sum(cells: tuple[str, ...], total: int) -> Constraint:
     return Constraint(type="group-sum", params={"cells": list(cells), "sum": total})
 
 
+def _negated_group_sum(cells: tuple[str, ...], total: int) -> Constraint:
+    return Constraint(
+        type="group-sum", params={"cells": list(cells), "sum": total, "negate": True}
+    )
+
+
 def _clue(kind: str, cells: tuple[str, str]) -> Constraint:
     """An X or V alias clue — names its pair, leaves the sum to the alias."""
     return Constraint(type=kind, params={"cells": list(cells)})
@@ -156,6 +162,35 @@ def test_a_broken_second_group_sum_breaks_the_whole_puzzle() -> None:
 
     assert result.kind == "broke"
     assert result.witness is None
+
+
+def test_a_negated_group_sum_forbids_that_exact_total() -> None:
+    # The negative-space mechanism's mode (sudokumaker.edge_clues): the pair
+    # is pinned to the forbidden total, so no completion exists.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_negated_group_sum(("R1C1", "R1C2"), 5),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=4)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_negated_group_sum_allows_every_other_total() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_negated_group_sum(("R1C1", "R1C2"), 5),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C1"][0] + result.witness["R1C2"][0] != 5
 
 
 def test_a_v_clue_is_an_alias_for_a_group_sum_of_five() -> None:

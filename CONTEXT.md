@@ -445,7 +445,13 @@ reads a modifier cell's `modifier_value` in place of the raw digit, so a
 discovered doubler folds into the total.
 
 - **group-sum** — the constraint and the rule it emits: `{type: group-sum,
-  cells: [...], sum}`. The canonical form every XV clue expands to.
+  cells: [...], sum}`, or, with `negate: true`, `{type: group-sum, cells:
+  [...], sum, negate: true}` for `sum(cells) != sum`. The canonical form
+  every XV clue expands to. The negated mode is the XV negative rule's
+  mechanism (`sudokumaker.edge_clues`): applied over every
+  orthogonally-adjacent pair a link's positive X/V clues didn't mark, once
+  per value in the wire's `negative` list — the same emitter as the positive
+  mode, so the two can never drift apart.
 - **XV** — the setter-facing variant, two **aliases** of a group-sum whose
   target is named rather than written: an **X clue** is a group-sum of 10, a
   **V clue** a group-sum of 5.
