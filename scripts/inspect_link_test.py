@@ -152,6 +152,37 @@ def test_main_reports_unknown_flag_without_decoding_it() -> None:
     assert code == 2  # nothing left to decode -> usage exit, not a crash
 
 
+def test_main_prints_the_report_line_for_a_valid_link(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Drives the happy path through `main` itself, not just `inspect_link` —
+    # a break in `main`'s own print/loop wiring must fail here even when
+    # `inspect_link` still works.
+    stem = "found-xv-9x9"
+    path = next(p for p in _LINK_CASES if p.stem == stem)
+    link = path.read_text().split()[-1]
+
+    code = main([link], io.StringIO())
+
+    assert code == 0
+    assert capsys.readouterr().out == _GOLDEN_REPORTS[stem] + "\n"
+
+
+def test_main_reports_a_bad_link_error_on_stderr_and_still_exits_zero() -> None:
+    # A rejected link is a per-link failure, not a batch failure: `main`
+    # catches it, reports it on stderr, and still exits 0 (a bad link among
+    # good ones must not kill the batch).
+    path = next(p for p in _LINK_CASES if p.stem.startswith("invalid"))
+    link = path.read_text().split()[-1]
+    err = io.StringIO()
+
+    code = main([link], io.StringIO(), stderr=err)
+
+    assert code == 0
+    assert "error: " in err.getvalue()
+    assert "not among" in err.getvalue()
+
+
 def test_decode_payload_matches_decode_document() -> None:
     """`decode_payload` and `decode_document` read the same boundary — the
     corpus's `puzzle` block must agree byte-for-byte, whichever one decoded

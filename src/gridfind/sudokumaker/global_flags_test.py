@@ -131,3 +131,27 @@ def test_disabled_somedoku_block_decodes_to_nothing(
     puzzle, _ = decode_link(payload)
 
     assert puzzle.constraints == CLASSIC_CONSTRAINTS
+
+
+def test_somedoku_still_decodes_a_registry_type_after_regions() -> None:
+    # decode_link's registry loop `continue`s past `wire_type == 1` (regions)
+    # for a somedoku puzzle, but must keep walking DECODER_REGISTRY afterward —
+    # an anti-king toggle, which sits later in registry order, still decodes
+    # alongside the line-count-distinct rule.
+    payload = encode_document(
+        {
+            "cells": EMPTY_CELLS,
+            "constraints": [
+                *WIRE_CONSTRAINTS,
+                {"type": 1000, "definition": {"name": "Somedoku"}},
+                {"type": 12},
+            ],
+        }
+    )
+
+    puzzle, _ = decode_link(payload)
+
+    assert puzzle.constraints == (
+        Constraint("line-count-distinct"),
+        Constraint("anti-king"),
+    )
