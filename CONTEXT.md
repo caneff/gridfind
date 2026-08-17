@@ -220,10 +220,12 @@ directives on top; a header line declares the active layer stack.
 
 ## `pair-difference` layer
 
-The second explicit-pair variant (issue #129, spec #127), landing beside the
-`emit_over_pairs` extraction (#42 decision 5, #128) that its own relation
-shares with `pair-ratio` (both via `PairRelation`) and `thermo`'s
-consecutive-pair walk. A clue names a **pair** and a target `k`; the layer
+The second explicit-pair variant (issue #129, spec #127), sharing
+`PairRelation` with `pair-ratio`: each relation-emitter closure is applied
+directly to the clue's own two cells, not through the many-cell
+`emit_over_pairs` walk (#42 decision 5, #128) that `thermo`'s
+consecutive-pair decomposition still uses. A clue names a **pair** and a
+target `k`; the layer
 constrains the pair's value to differ, in absolute value, by exactly `k`
 (or, in its negated mode, to never differ by `k`), one rule per clue.
 Explicit-pair and absolute — like `group-sum`'s two-cell case it never asks

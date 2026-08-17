@@ -4,11 +4,13 @@
 A pair-relation clue names two cells and holds them to some binary relation
 — difference today, ratio and inequality later. One `PairRelation` instance,
 built with a **relation-emitter** closure, pulls every constraint of its own
-`name` via `constraints_of` and emits one rule per clue through the shared
-`emit_over_pairs` walk (decision 5).
+`name` via `constraints_of` and applies the relation directly to its own two
+cells — a pair is not a many-cell walk, so it costs no walk of its own
+(`thermo`'s consecutive-pair decomposition is the many-cell case; it keeps
+the shared `emit_over_pairs` walk in `_base.py`).
 
 The relation-emitter is the seam: given a clue's own `params`, it returns
-the `rel(engine, a, b)` callable `emit_over_pairs` applies to the pair. Each
+the `rel(engine, a, b)` callable this layer calls directly on the pair. Each
 relation owns its own params key and rule shape behind that one closure —
 `PairRelation` itself never reads a relation-specific key (a difference
 clue's `diff`, a future ratio clue's own key), so a new relation costs one
@@ -27,7 +29,6 @@ from typing import cast
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine, MalformedPuzzleError
-from gridfind.layers._base import emit_over_pairs
 from gridfind.puzzle import JsonValue
 
 RelationEmitter = Callable[
@@ -72,4 +73,4 @@ class PairRelation:
                 cast("cp_model.IntVar", engine.value_expr(address))
                 for address in addresses
             )
-            emit_over_pairs(engine, [(a, b)], self.relation(clue.params))
+            self.relation(clue.params)(engine, a, b)
