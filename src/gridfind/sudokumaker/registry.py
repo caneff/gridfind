@@ -111,10 +111,12 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
             display_name="White Kropki (Difference Dot)",
             wire_block="type 200 {clues:[{value, edge}], negative:[…]}",
             decode_result="One pair-difference Constraint per clue; value maps"
-            " verbatim to diff.",
-            verdict="Accept the positive clues. A non-empty negative list is"
-            " warn-and-dropped to stderr. An edge naming no in-bounds pair"
-            " raises ValueError. disabled blocks are skipped.",
+            " verbatim to diff. A non-empty negative list adds one negated"
+            " pair-difference per listed value, over every"
+            " orthogonally-adjacent pair not already carrying a dot.",
+            verdict="Accept the positive clues and enforce a non-empty"
+            " negative list. An edge naming no in-bounds pair raises"
+            " ValueError. disabled blocks are skipped.",
         ),
     ),
     KROPKI_BLACK_TYPE: DecodedType(

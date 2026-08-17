@@ -2,6 +2,13 @@
 black-kropki (`type 201`) — which share one wire shape (`clues: [{value,
 edge}], negative: [...]`) and one decode walk (`_edge_clue_constraints`) built
 on the shared edge-to-cell-pair primitive `_edge_to_pair`.
+
+White-kropki's `negative` list is enforced through the negative-space
+mechanism (`_orthogonal_pairs`, `_negative_space_constraints`): every
+orthogonally-adjacent pair the block's clues didn't mark is forbidden each
+listed difference. XV and black-kropki still warn-and-drop their own
+`negative` list — the mechanism is relation-agnostic and built to take a
+second consumer, but only white-kropki opts in here.
 """
 
 from __future__ import annotations
@@ -10,15 +17,21 @@ import sys
 from collections.abc import Callable
 from typing import Any, cast
 
-from gridfind.cell_geometry import cell_address
+from gridfind.cell_geometry import cell_address, cell_geometry
 from gridfind.layers.door import ALIAS_REGISTRY
-from gridfind.puzzle import Constraint
+from gridfind.puzzle import Board, Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, as_int, enabled_blocks
 from gridfind.sudokumaker.wire_types import (
     KROPKI_BLACK_TYPE,
     KROPKI_WHITE_TYPE,
     XV_TYPE,
 )
+
+# The two forward 4-neighbour offsets (right, down) `_orthogonal_pairs` steps
+# by. Stepping only these — never their mirrors (left, up) — is what keeps
+# each unordered pair to one entry: the mirrored offset would just re-find
+# the same neighbour from the other side.
+_ORTHOGONAL_STEPS: tuple[tuple[int, int], ...] = ((0, 1), (1, 0))
 
 # `value` selects the existing group-sum alias — 10 is X, 5 is V — never a
 # raw `sum`, so a puzzle carrying both an XV clue and a literal group-sum on
@@ -77,30 +90,80 @@ def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
     raise ValueError(msg)
 
 
+def _orthogonal_pairs(size: int) -> list[tuple[str, str]]:
+    """Every orthogonally-adjacent cell pair on a `size`x`size` board, each
+    emitted once: grid x the two forward 4-neighbour offsets x
+    `CellGeometry.step`. Built locally rather than promoted to a shared
+    `CellGeometry` enumerator — the negative-space mechanism below is its only
+    consumer, and a shared primitive for one caller is speculative."""
+    geometry = cell_geometry(Board(size=size))
+    pairs: list[tuple[str, str]] = []
+    for row in geometry.grid:
+        for cell in row:
+            for delta_row, delta_col in _ORTHOGONAL_STEPS:
+                target = geometry.step(cell, delta_row, delta_col)
+                if target is not None:
+                    pairs.append((cell, target))
+    return pairs
+
+
+def _negative_space_constraints(
+    size: int,
+    marked: set[frozenset[str]],
+    forbidden: list[object],
+    build_negated_clue: Callable[[object, str, str], Constraint],
+) -> list[Constraint]:
+    """The negative-space mechanism: every orthogonally-adjacent pair on the
+    board minus `marked` (the block's own positively-clued pairs, exempt
+    because their dot already governs them), each value in `forbidden`
+    applied over every one of those eligible pairs through
+    `build_negated_clue` — the caller's own relation emitter in its negated
+    mode, so a relation's positive and negative rule share one home and
+    cannot drift apart."""
+    eligible = [
+        pair for pair in _orthogonal_pairs(size) if frozenset(pair) not in marked
+    ]
+    return [build_negated_clue(value, a, b) for value in forbidden for a, b in eligible]
+
+
 def _edge_clue_constraints(
     buckets: ConstraintBuckets,
     size: int,
     type_: int,
     build_clue: Callable[[object, str, str], Constraint],
     label: str,
+    negative_rule: Callable[[dict[str, Any], set[frozenset[str]]], list[Constraint]]
+    | None = None,
 ) -> list[Constraint]:
     """The shared decode walk behind the edge-clue types — XV, white-kropki,
     black-kropki — which share one wire shape (`clues: [{value, edge}],
     negative: [...]`). Every enabled `type_` block: each clue's `edge` decodes
     to its orthogonally-adjacent pair via `_edge_to_pair`, then
     `build_clue(value, a, b)` turns the clue's raw `value` and that pair into
-    one `Constraint`. A `disabled` block is skipped entirely; a non-empty
-    `negative` list is warn-and-dropped to stderr under `label` — the caller's
-    `DECODER_REGISTRY` display name — while its positive clues still decode.
-    `build_clue` carries the single per-type variation — an alias lookup, a
-    `diff`, a ratio `k`."""
+    one `Constraint`. A `disabled` block is skipped entirely. `build_clue`
+    carries the single per-type variation — an alias lookup, a `diff`, a
+    ratio `k`.
+
+    `negative_rule`, when given, replaces the default warn-and-drop for a
+    non-empty `negative` list: called with the block and the set of pairs its
+    own clues just marked, it returns the constraints the negative-space
+    mechanism (`_negative_space_constraints`) derives — the opt-in path a
+    variant takes once it models its own negated relation. Absent
+    `negative_rule`, a non-empty `negative` list is warn-and-dropped to
+    stderr under `label` — the caller's `DECODER_REGISTRY` display name —
+    while its positive clues still decode."""
     decoded: list[Constraint] = []
     for block in enabled_blocks(buckets, type_):
         clues = cast("list[dict[str, Any]]", block.get("clues", []))
+        marked: set[frozenset[str]] = set()
         for clue in clues:
             a, b = _edge_to_pair(clue["edge"], size)
             decoded.append(build_clue(clue["value"], a, b))
-        _warn_dropped_negative(block, label)
+            marked.add(frozenset((a, b)))
+        if negative_rule is not None:
+            decoded.extend(negative_rule(block, marked))
+        else:
+            _warn_dropped_negative(block, label)
     return decoded
 
 
@@ -128,13 +191,35 @@ def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint
     `value` is the target difference passed verbatim as `diff` — a labelled
     non-1 dot is honored at that value, never coerced to the consecutive
     default. `type 201` (black/ratio) has its own handler. See
-    `_edge_clue_constraints` for the walk."""
+    `_edge_clue_constraints` for the walk.
+
+    A non-empty `negative` list is enforced, not dropped: each of its values
+    is a forbidden difference, applied through the negative-space mechanism
+    (`_negative_space_constraints`) over every orthogonally-adjacent pair the
+    block's own clues didn't mark — `differs_by`'s negated mode
+    (`pair-difference` with `negate: true`), the same relation-emitter the
+    positive clues above use. The wire's own `overrideNegativeDifferences`
+    boolean is a known-inert field (never exposed in SudokuMaker, carries no
+    puzzle meaning) and is never read here."""
 
     def build(value: object, a: str, b: str) -> Constraint:
         return Constraint("pair-difference", params={"cells": [a, b], "diff": value})
 
+    def build_negated(value: object, a: str, b: str) -> Constraint:
+        return Constraint(
+            "pair-difference", params={"cells": [a, b], "diff": value, "negate": True}
+        )
+
+    def negative_rule(
+        block: dict[str, Any], marked: set[frozenset[str]]
+    ) -> list[Constraint]:
+        negative = block.get("negative")
+        if not (isinstance(negative, list) and negative):
+            return []
+        return _negative_space_constraints(size, marked, negative, build_negated)
+
     return _edge_clue_constraints(
-        buckets, size, KROPKI_WHITE_TYPE, build, "white-kropki"
+        buckets, size, KROPKI_WHITE_TYPE, build, "white-kropki", negative_rule
     )
 
 

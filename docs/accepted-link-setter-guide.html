@@ -327,8 +327,8 @@ wire block, decode result, and accept/ignore/reject verdict for each are in the
 <h3>White Kropki (Difference Dot)</h3>
 <dl>
 <dt>Wire block</dt><dd>type 200 {clues:[{value, edge}], negative:[…]}</dd>
-<dt>Decodes to</dt><dd>One pair-difference Constraint per clue; value maps verbatim to diff.</dd>
-<dt>Verdict</dt><dd>Accept the positive clues. A non-empty negative list is warn-and-dropped to stderr. An edge naming no in-bounds pair raises ValueError. disabled blocks are skipped.</dd>
+<dt>Decodes to</dt><dd>One pair-difference Constraint per clue; value maps verbatim to diff. A non-empty negative list adds one negated pair-difference per listed value, over every orthogonally-adjacent pair not already carrying a dot.</dd>
+<dt>Verdict</dt><dd>Accept the positive clues and enforce a non-empty negative list. An edge naming no in-bounds pair raises ValueError. disabled blocks are skipped.</dd>
 </dl>
 </section>
 <section class="constraint">
