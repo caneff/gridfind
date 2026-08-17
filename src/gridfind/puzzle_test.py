@@ -288,6 +288,12 @@ def test_working_state_with_no_s_directives_key_reads_an_empty_tuple() -> None:
     assert WorkingState.from_json(text).s_directives == ()
 
 
+def test_constraint_round_trips_through_dict() -> None:
+    killer = Constraint(type="killer", params={"cells": ["R1C1", "R1C2"], "sum": 5})
+
+    assert Constraint.from_dict(killer.to_dict()) == killer
+
+
 def test_constraint_with_arbitrary_params_round_trips() -> None:
     killer = Constraint(type="killer", params={"cells": ["R1C1", "R1C2"], "sum": 5})
     puzzle = Puzzle(board=Board(size=9), constraints=(killer,))
