@@ -40,19 +40,19 @@ setter can open it directly.
 | Recognized cage-name → role table | `MARKER_LABELS`, imported |
 | Supported constraint-type table | `DECODER_REGISTRY`, imported |
 | Box-convention size table (`{4, 6, 9}`) | `BOX_SHAPE`, imported |
-| Per-constraint facts: wire block, decode result, accept/ignore/reject | new description fields on `DecodedType` |
+| Per-constraint facts: wire block, decode result, accept/ignore/reject | `setter_guide.SETTER_DOCS`, keyed by wire type |
 | SudokuMaker draw-action per constraint | hand-written in the template |
 | Intro, state-under-test reading, troubleshooting, "any square size needs its own regions" | hand-written in the template |
 
-**`DecodedType` carries the per-constraint description.** The setter-facing
-facts a reader would otherwise hand-copy — the wire block, what it decodes to,
-and the accept/ignore/reject verdict — become fields on the registry entry that
-already owns the type's `name` and handler. Adding a constraint type therefore
-forces a home for its description in the same object. The two structural rows
-(`0` givens, `1` regions) are not constraints a setter draws; their description
-is `None`, and the generator skips any entry whose description is `None` — the
-data marks itself as not-setter-facing rather than relying on a separate
-skip-list.
+**`setter_guide.SETTER_DOCS` carries the per-constraint description, keyed by
+wire type.** The setter-facing facts a reader would otherwise hand-copy — the
+wire block, what it decodes to, and the accept/ignore/reject verdict — live in
+a `SetterDoc` table keyed by the same wire-type integer `DECODER_REGISTRY` uses,
+read only by `setter_guide.py`. Adding a constraint type therefore forces a row
+in both tables. The two structural rows (`0` givens, `1` regions) are not
+constraints a setter draws; they carry no `SETTER_DOCS` entry, and the generator
+skips any wire type missing from the table — the absence marks a row as
+not-setter-facing rather than relying on a separate skip-list.
 
 ## Considered options
 
@@ -76,10 +76,11 @@ skip-list.
 
 ## Consequences
 
-- A decoder dataclass (`DecodedType`) now carries setter-facing documentation.
-  The coupling is deliberate: it makes "add a type without documenting it"
-  impossible, at the cost of a reader wondering why the decoder holds prose —
-  this ADR is that answer.
+- The generator (`setter_guide.py`) owns a `SetterDoc` table keyed by wire
+  type, joined against `DECODER_REGISTRY` by that same key. The coupling is
+  deliberate even split across two tables: both are keyed by wire type, so a
+  new constraint type still forces a row in each, and a reader wondering why
+  the setter guide holds per-constraint prose finds the answer here.
 - The committed `docs/` page is a build artifact, never hand-edited; edits go to
   the template or the code. The `just check` diff guard is what makes that safe.
 - The example gallery (static embed vs the `eval-links` server) is a separate

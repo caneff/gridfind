@@ -67,7 +67,7 @@ ANTI_KNIGHT_TYPE = 13
 # type 1000 is a custom constraint: `{definition: {name, ...}, input: {...}}`,
 # SudokuMaker's programmable-logic block. gridfind never interprets the
 # programmed logic itself — it recognizes a `type 1000` block only by its
-# declared `definition.name` (`registry.constraint_name`), the same
+# declared `definition.name` (`dropped.constraint_name`), the same
 # name-only reading a `type 2001` cosmetic cage's top-level `name` gets
 # (`naming.named_component`).
 CUSTOM_CONSTRAINT_TYPE = 1000

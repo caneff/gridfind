@@ -116,7 +116,7 @@ def named_component(name: object) -> _NamedComponent | None:
     """The registry entry `name` declares, or `None` when absent/blank or
     unrecognized — the shared lookup both carriers' name-extraction steps
     feed (a `type 2001` cosmetic cage's top-level `name`, a `type 1000`
-    custom constraint's `definition.name` via `registry.constraint_name`).
+    custom constraint's `definition.name` via `dropped.constraint_name`).
     A static `_NAME_REGISTRY` hit wins; a miss falls to
     `_parsed_constant_component` for the one parameterized name,
     `Constant <N>`."""
