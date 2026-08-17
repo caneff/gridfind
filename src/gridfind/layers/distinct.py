@@ -40,10 +40,14 @@ Partition = Callable[[Grid], Iterable[Iterable[Cell]]]
 
 
 def rows(grid: Grid) -> Grid:
+    """The rows, unchanged — a grid is already row-major, so this is the
+    identity, kept as its own `Partition` so `rows-distinct` shares the same
+    mechanism as `cols`/`regions`/the diagonals rather than being special-cased."""
     return grid
 
 
 def cols(grid: Grid) -> Iterable[tuple[Cell, ...]]:
+    """The columns, cut by transposing the row-major grid."""
     return zip(*grid, strict=True)
 
 

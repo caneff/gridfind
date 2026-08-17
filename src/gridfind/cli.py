@@ -110,4 +110,6 @@ def _verdict_of(text: str) -> Verdict:
 
 
 def console_main() -> None:
+    """The `[project.scripts]` entry point: wires real `sys.argv`/`sys.stdin`
+    into `main` and exits with its return code."""
     sys.exit(main(sys.argv[1:], sys.stdin))

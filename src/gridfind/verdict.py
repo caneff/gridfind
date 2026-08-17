@@ -106,6 +106,11 @@ def verdict(
     *,
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
 ) -> Verdict:
+    """The headline entry point: found / broke / unknown for `puzzle` under
+    `working_state`, with a witness on found. `working_state` defaults to
+    `EMPTY` — a bare puzzle's own satisfiability. `time_limit_s` bounds the
+    single portfolio solve; a solve that neither proves nor disproves
+    satisfiability within it comes back `unknown`."""
     solved = _build_and_solve(puzzle, working_state, time_limit_s=time_limit_s)
 
     if solved.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
