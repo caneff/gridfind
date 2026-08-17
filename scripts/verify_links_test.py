@@ -20,6 +20,7 @@ from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.cell_geometry import format_address
+from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import Given, ModifierDirective, WorkingState
 from gridfind.s_directives import SCellPin, SingletonPin
 from gridfind.sudokumaker import (
@@ -79,7 +80,7 @@ def test_fill_witness_round_trips_singleton_digits(
     assignment: dict[str, tuple[int, ...]] = {
         address: (digit,) for address, digit in zip(addresses, digits, strict=True)
     }
-    witness = Witness(grid=grid, assignment=assignment, region_map=[])
+    witness = Witness(grid=grid, assignment=assignment, region_map=RegionMap([]))
     document = _document(size)
 
     filled = fill_witness(document, witness, size)
@@ -119,7 +120,7 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
     assignment: dict[str, tuple[int, ...]] = {
         address: (a, b) if address == s_cell_address else (1,) for address in addresses
     }
-    witness = Witness(grid=grid, assignment=assignment, region_map=[])
+    witness = Witness(grid=grid, assignment=assignment, region_map=RegionMap([]))
     document = _document(size, _marker_block("S-cell", s_cell_index))
 
     filled = fill_witness(document, witness, size)
@@ -151,7 +152,7 @@ def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
     witness = Witness(
         grid=grid,
         assignment=dict.fromkeys(addresses, (1,)),
-        region_map=[],
+        region_map=RegionMap([]),
         modifiers={modifier_address: "doubler"},
     )
 
@@ -176,7 +177,7 @@ def test_fill_witness_cages_a_discovered_s_cell() -> None:
         address: (1, 2) if index in (declared, discovered) else (1,)
         for index, address in enumerate(addresses)
     }
-    witness = Witness(grid=grid, assignment=assignment, region_map=[])
+    witness = Witness(grid=grid, assignment=assignment, region_map=RegionMap([]))
     document = _document(size, _marker_block("S-cell", declared))
 
     filled = fill_witness(document, witness, size)
@@ -196,7 +197,7 @@ def test_fill_witness_folds_a_discovered_doubler_into_the_cage() -> None:
     witness = Witness(
         grid=grid,
         assignment=dict.fromkeys(addresses, (1,)),
-        region_map=[],
+        region_map=RegionMap([]),
         modifiers={addresses[declared]: "doubler", addresses[discovered]: "doubler"},
     )
     document = _document(size, _marker_block("Doubler", declared))
@@ -221,7 +222,7 @@ def test_fill_witness_folds_a_discovered_constant_into_the_cage() -> None:
     witness = Witness(
         grid=grid,
         assignment=dict.fromkeys(addresses, (1,)),
-        region_map=[],
+        region_map=RegionMap([]),
         modifiers={addresses[declared]: "constant", addresses[discovered]: "constant"},
     )
     document = _document(size, _marker_block("Constant 5", declared))
@@ -287,7 +288,7 @@ def test_emit_solution_link_stamps_the_board_size() -> None:
     witness = Witness(
         grid=grid,
         assignment=dict.fromkeys(addresses, (1,)),
-        region_map=[],
+        region_map=RegionMap([]),
     )
 
     solution = emit_solution_link(link, witness, size)

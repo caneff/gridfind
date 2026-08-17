@@ -1,4 +1,4 @@
-from gridfind.layers.regions import box_regions
+from gridfind.layers.regions import RegionMap, box_regions
 from gridfind.witness import Witness
 
 
@@ -13,7 +13,7 @@ def test_witness_render_draws_jigsaw_borders_between_regions() -> None:
         "R2C1": (3,),
         "R2C2": (4,),
     }
-    region_map = [[(1, 1), (2, 1)], [(1, 2), (2, 2)]]
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
     witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
 
     assert witness.render() == ("┌───┬───┐\n│ 1 │ 2 │\n│   │   │\n│ 3 │ 4 │\n└───┴───┘")
@@ -48,10 +48,12 @@ def test_witness_render_draws_singleton_and_unequal_regions_correctly() -> None:
     assignment: dict[str, tuple[int, ...]] = {
         address: (i % 9 + 1,) for i, row in enumerate(grid) for address in row
     }
-    region_map = [
-        [(1, 1)],
-        [(1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3)],
-    ]
+    region_map = RegionMap(
+        [
+            [(1, 1)],
+            [(1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3)],
+        ]
+    )
     witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
 
     assert witness.render() == (
@@ -76,7 +78,7 @@ def test_witness_render_draws_an_s_cell_as_a_curly_brace_pair() -> None:
         "R2C1": (3,),
         "R2C2": (1,),
     }
-    region_map = [[(1, 1), (2, 1)], [(1, 2), (2, 2)]]
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
     witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
 
     assert witness.render() == (
@@ -100,7 +102,7 @@ def test_witness_identity_is_the_frozen_assignment_and_modifiers_tuple() -> None
         "R2C1": (3,),
         "R2C2": (1,),
     }
-    region_map = [[(1, 1), (2, 1)], [(1, 2), (2, 2)]]
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
     modifiers = {"R2C2": "doubler"}
     witness = Witness(
         grid=grid,

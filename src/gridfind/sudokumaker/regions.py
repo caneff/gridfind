@@ -1,13 +1,13 @@
 """The `type 1` regions block: `regions-distinct` for an `N`x`N` board, or
 nothing at all when the link carries no regions (`regions_constraints`),
 built on the matrix read (`_regions_matrix`) and the classic box tiling a
-present matrix is compared against (`to_region_numbers`).
+present matrix is compared against (`RegionMap.to_labels`).
 """
 
 from __future__ import annotations
 
 from gridfind.cell_geometry import BOX_SHAPE
-from gridfind.layers.regions import region_map_for, to_region_numbers
+from gridfind.layers.regions import region_map_for
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 
@@ -31,7 +31,7 @@ def regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     matrix = _regions_matrix(buckets)
     if matrix is None:
         return []
-    if size in BOX_SHAPE and matrix == to_region_numbers(size, region_map_for(size)):
+    if size in BOX_SHAPE and matrix == region_map_for(size).to_labels(size):
         return [Constraint("regions-distinct")]
     return [Constraint("regions-distinct", params={"regions": matrix})]
 
