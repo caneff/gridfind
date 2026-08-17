@@ -264,7 +264,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001x2 · verdict: found"
     ),
     "found-equality-9x9": (
-        "9x9 · 81 cells · 5 givens · types {0,1,2001} · active: 2001 · verdict: found"
+        "9x9 · 81 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
     "found-jigsaw-6x6": "6x6 · 36 cells · 1 given · types {0,1} · verdict: found",
     "found-kropki-4x4": (
