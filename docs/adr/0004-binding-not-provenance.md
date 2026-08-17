@@ -29,7 +29,7 @@ address grid answers neither. `board.py` builds it from `board.size` alone:
 
 ```python
 grid = [
-    [cell_address(row, col) for col in range(1, board.size + 1)]
+    [format_address(row, col) for col in range(1, board.size + 1)]
     for row in range(1, board.size + 1)
 ]
 ```

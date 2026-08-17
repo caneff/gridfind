@@ -270,9 +270,9 @@ def cosmetic_cage_constraints(
         if kind in ("doubler", "constant"):
             _refuse_marker_cage_value_field(cages, kind)
             modifiers = tuple(
-                ModifierDirective(cell_address, is_modifier=True)
+                ModifierDirective(format_address, is_modifier=True)
                 for cage in cages
-                for cell_address in addresses(cage["cells"], size)
+                for format_address in addresses(cage["cells"], size)
             )
             if modifiers:
                 component = named_component(block.get("name"))

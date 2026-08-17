@@ -17,7 +17,7 @@ import sys
 from collections.abc import Callable
 from typing import Any, cast
 
-from gridfind.cell_geometry import cell_address, cell_geometry
+from gridfind.cell_geometry import cell_geometry, format_address
 from gridfind.layers.door import ALIAS_REGISTRY
 from gridfind.puzzle import Board, Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, as_int, enabled_blocks
@@ -79,10 +79,10 @@ def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
     r0, offset = divmod(edge, block)
     if 1 <= offset <= size - 1 and 0 <= r0 <= size - 1:
         c0 = offset - 1
-        return cell_address(r0 + 1, c0 + 1), cell_address(r0 + 1, c0 + 2)
+        return format_address(r0 + 1, c0 + 1), format_address(r0 + 1, c0 + 2)
     if size <= offset <= block - 1 and 0 <= r0 <= size - 2:
         c0 = offset - size
-        return cell_address(r0 + 1, c0 + 1), cell_address(r0 + 2, c0 + 1)
+        return format_address(r0 + 1, c0 + 1), format_address(r0 + 2, c0 + 1)
     msg = (
         f"non-classic link: edge {edge!r} does not name a valid cell pair "
         f"on a {size}x{size} board"

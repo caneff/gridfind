@@ -46,7 +46,7 @@ domain with no repeats" check covers both without a schrodinger branch.
 from __future__ import annotations
 
 from gridfind import grid_text
-from gridfind.cell_geometry import _row_col
+from gridfind.cell_geometry import parse_address
 from gridfind.layers.regions import region_map_for_constraints
 from gridfind.puzzle import Puzzle
 
@@ -79,7 +79,7 @@ def validate_witness(rendered: str, puzzle: Puzzle) -> bool:
         return False
 
     for given in puzzle.givens:
-        row, col = _row_col(given.address)
+        row, col = parse_address(given.address)
         if grid[row - 1][col - 1] != (given.digit,):
             return False
     return True

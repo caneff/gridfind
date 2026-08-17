@@ -19,7 +19,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from verify_links import emit_solution_link, fill_witness, verify_link
 
-from gridfind.cell_geometry import cell_address
+from gridfind.cell_geometry import format_address
 from gridfind.puzzle import Given, ModifierDirective, WorkingState
 from gridfind.s_directives import SCellPin, SingletonPin
 from gridfind.sudokumaker import (
@@ -59,7 +59,7 @@ def _encode(puzzle_data: dict[str, object]) -> str:
 
 def _grid(size: int) -> list[list[str]]:
     return [
-        [cell_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
+        [format_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
     ]
 
 

@@ -2,7 +2,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from gridfind.cell_geometry import cell_address
+from gridfind.cell_geometry import format_address
 from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.layers import UnknownLayerError
@@ -1058,7 +1058,7 @@ def test_verdict_found_witness_only_holds_a_boards_declared_digits(
 
 def _rows(size: int) -> list[list[str]]:
     return [
-        [cell_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
+        [format_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
     ]
 
 
@@ -1068,7 +1068,7 @@ def _cols(size: int) -> list[list[str]]:
 
 def _boxes(size: int, box_rows: int, box_cols: int) -> list[list[str]]:
     return [
-        [cell_address(row, col) for row, col in group]
+        [format_address(row, col) for row, col in group]
         for group in box_regions(size, box_rows, box_cols)
     ]
 
