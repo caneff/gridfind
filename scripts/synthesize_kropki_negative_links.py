@@ -9,11 +9,10 @@ Every other white-kropki corpus link carries an empty `negative: []`, so the
 rule has never been proven end to end. Both fixtures below share one marked
 dot (R1C1/R1C2, diff 1) and one unmarked pair (R3C3/R3C4) the `negative: [2]`
 rule reaches; only R3C4's given changes between them — diff 1 (allowed) in
-the found case, diff 2 (the forbidden value) in the broke case. Dropping the
-`negative` list entirely (the old, unmodeled behaviour) resolves the broke
-fixture's givens `found` instead, so the break is on the negative rule
-alone, never on the classic or positive-clue constraints, which are
-identical between the two fixtures.
+the found case, diff 2 (the forbidden value) in the broke case. The broke
+fixture's givens resolve `found` when the negative rule is not enforced, so
+the break rests on that rule alone, never on the classic or positive-clue
+constraints, which are identical between the two fixtures.
 """
 
 from __future__ import annotations
@@ -73,8 +72,9 @@ def found_kropki_negative_4x4() -> str:
 
 def broke_kropki_negative_4x4() -> str:
     """4x4 white-kropki, `broke` — R3C3/R3C4 differ by 2, the sole forbidden
-    value, on an adjacency the marked dot doesn't cover. Read `found` if the
-    negative list were dropped instead of enforced (the old behaviour)."""
+    value, on an adjacency the marked dot doesn't cover. Without the negative
+    rule these same givens read `found`, so the verdict flips on that rule
+    alone."""
     return _link(r3c4=3)
 
 
