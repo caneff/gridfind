@@ -43,8 +43,7 @@ class GroupSum:
 
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object), narrowed by cast.
-            addresses = cast("list[str]", clue.params["cells"])
+            addresses = engine.cell_addresses(clue)
             total = cast("int", clue.params["sum"])
             terms = [engine.value_expr(address) for address in addresses]
             engine.model.add(sum(terms) == total)

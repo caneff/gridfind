@@ -54,9 +54,8 @@ class Cage:
 
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object), narrowed by cast.
             # `name`, if present, is reserved and unread.
-            addresses = cast("list[str]", clue.params["cells"])
+            addresses = engine.cell_addresses(clue)
             distinct_over = cast("str", clue.params.get("distinct-over", "digit"))
             if distinct_over == "digit":
                 slots = [
