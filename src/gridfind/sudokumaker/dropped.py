@@ -9,7 +9,7 @@ reads as the already-modeled ruleset, not the decoder internals that build it.
 from __future__ import annotations
 
 import sys
-from typing import Any
+from typing import Any, cast
 
 from gridfind.sudokumaker.naming import named_component, shape_needs_cells
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
@@ -42,7 +42,7 @@ _TOGGLE_WIRE_TYPES = frozenset(
 )
 
 
-def _carrier_supplies_cage_cells(constraint: dict[Any, Any]) -> bool:
+def _carrier_supplies_cage_cells(constraint: dict[str, Any]) -> bool:
     """True when `constraint` itself carries a `cages` list naming cells — the
     payload a cage-selector/cell-marker name needs (`naming.shape_needs_cells`).
     `type 2001`/`type 301` blocks carry this; a `type 1000` custom constraint's
@@ -88,9 +88,10 @@ def warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     constraints = puzzle_data.get("constraints", [])
     if not isinstance(constraints, list):
         return
-    for constraint in constraints:
-        if not isinstance(constraint, dict):
+    for raw_constraint in constraints:
+        if not isinstance(raw_constraint, dict):
             continue
+        constraint = cast("dict[str, Any]", raw_constraint)
         if constraint.get("disabled") is True:
             continue
         kind = constraint.get("type")
@@ -117,7 +118,7 @@ def warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
             print(msg, file=sys.stderr)
 
 
-def has_live_data(constraint: dict[Any, Any]) -> bool:
+def has_live_data(constraint: dict[str, Any]) -> bool:
     """True when a constraint carries a rule gridfind would honour: a global
     toggle (anti-knight, anti-king, a diagonal), whose bare enabled presence is
     the rule; a non-empty list under one of `DECODER_REGISTRY`'s `live_keys`
@@ -152,7 +153,7 @@ def has_live_data(constraint: dict[Any, Any]) -> bool:
     return False
 
 
-def constraint_name(constraint: dict[Any, Any]) -> str | None:
+def constraint_name(constraint: dict[str, Any]) -> str | None:
     """A custom constraint's display name (e.g. "Same Difference Lines"), read
     from `definition.name` — the field SudokuMaker stores it under. `None` when the link
     carries no name for the type. Public alongside
