@@ -2,7 +2,7 @@
 
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
-through `sudokumaker.encode_link`, so a reviewer can read exactly what each
+through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
 fixture exercises and regenerate the whole set with `main()`.
 
 The document is the setter's own Somedoku template, captured verbatim in
@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker import document_to_link
 
 _HERE = Path(__file__).resolve().parent
 LINKS_DIR = _HERE.parent / "src" / "gridfind" / "links"
@@ -55,7 +55,7 @@ def _link(givens: dict[tuple[int, int], int]) -> str:
     for (row, col), value in givens.items():
         cells[row_col_to_index(row, col, _SIZE)] = {"given": True, "value": value}
     document["puzzle"]["cells"] = cells
-    return encode_link(document)
+    return document_to_link(document)
 
 
 def found_somedoku_9x9() -> str:

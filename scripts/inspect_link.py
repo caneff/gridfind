@@ -25,9 +25,9 @@ from gridfind.engine import GridfindError
 from gridfind.sudokumaker import (
     DECODER_REGISTRY,
     constraint_name,
-    decode_document,
     decode_link,
     has_live_data,
+    link_to_document,
 )
 from gridfind.verdict import verdict
 
@@ -64,14 +64,14 @@ def classify_constraint(constraint: dict[str, object]) -> str:
 def decode_payload(link: str) -> dict[str, object]:
     """The SudokuMaker puzzle JSON behind a `?puzzle=` link (or bare payload).
 
-    Delegates to `decode_document`'s boundary decode and keeps only the
+    Delegates to `link_to_document`'s boundary decode and keeps only the
     `puzzle` block — the inspector needs the dict itself to classify
     constraints, including on links `decode_link` rejects, so it can't route
     through `decode_link`'s `Puzzle`.
     """
     # Decoded JSON is an untyped external boundary — a local `Any` is deliberate
     # (CODING_STANDARDS: reach for Any only at genuine boundaries).
-    data: Any = decode_document(link)["puzzle"]
+    data: Any = link_to_document(link)["puzzle"]
     return data
 
 

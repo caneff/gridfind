@@ -23,7 +23,7 @@ from gridfind.s_directives import (
     SCellPin,
     SingletonPin,
 )
-from gridfind.sudokumaker import decode_document, decode_link
+from gridfind.sudokumaker import decode_link, link_to_document
 from gridfind.verdict import verdict
 
 
@@ -175,7 +175,7 @@ def test_broke_doubler_migration_keeps_a_live_doubler_and_reads_broke(
 def _caged_2001_blocks(link: str) -> list[dict[str, Any]]:
     """The enabled `type 2001` blocks the emitted document carries that hold at
     least one cage — the blocks a `cage`/`group-sum` rule can ride."""
-    puzzle = cast("dict[str, Any]", decode_document(link)["puzzle"])
+    puzzle = cast("dict[str, Any]", link_to_document(link)["puzzle"])
     blocks = cast("list[dict[str, Any]]", puzzle["constraints"])
     return [
         b
@@ -282,7 +282,7 @@ def test_found_doubled_scell_17cage_witness_never_doubles_a_digit_twice() -> Non
 
 def _given_count(link: str) -> int:
     """Ordinary givens the emitted document pins — cells flagged `given`."""
-    puzzle = cast("dict[str, Any]", decode_document(link)["puzzle"])
+    puzzle = cast("dict[str, Any]", link_to_document(link)["puzzle"])
     cells = cast("list[dict[str, Any]]", puzzle["cells"])
     return sum(1 for c in cells if c.get("given"))
 

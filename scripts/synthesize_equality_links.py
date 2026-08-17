@@ -2,7 +2,7 @@
 
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
-through `sudokumaker.encode_link`, so a reviewer can read exactly what balance
+through `sudokumaker.document_to_link`, so a reviewer can read exactly what balance
 case a fixture exercises and regenerate the whole set with `main()`.
 
 Every fixture is a sparse 9x9 with row 1 holding the only givens. A broke
@@ -28,7 +28,7 @@ from pathlib import Path
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.layers.regions import box_regions
-from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker import document_to_link
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
@@ -60,7 +60,7 @@ def _link(*, cage_cols: tuple[int, ...], givens: tuple[tuple[int, int], ...]) ->
             ],
         },
     }
-    return encode_link(document)
+    return document_to_link(document)
 
 
 def _broke(cage_cols: tuple[int, ...]) -> str:

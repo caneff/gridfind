@@ -65,7 +65,7 @@ precedent for that class firing from inside a constructor step, not only from
 
 No engine, no `verdict` call. Schema in, model out.
 
-`encode_link` sits beside `decode_link` as its inverse: a decoded
+`document_to_link` sits beside `decode_link` as its inverse: a decoded
 document back to an openable link. Two later pieces of work both need it,
 so it lands once, on its own.
 
@@ -77,7 +77,7 @@ cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
 (the lean `DECODER_REGISTRY` dispatch table), `dropped` (the drop policy
 built on top of it), and `decode` (`decode_link` itself, the one function
-that threads all of them together). `decode_link`/`encode_link` are the
+that threads all of them together). `decode_link`/`document_to_link` are the
 package's public door, alongside the rest of the public tool surface listed
 in `__all__` below; a module-private (`_`-prefixed) name is imported from its
 owning submodule directly.
@@ -85,7 +85,7 @@ owning submodule directly.
 
 from __future__ import annotations
 
-from gridfind.sudokumaker.boundary import decode_document, encode_link
+from gridfind.sudokumaker.boundary import document_to_link, link_to_document
 from gridfind.sudokumaker.cells import write_cell
 from gridfind.sudokumaker.decode import decode_link
 from gridfind.sudokumaker.dropped import constraint_name, has_live_data
@@ -102,9 +102,9 @@ __all__ = [
     "colorize_marker_cages",
     "constraint_name",
     "cosmetic_cage_kind",
-    "decode_document",
     "decode_link",
-    "encode_link",
+    "document_to_link",
     "has_live_data",
+    "link_to_document",
     "write_cell",
 ]

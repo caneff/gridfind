@@ -20,8 +20,8 @@ from gridfind.puzzle import Board, Constraint, Puzzle, WorkingState
 from gridfind.sudokumaker.boundary import (
     board_size,
     bucket_constraints_by_type,
-    decode_document,
     digit_domain,
+    link_to_document,
     schrodinger_domain,
 )
 from gridfind.sudokumaker.cages import cosmetic_cage_constraints
@@ -93,7 +93,7 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     could never satisfy alongside `line-count-distinct` at once (ADR-0017). A
     disabled `Somedoku` block, on either carrier, contributes nothing and the
     classic triplet decodes as usual."""
-    puzzle_data: Any = decode_document(link)["puzzle"]
+    puzzle_data: Any = link_to_document(link)["puzzle"]
     size = board_size(puzzle_data)
     warn_on_dropped_constraints(puzzle_data)
     # One pass over puzzle_data["constraints"], grouped by wire `type`, so every
