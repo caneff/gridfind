@@ -1,6 +1,6 @@
 """Decode a SudokuMaker share link into gridfind's `Puzzle` + `WorkingState`.
 
-Its core function, `decode_link`, mirrors `puzzle.py`'s schema-only role: it
+Its core function, `link_to_puzzle`, mirrors `puzzle.py`'s schema-only role: it
 strips the `?puzzle=` payload, lz-string-decompresses it, and maps the
 `formatVersion 1.5.0` JSON to the model per the confirmed field-by-field map in
 `docs/research/sudoku-link-formats.md` §4a/§4b. Size, digit
@@ -24,7 +24,7 @@ unvalidated — a malformed matrix surfaces as
 
 Every wire type gridfind decodes or otherwise recognizes — givens, regions,
 and each opt-in variant decoder (XV, white-kropki, black-kropki, killer-cage,
-thermo, cosmetic-cage) — is one row in `DECODER_REGISTRY`: `decode_link`'s
+thermo, cosmetic-cage) — is one row in `DECODER_REGISTRY`: `link_to_puzzle`'s
 dispatch, `dropped.warn_on_dropped_constraints`, and `dropped.has_live_data`'s
 active/inert check all read that one table instead of each restating "type N
 is decoded" by hand.
@@ -45,7 +45,7 @@ one carried live data.
 Deliberately kept as `ValueError`, not folded into `MalformedPuzzleError`:
 every rejection here fires before a `Puzzle` exists at all — it
 is this decoder finding a link it does not support, not gridfind finding a
-puzzle it cannot answer. A `Puzzle` `decode_link` does produce is never itself
+puzzle it cannot answer. A `Puzzle` `link_to_puzzle` does produce is never itself
 malformed; a `MalformedPuzzleError` from a *decoded* one would still surface
 from `verdict`, same as it would for a hand-built `Puzzle`. Conflating the two
 would cost a caller the ability to tell "this share link doesn't decode" from
@@ -65,7 +65,7 @@ precedent for that class firing from inside a constructor step, not only from
 
 No engine, no `verdict` call. Schema in, model out.
 
-`document_to_link` sits beside `decode_link` as its inverse: a decoded
+`document_to_link` sits beside `link_to_puzzle` as its inverse: a decoded
 document back to an openable link. Two later pieces of work both need it,
 so it lands once, on its own.
 
@@ -76,8 +76,8 @@ cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `global_flags` (the payload-less `Somedoku` component),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
 (the lean `DECODER_REGISTRY` dispatch table), `dropped` (the drop policy
-built on top of it), and `decode` (`decode_link` itself, the one function
-that threads all of them together). `decode_link`/`document_to_link` are the
+built on top of it), and `decode` (`link_to_puzzle` itself, the one function
+that threads all of them together). `link_to_puzzle`/`document_to_link` are the
 package's public door, alongside the rest of the public tool surface listed
 in `__all__` below; a module-private (`_`-prefixed) name is imported from its
 owning submodule directly.
@@ -87,7 +87,7 @@ from __future__ import annotations
 
 from gridfind.sudokumaker.boundary import document_to_link, link_to_document
 from gridfind.sudokumaker.cells import write_cell
-from gridfind.sudokumaker.decode import decode_link
+from gridfind.sudokumaker.decode import link_to_puzzle
 from gridfind.sudokumaker.dropped import constraint_name, has_live_data
 from gridfind.sudokumaker.markers import (
     CosmeticCageKind,
@@ -102,9 +102,9 @@ __all__ = [
     "colorize_marker_cages",
     "constraint_name",
     "cosmetic_cage_kind",
-    "decode_link",
     "document_to_link",
     "has_live_data",
     "link_to_document",
+    "link_to_puzzle",
     "write_cell",
 ]

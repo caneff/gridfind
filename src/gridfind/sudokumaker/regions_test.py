@@ -7,7 +7,7 @@ carries its own matrix onto the constraint's `params["regions"]`.
 """
 
 from gridfind.puzzle import Board, Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.conftest import (
     EMPTY_CELLS,
     JIGSAW_REGIONS,
@@ -23,7 +23,7 @@ def test_link_without_type_one_is_a_latin_square() -> None:
     # SudokuMaker puzzle always ships its boxes as an explicit `type 1`.
     payload = encode_document({"cells": EMPTY_CELLS, "constraints": [{"type": 0}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.constraints == (
         Constraint("rows-distinct"),
@@ -39,7 +39,7 @@ def test_untileable_latin_square_decodes() -> None:
         {"cells": [{} for _ in range(25)], "size": 5, "constraints": [{"type": 0}]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=5)
     assert all(c.type != "regions-distinct" for c in puzzle.constraints)
@@ -59,7 +59,7 @@ def test_non_nine_jigsaw_matrix_rides_onto_constraint_params() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     regions_constraint = next(
         c for c in puzzle.constraints if c.type == "regions-distinct"
@@ -78,7 +78,7 @@ def test_non_nine_standard_matrix_stays_bare() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     regions_constraint = next(
         c for c in puzzle.constraints if c.type == "regions-distinct"
@@ -97,7 +97,7 @@ def test_jigsaw_regions_decode_into_constraint_params() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     regions_constraint = next(
         c for c in puzzle.constraints if c.type == "regions-distinct"

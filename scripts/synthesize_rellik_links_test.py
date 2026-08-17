@@ -12,7 +12,7 @@ import pytest
 import synthesize_rellik_links as syn
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
@@ -33,7 +33,7 @@ def test_link_decodes_to_cage_plus_rellik_cage(name: str, cells: list[str]) -> N
     `cage` plus a `rellik-cage` forbidding the labelled total 3, over the
     same cells — never a `group-sum`, which would mean the name graduated to
     an ordinary killer cage instead."""
-    puzzle, _ = decode_link(syn.CORPUS[name]())
+    puzzle, _ = link_to_puzzle(syn.CORPUS[name]())
     assert Constraint("cage", params={"cells": cells}) in puzzle.constraints
     assert (
         Constraint("rellik-cage", params={"cells": cells, "sum": 3})

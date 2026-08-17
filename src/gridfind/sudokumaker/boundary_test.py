@@ -2,7 +2,7 @@
 
 `link_to_document`/`document_to_link` are the compress/decompress door; `board_size`,
 `digit_domain`, and `schrodinger_domain` read the grid's shape and digit range
-off the raw puzzle block. These are exercised through `decode_link` where a real
+off the raw puzzle block. These are exercised through `link_to_puzzle` where a real
 link is the honest input, and directly where the helper's own edge cases (the
 Schrödinger domain's default and explicit `minDigit`) are the point.
 """
@@ -22,7 +22,7 @@ from gridfind.puzzle import (
     Puzzle,
     WorkingState,
 )
-from gridfind.sudokumaker import decode_link, document_to_link, link_to_document
+from gridfind.sudokumaker import document_to_link, link_to_document, link_to_puzzle
 from gridfind.sudokumaker.boundary import (
     bucket_constraints_by_type,
     enabled_blocks,
@@ -48,14 +48,14 @@ def test_document_to_link_round_trips_a_classic_document() -> None:
 
     url = document_to_link(document)
 
-    # Exact reverse of decode_link's payload step: the emitted link's own
+    # Exact reverse of link_to_puzzle's payload step: the emitted link's own
     # payload decompresses back to the identical document it was given.
     payload = url.split("?puzzle=", 1)[-1]
     raw = LZString.decompressFromEncodedURIComponent(payload)
     assert json.loads(raw) == document
     # size/type survive the round trip: the emitted link opens as the same
-    # classic 9x9 puzzle+state decode_link would read from the document.
-    puzzle, state = decode_link(url)
+    # classic 9x9 puzzle+state link_to_puzzle would read from the document.
+    puzzle, state = link_to_puzzle(url)
     assert puzzle == Puzzle(
         board=Board(size=9),
         constraints=CLASSIC_CONSTRAINTS,
@@ -67,7 +67,7 @@ def test_document_to_link_round_trips_a_classic_document() -> None:
 def test_link_to_document_is_the_inverse_of_document_to_link() -> None:
     # link_to_document returns the whole document — formatVersion plus the
     # puzzle block — so a document survives document_to_link then
-    # link_to_document unchanged. decode_link keeps only the puzzle block;
+    # link_to_document unchanged. link_to_puzzle keeps only the puzzle block;
     # this is the seam a re-encoder needs to preserve every field the app
     # renders.
     cells: list[dict[str, object]] = [{} for _ in range(81)]
@@ -129,7 +129,7 @@ def test_link_to_document_is_the_inverse_of_document_to_link() -> None:
 def test_non_classic_link_is_rejected(puzzle: dict[str, object], match: str) -> None:
     # Each case fails for *its own* reason, not an incidental ValueError.
     with pytest.raises(ValueError, match=match):
-        decode_link(encode_document(puzzle))
+        link_to_puzzle(encode_document(puzzle))
 
 
 def test_shifted_domain_link_decodes_against_its_own_digits() -> None:
@@ -146,7 +146,7 @@ def test_shifted_domain_link_decodes_against_its_own_digits() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=9, values=range(9))
     assert Candidate("R1C1", frozenset({0, 8})) in state.candidates
@@ -169,7 +169,7 @@ def test_size_and_domain_derivation_round_trip(size: int, min_digit: int) -> Non
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=size, values=range(min_digit, min_digit + size))
 
@@ -190,7 +190,7 @@ def test_six_by_six_boxed_link_decodes_at_the_right_size() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=6)
     assert puzzle.givens == (Given("R1C1", 5),)
@@ -203,7 +203,7 @@ def test_four_by_four_link_decodes_at_the_right_size() -> None:
     cells[15] = {"given": True, "value": 4}  # R4C4
     payload = encode_document({"cells": cells, "size": 4, "constraints": [{"type": 0}]})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=4)
     assert puzzle.givens == (Given("R4C4", 4),)
@@ -227,7 +227,7 @@ def test_schrodinger_domain_widens_by_one_honoring_min_digit(
 
 
 def test_bucket_constraints_by_type_groups_by_wire_type_in_order() -> None:
-    # decode_link's single pass over puzzle_data["constraints"]: blocks land in
+    # link_to_puzzle's single pass over puzzle_data["constraints"]: blocks land in
     # the bucket keyed by their own type, in wire order, including a disabled
     # one — enablement is `enabled_blocks`'s read-time concern, not the
     # bucket's.

@@ -2,7 +2,7 @@
 
 Reads either a combined `{puzzle, working_state}` document (the corpus
 shape) from a file or stdin, or a SudokuMaker share link, sniffed and
-decoded via `decode_link`. Either way it calls `verdict` and prints the
+decoded via `link_to_puzzle`. Either way it calls `verdict` and prints the
 outcome: the verdict word, plus a rendered witness grid on `found`. All
 logic lives in `main(argv, stdin) -> int` so tests drive it with an argv
 and a stdin and read back stdout and the exit code;
@@ -29,7 +29,7 @@ from typing import TextIO
 
 from gridfind.engine import GridfindError
 from gridfind.puzzle import Puzzle, WorkingState
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.verdict import Verdict, verdict
 
 
@@ -101,7 +101,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 def _verdict_of(text: str) -> Verdict:
     stripped = text.strip()
     if _is_link(stripped):
-        puzzle, state = decode_link(stripped)
+        puzzle, state = link_to_puzzle(stripped)
     else:
         doc = json.loads(stripped)
         puzzle = Puzzle.from_dict(doc["puzzle"])

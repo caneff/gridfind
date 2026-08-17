@@ -30,8 +30,8 @@ from gridfind.s_directives import (
 from gridfind.sudokumaker import (
     colorize_marker_cages,
     cosmetic_cage_kind,
-    decode_link,
     document_to_link,
+    link_to_puzzle,
 )
 from gridfind.sudokumaker.conftest import (
     EMPTY_CELLS,
@@ -201,7 +201,7 @@ def test_doubler_named_cage_emits_modifier_directives_and_no_cage() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
     assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
@@ -224,7 +224,7 @@ def test_doubler_marker_name_is_case_insensitive_and_trimmed(name: str) -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
     assert Constraint("doubler") in puzzle.constraints
@@ -249,7 +249,7 @@ def test_doubler_marker_cell_with_a_given_still_decodes_both() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert Given("R1C1", 3) in puzzle.givens
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
@@ -269,7 +269,7 @@ def test_doubler_constraint_is_synthesized_once_across_marker_blocks() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.constraints.count(Constraint("doubler")) == 1
 
@@ -289,7 +289,7 @@ def test_a_red_cell_alone_is_not_a_doubler() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert Constraint("doubler") not in puzzle.constraints
     assert state.modifier_directives == ()
@@ -316,7 +316,7 @@ def test_constant_marker_cage_decodes_to_constant_constraint_and_modifiers() -> 
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
     assert ModifierDirective("R1C2", is_modifier=True) in state.modifier_directives
@@ -335,7 +335,7 @@ def test_nullifier_marker_cage_decodes_as_constant_zero() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
     assert Constraint("constant", params={"value": 0}) in puzzle.constraints
@@ -357,7 +357,7 @@ def test_constant_marker_name_is_case_insensitive_and_trimmed(name: str) -> None
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
     assert Constraint("constant", params={"value": 5}) in puzzle.constraints
@@ -378,7 +378,7 @@ def test_bare_constant_marker_cage_warns_and_drops(
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert state.modifier_directives == ()
     assert all(c.type != "constant" for c in puzzle.constraints)
@@ -405,7 +405,7 @@ def test_marker_cage_with_a_per_cage_value_field_is_refused(name: str) -> None:
     )
 
     with pytest.raises(MalformedPuzzleError):
-        decode_link(payload)
+        link_to_puzzle(payload)
 
 
 def test_link_mixing_doubler_and_constant_marker_cages_is_refused() -> None:
@@ -424,7 +424,7 @@ def test_link_mixing_doubler_and_constant_marker_cages_is_refused() -> None:
     )
 
     with pytest.raises(MalformedPuzzleError):
-        decode_link(payload)
+        link_to_puzzle(payload)
 
 
 def test_two_constant_marker_cages_disagreeing_on_k_is_refused() -> None:
@@ -440,7 +440,7 @@ def test_two_constant_marker_cages_disagreeing_on_k_is_refused() -> None:
     )
 
     with pytest.raises(MalformedPuzzleError):
-        decode_link(payload)
+        link_to_puzzle(payload)
 
 
 def test_two_constant_marker_cages_agreeing_on_k_decode_once() -> None:
@@ -457,7 +457,7 @@ def test_two_constant_marker_cages_agreeing_on_k_decode_once() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert puzzle.constraints.count(Constraint("constant", params={"value": 5})) == 1
     assert ModifierDirective("R1C1", is_modifier=True) in state.modifier_directives
@@ -483,7 +483,7 @@ def test_s_cell_named_cage_declares_s_cells_and_emits_no_cage() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert BareSCell("R1C1") in state.s_directives
     assert BareSCell("R1C2") in state.s_directives
@@ -520,7 +520,7 @@ def test_s_cell_marker_cage_value_selects_the_directive(
     # back to bare, the same reading as absent — never a crash.
     payload = _s_cell_cage_link(value)
 
-    _, state = decode_link(payload)
+    _, state = link_to_puzzle(payload)
 
     assert expected in state.s_directives
 
@@ -532,7 +532,7 @@ def test_s_cell_marker_center_marks_layer_a_restriction_not_a_candidate() -> Non
     # SCellMarkRestriction over its marks, and never an S-cell candidate.
     payload = _s_cell_cage_link("2,7", marks={1, 4, 9})
 
-    _, state = decode_link(payload)
+    _, state = link_to_puzzle(payload)
 
     assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
     assert SCellMarkRestriction("R1C1", frozenset({1, 4, 9})) in state.s_directives
@@ -544,7 +544,7 @@ def test_s_cell_marker_without_center_marks_emits_no_restriction() -> None:
     # cage directive, no restriction to layer.
     payload = _s_cell_cage_link("2,7")
 
-    _, state = decode_link(payload)
+    _, state = link_to_puzzle(payload)
 
     assert SCellPin("R1C1", frozenset({2, 7})) in state.s_directives
     assert not any(isinstance(d, SCellMarkRestriction) for d in state.s_directives)
@@ -557,7 +557,7 @@ def test_s_cell_marker_cage_value_out_of_domain_digit_is_refused_as_malformed() 
     # bare S-cell that a wrong `found` could slip through.
     payload = _s_cell_cage_link("2,15")  # 15 is outside the board's 0..9 domain
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert SCellPin("R1C1", frozenset({2, 15})) in state.s_directives
     with pytest.raises(MalformedPuzzleError, match="15"):
@@ -571,7 +571,7 @@ def test_s_cell_cage_value_1234_is_one_out_of_domain_half() -> None:
     # same guard an out-of-domain given hits (CONTEXT.md, "malformed").
     payload = _s_cell_cage_link("1234")
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert HalfSCell("R1C1", 1234) in state.s_directives
     with pytest.raises(MalformedPuzzleError, match="1234"):
@@ -593,7 +593,7 @@ def test_empty_s_cell_block_enables_schrodinger_by_presence() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert Constraint("schrodinger") in puzzle.constraints
     assert puzzle.board == Board(size=9, values=range(10))
@@ -618,7 +618,7 @@ def test_named_s_cell_block_still_pins_its_cells_as_known_s_cells() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert Constraint("schrodinger") in puzzle.constraints
     assert SCellPin("R1C1", frozenset({2, 3})) in state.s_directives
@@ -630,7 +630,7 @@ def test_no_s_cell_block_keeps_plain_domain_and_no_schrodinger() -> None:
     # link that names the cage opts into the widened domain and the mode.
     payload = encode_document({"cells": EMPTY_CELLS, "constraints": WIRE_CONSTRAINTS})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=9, values=range(1, 10))
     assert Constraint("schrodinger") not in puzzle.constraints
@@ -656,7 +656,7 @@ def test_s_cell_marker_name_is_recognized_case_insensitive_and_trimmed(
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert BareSCell("R1C1") in state.s_directives
     assert Constraint("schrodinger") in puzzle.constraints
@@ -665,7 +665,7 @@ def test_s_cell_marker_name_is_recognized_case_insensitive_and_trimmed(
 def test_schrodinger_marker_reads_domain_and_synthesizes_constraint() -> None:
     payload = _schrodinger_link(EMPTY_CELLS, min_digit=0)
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=9, values=range(10))
     assert Constraint("schrodinger") in puzzle.constraints
@@ -677,7 +677,7 @@ def test_schrodinger_marker_ignores_cosmetic_and_disabled_constraints() -> None:
     # matrix — both ignored once a marker makes the link Schrödinger.
     payload = _schrodinger_link(EMPTY_CELLS)
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     regions_constraint = next(
         c for c in puzzle.constraints if c.type == "regions-distinct"
@@ -709,7 +709,7 @@ def test_s_cell_marker_on_a_settled_value_emits_both_directives(
         }
     )
 
-    _, state = decode_link(payload)
+    _, state = link_to_puzzle(payload)
 
     assert BareSCell("R1C1") in state.s_directives
     assert SingletonPin("R1C1", 5) in state.s_directives
@@ -735,7 +735,7 @@ def test_s_cell_marker_synthesizes_schrodinger_once_amid_cosmetics() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert puzzle.board == Board(size=9, values=range(10))
     assert puzzle.constraints.count(Constraint("schrodinger")) == 1
@@ -758,7 +758,7 @@ def test_settled_value_on_a_non_marker_cell_is_a_singleton_pin_under_schrodinger
     cells[1] = cell
     payload = _schrodinger_link(cells)
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert SingletonPin("R1C2", 5) in state.s_directives
     assert puzzle.givens == ()
@@ -783,7 +783,7 @@ def test_a_single_link_decodes_both_doubler_and_s_cell_markers() -> None:
         }
     )
 
-    puzzle, state = decode_link(payload)
+    puzzle, state = link_to_puzzle(payload)
 
     assert Constraint("schrodinger") in puzzle.constraints
     assert Constraint("doubler") in puzzle.constraints
@@ -911,4 +911,4 @@ def test_colorizing_an_emitted_link_does_not_change_its_decode() -> None:
     plain_link = document_to_link(document)
     colored_link = document_to_link(colorize_marker_cages(document))
 
-    assert decode_link(colored_link) == decode_link(plain_link)
+    assert link_to_puzzle(colored_link) == link_to_puzzle(plain_link)

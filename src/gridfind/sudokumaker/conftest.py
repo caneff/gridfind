@@ -2,7 +2,7 @@
 
 Every `sudokumaker/*_test.py` builds its input the same way: a puzzle document
 encoded to a real SudokuMaker link through `document_to_link`, then run through
-`decode_link`. The synthesis pieces above that boundary — the document wrapper,
+`link_to_puzzle`. The synthesis pieces above that boundary — the document wrapper,
 the classic `type 0`/`type 1` constraint pair, the empty 9x9 cell array, the box
 partition of an N x N board — are needed by more than one module's test file, so
 they live here as one home rather than drifting into per-file copies.

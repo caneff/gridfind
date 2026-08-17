@@ -12,7 +12,7 @@ import pytest
 import synthesize_kropki_value_links as syn
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
@@ -30,7 +30,7 @@ def test_link_decodes_the_labelled_value_not_the_default(name: str) -> None:
     labelled value): a decoder that coerced an unlabelled-looking dot to the
     default difference 1 would fail this even though both fixtures still
     parse."""
-    puzzle, _ = decode_link(syn.CORPUS[name]())
+    puzzle, _ = link_to_puzzle(syn.CORPUS[name]())
     assert (
         Constraint("pair-difference", params={"cells": ["R1C1", "R1C2"], "diff": 3})
         in puzzle.constraints

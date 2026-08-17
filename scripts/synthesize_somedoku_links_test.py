@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 import synthesize_somedoku_links as syn
 
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
@@ -29,7 +29,7 @@ def test_link_decodes_to_line_count_distinct_alone(name: str) -> None:
     """Each fixture's link carries the somedoku flag: decode emits
     `line-count-distinct` in place of the classic
     `rows-distinct`/`cols-distinct`/`regions-distinct` triplet."""
-    puzzle, _ = decode_link(syn.CORPUS[name]())
+    puzzle, _ = link_to_puzzle(syn.CORPUS[name]())
     constraint_types = {constraint.type for constraint in puzzle.constraints}
     assert "line-count-distinct" in constraint_types
     assert "rows-distinct" not in constraint_types

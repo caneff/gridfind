@@ -25,14 +25,14 @@ from gridfind.engine import GridfindError
 from gridfind.sudokumaker import (
     DECODER_REGISTRY,
     constraint_name,
-    decode_link,
     has_live_data,
     link_to_document,
+    link_to_puzzle,
 )
 from gridfind.verdict import verdict
 
 # The two wire types that describe the puzzle's structure (givens, regions)
-# rather than a placeable rule — `decode_link` handles them outside the
+# rather than a placeable rule — `link_to_puzzle` handles them outside the
 # active/inert/disabled bucketing every other DECODER_REGISTRY row gets.
 # Picked by the registry's own `name` field, so the set tracks the registry
 # instead of a hand-copied `(0, 1)` nobody re-checks against it.
@@ -66,8 +66,8 @@ def decode_payload(link: str) -> dict[str, object]:
 
     Delegates to `link_to_document`'s boundary decode and keeps only the
     `puzzle` block — the inspector needs the dict itself to classify
-    constraints, including on links `decode_link` rejects, so it can't route
-    through `decode_link`'s `Puzzle`.
+    constraints, including on links `link_to_puzzle` rejects, so it can't route
+    through `link_to_puzzle`'s `Puzzle`.
     """
     # Decoded JSON is an untyped external boundary — a local `Any` is deliberate
     # (CODING_STANDARDS: reach for Any only at genuine boundaries).
@@ -78,7 +78,7 @@ def decode_payload(link: str) -> dict[str, object]:
 def _display_size(data: dict[str, object], cell_count: int) -> int:
     """Board edge for the report line, most specific first (`width`, then
     `size`, else `isqrt(cells)`). Display only — the verdict path sizes the
-    board authoritatively via `decode_link`."""
+    board authoritatively via `link_to_puzzle`."""
     for key in ("width", "size"):
         value = data.get(key)
         if isinstance(value, int):
@@ -92,7 +92,7 @@ def _verdict_word(link: str) -> str:
     Variants (doubler, S-cell) are inferred from the link's marker cages, so the
     inspector needs no flags to read them."""
     try:
-        puzzle, state = decode_link(link)
+        puzzle, state = link_to_puzzle(link)
     except (ValueError, GridfindError) as exc:
         return f"rejected ({exc})"
     return verdict(puzzle, state).kind

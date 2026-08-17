@@ -2,7 +2,7 @@
 to its JSON document (`link_to_document`) and compress one back
 (`document_to_link`), the size/domain fields every decode reads off that document
 (`board_size`, `digit_domain`, `schrodinger_domain`), the one-pass
-type bucketing (`bucket_constraints_by_type`) `decode_link` runs once per
+type bucketing (`bucket_constraints_by_type`) `link_to_puzzle` runs once per
 link, and the shared enabled-block walk (`enabled_blocks`) every per-type
 decoder in the package indexes into that bucket through.
 """
@@ -24,9 +24,9 @@ _CLASSIC_SIZE = 9
 def link_to_document(link: str) -> dict[str, object]:
     """A SudokuMaker `?puzzle=` link (or a bare payload) decompressed to its
     full `formatVersion 1.5.0` document — `formatVersion` plus its `puzzle`
-    block. The exact reverse of `document_to_link`, and `decode_link`'s own
+    block. The exact reverse of `document_to_link`, and `link_to_puzzle`'s own
     first step: strip the `?puzzle=` prefix, unquote, lz-string-decompress,
-    parse the JSON. `decode_link` keeps only the `puzzle` block; a re-encoder
+    parse the JSON. `link_to_puzzle` keeps only the `puzzle` block; a re-encoder
     needs the whole document to preserve every field the app renders."""
     payload = link.split("?puzzle=", 1)[-1]
     raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
@@ -38,10 +38,10 @@ def link_to_document(link: str) -> dict[str, object]:
 
 def document_to_link(document: dict[str, object]) -> str:
     """A decoded SudokuMaker document (the full `json.loads(raw)` object
-    `decode_link` reads — `formatVersion` plus its `puzzle` block) mapped back
+    `link_to_puzzle` reads — `formatVersion` plus its `puzzle` block) mapped back
     to an openable `sudokumaker.app` URL. The exact reverse of `link_to_document`'s
     payload step: lz-string-compress the document's JSON to an
-    encoded URI component, then prepend the `?puzzle=` prefix `decode_link`
+    encoded URI component, then prepend the `?puzzle=` prefix `link_to_puzzle`
     strips. `document` rides through untouched, so its `size`/`type`-bearing
     fields survive verbatim and the link opens as the same puzzle."""
     payload = LZString.compressToEncodedURIComponent(json.dumps(document))
@@ -122,7 +122,7 @@ ConstraintBuckets = dict[int, list[dict[str, Any]]]
 
 def bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuckets:
     """`puzzle_data["constraints"]` grouped by wire `type` in one pass —
-    `decode_link` runs this once per link and threads the result to every
+    `link_to_puzzle` runs this once per link and threads the result to every
     per-type decoder, so each decoder selects its own type's blocks by one
     dict lookup. A non-list `constraints` buckets to nothing; a non-dict block,
     or one whose `type` is not an int — a `bool` is not one, matching `as_int`

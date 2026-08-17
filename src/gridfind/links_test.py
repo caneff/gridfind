@@ -10,7 +10,7 @@ starts `found-`, `broke-`, or `invalid-`; the loader partitions on the first
 A `found` case gets two layers of assertion: the front-door contract (exit
 0, `found` on stdout, a grid follows), and an *independent* witness check —
 `validate_witness` recovers the grid the CLI printed and checks it against
-the `Puzzle` `decode_link` recovers from the same link, never calling
+the `Puzzle` `link_to_puzzle` recovers from the same link, never calling
 `verdict()` itself. A `broke` case trusts the curator's label: exit 1,
 `broke` on stdout, nothing more. An `invalid` case is a
 malformed link the front door refuses before any verdict: exit 2, the error
@@ -32,8 +32,8 @@ from lzstring import LZString
 from gridfind import cli
 from gridfind.sudokumaker import (
     DECODER_REGISTRY,
-    decode_link,
     has_live_data,
+    link_to_puzzle,
 )
 from gridfind.witness_validator import validate_witness
 
@@ -80,7 +80,7 @@ def test_link_case_matches_its_filename_verdict(
     if expected_kind == "found":
         assert code == 0
         link = argv[-1]
-        puzzle, _ = decode_link(link)
+        puzzle, _ = link_to_puzzle(link)
         assert validate_witness("\n".join(lines[1:]), puzzle)
     else:
         assert code == 1
@@ -126,7 +126,7 @@ def _wire_payload(link: str) -> dict[str, Any]:
     """The raw SudokuMaker puzzle JSON behind a link, mirroring
     `scripts/inspect_link.py`'s `decode_payload` — kept local for the same
     reason: the coverage gate classifies by raw wire *type*, which
-    `decode_link`'s `Puzzle` no longer carries once XV/kropki are rewritten
+    `link_to_puzzle`'s `Puzzle` no longer carries once XV/kropki are rewritten
     onto their own aliased constraint names."""
     payload = link.split("?puzzle=", 1)[-1]
     raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
@@ -165,7 +165,7 @@ def _variant_tags(argv: list[str]) -> set[int | str]:
     told apart from their own plain positive-only decode by whether a decoded
     `pair-difference`/`pair-ratio`/`group-sum` constraint carries `negate`."""
     link = argv[-1]
-    puzzle, _ = decode_link(link)
+    puzzle, _ = link_to_puzzle(link)
     constraint_types = {c.type for c in puzzle.constraints}
     schrodinger = "schrodinger" in constraint_types
     doubler = "doubler" in constraint_types
@@ -226,7 +226,7 @@ def test_coverage_floor_every_link_reachable_variant_has_found_and_broke() -> No
     coverage: dict[int | str, dict[str, bool]] = {}
     for path in _CASES:
         kind, _, _ = path.stem.partition("-")
-        # `invalid-*` cases carry a malformed link `decode_link` won't read, so
+        # `invalid-*` cases carry a malformed link `link_to_puzzle` won't read, so
         # they name no variant and owe no found/broke pair.
         if kind not in ("found", "broke"):
             continue

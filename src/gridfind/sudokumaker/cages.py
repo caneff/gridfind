@@ -131,7 +131,7 @@ class _CosmeticCageDecode:
     marks its own presence (`has_somedoku_block`, ADR-0017), and an unnamed
     or unrecognized-named block contributes nothing (ADR-0012's warn-drop).
     `concat` folds a link's worth of blocks into the merged result
-    `decode_link` reads. `modifier_constraint` is not per-block:
+    `link_to_puzzle` reads. `modifier_constraint` is not per-block:
     `cosmetic_cage_constraints` resolves it once, across every
     modifier-marked block in the link, and stamps it onto the final merged
     result (`Constraint("doubler")` or `Constraint("constant", {value: k})`,
@@ -260,11 +260,11 @@ def cosmetic_cage_constraints(
     marked block emits no cage/modifier `Constraint` here: instead it
     contributes its own presence (`has_scell_block`) and, for each cell it
     contains, that cell's marker cage's raw `value` (`scell_values`) — the
-    two S-cell signals `decode_link` reads for the per-cell decode pass
+    two S-cell signals `link_to_puzzle` reads for the per-cell decode pass
     (ADR-0014). A `Somedoku`-marked block likewise emits no `Constraint`
     here — it carries no cell-level reading at all, cells and value alike
     ignored — contributing only its own presence (`has_somedoku_block`),
-    which `decode_link` folds with the `type 1000` carrier
+    which `link_to_puzzle` folds with the `type 1000` carrier
     (`global_flags.has_somedoku_component`) to decide whether the
     `line-count-distinct` constraint stands up puzzle-wide. An **unnamed**
     block, or one whose name gridfind does not recognize (a bare `Constant`
@@ -274,7 +274,7 @@ def cosmetic_cage_constraints(
     adds nothing and warns nothing, the same as any other empty block. A
     `disabled` block is skipped entirely.
 
-    This is the one pass `decode_link` makes over the link's `type 2001`
+    This is the one pass `link_to_puzzle` makes over the link's `type 2001`
     blocks — cage/modifier constraints, S-cell presence and pinning, and the
     Somedoku cosmetic-cage carrier all fall out of the same per-block walk."""
     decoded: list[_CosmeticCageDecode] = []

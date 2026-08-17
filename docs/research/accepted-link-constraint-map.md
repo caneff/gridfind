@@ -306,7 +306,7 @@ recognized (a link may carry either).
 - **(c)** One `ModifierDirective(address, is_modifier=True)` per contained cell
   and **no** `cage`/`group-sum` for that block — the `cages` supply the cell
   list, not a killer rule (`sudokumaker.py:783-790`). When any doubler directive
-  is produced, `decode_link` appends `Constraint("doubler")`
+  is produced, `link_to_puzzle` appends `Constraint("doubler")`
   (`sudokumaker.py:297-298`). Marking is orthogonal to the cell's digit — a
   given/placement on a marked cell still decodes normally
   (`sudokumaker.py:238-242`, `sudokumaker.py:429-431`).
@@ -405,7 +405,7 @@ decoder finding a link it does not support (`sudokumaker.py:41-49`). The paths:
 | S-cell-marked cell holds a value | "S-cell … also holds a value" | `sudokumaker.py:432-435` |
 
 **Reject as a malformed puzzle — `MalformedPuzzleError` from `verdict`.** A
-`Puzzle` `decode_link` produces is never itself malformed; a malformed jigsaw
+`Puzzle` `link_to_puzzle` produces is never itself malformed; a malformed jigsaw
 matrix, an undeclared digit, a domain the placements violate, etc. surface later
 from `verdict`, not from decode (`sudokumaker.py:41-49`, `sudokumaker.py:20-23`).
 The distinction is worth keeping: only a `ValueError` means the *link* is bad,

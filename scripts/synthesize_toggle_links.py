@@ -47,7 +47,7 @@ from gridfind.sudokumaker.wire_types import (
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 # The cosmetic style SudokuMaker writes onto a diagonal block. Display-only —
-# `decode_link` ignores it — but carried so the emitted link matches the app's.
+# `link_to_puzzle` ignores it — but carried so the emitted link matches the app's.
 _DIAGONAL_STYLE = {"color": "#34bbe6ff", "thickness": 0.02}
 
 

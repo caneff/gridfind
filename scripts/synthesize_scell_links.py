@@ -40,7 +40,7 @@ def _authored_cage_style() -> dict[str, object]:
     carries it so the emitted link is authentic: the cage renders with its
     cosmetic-cage icon the way a setter's own link would, rather than the
     style-less block SudokuMaker draws iconless. A fresh dict per call, so no two
-    blocks alias one object. Display-only — `decode_link` never reads `style`."""
+    blocks alias one object. Display-only — `link_to_puzzle` never reads `style`."""
     return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
 
 

@@ -135,7 +135,7 @@ def has_live_data(constraint: dict[str, Any]) -> bool:
 
     Public so `scripts/inspect_link.py` classifies constraints against the same
     predicate the decoder drops by. `Any` keeps the decoded-JSON
-    boundary type (a dict narrowed from the untyped payload), as `decode_link`
+    boundary type (a dict narrowed from the untyped payload), as `link_to_puzzle`
     does for `puzzle_data`."""
     if constraint.get("type") in _TOGGLE_WIRE_TYPES:
         return True

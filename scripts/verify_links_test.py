@@ -3,11 +3,11 @@ back out.
 
 `fill_witness` is asserted by round-trip only (never by the intermediate
 document shape): feed a synthesised
-decoded document and a `Witness` through it, re-encode, then `decode_link`
+decoded document and a `Witness` through it, re-encode, then `link_to_puzzle`
 the result and confirm the witness digits come back — singletons as givens,
 Schrödinger S-cells as their 2-tuple. `verify_link` is covered end to end on
 two tiny synthetic links, one already-solved (found) and one
-already-contradictory (broke), so the glue with `decode_link`/`verdict`
+already-contradictory (broke), so the glue with `link_to_puzzle`/`verdict`
 is checked without touching the real `links/` corpus.
 """
 
@@ -24,9 +24,9 @@ from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import Given, ModifierDirective, WorkingState
 from gridfind.s_directives import SCellPin, SingletonPin
 from gridfind.sudokumaker import (
-    decode_link,
     document_to_link,
     link_to_document,
+    link_to_puzzle,
 )
 from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE
 from gridfind.witness import Witness
@@ -86,7 +86,7 @@ def test_fill_witness_round_trips_singleton_digits(
     filled = fill_witness(document, witness, size)
 
     url = document_to_link(filled)
-    puzzle, state = decode_link(url)
+    puzzle, state = link_to_puzzle(url)
 
     assert state == WorkingState()
     assert set(puzzle.givens) == {
@@ -126,7 +126,7 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
     filled = fill_witness(document, witness, size)
 
     url = document_to_link(filled)
-    puzzle, state = decode_link(url)
+    puzzle, state = link_to_puzzle(url)
 
     # Every non-S-cell address is a settled digit under a Schrödinger layer,
     # so it round-trips as a singleton pin, never a plain given.
@@ -159,7 +159,7 @@ def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
     document = _document(size, _marker_block("Doubler", modifier_index))
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(document_to_link(filled))
+    _, state = link_to_puzzle(document_to_link(filled))
     assert state.modifier_directives == (
         ModifierDirective(modifier_address, is_modifier=True),
     )
@@ -182,7 +182,7 @@ def test_fill_witness_cages_a_discovered_s_cell() -> None:
 
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(document_to_link(filled))
+    _, state = link_to_puzzle(document_to_link(filled))
     pinned = {pin.address for pin in state.s_directives if isinstance(pin, SCellPin)}
     assert {addresses[declared], addresses[discovered]} <= pinned
 
@@ -204,7 +204,7 @@ def test_fill_witness_folds_a_discovered_doubler_into_the_cage() -> None:
 
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(document_to_link(filled))
+    _, state = link_to_puzzle(document_to_link(filled))
     assert set(state.modifier_directives) == {
         ModifierDirective(addresses[declared], is_modifier=True),
         ModifierDirective(addresses[discovered], is_modifier=True),
@@ -229,7 +229,7 @@ def test_fill_witness_folds_a_discovered_constant_into_the_cage() -> None:
 
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(document_to_link(filled))
+    _, state = link_to_puzzle(document_to_link(filled))
     assert set(state.modifier_directives) == {
         ModifierDirective(addresses[declared], is_modifier=True),
         ModifierDirective(addresses[discovered], is_modifier=True),
@@ -251,7 +251,7 @@ def test_verify_link_reports_a_solution_link_for_a_found_case() -> None:
     solution_link = verify_link([link])
 
     assert solution_link.startswith("https://sudokumaker.app/?puzzle=")
-    puzzle, state = decode_link(solution_link)
+    puzzle, state = link_to_puzzle(solution_link)
     assert state == WorkingState()
     assert set(puzzle.givens) == {
         Given("R1C1", 1),
@@ -279,7 +279,7 @@ def test_emit_solution_link_stamps_the_board_size() -> None:
     # A source document that omits `size`: the emitted solution link must carry
     # the known board size, or it would open at SudokuMaker's 9x9 default. A
     # sizeless link does not decode (ADR-0011), so a stamped size is what lets
-    # `decode_link` recover this 2x2 at all.
+    # `link_to_puzzle` recover this 2x2 at all.
     size = 2
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
     link = _encode({"cells": cells, "constraints": _WIRE_CONSTRAINTS})
@@ -293,7 +293,7 @@ def test_emit_solution_link_stamps_the_board_size() -> None:
 
     solution = emit_solution_link(link, witness, size)
 
-    puzzle, _ = decode_link(solution)
+    puzzle, _ = link_to_puzzle(solution)
     assert puzzle.board.size == size
 
 

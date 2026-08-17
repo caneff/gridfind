@@ -1,7 +1,7 @@
 """`global_flags`: the payload-less `Somedoku` global-flag component —
 recognized on either name-bearing carrier, a `type 1000` custom
 constraint's `definition.name` or a `type 2001` cosmetic cage's top-level
-`name`, and decoded through `decode_link` to a single `line-count-distinct`
+`name`, and decoded through `link_to_puzzle` to a single `line-count-distinct`
 constraint in place of the classic `rows-distinct`/`cols-distinct`/
 `regions-distinct` triplet. Cells and value are ignored on both carriers; a
 `disabled` block on either contributes nothing.
@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.conftest import (
     CLASSIC_CONSTRAINTS,
     EMPTY_CELLS,
@@ -30,7 +30,7 @@ def test_somedoku_custom_constraint_decodes_to_line_count_distinct() -> None:
     # boxes at all.
     payload = constraint_link({"type": 1000, "definition": {"name": "Somedoku"}})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.constraints == (Constraint("line-count-distinct"),)
 
@@ -46,7 +46,7 @@ def test_somedoku_cosmetic_cage_decodes_to_line_count_distinct() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.constraints == (Constraint("line-count-distinct"),)
 
@@ -78,7 +78,7 @@ def test_somedoku_ignores_its_own_cells_and_value(
         {"cells": EMPTY_CELLS, "constraints": [*WIRE_CONSTRAINTS, somedoku_block]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.constraints == (Constraint("line-count-distinct"),)
 
@@ -99,7 +99,7 @@ def test_somedoku_type_1000_does_not_warn_even_with_live_payload(
         }
     )
 
-    decode_link(payload)
+    link_to_puzzle(payload)
 
     assert capsys.readouterr().err == ""
 
@@ -128,13 +128,13 @@ def test_disabled_somedoku_block_decodes_to_nothing(
         {"cells": EMPTY_CELLS, "constraints": [*WIRE_CONSTRAINTS, somedoku_block]}
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.constraints == CLASSIC_CONSTRAINTS
 
 
 def test_somedoku_still_decodes_a_registry_type_after_regions() -> None:
-    # decode_link's registry loop `continue`s past `wire_type == 1` (regions)
+    # link_to_puzzle's registry loop `continue`s past `wire_type == 1` (regions)
     # for a somedoku puzzle, but must keep walking DECODER_REGISTRY afterward —
     # an anti-king toggle, which sits later in registry order, still decodes
     # alongside the line-count-distinct rule.
@@ -149,7 +149,7 @@ def test_somedoku_still_decodes_a_registry_type_after_regions() -> None:
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     assert puzzle.constraints == (
         Constraint("line-count-distinct"),

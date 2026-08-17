@@ -1,12 +1,12 @@
 """`dropped`: the decode-time drop policy for constraints `DECODER_REGISTRY`
 does not model — the loud-drop path for one carrying live data versus the
-quiet pass for an inert or disabled one, exercised through `decode_link` (the
+quiet pass for an inert or disabled one, exercised through `link_to_puzzle` (the
 public seam this policy runs behind on every decode).
 """
 
 import pytest
 
-from gridfind.sudokumaker import decode_link
+from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.conftest import (
     CLASSIC_CONSTRAINTS,
     EMPTY_CELLS,
@@ -36,8 +36,8 @@ def test_inert_unmodeled_constraints_decode_quietly(
     )
     plain = encode_document({"cells": EMPTY_CELLS, "constraints": WIRE_CONSTRAINTS})
 
-    puzzle_extras, state_extras = decode_link(with_extras)
-    puzzle_plain, state_plain = decode_link(plain)
+    puzzle_extras, state_extras = link_to_puzzle(with_extras)
+    puzzle_plain, state_plain = link_to_puzzle(plain)
 
     assert puzzle_extras == puzzle_plain
     assert state_extras == state_plain
@@ -65,7 +65,7 @@ def test_active_unmodeled_constraint_decodes_with_named_stderr_warning(
         }
     )
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     captured = capsys.readouterr()
     assert puzzle.constraints == CLASSIC_CONSTRAINTS
@@ -96,7 +96,7 @@ def test_every_live_payload_shape_warns(
         }
     )
 
-    decode_link(payload)
+    link_to_puzzle(payload)
 
     assert "1000" in capsys.readouterr().err
 
@@ -115,7 +115,7 @@ def test_cage_shaped_name_on_a_type_1000_constraint_warns_and_names_it(
     # the component that was stranded on the wrong carrier.
     payload = constraint_link({"type": 1000, "definition": {"name": name}})
 
-    puzzle, _ = decode_link(payload)
+    puzzle, _ = link_to_puzzle(payload)
 
     captured = capsys.readouterr()
     assert puzzle.constraints == CLASSIC_CONSTRAINTS
@@ -132,7 +132,7 @@ def test_disabled_cage_shaped_name_on_type_1000_is_skipped_without_warning(
         {"type": 1000, "definition": {"name": "Sum"}, "disabled": True}
     )
 
-    decode_link(payload)
+    link_to_puzzle(payload)
 
     assert capsys.readouterr().err == ""
 
@@ -152,6 +152,6 @@ def test_disabled_active_constraint_is_skipped_without_warning(
         }
     )
 
-    decode_link(payload)
+    link_to_puzzle(payload)
 
     assert capsys.readouterr().err == ""

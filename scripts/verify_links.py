@@ -23,9 +23,9 @@ from gridfind.cell_geometry import format_address
 from gridfind.sudokumaker import (
     colorize_marker_cages,
     cosmetic_cage_kind,
-    decode_link,
     document_to_link,
     link_to_document,
+    link_to_puzzle,
     write_cell,
 )
 from gridfind.verdict import verdict
@@ -39,7 +39,7 @@ def fill_witness(
 ) -> dict[str, object]:
     """`document` with every cell overwritten by its witness content,
     addressed by the same row-major `i // size`, `i % size` scheme
-    `decode_link` reads cells with. Each cell is written through `write_cell`,
+    `link_to_puzzle` reads cells with. Each cell is written through `write_cell`,
     the decoder's one wire-write seam — a singleton digit becomes a given, a
     Schrödinger pair its two center marks — so this holds no knowledge of the
     cell's field shape. Every other field of `document` rides through
@@ -135,7 +135,7 @@ def oracle_witness(link: str) -> tuple[str, Witness | None, int]:
     since a found-but-unwitnessed result has nothing for a caller to show. The
     one home for decode → verdict → guard, shared by the verify oracle
     (`verify_link`) and the eval view (`eval_links.eval_link`)."""
-    puzzle, state = decode_link(link)
+    puzzle, state = link_to_puzzle(link)
     result = verdict(puzzle, state)
     if result.kind != "found" or result.witness is None:
         return result.kind, None, puzzle.board.size

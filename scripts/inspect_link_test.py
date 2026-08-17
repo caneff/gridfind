@@ -191,7 +191,7 @@ def test_decode_payload_matches_link_to_document() -> None:
         assert decode_payload(link) == link_to_document(link)["puzzle"], path.stem
 
 
-# Golden report lines for every corpus link that `decode_link` accepts,
+# Golden report lines for every corpus link that `link_to_puzzle` accepts,
 # pinned so a decode-boundary refactor can't silently change what the
 # inspector reports (invalid-* links error out of `inspect_link` itself and
 # are exercised separately, through `main`, below).
@@ -401,7 +401,7 @@ def test_inspect_link_report_is_pinned(path: Path) -> None:
 
 
 def test_inspect_link_invalid_case_still_errors_the_same_way() -> None:
-    """The one corpus link `decode_link` rejects must keep failing inside
+    """The one corpus link `link_to_puzzle` rejects must keep failing inside
     `inspect_link` itself (caught and reported by `main`, not the classifier)
     so the boundary refactor doesn't change which stage sees the error."""
     invalid = [path for path in _LINK_CASES if path.stem.startswith("invalid")]

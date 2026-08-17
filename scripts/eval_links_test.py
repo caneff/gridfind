@@ -4,7 +4,7 @@ the witness grid and a filled-in solution link.
 
 Covered end to end on two tiny synthetic links, one already-solved (found)
 and one already-contradictory (broke), mirroring `verify_links_test.py` —
-the glue with `decode_link`/`verdict`/`verify_link` is checked without
+the glue with `link_to_puzzle`/`verdict`/`verify_link` is checked without
 touching the real `links/` corpus.
 """
 

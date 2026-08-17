@@ -38,7 +38,7 @@ def _authored_cage_style() -> dict[str, object]:
     """The default black cosmetic-cage style SudokuMaker writes for a
     hand-drawn named cage — matches an authentic setter export rather than
     the style-less block SudokuMaker draws iconless. Display-only —
-    `decode_link` never reads `style`."""
+    `link_to_puzzle` never reads `style`."""
     return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
 
 

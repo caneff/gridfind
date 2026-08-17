@@ -1,6 +1,6 @@
 """`registry`: the `DECODER_REGISTRY` table and the decode dispatch it drives.
 
-The registry is what `decode_link` consults to decide what each wire type is —
+The registry is what `link_to_puzzle` consults to decide what each wire type is —
 structural (givens/regions), a modeled constraint, or unmodeled — and how to
 build each modeled type's `Constraint`s. This file pins the global-toggle
 handler's round trip through the table; the drop policy the table also feeds
@@ -11,7 +11,7 @@ in `dropped_test.py`.
 import pytest
 
 from gridfind.puzzle import Constraint
-from gridfind.sudokumaker import decode_link, document_to_link
+from gridfind.sudokumaker import document_to_link, link_to_puzzle
 from gridfind.sudokumaker.conftest import EMPTY_CELLS, WIRE_CONSTRAINTS
 
 
@@ -45,6 +45,6 @@ def test_global_toggle_round_trips_through_encode_and_decode(
         "puzzle": {"cells": EMPTY_CELLS, "constraints": [*WIRE_CONSTRAINTS, block]},
     }
 
-    puzzle, _ = decode_link(document_to_link(document))
+    puzzle, _ = link_to_puzzle(document_to_link(document))
 
     assert Constraint(type=constraint_type) in puzzle.constraints
