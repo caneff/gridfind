@@ -12,11 +12,12 @@ from __future__ import annotations
 import html
 import pathlib
 import string
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.sudokumaker.markers import MARKER_LABELS
-from gridfind.sudokumaker.registry import DECODER_REGISTRY
+from gridfind.sudokumaker.registry import DECODER_REGISTRY, DecodedType
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
@@ -53,8 +54,8 @@ class SetterDoc:
 # The setter-facing reference facts for every `DECODER_REGISTRY` wire type a
 # setter draws directly, keyed by wire type. The two structural rows (`0`
 # givens, `1` regions) carry no entry — they aren't constraints a setter
-# draws — so `_setter_doc_rows`/`_constraint_sections` skip any wire type
-# missing from this table rather than relying on a separate skip-list.
+# draws — so `_setter_doc_entries` skips any wire type missing from this
+# table rather than relying on a separate skip-list.
 SETTER_DOCS: dict[int, SetterDoc] = {
     KROPKI_WHITE_TYPE: SetterDoc(
         display_name="White Kropki (Difference Dot)",
@@ -241,6 +242,18 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
 )
 
 
+def _setter_doc_entries() -> Iterator[tuple[DecodedType, SetterDoc]]:
+    """Yield each `DECODER_REGISTRY` entry paired with its `SETTER_DOCS` prose,
+    in registry order, for every setter-facing wire type — skipping a wire
+    type with no `SETTER_DOCS` entry (the two structural rows) once, here,
+    so `_constraint_type_rows` and `_constraint_sections` don't each
+    re-derive the same filter."""
+    for wire_type, entry in DECODER_REGISTRY.items():
+        doc = SETTER_DOCS.get(wire_type)
+        if doc is not None:
+            yield entry, doc
+
+
 def _example_link_cell(stem: str) -> str:
     """An `<a>` to the corpus link `stem` (its filename as the visible text, its
     SudokuMaker URL as the href), read live from `links/` so it can never go
@@ -264,10 +277,7 @@ def _cage_name_rows() -> str:
 
 def _constraint_type_rows() -> str:
     rows: list[str] = []
-    for wire_type, entry in DECODER_REGISTRY.items():
-        doc = SETTER_DOCS.get(wire_type)
-        if doc is None:
-            continue
+    for entry, doc in _setter_doc_entries():
         link = _example_link_cell(_EXAMPLE_LINK_STEMS[entry.name])
         rows.append(f"<tr><td>{html.escape(doc.display_name)}</td><td>{link}</td></tr>")
     return "\n".join(rows)
@@ -295,7 +305,7 @@ def _constraint_section(doc: SetterDoc) -> str:
 
 
 def _constraint_sections() -> str:
-    return "\n".join(_constraint_section(doc) for doc in SETTER_DOCS.values())
+    return "\n".join(_constraint_section(doc) for _entry, doc in _setter_doc_entries())
 
 
 def render() -> str:
