@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
-from typing import Any, ClassVar
+from typing import Any, ClassVar, assert_never
 
 from gridfind.engine import MalformedPuzzleError
 
@@ -137,6 +137,10 @@ def s_directive_to_dict(directive: SDirective) -> dict[str, object]:
         out["pair"] = sorted(directive.pair)
     elif isinstance(directive, SCellMarkRestriction):
         out["digits"] = sorted(directive.digits)
+    elif isinstance(directive, BareSingleton | BareSCell):
+        pass
+    else:
+        assert_never(directive)
     return out
 
 

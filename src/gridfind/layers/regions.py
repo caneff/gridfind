@@ -37,12 +37,6 @@ region covering the whole board. `build_stack`, the witness render path, and
 `witness_validator` all cross this one seam instead of each re-deriving
 the same three-way branch, which is what let them quietly resolve
 different partitions.
-
-`reason` is the broke-verdict diagnosis living beside the
-region layers it reasons about, rather than inside `verdict.py`'s
-found/broke/unknown classifier: it asks this module's own
-`region_map_for_constraints` door, the same one `verdict.py` and
-`witness_validator.py` cross.
 """
 
 from __future__ import annotations
@@ -51,8 +45,7 @@ from collections.abc import Iterable
 
 from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.engine import GridfindError, MalformedPuzzleError
-from gridfind.layers import door
-from gridfind.puzzle import Constraint, Puzzle
+from gridfind.puzzle import Constraint
 
 # A partition of a board into regions of cell addresses, whatever its source.
 RegionMap = list[list[tuple[int, int]]]
@@ -144,42 +137,3 @@ def region_map_for_constraints(
                 return region_map_from_labels(size, constraint.params["regions"])
             return region_map_for(size)
     return [[(row, col) for row in range(1, size + 1) for col in range(1, size + 1)]]
-
-
-def reason(puzzle: Puzzle) -> str | None:
-    """The broke witness's region-blame: the first region in the resolved partition
-    outside the feasibility band `cells <= domain <= 2*cells`, named by its 1-based
-    position and cell count against the
-    domain size. Two symmetric violations:
-
-    - **Over-sized** (`cells > domain`): a forced repeat by
-      pigeonhole. Holds regardless of Schrodinger widening — a region's
-      `d0` slots alone already outnumber the domain.
-    - **Under-coverable** (`domain > 2*cells`): too few slots
-      to cover the domain even with every cell doubled up as an S-cell.
-      Only a real cause of infeasibility when `schrodinger` is in play — a
-      region with no cover pressure just forbids repeats, and `domain >
-      2*cells` alone never breaks that.
-
-    Only checked when a regions-distinct constraint is actually in play, so
-    a puzzle with no such rule (or an ordinary contradiction with every
-    region in bounds) carries no message. Expands `puzzle.constraints` itself
-    (a `sudoku` preset carries `regions-distinct` indirectly) rather than
-    asking a caller to hand in the already-expanded list, the one door onto
-    the region map (`region_map_for_constraints`)."""
-    canonical = door.expand_constraints(puzzle.constraints)
-    if not any(constraint.type == "regions-distinct" for constraint in canonical):
-        return None
-    region_map = region_map_for_constraints(canonical, puzzle.board.size)
-    domain_size = len(puzzle.board.values)
-    has_schrodinger = any(constraint.type == "schrodinger" for constraint in canonical)
-    for index, region in enumerate(region_map, start=1):
-        cells = len(region)
-        if cells > domain_size:
-            return f"region {index} holds {cells} cells, domain is {domain_size}"
-        if has_schrodinger and domain_size > 2 * cells:
-            return (
-                f"region {index} holds {cells} cells, domain is {domain_size} "
-                "— too few to cover"
-            )
-    return None

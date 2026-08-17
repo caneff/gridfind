@@ -1,10 +1,12 @@
 import pytest
 
 from gridfind.engine import MalformedPuzzleError, build_engine
-from gridfind.layers import SBlindLayerError, UnknownLayerError, build_stack
+from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
+from gridfind.layers.door import UnknownLayerError
+from gridfind.layers.s_blind import SBlindLayerError
 from gridfind.puzzle import Board, Constraint
 
 BOARD = GridCells()

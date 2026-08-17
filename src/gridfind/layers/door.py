@@ -1,8 +1,9 @@
 """The one door from a puzzle's constraints to a layer stack.
 
 Assembles the layer registry from the per-layer modules as an explicit list —
-no decorator, no import-side-effect auto-discovery — and holds `build_stack`
-and `UnknownLayerError`, the seam `verdict.py` consumes.
+no decorator, no import-side-effect auto-discovery — and holds `build_stack`,
+the seam `verdict.py` consumes, and `UnknownLayerError`, the refusal it
+raises for a constraint type no layer claims.
 
 `LAYER_REGISTRY`, `PRESET_REGISTRY`, and `ALIAS_REGISTRY` are implementation
 detail: used in-tree (and, for `ALIAS_REGISTRY`, by
