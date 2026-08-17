@@ -1,6 +1,6 @@
-"""Named marker-cage classification (ADR-0012, homed here in #443, routed
-through the name -> shape registry in #434, extended with a parameterized
-`"constant"` kind by ADR-0016, a payload-less `"somedoku"` kind, and two more
+"""Named marker-cage classification (ADR-0012, routed through the name ->
+shape registry), extended with a parameterized `"constant"` kind by
+ADR-0016, a payload-less `"somedoku"` kind, and two more
 cage-selector kinds, `"equality"` and `"rellik"` (ADR-0018)): a
 `type 2001` cosmetic-cage block's top-level
 `name` sorted into `"unnamed"`, `"killer"`, `"equality"`, `"rellik"`,

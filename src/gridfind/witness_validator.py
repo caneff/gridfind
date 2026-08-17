@@ -56,7 +56,13 @@ Cell = tuple[int, ...]
 def validate_witness(rendered: str, puzzle: Puzzle) -> bool:
     """`True` when `rendered` (a `Witness.render()` string) is a legal
     completion of `puzzle`. `False` on any violation, including a grid whose
-    shape doesn't even parse as `puzzle.board.size`x`size`."""
+    shape doesn't even parse as `puzzle.board.size`x`size`.
+
+    Deliberately one function: parse, domain check, and the rows/columns/
+    regions permutation check read as one sequence of guard clauses against
+    the same grid. Do not flatten it into a wrapper over several
+    single-purpose validators — that would scatter one cohesive proof across
+    several call sites for no reader benefit."""
     size = puzzle.board.size
     grid = _parse_grid(rendered, size)
     if grid is None:

@@ -94,7 +94,6 @@ def test_eval_link_shows_the_puzzle_link_verbatim_and_colors_only_the_solution()
 
     view = eval_link([link])
 
-    # Puzzle pane: the source link, untouched.
     assert view.puzzle_link == link
     # Solution pane: the discovered doubler colored red.
     assert view.solution_link is not None
@@ -235,7 +234,7 @@ def test_pending_stems_hides_approved_by_default() -> None:
 
     pending = pending_stems(stems, approved={"b"}, show_all=False)
 
-    assert pending == ["a", "c"]  # order preserved, b dropped
+    assert pending == ["a", "c"]
 
 
 def test_pending_stems_show_all_keeps_everything() -> None:
@@ -300,11 +299,11 @@ def test_render_page_shows_one_active_slide_and_a_progress_counter() -> None:
     # is active on load, and a counter tracks position within the total.
     html = render_page([("a", _BROKE), ("b", _FOUND), ("c", _BROKE)])
 
-    assert html.count('<section class="slide') == 3  # one slide per link
-    assert html.count('class="slide active"') == 1  # exactly one is shown
-    assert 'class="slide active" data-slide="0"' in html  # and it is the first
-    assert '<span id="pos">1</span>' in html  # starting position
-    assert '<span id="total">3</span>' in html  # of the total
+    assert html.count('<section class="slide') == 3
+    assert html.count('class="slide active"') == 1
+    assert 'class="slide active" data-slide="0"' in html
+    assert '<span id="pos">1</span>' in html
+    assert '<span id="total">3</span>' in html
 
 
 def test_render_page_mounts_the_puzzle_lazily_not_eagerly() -> None:
@@ -327,7 +326,7 @@ def test_render_page_found_slide_carries_the_solution_iframe() -> None:
 def test_render_page_broke_slide_shows_no_solution_pane() -> None:
     html = render_page([("broke-xv-4x4", _BROKE)])
 
-    assert "no solution — broke case" in html  # the right pane says so
+    assert "no solution — broke case" in html
     # the puzzle is still there to judge, but there is no solution to mount
     assert 'data-src="https://sudokumaker.app/?puzzle=BROKE"' in html
     assert "puzzle=SOLUTION" not in html

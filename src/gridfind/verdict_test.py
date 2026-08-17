@@ -1110,7 +1110,7 @@ def test_schrodinger_with_values_more_than_twice_size_is_broke() -> None:
     # Over 2*size digits can't fit even every cell doubled up — a genuine
     # infeasibility, not a special refusal.
     puzzle = Puzzle(
-        board=Board(size=4, values=range(10)),  # 10 values, 2*size == 8
+        board=Board(size=4, values=range(10)),
         constraints=(Constraint(type="schrodinger"), Constraint(type="rows-distinct")),
     )
 

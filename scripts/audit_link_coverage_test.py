@@ -46,9 +46,9 @@ def test_link_features_skips_disabled() -> None:
 
 def test_find_holes_flags_missing_side() -> None:
     coverage = {
-        "thermo": {"found": 2, "broke": 1},  # covered both sides
-        "white-kropki": {"found": 1, "broke": 0},  # no broke
-        "cage:unnamed": {"found": 0, "broke": 0},  # neither
+        "thermo": {"found": 2, "broke": 1},
+        "white-kropki": {"found": 1, "broke": 0},
+        "cage:unnamed": {"found": 0, "broke": 0},
     }
     holes = find_holes(coverage)
     assert not any("thermo" in h for h in holes)

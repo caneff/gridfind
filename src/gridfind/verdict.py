@@ -130,8 +130,7 @@ class Enumeration:
     iff their full per-cell assignment differs — ADR-0015). `exhaustive` is
     True only when phase 2 proved it saw every completion, so it went unstopped
     by the `limit`. There is deliberately no singular `.witness` accessor: an
-    exact-count question must not degrade into "give me one and drop the rest"
-    (decisions #382, #385)."""
+    exact-count question must not degrade into "give me one and drop the rest"."""
 
     kind: VerdictKind
     witnesses: tuple[Witness, ...] = ()

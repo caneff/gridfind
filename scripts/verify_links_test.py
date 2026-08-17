@@ -297,7 +297,6 @@ def test_emit_solution_link_stamps_the_board_size() -> None:
     assert puzzle.board.size == size
 
 
-# A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major.
 _REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
 
 

@@ -72,11 +72,6 @@ class DecodedType:
     name: str
 
 
-# The one table wire-type -> (handler, live-data payload keys, display name):
-# `link_to_puzzle` dispatches through it, `dropped.warn_on_dropped_constraints`
-# treats its keys as the already-modeled ruleset, and `dropped.has_live_data`
-# reads its `live_keys` — adding a link type is one row here, not three
-# hand-synced call sites.
 DECODER_REGISTRY: dict[int, DecodedType] = {
     0: DecodedType(handler=None, live_keys=(), name="givens"),
     1: DecodedType(handler=regions_constraints, live_keys=(), name="regions"),

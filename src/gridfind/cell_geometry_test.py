@@ -84,7 +84,6 @@ def test_row_col_to_index_and_index_to_row_col_round_trip(
 def test_step_returns_the_target_cell_in_space() -> None:
     geometry = cell_geometry(Board(size=9))
 
-    # A knight's hop: down 2, right 1.
     assert geometry.step("R1C1", 2, 1) == "R3C2"
 
 
