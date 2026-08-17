@@ -55,9 +55,9 @@ class PairRelation:
 
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object) — cells is the one
-            # key every pair relation shares; the rest is the emitter's own.
-            addresses = cast("list[str]", clue.params["cells"])
+            # cells is the one key every pair relation shares; the rest is
+            # the emitter's own.
+            addresses = engine.cell_addresses(clue)
             if len(addresses) != 2:
                 msg = (
                     f"{self.name!r} names a pair — expected 2 cells, "

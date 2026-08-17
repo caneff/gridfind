@@ -32,7 +32,6 @@ threshold, even though it falls outside the board's own digit range.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
 from gridfind.cell_geometry import BoardShape
 from gridfind.engine import Engine, MalformedPuzzleError
@@ -61,8 +60,7 @@ class EqualityCage:
 
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object), narrowed by cast.
-            addresses = cast("list[str]", clue.params["cells"])
+            addresses = engine.cell_addresses(clue)
             self._emit_clue(engine, addresses)
 
     def _emit_clue(self, engine: Engine, addresses: list[str]) -> None:

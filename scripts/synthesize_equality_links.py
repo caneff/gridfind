@@ -26,7 +26,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from gridfind.layers.regions import box_regions, to_region_numbers
+from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import encode_link
 from gridfind.sudokumaker.addresses import cell_index
 
@@ -43,7 +43,7 @@ def _link(*, cage_cols: tuple[int, ...], givens: tuple[tuple[int, int], ...]) ->
     cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
     for col, value in givens:
         cells[cell_index(1, col, _SIZE)] = {"given": True, "value": value}
-    region_numbers = to_region_numbers(_SIZE, box_regions(_SIZE, 3, 3))
+    region_numbers = box_regions(_SIZE, 3, 3).to_labels(_SIZE)
     document = {
         "formatVersion": "1.5.0",
         "puzzle": {

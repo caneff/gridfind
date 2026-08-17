@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import urllib.parse
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 
 from lzstring import LZString
 
@@ -117,7 +117,7 @@ def schrodinger_domain(puzzle_data: dict[str, object], size: int) -> range:
 # `bucket_constraints_by_type`'s return, and what `enabled_blocks` indexes
 # into by type. `Any` in the element type keeps the decoded-JSON boundary,
 # as elsewhere in this module.
-ConstraintBuckets = dict[int, list[dict[Any, Any]]]
+ConstraintBuckets = dict[int, list[dict[str, Any]]]
 
 
 def bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuckets:
@@ -134,16 +134,17 @@ def bucket_constraints_by_type(puzzle_data: dict[str, object]) -> ConstraintBuck
     blocks = puzzle_data.get("constraints", [])
     if not isinstance(blocks, list):
         return buckets
-    for block in blocks:
-        if not isinstance(block, dict):
+    for raw_block in blocks:
+        if not isinstance(raw_block, dict):
             continue
+        block = cast("dict[str, Any]", raw_block)
         kind = block.get("type")
         if isinstance(kind, int) and not isinstance(kind, bool):
             buckets.setdefault(kind, []).append(block)
     return buckets
 
 
-def enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[Any, Any]]:
+def enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[str, Any]]:
     """Every enabled constraint block of one `type` from the pre-bucketed
     table (`bucket_constraints_by_type`), in wire order — the shared front
     the per-type decoders (XV, kropki, cage) and `_regions_matrix` all iterate

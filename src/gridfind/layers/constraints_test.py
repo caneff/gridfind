@@ -6,13 +6,18 @@ from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.door import UnknownLayerError
+from gridfind.layers.pair_difference import differs_by
+from gridfind.layers.pair_ratio import ratio_of
+from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.s_blind import SBlindLayerError
+from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board, Constraint
 
 BOARD = GridCells()
 ROWS_DISTINCT = DistinctOverGroups("rows-distinct", rows)
 COLS_DISTINCT = DistinctOverGroups("cols-distinct", cols)
 REGIONS_DISTINCT = DistinctOverGroups("regions-distinct", regions)
+PAIR_RELATIONS = {"pair-difference": differs_by, "pair-ratio": ratio_of}
 
 
 def test_bare_constraints_resolve_to_the_matching_layer_instances() -> None:
@@ -103,7 +108,11 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
 
     _, layers = build_stack(constraints, size=9)
 
-    assert len(layers) == 3
+    assert layers == [
+        BOARD,
+        PairRelation(pair_relation_type, relation=PAIR_RELATIONS[pair_relation_type]),
+        Schrodinger(),
+    ]
 
 
 def test_an_s_blind_layer_alone_is_unaffected() -> None:

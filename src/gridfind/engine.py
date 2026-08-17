@@ -134,6 +134,12 @@ class Engine:
         into."""
         return [c for c in self.constraints if c.type == kind]
 
+    def cell_addresses(self, clue: Constraint) -> list[str]:
+        """A clue's cell-address list — `params["cells"]`, the open JSON
+        boundary narrowed by cast. The one typed home for the cast every
+        cage, group-sum, and pair-relation layer would otherwise repeat."""
+        return cast("list[str]", clue.params["cells"])
+
     def add_cell(self, address: str, *, low: int, high: int, width: int = 1) -> Cell:
         content = [
             self.model.new_int_var(low, high, f"{address}.{i}") for i in range(width)

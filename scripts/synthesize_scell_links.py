@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from gridfind.layers.regions import box_regions, to_region_numbers
+from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import encode_link
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
@@ -73,7 +73,7 @@ def _base_document(
 ) -> dict[str, object]:
     """Wrap synthesized cells and S-cell marker cages into a SudokuMaker document."""
     size = box_h * box_w
-    region_numbers = to_region_numbers(size, box_regions(size, box_h, box_w))
+    region_numbers = box_regions(size, box_h, box_w).to_labels(size)
     puzzle = {
         "cells": cells,
         "size": size,
