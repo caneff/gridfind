@@ -33,7 +33,7 @@ from eval_links import (
     view_for,
 )
 
-from gridfind.sudokumaker import decode_document, encode_link
+from gridfind.sudokumaker import document_to_link, link_to_document
 from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE
 
 _WIRE_CONSTRAINTS = [{"type": 0}]
@@ -41,7 +41,7 @@ _WIRE_CONSTRAINTS = [{"type": 0}]
 
 def _encode(puzzle_data: dict[str, object]) -> str:
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle_data}
-    return encode_link(doc)
+    return document_to_link(doc)
 
 
 def test_eval_link_shows_witness_and_solution_for_a_found_case() -> None:
@@ -98,7 +98,7 @@ def test_eval_link_shows_the_puzzle_link_verbatim_and_colors_only_the_solution()
     assert view.puzzle_link == link
     # Solution pane: the discovered doubler colored red.
     assert view.solution_link is not None
-    document = decode_document(view.solution_link)
+    document = link_to_document(view.solution_link)
     puzzle_data = cast("dict[str, Any]", document["puzzle"])
     constraints = cast("list[dict[str, Any]]", puzzle_data["constraints"])
     doubler_block = next(c for c in constraints if c.get("name") == "Doubler")

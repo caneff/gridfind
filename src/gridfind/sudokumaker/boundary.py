@@ -1,6 +1,6 @@
 """The document boundary: lz-string decompress a SudokuMaker `?puzzle=` link
-to its JSON document (`decode_document`) and compress one back
-(`encode_link`), the size/domain fields every decode reads off that document
+to its JSON document (`link_to_document`) and compress one back
+(`document_to_link`), the size/domain fields every decode reads off that document
 (`board_size`, `digit_domain`, `schrodinger_domain`), the one-pass
 type bucketing (`bucket_constraints_by_type`) `decode_link` runs once per
 link, and the shared enabled-block walk (`enabled_blocks`) every per-type
@@ -21,13 +21,13 @@ from lzstring import LZString
 _CLASSIC_SIZE = 9
 
 
-def decode_document(link: str) -> dict[str, object]:
+def link_to_document(link: str) -> dict[str, object]:
     """A SudokuMaker `?puzzle=` link (or a bare payload) decompressed to its
     full `formatVersion 1.5.0` document — `formatVersion` plus its `puzzle`
-    block. The exact reverse of `encode_link`, and `decode_link`'s own first
-    step: strip the `?puzzle=` prefix, unquote, lz-string-decompress, parse
-    the JSON. `decode_link` keeps only the `puzzle` block; a re-encoder needs
-    the whole document to preserve every field the app renders."""
+    block. The exact reverse of `document_to_link`, and `decode_link`'s own
+    first step: strip the `?puzzle=` prefix, unquote, lz-string-decompress,
+    parse the JSON. `decode_link` keeps only the `puzzle` block; a re-encoder
+    needs the whole document to preserve every field the app renders."""
     payload = link.split("?puzzle=", 1)[-1]
     raw = LZString.decompressFromEncodedURIComponent(urllib.parse.unquote(payload))
     # Decoded JSON is an untyped external boundary — a local `Any` is deliberate
@@ -36,10 +36,10 @@ def decode_document(link: str) -> dict[str, object]:
     return document
 
 
-def encode_link(document: dict[str, object]) -> str:
+def document_to_link(document: dict[str, object]) -> str:
     """A decoded SudokuMaker document (the full `json.loads(raw)` object
     `decode_link` reads — `formatVersion` plus its `puzzle` block) mapped back
-    to an openable `sudokumaker.app` URL. The exact reverse of `decode_link`'s
+    to an openable `sudokumaker.app` URL. The exact reverse of `link_to_document`'s
     payload step: lz-string-compress the document's JSON to an
     encoded URI component, then prepend the `?puzzle=` prefix `decode_link`
     strips. `document` rides through untouched, so its `size`/`type`-bearing

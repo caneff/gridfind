@@ -31,7 +31,7 @@ from gridfind.sudokumaker import (
     colorize_marker_cages,
     cosmetic_cage_kind,
     decode_link,
-    encode_link,
+    document_to_link,
 )
 from gridfind.sudokumaker.conftest import (
     EMPTY_CELLS,
@@ -908,7 +908,7 @@ def test_colorizing_an_emitted_link_does_not_change_its_decode() -> None:
         s_cell_cages=[{"value": "2,7", "cells": [0]}],
         doubler_cages=[{"cells": [1]}],
     )
-    plain_link = encode_link(document)
-    colored_link = encode_link(colorize_marker_cages(document))
+    plain_link = document_to_link(document)
+    colored_link = document_to_link(colorize_marker_cages(document))
 
     assert decode_link(colored_link) == decode_link(plain_link)

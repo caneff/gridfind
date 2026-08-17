@@ -4,7 +4,7 @@ A dev tool, on demand only (`just verify-links`) — the human oracle spec
 #244/ADR-0007 asks for: over every case file under `links/`, decode and
 verdict the link exactly as `links_test.py` does. A `found` link's witness
 digits are written into the link's own decoded document as givens and
-re-encoded via `encode_link`, so the printed link opens in the app with the
+re-encoded via `document_to_link`, so the printed link opens in the app with the
 answer already filled in — reusing the original document keeps the fields
 (`size`, `type`) the app needs to render the real puzzle. A `broke` link
 prints `broke` and no URL, since there is no witness to show.
@@ -23,9 +23,9 @@ from gridfind.cell_geometry import format_address
 from gridfind.sudokumaker import (
     colorize_marker_cages,
     cosmetic_cage_kind,
-    decode_document,
     decode_link,
-    encode_link,
+    document_to_link,
+    link_to_document,
     write_cell,
 )
 from gridfind.verdict import verdict
@@ -166,10 +166,10 @@ def emit_solution_link(link: str, witness: Witness, size: int) -> str:
     The board `size` is stamped explicitly so the link opens at the right
     dimensions even when the source omitted it — SudokuMaker reads a sizeless
     link as its 9x9 default (§4b, ADR-0011)."""
-    document = decode_document(link)
+    document = link_to_document(link)
     filled = fill_witness(document, witness, size)
     cast("dict[str, object]", filled["puzzle"])["size"] = size
-    return encode_link(colorize_marker_cages(filled))
+    return document_to_link(colorize_marker_cages(filled))
 
 
 def main() -> int:

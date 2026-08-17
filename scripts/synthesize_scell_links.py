@@ -2,7 +2,7 @@
 
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
-through `sudokumaker.encode_link`, so a reviewer can read exactly what marking
+through `sudokumaker.document_to_link`, so a reviewer can read exactly what marking
 case a fixture exercises and regenerate the whole set with `main()`.
 
 Every S-cell link declares its variant through a named `type 2001` marker cage
@@ -24,7 +24,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from gridfind.layers.regions import box_regions
-from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker import document_to_link
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
@@ -178,7 +178,7 @@ class _SchrodingerGrid:
         return self
 
     def link(self) -> str:
-        return encode_link(
+        return document_to_link(
             _base_document(
                 self.box_h, self.box_w, scell_cages=self.cages, cells=self.cells
             )
@@ -310,7 +310,7 @@ def _doubler_document(
 def found_doubler_4x4() -> str:
     """4x4 doubler, `found` — cage `{8, 12}` sums to 9 only because cell 12's
     digit counts double (`1 + 2·4`); without the doubler the cage is unsat."""
-    return encode_link(
+    return document_to_link(
         _doubler_document(
             sum_cages=[
                 {"value": "9", "cells": [8, 12]},
@@ -329,7 +329,7 @@ def found_doubled_scell_17cage_4x4() -> str:
     its two row partners, over the `0…4` domain the empty S-cell block widens
     to. Both channels must fire — the doubler alone caps two cells at
     `2·4 + 4 = 12`, the S-cell alone caps three digits at `4 + 3 + 2 = 9`."""
-    return encode_link(
+    return document_to_link(
         _doubler_document(
             sum_cages=[{"value": "17", "cells": [1, 2, 3]}],
             givens={},
@@ -342,7 +342,7 @@ def found_doubled_scell_17cage_4x4() -> str:
 def broke_doubler_4x4() -> str:
     """4x4 doubler, `broke` — the doubled cells over-constrain the sum cages past
     any completion."""
-    return encode_link(
+    return document_to_link(
         _doubler_document(
             sum_cages=[{"value": "9", "cells": [8, 12]}, {"value": "2", "cells": [11]}],
             givens={8: 1},
@@ -372,7 +372,7 @@ def found_cosmetic_cage_4x4() -> str:
         },
     ]
     puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
 
 
 def broke_cosmetic_cage_sumless_4x4() -> str:
@@ -397,7 +397,7 @@ def broke_cosmetic_cage_sumless_4x4() -> str:
         },
     ]
     puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
 
 
 def found_cosmetic_cage_unrecognized_4x4() -> str:
@@ -425,7 +425,7 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
         },
     ]
     puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return encode_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
 
 
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The

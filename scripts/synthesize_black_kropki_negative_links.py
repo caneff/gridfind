@@ -2,7 +2,7 @@
 
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
-through `sudokumaker.encode_link`, so a reviewer can read exactly what each
+through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
 fixture exercises and regenerate the whole set with `main()`.
 
 Mirrors `synthesize_kropki_negative_links.py`'s white-kropki fixtures, one
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.layers.regions import box_regions
-from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import KROPKI_BLACK_TYPE
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
@@ -61,7 +61,7 @@ def _link(*, r3c4: int) -> str:
         "formatVersion": "1.5.0",
         "puzzle": {"cells": cells, "size": size, "constraints": constraints},
     }
-    return encode_link(document)
+    return document_to_link(document)
 
 
 def found_black_kropki_negative_4x4() -> str:

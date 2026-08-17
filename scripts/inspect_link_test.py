@@ -22,7 +22,7 @@ from inspect_link import (
     main,
 )
 
-from gridfind.sudokumaker import decode_document
+from gridfind.sudokumaker import link_to_document
 
 _LINKS_DIR = Path(__file__).parent.parent / "src" / "gridfind" / "links"
 _LINK_CASES = sorted(_LINKS_DIR.rglob("*.txt"))
@@ -182,13 +182,13 @@ def test_main_reports_a_bad_link_error_on_stderr_and_still_exits_zero() -> None:
     assert "error: " in err.getvalue()
 
 
-def test_decode_payload_matches_decode_document() -> None:
-    """`decode_payload` and `decode_document` read the same boundary — the
+def test_decode_payload_matches_link_to_document() -> None:
+    """`decode_payload` and `link_to_document` read the same boundary — the
     corpus's `puzzle` block must agree byte-for-byte, whichever one decoded
     it."""
     for path in _LINK_CASES:
         link = path.read_text().split()[-1]
-        assert decode_payload(link) == decode_document(link)["puzzle"], path.stem
+        assert decode_payload(link) == link_to_document(link)["puzzle"], path.stem
 
 
 # Golden report lines for every corpus link that `decode_link` accepts,

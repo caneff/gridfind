@@ -1,6 +1,6 @@
 """`boundary`: the link's outer envelope and its size/domain derivation.
 
-`decode_document`/`encode_link` are the compress/decompress door; `board_size`,
+`link_to_document`/`document_to_link` are the compress/decompress door; `board_size`,
 `digit_domain`, and `schrodinger_domain` read the grid's shape and digit range
 off the raw puzzle block. These are exercised through `decode_link` where a real
 link is the honest input, and directly where the helper's own edge cases (the
@@ -22,7 +22,7 @@ from gridfind.puzzle import (
     Puzzle,
     WorkingState,
 )
-from gridfind.sudokumaker import decode_document, decode_link, encode_link
+from gridfind.sudokumaker import decode_link, document_to_link, link_to_document
 from gridfind.sudokumaker.boundary import (
     bucket_constraints_by_type,
     enabled_blocks,
@@ -38,7 +38,7 @@ from gridfind.sudokumaker.conftest import (
 )
 
 
-def test_encode_link_round_trips_a_classic_document() -> None:
+def test_document_to_link_round_trips_a_classic_document() -> None:
     cells: list[dict[str, object]] = [{} for _ in range(81)]
     cells[0] = {"given": True, "value": 7}
     document: dict[str, object] = {
@@ -46,7 +46,7 @@ def test_encode_link_round_trips_a_classic_document() -> None:
         "puzzle": {"cells": cells, "constraints": WIRE_CONSTRAINTS},
     }
 
-    url = encode_link(document)
+    url = document_to_link(document)
 
     # Exact reverse of decode_link's payload step: the emitted link's own
     # payload decompresses back to the identical document it was given.
@@ -64,11 +64,12 @@ def test_encode_link_round_trips_a_classic_document() -> None:
     assert state == WorkingState()
 
 
-def test_decode_document_is_the_inverse_of_encode_link() -> None:
-    # decode_document returns the whole document — formatVersion plus the
-    # puzzle block — so a document survives encode_link then decode_document
-    # unchanged. decode_link keeps only the puzzle block; this is the seam a
-    # re-encoder needs to preserve every field the app renders.
+def test_link_to_document_is_the_inverse_of_document_to_link() -> None:
+    # link_to_document returns the whole document — formatVersion plus the
+    # puzzle block — so a document survives document_to_link then
+    # link_to_document unchanged. decode_link keeps only the puzzle block;
+    # this is the seam a re-encoder needs to preserve every field the app
+    # renders.
     cells: list[dict[str, object]] = [{} for _ in range(81)]
     cells[0] = {"given": True, "value": 7}
     document: dict[str, object] = {
@@ -76,7 +77,7 @@ def test_decode_document_is_the_inverse_of_encode_link() -> None:
         "puzzle": {"cells": cells, "constraints": WIRE_CONSTRAINTS},
     }
 
-    assert decode_document(encode_link(document)) == document
+    assert link_to_document(document_to_link(document)) == document
 
 
 @pytest.mark.parametrize(

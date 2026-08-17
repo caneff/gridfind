@@ -2,7 +2,7 @@
 
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
-through `sudokumaker.encode_link`, so a reviewer can read exactly what each
+through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
 fixture exercises and regenerate the whole set with `main()`.
 
 These fixtures cover the three global toggles gridfind reads off real
@@ -36,7 +36,7 @@ from gridfind.cell_geometry import row_col_to_index
 # home — so the corpus builds off the same numbers the decoder reads by,
 # never a second copy.
 from gridfind.layers.regions import box_regions
-from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
@@ -82,7 +82,7 @@ def _link(
         "formatVersion": "1.5.0",
         "puzzle": {"cells": cells, "size": size, "constraints": constraints},
     }
-    return encode_link(document)
+    return document_to_link(document)
 
 
 def found_anti_knight_4x4() -> str:

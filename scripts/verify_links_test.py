@@ -24,9 +24,9 @@ from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import Given, ModifierDirective, WorkingState
 from gridfind.s_directives import SCellPin, SingletonPin
 from gridfind.sudokumaker import (
-    decode_document,
     decode_link,
-    encode_link,
+    document_to_link,
+    link_to_document,
 )
 from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE
 from gridfind.witness import Witness
@@ -55,7 +55,7 @@ def _marker_block(name: str, index: int) -> dict[str, object]:
 
 def _encode(puzzle_data: dict[str, object]) -> str:
     doc = {"formatVersion": "1.5.0", "puzzle": puzzle_data}
-    return encode_link(doc)
+    return document_to_link(doc)
 
 
 def _grid(size: int) -> list[list[str]]:
@@ -85,7 +85,7 @@ def test_fill_witness_round_trips_singleton_digits(
 
     filled = fill_witness(document, witness, size)
 
-    url = encode_link(filled)
+    url = document_to_link(filled)
     puzzle, state = decode_link(url)
 
     assert state == WorkingState()
@@ -125,7 +125,7 @@ def test_fill_witness_round_trips_a_schrodinger_s_cell(
 
     filled = fill_witness(document, witness, size)
 
-    url = encode_link(filled)
+    url = document_to_link(filled)
     puzzle, state = decode_link(url)
 
     # Every non-S-cell address is a settled digit under a Schrödinger layer,
@@ -159,7 +159,7 @@ def test_fill_witness_marks_a_modifier_cell_as_a_doubler() -> None:
     document = _document(size, _marker_block("Doubler", modifier_index))
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(encode_link(filled))
+    _, state = decode_link(document_to_link(filled))
     assert state.modifier_directives == (
         ModifierDirective(modifier_address, is_modifier=True),
     )
@@ -182,7 +182,7 @@ def test_fill_witness_cages_a_discovered_s_cell() -> None:
 
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(encode_link(filled))
+    _, state = decode_link(document_to_link(filled))
     pinned = {pin.address for pin in state.s_directives if isinstance(pin, SCellPin)}
     assert {addresses[declared], addresses[discovered]} <= pinned
 
@@ -204,7 +204,7 @@ def test_fill_witness_folds_a_discovered_doubler_into_the_cage() -> None:
 
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(encode_link(filled))
+    _, state = decode_link(document_to_link(filled))
     assert set(state.modifier_directives) == {
         ModifierDirective(addresses[declared], is_modifier=True),
         ModifierDirective(addresses[discovered], is_modifier=True),
@@ -229,7 +229,7 @@ def test_fill_witness_folds_a_discovered_constant_into_the_cage() -> None:
 
     filled = fill_witness(document, witness, size)
 
-    _, state = decode_link(encode_link(filled))
+    _, state = decode_link(document_to_link(filled))
     assert set(state.modifier_directives) == {
         ModifierDirective(addresses[declared], is_modifier=True),
         ModifierDirective(addresses[discovered], is_modifier=True),
@@ -337,7 +337,7 @@ def test_emit_solution_link_colors_the_doubler_marker_cage() -> None:
     # reviewer expects to see, with the ordinary killer cage untouched.
     solution_link = verify_link([_doubler_cage_link(doubler=True)])
 
-    document = decode_document(solution_link)
+    document = link_to_document(solution_link)
     puzzle_data = cast("dict[str, Any]", document["puzzle"])
     constraints = cast("list[dict[str, Any]]", puzzle_data["constraints"])
     doubler_block = next(c for c in constraints if c.get("name") == "Doubler")

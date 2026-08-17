@@ -2,7 +2,7 @@
 
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
-through `sudokumaker.encode_link`, so a reviewer can read exactly what a
+through `sudokumaker.document_to_link`, so a reviewer can read exactly what a
 fixture exercises and regenerate the whole set with `main()`.
 
 A `type 2001` cosmetic cage named `Rellik` graduates to a no-repeats `cage`
@@ -20,7 +20,7 @@ from pathlib import Path
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.layers.regions import box_regions
-from gridfind.sudokumaker import encode_link
+from gridfind.sudokumaker import document_to_link
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
@@ -79,7 +79,7 @@ def found_rellik_4x4() -> str:
     Rellik cage forbidding total 3. Otherwise blank, so the solver is free to
     complete them any distinct pair but {1, 2} — e.g. {1, 4} — while the rest
     of the grid fills in around them."""
-    return encode_link(
+    return document_to_link(
         _document(givens={}, cage_cells=[(1, 1), (2, 3)], target=_FORBIDDEN_TOTAL)
     )
 
@@ -88,7 +88,7 @@ def broke_rellik_4x4() -> str:
     """4x4, `broke` — R1C1=1, R1C2=2 are settled givens under a Rellik cage
     over the same two cells forbidding total 3. The pair's sum is forced to
     exactly the forbidden total, so no completion exists."""
-    return encode_link(
+    return document_to_link(
         _document(
             givens={(1, 1): 1, (1, 2): 2},
             cage_cells=[(1, 1), (1, 2)],
