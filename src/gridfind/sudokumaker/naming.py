@@ -1,13 +1,14 @@
 """The name -> shape registry (ADR-0012): the one table
 gridfind consults when a component's declared name selects a rule. A
-`cage-selector` name (`Sum`, `Killer`) picks the killer-cage rule; a
-`cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`) declares a cage's cells
-a position marker instead; a `global-flag` name (`Somedoku`)
-needs no payload at all — its cells and value, if the carrier even has them,
-are ignored, and presence of the name alone selects its rule. The two
-cell-needing shapes fail carrier-fitness on a name-bearing carrier that has
-none — a `type 1000` custom constraint's `definition.name`, unlike a `type
-2001` cosmetic cage's top-level `name` — (`shape_needs_cells`);
+`cage-selector` name (`Sum`, `Killer`, `Rellik`/`Anti`) picks a cage rule —
+`Sum`/`Killer` the killer-cage rule, `Rellik`/`Anti` the anti-cage subset-sum
+ban (spec #427); a `cell-marker` name (`Doubler`, `S-cell`/`Schrödinger`)
+declares a cage's cells a position marker instead; a `global-flag` name
+(`Somedoku`) needs no payload at all — its cells and value, if the carrier
+even has them, are ignored, and presence of the name alone selects its rule.
+The two cell-needing shapes fail carrier-fitness on a name-bearing carrier
+that has none — a `type 1000` custom constraint's `definition.name`, unlike a
+`type 2001` cosmetic cage's top-level `name` — (`shape_needs_cells`);
 `sudokumaker.registry` reads that to warn-drop a cage-shaped name stranded on
 the wrong carrier. A `global-flag` name needs nothing, so it is admitted on
 both carriers alike.
@@ -54,7 +55,7 @@ class _NamedComponent:
     <N>`/`Nullifier`) — `None` for every other role, which needs no payload
     of its own."""
 
-    role: Literal["killer", "doubler", "s-cell", "constant", "somedoku"]
+    role: Literal["killer", "doubler", "s-cell", "constant", "somedoku", "rellik"]
     shape: _Shape
     value: int | None = None
 
@@ -62,14 +63,19 @@ class _NamedComponent:
 # The normalized-name -> component table (case-insensitive, trimmed — see
 # `_normalize_component_name`). `Sum`/`Killer` share the `"killer"` role: both
 # select the plain killer-cage rule, the name itself discarded once
-# recognized. `S-cell`/`Schrödinger`/`Schrodinger` share `"s-cell"`: the umlaut
-# spelling and its ASCII fold are the same marker. `Nullifier` is the static
-# `k = 0` spelling of `"constant"`; `Constant <N>` at any other `k` is not a
-# static key here — see `_parsed_constant_component`. `Somedoku` is the sole
-# `global-flag` name: its own role, needing no payload.
+# recognized. `Rellik`/`Anti` share the `"rellik"` role: both select the
+# anti-cage subset-sum ban, the cage's numeric value read as the forbidden
+# total exactly as a killer cage's value is read as its sum. `S-cell`/
+# `Schrödinger`/`Schrodinger` share `"s-cell"`: the umlaut spelling and its
+# ASCII fold are the same marker. `Nullifier` is the static `k = 0` spelling
+# of `"constant"`; `Constant <N>` at any other `k` is not a static key here —
+# see `_parsed_constant_component`. `Somedoku` is the sole `global-flag`
+# name: its own role, needing no payload.
 _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "sum": _NamedComponent(role="killer", shape="cage-selector"),
     "killer": _NamedComponent(role="killer", shape="cage-selector"),
+    "rellik": _NamedComponent(role="rellik", shape="cage-selector"),
+    "anti": _NamedComponent(role="rellik", shape="cage-selector"),
     "doubler": _NamedComponent(role="doubler", shape="cell-marker"),
     "s-cell": _NamedComponent(role="s-cell", shape="cell-marker"),
     "schrödinger": _NamedComponent(role="s-cell", shape="cell-marker"),

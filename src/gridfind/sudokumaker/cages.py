@@ -72,12 +72,15 @@ def cage_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
     return decoded
 
 
-def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
-    """The killer sum a `type 2001` cosmetic cage graduates to (ADR-0008),
-    or `None` when its `value` label is non-numeric/empty and the cage carries
-    no sum. `None` governs only the `group-sum`: a sumless cosmetic cage still
-    emits its no-repeats `cage`, so this is not a liveness gate — every
-    non-disabled cage with cells is a rule."""
+def _cosmetic_cage_numeric_value(cage: dict[Any, Any]) -> int | None:
+    """The integer a `type 2001` cosmetic cage's `value` label carries, or
+    `None` when it's non-numeric/empty — the killer sum a `Sum`/`Killer`
+    cage graduates to (ADR-0008), or the forbidden total a `Rellik`/`Anti`
+    cage graduates to (spec #427), read by the same string-to-int parse
+    either way. `None` governs only the second constraint (`group-sum` or
+    `rellik-cage`): a valueless cosmetic cage still emits its no-repeats
+    `cage`, so this is not a liveness gate — every non-disabled cage with
+    cells is a rule."""
     value = cage.get("value")
     if not isinstance(value, str) or not value.strip():
         return None
@@ -85,6 +88,34 @@ def _cosmetic_cage_killer_sum(cage: dict[Any, Any]) -> int | None:
         return int(value)
     except ValueError:
         return None
+
+
+def _rellik_cage(addresses: list[str], target: int | None) -> list[Constraint]:
+    """A rellik (anti-) cage over `addresses`: always a no-repeats `cage`,
+    plus a `rellik-cage` carrying `target` as the forbidden total when a
+    target is present (mirroring `_killer_cage`'s optional total). A zero or
+    `None` target is no target — the cage stands alone."""
+    decoded = [Constraint("cage", params={"cells": addresses})]
+    if target:
+        decoded.append(
+            Constraint("rellik-cage", params={"cells": addresses, "sum": target})
+        )
+    return decoded
+
+
+def _rellik_cages(
+    cages: list[dict[str, Any]],
+    size: int,
+    sum_of: Callable[[dict[str, Any]], int | None],
+) -> list[Constraint]:
+    """Walk `cages`' raw `cells` indices to addresses and decode each to a
+    rellik cage (`_rellik_cage`) — the same walk `_killer_cages` shares,
+    differing only in which constraint the total attaches to."""
+    decoded: list[Constraint] = []
+    for cage in cages:
+        cage_addresses = addresses(cage["cells"], size)
+        decoded.extend(_rellik_cage(cage_addresses, sum_of(cage)))
+    return decoded
 
 
 @dataclass(frozen=True)
@@ -187,13 +218,17 @@ def cosmetic_cage_constraints(
     buckets: ConstraintBuckets, size: int
 ) -> _CosmeticCageDecode:
     """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
-    (`cosmetic_cage_kind`, ADR-0012, extended by ADR-0016): a `Sum`/`Killer`-
-    labelled block graduates to killer-cage `Constraint`s (ADR-0008) — cells
-    and value nest under `cages`, the same wire shape as a `type 301` block,
-    each cage's raw `cells` indices mapping row-major to addresses, every
-    non-disabled cage emitting a no-repeats `cage` plus a `group-sum` when its
-    numeric non-zero string `value` carries a total (ADR-0009). A
-    `Doubler`/`Constant <N>`/`Nullifier`-marked block instead emits one
+    (`cosmetic_cage_kind`, ADR-0012, extended by ADR-0016 and spec #427): a
+    `Sum`/`Killer`-labelled block graduates to killer-cage `Constraint`s
+    (ADR-0008) — cells and value nest under `cages`, the same wire shape as a
+    `type 301` block, each cage's raw `cells` indices mapping row-major to
+    addresses, every non-disabled cage emitting a no-repeats `cage` plus a
+    `group-sum` when its numeric non-zero string `value` carries a total
+    (ADR-0009). A `Rellik`/`Anti`-labelled block graduates the same walk to a
+    `cage` plus a `rellik-cage` instead, its `value` read as the forbidden
+    total rather than a target sum — the `cage` (no-repeats) stands alone
+    when the value is blank/non-numeric/zero, exactly as a sumless killer
+    cage does. A `Doubler`/`Constant <N>`/`Nullifier`-marked block instead emits one
     `ModifierDirective(is_modifier=True)` per cell it contains and **no**
     `cage`/`group-sum` — the block's `cages` still supply the cell list, just
     not a killer rule; the modifier's own `k` is read from the name
@@ -241,7 +276,11 @@ def cosmetic_cage_constraints(
                 modifier_declarations.append((kind, value))
             decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
             continue
-        constraints = _killer_cages(cages, size, _cosmetic_cage_killer_sum)
+        if kind == "rellik":
+            constraints = _rellik_cages(cages, size, _cosmetic_cage_numeric_value)
+            decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
+            continue
+        constraints = _killer_cages(cages, size, _cosmetic_cage_numeric_value)
         decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
     modifier_constraint = _resolve_modifier_constraint(modifier_declarations)
     return replace(

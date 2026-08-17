@@ -48,7 +48,10 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
 
     A `type 2001` cosmetic-cage block whose top-level `name` names a
     recognized real-cage label (`Sum`/`Killer`, case-insensitive and trimmed)
-    decodes as an ordinary killer cage with the name discarded. An unnamed
+    decodes as an ordinary killer cage with the name discarded. A block
+    labelled `Rellik`/`Anti` (spec #427) decodes the same walk to a
+    no-repeats `cage` plus a `rellik-cage` instead, its numeric `value`
+    supplying the forbidden total rather than a target sum. An unnamed
     block, or one whose name gridfind does not recognize, carries no rule: a
     non-empty one is dropped with a loud stderr warning naming the block
     (ADR-0012).
