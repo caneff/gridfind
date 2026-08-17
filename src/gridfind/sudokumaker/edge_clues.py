@@ -126,6 +126,24 @@ def _negative_space_constraints(
     return [build_negated_clue(value, a, b) for value in forbidden for a, b in eligible]
 
 
+def _negative_rule(
+    size: int, build_negated: Callable[[object, str, str], Constraint]
+) -> Callable[[dict[str, Any], set[frozenset[str]]], list[Constraint]]:
+    """A `negative_rule` closure for `_edge_clue_constraints`: reads the
+    block's `negative` list and, if non-empty, applies it through
+    `_negative_space_constraints` with `build_negated` as the relation
+    emitter. Shared by `kropki_constraints` and `black_kropki_constraints` so
+    the negative-list handling has one home."""
+
+    def rule(block: dict[str, Any], marked: set[frozenset[str]]) -> list[Constraint]:
+        negative = block.get("negative")
+        if not (isinstance(negative, list) and negative):
+            return []
+        return _negative_space_constraints(size, marked, negative, build_negated)
+
+    return rule
+
+
 def _edge_clue_constraints(
     buckets: ConstraintBuckets,
     size: int,
@@ -210,16 +228,13 @@ def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint
             "pair-difference", params={"cells": [a, b], "diff": value, "negate": True}
         )
 
-    def negative_rule(
-        block: dict[str, Any], marked: set[frozenset[str]]
-    ) -> list[Constraint]:
-        negative = block.get("negative")
-        if not (isinstance(negative, list) and negative):
-            return []
-        return _negative_space_constraints(size, marked, negative, build_negated)
-
     return _edge_clue_constraints(
-        buckets, size, KROPKI_WHITE_TYPE, build, "white-kropki", negative_rule
+        buckets,
+        size,
+        KROPKI_WHITE_TYPE,
+        build,
+        "white-kropki",
+        _negative_rule(size, build_negated),
     )
 
 
@@ -249,14 +264,11 @@ def black_kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Cons
             "pair-ratio", params={"cells": [a, b], "k": k, "negate": True}
         )
 
-    def negative_rule(
-        block: dict[str, Any], marked: set[frozenset[str]]
-    ) -> list[Constraint]:
-        negative = block.get("negative")
-        if not (isinstance(negative, list) and negative):
-            return []
-        return _negative_space_constraints(size, marked, negative, build_negated)
-
     return _edge_clue_constraints(
-        buckets, size, KROPKI_BLACK_TYPE, build, "black-kropki", negative_rule
+        buckets,
+        size,
+        KROPKI_BLACK_TYPE,
+        build,
+        "black-kropki",
+        _negative_rule(size, build_negated),
     )
