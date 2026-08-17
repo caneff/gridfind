@@ -61,8 +61,7 @@ class RellikCage:
 
     def emit(self, engine: Engine) -> None:
         for clue in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object), narrowed by cast.
-            addresses = cast("list[str]", clue.params["cells"])
+            addresses = engine.cell_addresses(clue)
             target = cast("int", clue.params["sum"])
             self._emit_clue(engine, addresses, target)
 
