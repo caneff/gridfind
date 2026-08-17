@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from gridfind.layers.regions import box_regions, to_region_numbers
+from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import encode_link
 from gridfind.sudokumaker.addresses import cell_index
 from gridfind.sudokumaker.wire_types import KROPKI_BLACK_TYPE
@@ -47,7 +47,7 @@ def _link(*, r3c4: int) -> str:
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
     for (row, col), value in givens.items():
         cells[cell_index(row, col, size)] = {"given": True, "value": value}
-    region_numbers = to_region_numbers(size, box_regions(size, 2, 2))
+    region_numbers = box_regions(size, 2, 2).to_labels(size)
     constraints: list[dict[str, object]] = [
         {"type": 0},
         {"type": 1, "regions": region_numbers},

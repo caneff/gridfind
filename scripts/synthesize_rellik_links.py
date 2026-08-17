@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from gridfind.layers.regions import box_regions, to_region_numbers
+from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import encode_link
 from gridfind.sudokumaker.addresses import cell_index
 
@@ -54,7 +54,7 @@ def _document(
     cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
     for (row, col), value in givens.items():
         cells[cell_index(row, col, _SIZE)] = {"given": True, "value": value}
-    region_numbers = to_region_numbers(_SIZE, box_regions(_SIZE, _BOX_H, _BOX_W))
+    region_numbers = box_regions(_SIZE, _BOX_H, _BOX_W).to_labels(_SIZE)
     constraints: list[dict[str, object]] = [
         {"type": 0},
         {"type": 1, "regions": region_numbers},

@@ -10,6 +10,7 @@ from gridfind.layers.distinct import (
     regions_from,
     rows,
 )
+from gridfind.layers.regions import RegionMap
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.puzzle import Board
 
@@ -74,7 +75,7 @@ def test_regions_from_cuts_the_grid_by_the_supplied_map() -> None:
     # A partition function built from a setter-supplied map, not the box
     # convention — a jigsaw region here spans two rows.
     grid = _grid(2)
-    supplied = [[(1, 1), (2, 2)], [(1, 2), (2, 1)]]
+    supplied = RegionMap([[(1, 1), (2, 2)], [(1, 2), (2, 1)]])
 
     groups = [sorted(g) for g in regions_from(supplied)(grid)]
 
