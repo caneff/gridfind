@@ -1,4 +1,4 @@
-"""The `pair-difference` relation: the second explicit-pair variant (decision 5), a
+"""The `pair-difference` relation: the second explicit-pair variant, a
 `PairRelation` relation-emitter.
 
 A pair-difference clue names two cells whose values must differ, in
@@ -44,8 +44,8 @@ def differs_by(
 ) -> Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None]:
     """The pair-difference relation-emitter: reads the clue's target `diff`
     and returns a `rel` closing over it. `rel` mints one fresh aux var `d`
-    per pair, self-named from the pair's own variable names since
-    `emit_over_pairs` carries no label: `d == |a - b|`, then pinned `d ==
+    per pair, self-named from the pair's own variable names since `rel`
+    carries no label of its own: `d == |a - b|`, then pinned `d ==
     target` — or, when `params["negate"]` is true, barred from it instead
     (`d != target`), absent/false otherwise."""
     target = cast("int", params["diff"])

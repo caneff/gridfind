@@ -94,12 +94,11 @@ from gridfind.sudokumaker.markers import (
     colorize_marker_cages,
     cosmetic_cage_kind,
 )
-from gridfind.sudokumaker.registry import DECODER_REGISTRY, DecodedType
+from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 __all__ = [
     "DECODER_REGISTRY",
     "CosmeticCageKind",
-    "DecodedType",
     "colorize_marker_cages",
     "constraint_name",
     "cosmetic_cage_kind",

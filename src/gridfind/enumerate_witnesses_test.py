@@ -6,7 +6,7 @@ from hypothesis import strategies as st
 
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.sudokumaker import decode_link
-from gridfind.verdict import Enumeration, enumerate_witnesses, verdict
+from gridfind.verdict import Enumeration, enumerate_witnesses
 from gridfind.witness import Witness, WitnessIdentity
 
 _LINKS_DIR = Path(__file__).parent / "links"
@@ -79,7 +79,6 @@ def test_unique_puzzle_returns_one_exhaustive_witness() -> None:
     assert result.kind == "found"
     assert len(result.witnesses) == 1
     assert result.exhaustive is True
-    assert result.reason is None
 
 
 def test_exactly_two_puzzle_returns_two_distinct_exhaustive_witnesses() -> None:
@@ -95,15 +94,13 @@ def test_exactly_two_puzzle_returns_two_distinct_exhaustive_witnesses() -> None:
     assert result.witnesses[0]["R1C1"] != result.witnesses[1]["R1C1"]
 
 
-def test_infeasible_puzzle_breaks_with_the_verdict_reason() -> None:
+def test_infeasible_puzzle_breaks_with_no_witnesses() -> None:
     puzzle = _over_large_region_puzzle()
 
     result = enumerate_witnesses(puzzle, limit=5)
 
     assert result.kind == "broke"
     assert result.witnesses == ()
-    assert result.reason == verdict(puzzle).reason
-    assert result.reason is not None
 
 
 def test_limit_zero_raises() -> None:

@@ -15,10 +15,10 @@ native `<` rather than a reified either-or or a hand-built truth table
 there is nothing a table would buy.
 
 The per-edge emission decomposes the path into consecutive pairs itself, then
-hands them to the shared `emit_over_pairs` walk `pair-difference` (via
-`PairRelation`) already uses — no new generic path-walk primitive, matching
-the spec's "build nothing generic now." A second line type (whisper, renban)
-can still lift a shared walk out later if one actually needs it.
+hands them to `emit_over_pairs` — no new generic path-walk primitive,
+matching the spec's "build nothing generic now." A second line type
+(whisper, renban) can still lift a shared walk out later if one actually
+needs it.
 
 The `slow` flag rides on every clue's params (decoded by `sudokumaker.py`)
 and picks the edge relation: `≤` when true, `<` otherwise.

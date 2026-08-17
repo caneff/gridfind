@@ -3,12 +3,12 @@ black-kropki (`type 201`) — which share one wire shape (`clues: [{value,
 edge}], negative: [...]`) and one decode walk (`_edge_clue_constraints`) built
 on the shared edge-to-cell-pair primitive `_edge_to_pair`.
 
-White-kropki's `negative` list is enforced through the negative-space
-mechanism (`_orthogonal_pairs`, `_negative_space_constraints`): every
-orthogonally-adjacent pair the block's clues didn't mark is forbidden each
-listed difference. XV and black-kropki still warn-and-drop their own
-`negative` list — the mechanism is relation-agnostic and built to take a
-second consumer, but only white-kropki opts in here.
+White-kropki's and black-kropki's `negative` lists are enforced through the
+negative-space mechanism (`_orthogonal_pairs`, `_negative_space_constraints`):
+every orthogonally-adjacent pair a block's clues didn't mark is forbidden
+each listed difference (white) or ratio (black). XV still warns-and-drops
+its own `negative` list — the mechanism is relation-agnostic and built to
+take further consumers, but only the two kropki colours opt in here.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import sys
 from collections.abc import Callable
 from typing import Any, cast
 
-from gridfind.cell_geometry import cell_address, cell_geometry
+from gridfind.cell_geometry import cell_geometry, format_address
 from gridfind.layers.door import ALIAS_REGISTRY
 from gridfind.puzzle import Board, Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, as_int, enabled_blocks
@@ -79,10 +79,10 @@ def _edge_to_pair(edge: int, size: int) -> tuple[str, str]:
     r0, offset = divmod(edge, block)
     if 1 <= offset <= size - 1 and 0 <= r0 <= size - 1:
         c0 = offset - 1
-        return cell_address(r0 + 1, c0 + 1), cell_address(r0 + 1, c0 + 2)
+        return format_address(r0 + 1, c0 + 1), format_address(r0 + 1, c0 + 2)
     if size <= offset <= block - 1 and 0 <= r0 <= size - 2:
         c0 = offset - size
-        return cell_address(r0 + 1, c0 + 1), cell_address(r0 + 2, c0 + 1)
+        return format_address(r0 + 1, c0 + 1), format_address(r0 + 2, c0 + 1)
     msg = (
         f"non-classic link: edge {edge!r} does not name a valid cell pair "
         f"on a {size}x{size} board"
@@ -124,6 +124,24 @@ def _negative_space_constraints(
         pair for pair in _orthogonal_pairs(size) if frozenset(pair) not in marked
     ]
     return [build_negated_clue(value, a, b) for value in forbidden for a, b in eligible]
+
+
+def _negative_rule(
+    size: int, build_negated: Callable[[object, str, str], Constraint]
+) -> Callable[[dict[str, Any], set[frozenset[str]]], list[Constraint]]:
+    """A `negative_rule` closure for `_edge_clue_constraints`: reads the
+    block's `negative` list and, if non-empty, applies it through
+    `_negative_space_constraints` with `build_negated` as the relation
+    emitter. Shared by `kropki_constraints` and `black_kropki_constraints` so
+    the negative-list handling has one home."""
+
+    def rule(block: dict[str, Any], marked: set[frozenset[str]]) -> list[Constraint]:
+        negative = block.get("negative")
+        if not (isinstance(negative, list) and negative):
+            return []
+        return _negative_space_constraints(size, marked, negative, build_negated)
+
+    return rule
 
 
 def _edge_clue_constraints(
@@ -210,16 +228,13 @@ def kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint
             "pair-difference", params={"cells": [a, b], "diff": value, "negate": True}
         )
 
-    def negative_rule(
-        block: dict[str, Any], marked: set[frozenset[str]]
-    ) -> list[Constraint]:
-        negative = block.get("negative")
-        if not (isinstance(negative, list) and negative):
-            return []
-        return _negative_space_constraints(size, marked, negative, build_negated)
-
     return _edge_clue_constraints(
-        buckets, size, KROPKI_WHITE_TYPE, build, "white-kropki", negative_rule
+        buckets,
+        size,
+        KROPKI_WHITE_TYPE,
+        build,
+        "white-kropki",
+        _negative_rule(size, build_negated),
     )
 
 
@@ -228,12 +243,32 @@ def black_kropki_constraints(buckets: ConstraintBuckets, size: int) -> list[Cons
     is the target integer ratio `k`, honored verbatim — a labelled non-2 dot
     is never coerced to 2. `value` must be an int (`as_int`); a non-integer
     ratio raises `ValueError` at decode rather than modeling a wrong verdict.
-    See `_edge_clue_constraints` for the walk."""
+    See `_edge_clue_constraints` for the walk.
+
+    A non-empty `negative` list is enforced, not dropped: each of its values
+    is a forbidden ratio, applied through the negative-space mechanism
+    (`_negative_space_constraints`) over every orthogonally-adjacent pair the
+    block's own clues didn't mark — `ratio_of`'s negated mode (`pair-ratio`
+    with `negate: true`), the same relation-emitter the positive clues above
+    use. The wire's own `overrideNegativeRatios` boolean is a known-inert
+    field (never exposed in SudokuMaker, carries no puzzle meaning) and is
+    never read here."""
 
     def build(value: object, a: str, b: str) -> Constraint:
         k = as_int(value, "black-kropki value")
         return Constraint("pair-ratio", params={"cells": [a, b], "k": k})
 
+    def build_negated(value: object, a: str, b: str) -> Constraint:
+        k = as_int(value, "black-kropki negative value")
+        return Constraint(
+            "pair-ratio", params={"cells": [a, b], "k": k, "negate": True}
+        )
+
     return _edge_clue_constraints(
-        buckets, size, KROPKI_BLACK_TYPE, build, "black-kropki"
+        buckets,
+        size,
+        KROPKI_BLACK_TYPE,
+        build,
+        "black-kropki",
+        _negative_rule(size, build_negated),
     )

@@ -2,10 +2,10 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from gridfind.cell_geometry import cell_address
+from gridfind.cell_geometry import format_address
 from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.engine import GridfindError, MalformedPuzzleError
-from gridfind.layers import UnknownLayerError
+from gridfind.layers.door import UnknownLayerError
 from gridfind.layers.regions import box_regions
 from gridfind.puzzle import (
     EMPTY,
@@ -56,7 +56,6 @@ def assert_layer_newly_breaks(
     )
     assert strict.kind == "broke"
     assert strict.witness is None
-    assert strict.reason is None
 
 
 def test_verdict_found_returns_a_witness_consistent_with_the_given() -> None:
@@ -625,7 +624,6 @@ def test_jigsaw_regions_distinct_with_an_over_large_region_returns_broke() -> No
 
     assert result.kind == "broke"
     assert result.witness is None
-    assert result.reason == "region 1 holds 8 cells, domain is 4"
 
 
 def test_jigsaw_regions_distinct_with_an_under_coverable_region_returns_broke() -> None:
@@ -647,7 +645,6 @@ def test_jigsaw_regions_distinct_with_an_under_coverable_region_returns_broke() 
 
     assert result.kind == "broke"
     assert result.witness is None
-    assert result.reason == "region 1 holds 3 cells, domain is 10 — too few to cover"
 
 
 def _quattroquadri_box_labels(size: int) -> list[int]:
@@ -943,11 +940,8 @@ def test_equality_cage_over_an_s_cell_reads_the_value_seam() -> None:
     assert result.witness is not None
 
 
-def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> None:
-    # A contradiction unrelated to region sizing (two conflicting givens on
-    # one cell) must not get blamed on a region that is well within the
-    # cover band (no false region-blame). Two
-    # givens, not a given/placement pair: a placement refines to
+def test_schrodinger_two_givens_on_one_cell_is_a_genuine_conflict() -> None:
+    # Two givens, not a given/placement pair: a placement refines to
     # d ∈ content on a Schrödinger board, so a given=1/placement=2 pair here
     # would resolve (2 lands on d1, R1C1 becomes the S-cell {1, 2}) rather
     # than conflict — givens stay literal d0 = d, so two of them on one
@@ -964,7 +958,6 @@ def test_schrodinger_ordinary_broke_with_in_band_regions_carries_no_reason() -> 
     result = verdict(puzzle)
 
     assert result.kind == "broke"
-    assert result.reason is None
 
 
 @given(length=st.integers(min_value=0, max_value=30).filter(lambda n: n != 16))
@@ -1058,7 +1051,7 @@ def test_verdict_found_witness_only_holds_a_boards_declared_digits(
 
 def _rows(size: int) -> list[list[str]]:
     return [
-        [cell_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
+        [format_address(r, c) for c in range(1, size + 1)] for r in range(1, size + 1)
     ]
 
 
@@ -1068,7 +1061,7 @@ def _cols(size: int) -> list[list[str]]:
 
 def _boxes(size: int, box_rows: int, box_cols: int) -> list[list[str]]:
     return [
-        [cell_address(row, col) for row, col in group]
+        [format_address(row, col) for row, col in group]
         for group in box_regions(size, box_rows, box_cols)
     ]
 

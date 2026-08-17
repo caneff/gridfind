@@ -8,7 +8,7 @@ runs. `apply` is the one entry point.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Protocol
+from typing import Protocol, assert_never
 
 from ortools.sat.python import cp_model
 
@@ -19,6 +19,7 @@ from gridfind.s_directives import (
     BareSingleton,
     HalfSCell,
     SCellMarkRestriction,
+    SCellPin,
     SDirective,
     SingletonPin,
 )
@@ -163,12 +164,14 @@ def _apply_one_s_directive(
         allowed = [(digit,) for digit in sorted(directive.digits)]
         for slot in content:
             engine.model.add_allowed_assignments([slot], allowed)
-    else:
+    elif isinstance(directive, SCellPin):
         low, high = sorted(directive.pair)
         _require_in_domain(engine, address, (low, high))
         engine.model.add(content[0] == low)
         engine.model.add(content[1] == high)
         engine.model.add(is_s[address] == 1)
+    else:
+        assert_never(directive)
 
 
 def _apply_modifier_directives(

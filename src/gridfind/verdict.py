@@ -13,10 +13,9 @@ working states over one puzzle, so no build-once/race-many API is offered
 (ADR-0002).
 
 `verdict()` keeps only assemble-solve-classify: applying the
-working state onto the model is `gridfind.applier.apply`, and the broke-path
-diagnosis is `gridfind.layers.regions.reason`. `_build_and_solve` is the shared
-build-and-solve core: `verdict()` classifies its raw result directly, and
-`enumerate_witnesses()` reuses the same core for its
+working state onto the model is `gridfind.applier.apply`. `_build_and_solve`
+is the shared build-and-solve core: `verdict()` classifies its raw result
+directly, and `enumerate_witnesses()` reuses the same core for its
 phase 1, so the two functions cannot drift in how they assemble or apply the
 puzzle.
 """
@@ -31,14 +30,13 @@ from ortools.sat.python import cp_model
 from gridfind.applier import apply
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
-from gridfind.layers.regions import RegionMap, reason, region_map_for_constraints
+from gridfind.layers.regions import RegionMap, region_map_for_constraints
 from gridfind.puzzle import EMPTY, Constraint, Puzzle, WorkingState
 from gridfind.witness import Witness, WitnessIdentity
 
 VerdictKind = Literal["found", "broke", "unknown"]
 
 DEFAULT_TIME_LIMIT_S = 10.0
-DEFAULT_NUM_WORKERS = 8
 
 
 @dataclass(frozen=True)
@@ -56,7 +54,6 @@ def _build_and_solve(
     working_state: WorkingState,
     *,
     time_limit_s: float,
-    num_workers: int,
 ) -> _BuildSolveResult:
     """Build the puzzle, apply the working state, and race a broke-proof
     against a witness-find. Returns the raw engine/solver/status/constraints
@@ -73,7 +70,7 @@ def _build_and_solve(
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit_s
-    solver.parameters.num_workers = num_workers
+    solver.parameters.num_workers = 8
     status = solver.solve(engine.model)
 
     return _BuildSolveResult(
@@ -83,17 +80,8 @@ def _build_and_solve(
 
 @dataclass(frozen=True)
 class Verdict:
-    """`reason` is the broke witness's one explanation: set when a region in the
-    resolved partition falls outside the
-    cover feasibility band — outgrows the digit domain (`cells > domain`) or
-    is too small to cover it even with Schrodinger S-cells (`domain >
-    2*cells`) — either a fact that alone proves no completion exists. `None`
-    on every other broke (an ordinary contradiction has no region to blame)
-    and on found/unknown alike."""
-
     kind: VerdictKind
     witness: Witness | None = None
-    reason: str | None = None
 
 
 def _witness_from(
@@ -117,18 +105,15 @@ def verdict(
     working_state: WorkingState = EMPTY,
     *,
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
-    num_workers: int = DEFAULT_NUM_WORKERS,
 ) -> Verdict:
-    solved = _build_and_solve(
-        puzzle, working_state, time_limit_s=time_limit_s, num_workers=num_workers
-    )
+    solved = _build_and_solve(puzzle, working_state, time_limit_s=time_limit_s)
 
     if solved.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
         witness = _witness_from(solved.engine, solved.solver, region_map)
         return Verdict(kind="found", witness=witness)
     if solved.status == cp_model.INFEASIBLE:
-        return Verdict(kind="broke", reason=reason(puzzle))
+        return Verdict(kind="broke")
     return Verdict(kind="unknown")
 
 
@@ -139,15 +124,13 @@ class Enumeration:
     `witnesses` are pairwise distinct on their identity (two completions differ
     iff their full per-cell assignment differs — ADR-0015). `exhaustive` is
     True only when phase 2 proved it saw every completion, so it went unstopped
-    by the `limit`. `reason` carries the broke explanation `verdict()` gives,
-    None otherwise. There is deliberately no singular `.witness` accessor: an
+    by the `limit`. There is deliberately no singular `.witness` accessor: an
     exact-count question must not degrade into "give me one and drop the rest"
     (decisions #382, #385)."""
 
     kind: VerdictKind
     witnesses: tuple[Witness, ...] = ()
     exhaustive: bool = False
-    reason: str | None = None
 
 
 class _WitnessCollector(cp_model.CpSolverSolutionCallback):
@@ -190,7 +173,6 @@ def enumerate_witnesses(
     *,
     limit: int,
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
-    num_workers: int = DEFAULT_NUM_WORKERS,
 ) -> Enumeration:
     """Up to `limit` distinct completions of the puzzle. Phase 1 is the same
     portfolio solve `verdict()` runs; only a `found` phase 1 reaches phase 2,
@@ -201,11 +183,9 @@ def enumerate_witnesses(
         msg = f"limit must be positive, got {limit}"
         raise ValueError(msg)
 
-    solved = _build_and_solve(
-        puzzle, working_state, time_limit_s=time_limit_s, num_workers=num_workers
-    )
+    solved = _build_and_solve(puzzle, working_state, time_limit_s=time_limit_s)
     if solved.status == cp_model.INFEASIBLE:
-        return Enumeration(kind="broke", reason=reason(puzzle))
+        return Enumeration(kind="broke")
     if solved.status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return Enumeration(kind="unknown")
 

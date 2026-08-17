@@ -186,6 +186,16 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
         "found-cage-4x4",
     ),
     (
+        "equality",
+        MARKER_LABELS["equality"],
+        (
+            "Equality cage — all digits distinct, with equal counts of "
+            "even/odd and low/high digits; an odd cell count is refused as "
+            "malformed"
+        ),
+        "found-equality-9x9",
+    ),
+    (
         "rellik",
         MARKER_LABELS["rellik"],
         ("Anti-cage: no group of the cage's cells may sum to its labelled total"),

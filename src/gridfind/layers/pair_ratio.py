@@ -6,7 +6,12 @@ A pair-ratio clue names two cells whose values stand in a fixed integer
 ratio `k`, undirected — either cell may hold the larger value. `ratio_of` is
 the relation-emitter `LAYER_REGISTRY["pair-ratio"]` builds its `PairRelation`
 with: given a clue's params, it reads the target `k` and returns the `rel`
-that pins one pair to it.
+that pins one pair to it — or, when `params["negate"]` is true, bars the
+pair from it instead (neither `a == k*b` nor `b == k*a`). The negated mode
+is the black-kropki negative rule's mechanism (`sudokumaker.edge_clues`):
+the same emitter, applied over every unmarked orthogonally-adjacent pair, so
+positive and negative clues can never drift onto two different notions of
+"in ratio k".
 
 `k` is a constant, so both `a == k*b` and `b == k*a` are linear — no
 `add_multiplication_equality` needed. The undirected either-or is one
@@ -43,13 +48,19 @@ def ratio_of(
 ) -> Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None]:
     """The pair-ratio relation-emitter: reads the clue's target `k` and
     returns a `rel` closing over it. `rel` mints one fresh reified bool `s`
-    per pair, self-named from the pair's own variable names since
-    `emit_over_pairs` carries no label, and pins `a == k*b` under `s`,
+    per pair, self-named from the pair's own variable names since `rel`
+    carries no label of its own, and pins `a == k*b` under `s`,
     `b == k*a` under its negation — undirected, either cell may hold the
-    larger value."""
+    larger value. When `params["negate"]` is true, `rel` instead bars both
+    directions outright (`a != k*b` and `b != k*a`), absent/false otherwise."""
     k = cast("int", params["k"])
+    negate = bool(params.get("negate", False))
 
     def rel(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:
+        if negate:
+            engine.model.add(a != k * b)
+            engine.model.add(b != k * a)
+            return
         s = engine.model.new_bool_var(f"{a.name}={b.name}.ratio")
         engine.model.add(a == k * b).only_enforce_if(s)
         engine.model.add(b == k * a).only_enforce_if(s.negated())

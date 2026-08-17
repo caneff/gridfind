@@ -4,8 +4,8 @@ from hypothesis import strategies as st
 
 from gridfind.cell_geometry import (
     CellGeometry,
-    cell_address,
     cell_geometry,
+    format_address,
 )
 from gridfind.puzzle import Board
 
@@ -55,7 +55,7 @@ def test_cell_geometry_grid_is_the_row_major_rxcy_address_grid() -> None:
 
 
 def test_cell_address_formats_rxcy() -> None:
-    assert cell_address(3, 1) == "R3C1"
+    assert format_address(3, 1) == "R3C1"
 
 
 def test_step_returns_the_target_cell_in_space() -> None:
@@ -118,9 +118,9 @@ def test_step_resolves_by_membership_not_a_bounds_check(
     declared = {address for line in geometry.grid for address in line}
     row, col = start
 
-    target = geometry.step(cell_address(row, col), delta_row, delta_col)
+    target = geometry.step(format_address(row, col), delta_row, delta_col)
 
-    in_space = cell_address(row + delta_row, col + delta_col) in declared
+    in_space = format_address(row + delta_row, col + delta_col) in declared
     assert (target is not None) == in_space
     assert target is None or target in declared
 

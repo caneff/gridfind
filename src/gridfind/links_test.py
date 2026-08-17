@@ -96,22 +96,26 @@ _NON_VARIANT_WIRE_TYPES = frozenset({0, 1})
 # wire type: classic and jigsaw both ride wire type 1 (told apart by their
 # decoded regions shape), Schrödinger and doubler each arrive by a named
 # marker cage that synthesizes their constraint, never a wire type of their
-# own (ADR-0007/0008), somedoku arrives by a named `type 1000` custom
-# constraint or `type 2001` cosmetic cage — a global flag, not a registry wire
-# type of its own (ADR-0017) — rellik arrives by a named `type 2001` cosmetic
-# cage the same way killer does (ADR-0018), synthesizing its own `rellik-cage`
-# constraint rather than a registry wire type of its own, and kropki-negative
-# shares wire type 200 with plain white-kropki (told apart by whether a decoded
-# `pair-difference` carries `negate`), so type 200's own found/broke pair
-# doesn't also prove the negative rule.
+# own (ADR-0007/0008), equality arrives by a named cage-selector cage that
+# graduates to `cage` + `equality-cage`, somedoku arrives by a named `type 1000`
+# custom constraint or `type 2001` cosmetic cage — a global flag, not a registry
+# wire type of its own (ADR-0017) — rellik arrives by a named `type 2001`
+# cosmetic cage the same way killer does (ADR-0018), synthesizing its own
+# `rellik-cage` constraint rather than a registry wire type of its own, and
+# white-/black-kropki-negative each share their wire type (200/201) with their
+# own plain positive-only decode (told apart by whether a decoded
+# `pair-difference`/`pair-ratio` carries `negate`), so each type's own
+# found/broke pair doesn't also prove its negative rule.
 _EXPLICIT_VARIANTS = (
     "classic",
     "jigsaw",
     "schrodinger",
     "doubler",
+    "equality",
     "somedoku",
     "rellik",
-    "kropki-negative",
+    "white-kropki-negative",
+    "black-kropki-negative",
 )
 
 
@@ -145,45 +149,55 @@ def _active_wire_types(link: str) -> set[int]:
 
 def _variant_tags(argv: list[str]) -> set[int | str]:
     """Every link-reachable variant one case file exercises: the explicit
-    classic/jigsaw/schrodinger/doubler/somedoku/rellik/kropki-negative bucket,
-    plus any DECODER_REGISTRY wire type whose payload carries a live rule.
-    Schrödinger and doubler are inferred from the decoded puzzle's synthesized
-    constraints (a marker cage stands them up); somedoku the same way (a
-    global-flag component stands up `line-count-distinct` in place of the
-    classic triplet, ADR-0017); rellik the same way again (a named
-    `Rellik`/`Anti` cosmetic cage stands up `rellik-cage` alongside classic
-    uniqueness, ADR-0018); classic vs jigsaw is told apart by whether the
-    decoded regions-distinct constraint carries a custom `regions` matrix;
-    kropki-negative is told apart from plain white-kropki by whether a decoded
-    `pair-difference` constraint carries `negate`."""
+    classic/jigsaw/schrodinger/doubler/somedoku/rellik/white-kropki-negative/
+    black-kropki-negative bucket, plus any DECODER_REGISTRY wire type whose
+    payload carries a live rule. Schrödinger and doubler are inferred from the
+    decoded puzzle's synthesized constraints (a marker cage stands them up);
+    somedoku the same way (a global-flag component stands up
+    `line-count-distinct` in place of the classic triplet, ADR-0017); rellik
+    the same way again (a named `Rellik`/`Anti` cosmetic cage stands up
+    `rellik-cage` alongside classic uniqueness, ADR-0018); classic vs jigsaw is
+    told apart by whether the decoded regions-distinct constraint carries a
+    custom `regions` matrix; white-/black-kropki-negative are each told apart
+    from their own plain positive-only decode by whether a decoded
+    `pair-difference`/`pair-ratio` constraint carries `negate`."""
     link = argv[-1]
     puzzle, _ = decode_link(link)
     constraint_types = {c.type for c in puzzle.constraints}
     schrodinger = "schrodinger" in constraint_types
     doubler = "doubler" in constraint_types
+    equality = "equality-cage" in constraint_types
     somedoku = "line-count-distinct" in constraint_types
     rellik = "rellik-cage" in constraint_types
-    kropki_negative = any(
+    white_kropki_negative = any(
         c.type == "pair-difference" and c.params.get("negate")
         for c in puzzle.constraints
+    )
+    black_kropki_negative = any(
+        c.type == "pair-ratio" and c.params.get("negate") for c in puzzle.constraints
     )
     tags: set[int | str] = set()
     if schrodinger:
         tags.add("schrodinger")
     if doubler:
         tags.add("doubler")
+    if equality:
+        tags.add("equality")
     if somedoku:
         tags.add("somedoku")
     if rellik:
         tags.add("rellik")
-    if kropki_negative:
-        tags.add("kropki-negative")
+    if white_kropki_negative:
+        tags.add("white-kropki-negative")
+    if black_kropki_negative:
+        tags.add("black-kropki-negative")
     # classic vs jigsaw is a plain link's own identity; a Schrödinger, doubler,
     # or somedoku case carries its own variant marker and doesn't double as
     # classic coverage — somedoku in particular decodes with no
     # regions-distinct constraint at all, so it would otherwise misclassify
-    # as classic below. A kropki-negative or rellik link still carries classic
-    # uniqueness, so it doubles as classic coverage and is not excluded here.
+    # as classic below. An equality, kropki-negative, or rellik link still
+    # carries classic uniqueness, so it doubles as classic coverage and is not
+    # excluded here.
     if not schrodinger and not doubler and not somedoku:
         jigsaw = any(
             c.type == "regions-distinct" and "regions" in c.params

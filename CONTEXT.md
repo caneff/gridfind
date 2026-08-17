@@ -220,10 +220,12 @@ directives on top; a header line declares the active layer stack.
 
 ## `pair-difference` layer
 
-The second explicit-pair variant (issue #129, spec #127), landing beside the
-`emit_over_pairs` extraction (#42 decision 5, #128) that its own relation
-shares with `pair-ratio` (both via `PairRelation`) and `thermo`'s
-consecutive-pair walk. A clue names a **pair** and a target `k`; the layer
+The second explicit-pair variant (issue #129, spec #127), sharing
+`PairRelation` with `pair-ratio`: each relation-emitter closure is applied
+directly to the clue's own two cells, not through the many-cell
+`emit_over_pairs` walk (#42 decision 5, #128) that `thermo`'s
+consecutive-pair decomposition still uses. A clue names a **pair** and a
+target `k`; the layer
 constrains the pair's value to differ, in absolute value, by exactly `k`
 (or, in its negated mode, to never differ by `k`), one rule per clue.
 Explicit-pair and absolute — like `group-sum`'s two-cell case it never asks
@@ -247,6 +249,15 @@ board.
   orthogonally-adjacent pair a link's positive dots didn't mark, once per
   value in the wire's `negative` list — the same emitter as the positive
   mode, so the two can never drift apart.
+
+- **pair-ratio** — the constraint and the rule it emits (black kropki):
+  `{type: pair-ratio, cells: [a, b], k: k}`, undirected (`a == k*b` or
+  `b == k*a`), or, with `negate: true`,
+  `{type: pair-ratio, cells: [a, b], k: k, negate: true}` for neither
+  direction to hold. The negated mode is black-kropki's own opt-in into the
+  same negative-space mechanism white-kropki uses (`sudokumaker.edge_clues`):
+  applied over every orthogonally-adjacent pair a link's positive dots didn't
+  mark, once per value in the wire's `negative` list.
 
 ---
 
@@ -400,6 +411,8 @@ forces a cell to become an S-cell.
   through. gridfind reads the block's top-level `name`, and only a recognized
   name selects a rule (ADR-0012): a cage named `Sum` or `Killer` decodes **as a
   killer cage** (a `cage` plus a `group-sum` when its label is a number); a cage
+  named `Equality` decodes **as an equality cage** (a `cage` plus an
+  `equality-cage`, no numeric argument — its label is never read); a cage
   named `Doubler`, `S-cell`, or `Schrödinger` is a **marker cage** that declares
   positions instead of a constraint. An **unnamed** cage and an **unrecognized**
   name both carry no rule — gridfind warn-drops each to stderr, naming the block,
