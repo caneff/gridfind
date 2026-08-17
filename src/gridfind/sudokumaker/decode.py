@@ -28,7 +28,6 @@ from gridfind.sudokumaker.cages import cosmetic_cage_constraints
 from gridfind.sudokumaker.cells import CellDecode, decode_cell
 from gridfind.sudokumaker.dropped import warn_on_dropped_constraints
 from gridfind.sudokumaker.global_flags import has_somedoku_component
-from gridfind.sudokumaker.markers import has_scell_marker_block, scell_marker_values
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 
@@ -101,7 +100,15 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     # per-type decoder below selects its own type's blocks by one dict lookup
     # (via `enabled_blocks`).
     buckets = bucket_constraints_by_type(puzzle_data)
-    is_somedoku = has_somedoku_component(buckets)
+
+    # The single decode entry point over the link's `type 2001` marker cages
+    # (`cosmetic_cage_constraints`) — cage/modifier constraints, S-cell
+    # presence and pinning, and the Somedoku cosmetic-cage carrier all fall
+    # out of its one walk over the block.
+    cosmetic_cage_decode = cosmetic_cage_constraints(buckets, size)
+    is_somedoku = has_somedoku_component(
+        buckets, cosmetic_cage_decode.has_somedoku_block
+    )
 
     cells = puzzle_data["cells"]
     # A named `S-cell`/`Schrödinger` block splits into two signals. Its
@@ -111,8 +118,8 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
     # (ADR-0014). Its *membership* pins known S-cells: each named address maps
     # to its marker cage's own `value`, the pair/half/bare source (ADR-0014)
     # the S-cell branch of the per-cell decode reads.
-    scell_values = scell_marker_values(buckets, size)
-    is_schrodinger = has_scell_marker_block(buckets)
+    scell_values = cosmetic_cage_decode.scell_values
+    is_schrodinger = cosmetic_cage_decode.has_scell_block
     domain = (
         schrodinger_domain(puzzle_data, size)
         if is_schrodinger
@@ -154,7 +161,6 @@ def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
         if is_somedoku
         else [Constraint("rows-distinct"), Constraint("cols-distinct")]
     )
-    cosmetic_cage_decode = cosmetic_cage_constraints(buckets, size)
     constraints.extend(cosmetic_cage_decode.constraints)
     for wire_type, decoded_type in DECODER_REGISTRY.items():
         if decoded_type.handler is None:

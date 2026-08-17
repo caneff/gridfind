@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
 
 from gridfind.engine import MalformedPuzzleError
@@ -121,29 +121,43 @@ def _cosmetic_cage_numeric_value(cage: dict[Any, Any]) -> int | None:
 
 @dataclass(frozen=True)
 class _CosmeticCageDecode:
-    """The `Constraint`s and `ModifierDirective`s one `type 2001` block
-    decodes to — a `Sum`/`Killer`-labelled block contributes killer-cage
-    constraints, a `Doubler`/`Constant`/`Nullifier`-marked block contributes
-    modifier directives instead, an unnamed or unrecognized-named block
-    contributes nothing (ADR-0012's warn-drop), and `concat` folds a link's
-    worth of blocks into the two lists `decode_link` reads. `modifier_constraint`
-    is not per-block: `cosmetic_cage_constraints` resolves it once, across
-    every modifier-marked block in the link, and stamps it onto the final
-    merged result (`Constraint("doubler")` or `Constraint("constant", {value:
-    k})`, or `None` when the link declares no modifier at all — ADR-0016)."""
+    """Everything one `type 2001` block contributes, gathered in the single
+    walk `cosmetic_cage_constraints` makes over the link's marker cages — a
+    `Sum`/`Killer`-labelled block contributes killer-cage constraints, a
+    `Doubler`/`Constant`/`Nullifier`-marked block contributes modifier
+    directives instead, an `S-cell`/`Schrödinger`-marked block contributes
+    its pinned cell->value mapping and marks its own presence
+    (`scell_values`/`has_scell_block`, ADR-0014), a `Somedoku`-marked block
+    marks its own presence (`has_somedoku_block`, ADR-0017), and an unnamed
+    or unrecognized-named block contributes nothing (ADR-0012's warn-drop).
+    `concat` folds a link's worth of blocks into the merged result
+    `decode_link` reads. `modifier_constraint` is not per-block:
+    `cosmetic_cage_constraints` resolves it once, across every
+    modifier-marked block in the link, and stamps it onto the final merged
+    result (`Constraint("doubler")` or `Constraint("constant", {value: k})`,
+    or `None` when the link declares no modifier at all — ADR-0016)."""
 
     constraints: tuple[Constraint, ...] = ()
     modifier_directives: tuple[ModifierDirective, ...] = ()
     modifier_constraint: Constraint | None = None
+    scell_values: dict[str, object] = field(default_factory=dict)
+    has_scell_block: bool = False
+    has_somedoku_block: bool = False
 
     @classmethod
     def concat(cls, decodes: Iterable[_CosmeticCageDecode]) -> _CosmeticCageDecode:
         decodes = list(decodes)
+        scell_values: dict[str, object] = {}
+        for decode in decodes:
+            scell_values.update(decode.scell_values)
         return cls(
             constraints=tuple(c for d in decodes for c in d.constraints),
             modifier_directives=tuple(
                 m for d in decodes for m in d.modifier_directives
             ),
+            scell_values=scell_values,
+            has_scell_block=any(d.has_scell_block for d in decodes),
+            has_somedoku_block=any(d.has_somedoku_block for d in decodes),
         )
 
 
@@ -243,19 +257,26 @@ def cosmetic_cage_constraints(
     (`_resolve_modifier_constraint`), and returned on `modifier_constraint`;
     a link mixing modifier kinds or naming a `Constant` block two different
     `k`s is refused with `MalformedPuzzleError`. An `S-cell`/`Schrödinger`-
-    marked block emits nothing here: its cells become S-cell working-state
-    directives in the per-cell decode pass (`scell_marker_values` gathers
-    them, cage `value` and all), not a cage rule. A `Somedoku`-marked block
-    likewise emits nothing here — it carries no cell-level reading at all,
-    cells and value alike ignored — its mere presence is read separately
-    (`global_flags.has_somedoku_component`) and turns on the `line-count-
-    distinct` constraint puzzle-wide. An **unnamed** block, or one
-    whose name gridfind does not recognize (a bare `Constant` with no
-    parseable integer included), carries no rule at all — only a recognized
-    name selects one. A non-empty one is dropped with a loud stderr warning
-    naming the block or its unrecognized name; an empty one adds nothing and
-    warns nothing, the same as any other empty block. A `disabled` block is
-    skipped entirely."""
+    marked block emits no cage/modifier `Constraint` here: instead it
+    contributes its own presence (`has_scell_block`) and, for each cell it
+    contains, that cell's marker cage's raw `value` (`scell_values`) — the
+    two S-cell signals `decode_link` reads for the per-cell decode pass
+    (ADR-0014). A `Somedoku`-marked block likewise emits no `Constraint`
+    here — it carries no cell-level reading at all, cells and value alike
+    ignored — contributing only its own presence (`has_somedoku_block`),
+    which `decode_link` folds with the `type 1000` carrier
+    (`global_flags.has_somedoku_component`) to decide whether the
+    `line-count-distinct` constraint stands up puzzle-wide. An **unnamed**
+    block, or one whose name gridfind does not recognize (a bare `Constant`
+    with no parseable integer included), carries no rule at all — only a
+    recognized name selects one. A non-empty one is dropped with a loud
+    stderr warning naming the block or its unrecognized name; an empty one
+    adds nothing and warns nothing, the same as any other empty block. A
+    `disabled` block is skipped entirely.
+
+    This is the one pass `decode_link` makes over the link's `type 2001`
+    blocks — cage/modifier constraints, S-cell presence and pinning, and the
+    Somedoku cosmetic-cage carrier all fall out of the same per-block walk."""
     decoded: list[_CosmeticCageDecode] = []
     modifier_declarations: list[tuple[_ModifierKind, int | None]] = []
     for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE):
@@ -265,7 +286,18 @@ def cosmetic_cage_constraints(
             if cages:
                 _warn_dropped_cosmetic_cage(block, kind)
             continue
-        if kind in ("s-cell", "somedoku"):
+        if kind == "s-cell":
+            scell_values = {
+                cell_address: cage.get("value")
+                for cage in cages
+                for cell_address in addresses(cage["cells"], size)
+            }
+            decoded.append(
+                _CosmeticCageDecode(scell_values=scell_values, has_scell_block=True)
+            )
+            continue
+        if kind == "somedoku":
+            decoded.append(_CosmeticCageDecode(has_somedoku_block=True))
             continue
         if kind in ("doubler", "constant"):
             _refuse_marker_cage_value_field(cages, kind)
