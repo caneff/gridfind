@@ -167,12 +167,14 @@ def _readers() -> dict[str, Callable[[Any], SDirective]]:
     }
 
 
-# from_dict dispatches on the directive's kind tag (ADR-0006). Reading an
-# S-cell pin runs SCellPin.__post_init__, so a mis-sized pair in a save raises
-# MalformedPuzzleError here — a malformed pin never reaches memory. An unknown
-# kind is a structurally broken save, so the missing entry raises an ordinary
-# KeyError, not MalformedPuzzleError, which is reserved for bad content.
 def s_directive_from_dict(data: dict[str, object]) -> SDirective:
+    """Read one Schrödinger directive back from its `{kind, address, …}` wire
+    object, dispatching on `kind` (ADR-0006). Reading an S-cell pin runs
+    `SCellPin.__post_init__`, so a mis-sized pair in a save raises
+    `MalformedPuzzleError` here — a malformed pin never reaches memory. An
+    unknown `kind` is a structurally broken save, so the missing entry raises
+    an ordinary `KeyError`, not `MalformedPuzzleError`, which is reserved for
+    bad content."""
     kind = data["kind"]
     if not isinstance(kind, str):
         msg = f"s_directive 'kind' must be a string, got {kind!r}"

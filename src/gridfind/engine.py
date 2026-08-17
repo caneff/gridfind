@@ -141,6 +141,10 @@ class Engine:
         return cast("list[str]", clue.params["cells"])
 
     def add_cell(self, address: str, *, low: int, high: int, width: int = 1) -> Cell:
+        """Register a new cell at `address` with `width` int variables, each
+        ranging `low` to `high` inclusive. `width` is 1 for an ordinary cell;
+        the schrödinger layer passes 2 to widen an S-cell to its pair of
+        slots."""
         content = [
             self.model.new_int_var(low, high, f"{address}.{i}") for i in range(width)
         ]
@@ -149,6 +153,10 @@ class Engine:
         return cell
 
     def register_structure(self, name: str, value: object) -> None:
+        """Publish `value` under `name` in the structure registry — the
+        late-binding channel (ADR-0004) a producing layer writes to and a
+        consuming layer later reads back through its own typed accessor
+        (`is_s`, `is_modifier`, `modifier_types`), without the two meeting."""
         self.structures[name] = value
 
     def is_s(self) -> dict[str, cp_model.IntVar] | None:

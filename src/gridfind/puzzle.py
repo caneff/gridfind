@@ -171,6 +171,8 @@ class Puzzle:
     givens: tuple[Given, ...] = ()
 
     def to_json(self) -> str:
+        """Serialize to the corpus `{board, constraints, givens}` JSON
+        document — the wire form `from_json` reads back to an equal `Puzzle`."""
         return json.dumps(
             {
                 "board": self.board.to_dict(),
@@ -183,6 +185,7 @@ class Puzzle:
 
     @classmethod
     def from_json(cls, text: str) -> Puzzle:
+        """Read a `Puzzle` back from `to_json`'s JSON text."""
         return cls.from_dict(json.loads(text))
 
     @classmethod
@@ -215,6 +218,9 @@ class WorkingState:
     modifier_directives: tuple[ModifierDirective, ...] = ()
 
     def to_json(self) -> str:
+        """Serialize to the corpus `{places, candidates, s_directives,
+        modifier_directives}` JSON document — the wire form `from_json` reads
+        back to an equal `WorkingState`."""
         return json.dumps(
             {
                 "places": [
@@ -234,6 +240,7 @@ class WorkingState:
 
     @classmethod
     def from_json(cls, text: str) -> WorkingState:
+        """Read a `WorkingState` back from `to_json`'s JSON text."""
         return cls.from_dict(json.loads(text))
 
     @classmethod
