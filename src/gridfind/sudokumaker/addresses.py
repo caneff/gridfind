@@ -8,24 +8,19 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from gridfind.cell_geometry import flat_index, format_address, row_col_of_index
+from gridfind.cell_geometry import format_address, index_to_row_col
 
 
-def address(index: int, size: int) -> str:
+def index_to_address(index: int, size: int) -> str:
     """The row-major address of a raw cell `index` on a `size`-wide board: index
     `18` on a 9-board is R3C1. Resolves the `i // N`, `i % N` scheme through
-    `cell_geometry.row_col_of_index`, the shared home for the arithmetic."""
-    return format_address(*row_col_of_index(index, size))
+    `cell_geometry.index_to_row_col`, the shared home for the arithmetic. One-way:
+    the raw wire carries indices, and nothing reads an address string back to an
+    index — a caller holding `(row, col)` uses `cell_geometry.row_col_to_index`."""
+    return format_address(*index_to_row_col(index, size))
 
 
 def addresses(indices: Iterable[int], size: int) -> list[str]:
-    """`address` mapped over a cell-index list, order preserved — so a thermo
-    path keeps bulb-first order and a cage's cells read row-major."""
-    return [address(i, size) for i in indices]
-
-
-def cell_index(row: int, col: int, size: int) -> int:
-    """The row-major raw cell index of 1-based `RxCy` on a `size`-wide board —
-    the inverse of `address`. R3C1 on a 9-board is index 18. Places a cell by
-    row/column into SudokuMaker's flat `cells` array via `cell_geometry.flat_index`."""
-    return flat_index(row, col, size)
+    """`index_to_address` mapped over a cell-index list, order preserved — so a
+    thermo path keeps bulb-first order and a cage's cells read row-major."""
+    return [index_to_address(i, size) for i in indices]

@@ -30,12 +30,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from gridfind.cell_geometry import row_col_to_index
+
 # The toggle wire types are imported from wire_types.py — their one shared
 # home — so the corpus builds off the same numbers the decoder reads by,
 # never a second copy.
 from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import encode_link
-from gridfind.sudokumaker.addresses import cell_index
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
@@ -70,7 +71,7 @@ def _link(
     size = box_h * box_w
     cells: list[dict[str, object]] = [{} for _ in range(size * size)]
     for (row, col), value in givens.items():
-        cells[cell_index(row, col, size)] = {"given": True, "value": value}
+        cells[row_col_to_index(row, col, size)] = {"given": True, "value": value}
     region_numbers = box_regions(size, box_h, box_w).to_labels(size)
     constraints: list[dict[str, object]] = [
         {"type": 0},

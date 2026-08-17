@@ -30,8 +30,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import encode_link
-from gridfind.sudokumaker.addresses import cell_index
 
 _HERE = Path(__file__).resolve().parent
 LINKS_DIR = _HERE.parent / "src" / "gridfind" / "links"
@@ -53,7 +53,7 @@ def _link(givens: dict[tuple[int, int], int]) -> str:
     document = _template()
     cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
     for (row, col), value in givens.items():
-        cells[cell_index(row, col, _SIZE)] = {"given": True, "value": value}
+        cells[row_col_to_index(row, col, _SIZE)] = {"given": True, "value": value}
     document["puzzle"]["cells"] = cells
     return encode_link(document)
 
