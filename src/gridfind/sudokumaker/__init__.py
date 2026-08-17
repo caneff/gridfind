@@ -25,9 +25,9 @@ unvalidated — a malformed matrix surfaces as
 Every wire type gridfind decodes or otherwise recognizes — givens, regions,
 and each opt-in variant decoder (XV, white-kropki, black-kropki, killer-cage,
 thermo, cosmetic-cage) — is one row in `DECODER_REGISTRY`: `decode_link`'s
-dispatch, the
-dropped-constraint warning path, and `has_live_data`'s active/inert check all
-read that one table instead of each restating "type N is decoded" by hand.
+dispatch, `dropped.warn_on_dropped_constraints`, and `dropped.has_live_data`'s
+active/inert check all read that one table instead of each restating "type N
+is decoded" by hand.
 
 Declared variants are inferred from named cosmetic cages, never sniffed from a
 color or declared out of band. An `S-cell`/`Schrödinger`-named cage relaxes the
@@ -75,7 +75,8 @@ enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `global_flags` (the payload-less `Somedoku` component),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
-(`DECODER_REGISTRY`), and `decode` (`decode_link` itself, the one function
+(the lean `DECODER_REGISTRY` dispatch table), `dropped` (the drop policy
+built on top of it), and `decode` (`decode_link` itself, the one function
 that threads all of them together). `decode_link`/`encode_link` are the
 package's public door, alongside the rest of the public tool surface listed
 in `__all__` below; a module-private (`_`-prefixed) name is imported from its
@@ -87,24 +88,18 @@ from __future__ import annotations
 from gridfind.sudokumaker.boundary import decode_document, encode_link
 from gridfind.sudokumaker.cells import write_cell
 from gridfind.sudokumaker.decode import decode_link
+from gridfind.sudokumaker.dropped import constraint_name, has_live_data
 from gridfind.sudokumaker.markers import (
     CosmeticCageKind,
     colorize_marker_cages,
     cosmetic_cage_kind,
 )
-from gridfind.sudokumaker.registry import (
-    DECODER_REGISTRY,
-    DecodedType,
-    SetterDoc,
-    constraint_name,
-    has_live_data,
-)
+from gridfind.sudokumaker.registry import DECODER_REGISTRY, DecodedType
 
 __all__ = [
     "DECODER_REGISTRY",
     "CosmeticCageKind",
     "DecodedType",
-    "SetterDoc",
     "colorize_marker_cages",
     "constraint_name",
     "cosmetic_cage_kind",

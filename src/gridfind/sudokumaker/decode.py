@@ -6,9 +6,9 @@ The decode is split by responsibility across the package's other modules —
 enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `global_flags` (the payload-less `Somedoku` component),
-`edge_clues` (XV/kropki), `regions` (the `type 1` block), and `registry`
-(`DECODER_REGISTRY`) — with `decode_link` here as the one function that
-threads all of them together.
+`edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
+(`DECODER_REGISTRY`), and `dropped` (the drop policy built on it) — with
+`decode_link` here as the one function that threads all of them together.
 """
 
 from __future__ import annotations
@@ -26,9 +26,10 @@ from gridfind.sudokumaker.boundary import (
 )
 from gridfind.sudokumaker.cages import cosmetic_cage_constraints
 from gridfind.sudokumaker.cells import CellDecode, decode_cell
+from gridfind.sudokumaker.dropped import warn_on_dropped_constraints
 from gridfind.sudokumaker.global_flags import has_somedoku_component
 from gridfind.sudokumaker.markers import has_scell_marker_block, scell_marker_values
-from gridfind.sudokumaker.registry import DECODER_REGISTRY, warn_on_dropped_constraints
+from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 
 def decode_link(link: str) -> tuple[Puzzle, WorkingState]:
