@@ -248,6 +248,15 @@ board.
   value in the wire's `negative` list — the same emitter as the positive
   mode, so the two can never drift apart.
 
+- **pair-ratio** — the constraint and the rule it emits (black kropki):
+  `{type: pair-ratio, cells: [a, b], k: k}`, undirected (`a == k*b` or
+  `b == k*a`), or, with `negate: true`,
+  `{type: pair-ratio, cells: [a, b], k: k, negate: true}` for neither
+  direction to hold. The negated mode is black-kropki's own opt-in into the
+  same negative-space mechanism white-kropki uses (`sudokumaker.edge_clues`):
+  applied over every orthogonally-adjacent pair a link's positive dots didn't
+  mark, once per value in the wire's `negative` list.
+
 ---
 
 ## `schrodinger` layer

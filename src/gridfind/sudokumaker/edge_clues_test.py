@@ -4,8 +4,9 @@ black kropki (201) — and the `_edge_to_pair` primitive they share.
 `_edge_to_pair` inverts SudokuMaker's edge index to the orthogonally-adjacent
 cell pair it names; it is this module's own transform seam, tested directly.
 Each clue family decodes through `decode_link` to its gridfind constraint.
-White-kropki's negative list is enforced (the negative-space mechanism); XV's
-and black-kropki's still warn loud and drop while keeping the positive clues.
+White-kropki's and black-kropki's negative lists are enforced (the
+negative-space mechanism); XV's still warns loud and drops while keeping the
+positive clues.
 """
 
 import pytest
@@ -386,23 +387,87 @@ def test_multiple_black_kropki_clues_each_decode_to_their_own_constraint() -> No
     )
 
 
-def test_black_kropki_negative_list_warns_but_keeps_positive_clues(
+def test_black_kropki_negative_rule_forbids_every_listed_ratio_over_an_unmarked_pair(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = constraint_link(
-        {"type": 201, "clues": [{"value": 2, "edge": 75}], "negative": [1, 2]}
+        {"type": 201, "clues": [{"value": 2, "edge": 75}], "negative": [3, 5]}
     )
 
     puzzle, _ = decode_link(payload)
 
+    # The marked pair still decodes its own positive clue...
     assert (
         Constraint("pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": 2})
         in puzzle.constraints
     )
-    assert capsys.readouterr().err == (
-        "warning: ignoring black-kropki negative constraint "
-        "— verdict computed without it\n"
+    # ...and an unrelated orthogonal pair elsewhere on the same board picks up
+    # a negated pair-ratio for each listed value.
+    for k in (3, 5):
+        assert (
+            Constraint(
+                "pair-ratio", params={"cells": ["R1C1", "R1C2"], "k": k, "negate": True}
+            )
+            in puzzle.constraints
+        )
+    assert capsys.readouterr().err == ""
+
+
+def test_black_kropki_negative_rule_exempts_the_marked_edge() -> None:
+    payload = constraint_link(
+        {"type": 201, "clues": [{"value": 2, "edge": 75}], "negative": [3, 5]}
     )
+
+    puzzle, _ = decode_link(payload)
+
+    for k in (3, 5):
+        assert (
+            Constraint(
+                "pair-ratio", params={"cells": ["R5C3", "R5C4"], "k": k, "negate": True}
+            )
+            not in puzzle.constraints
+        )
+
+
+@pytest.mark.parametrize(
+    ("modifier_block", "min_digit"),
+    [
+        pytest.param(
+            {"name": "Doubler", "type": 2001, "cages": [{"value": "", "cells": [0]}]},
+            None,
+            id="doubler",
+        ),
+        pytest.param(
+            {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]}, 0, id="s-cell"
+        ),
+    ],
+)
+def test_black_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
+    modifier_block: dict[str, object],
+    min_digit: int | None,
+) -> None:
+    # The negative rule reuses `ratio_of`, the same value_expr-reading
+    # emitter the positive clue uses, so it composes with a doubler/S-cell
+    # board for free rather than refusing it as `s_blind`.
+    document: dict[str, object] = {
+        "cells": EMPTY_CELLS,
+        "constraints": [
+            *WIRE_CONSTRAINTS,
+            {"type": 201, "clues": [{"value": 2, "edge": 75}], "negative": [3]},
+            modifier_block,
+        ],
+    }
+    if min_digit is not None:
+        document["minDigit"] = min_digit
+    payload = encode_document(document)
+
+    puzzle, state = decode_link(payload)
+
+    assert any(
+        c.type == "pair-ratio" and c.params.get("negate") for c in puzzle.constraints
+    )
+    result = verdict(puzzle, state)
+    assert result.kind in ("found", "broke")
 
 
 def test_black_kropki_non_integer_value_raises_at_decode() -> None:
