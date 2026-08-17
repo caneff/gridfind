@@ -123,6 +123,14 @@ def test_board_refuses_an_empty_range_of_values() -> None:
         Board(size=9, values=range(5, 5))
 
 
+def test_board_round_trips_through_dict() -> None:
+    # The worked example for `test_any_board_round_trips_through_dict` below:
+    # the property covers this case, this states it in a form a reader can read.
+    board = Board(size=9, values=range(9))
+
+    assert Board.from_dict(board.to_dict()) == board
+
+
 def test_from_json_refuses_a_board_whose_serialized_values_are_empty() -> None:
     with pytest.raises(MalformedPuzzleError, match="non-empty range"):
         Puzzle.from_json(
@@ -320,3 +328,8 @@ def test_any_puzzle_round_trips_through_json(puzzle: Puzzle) -> None:
 @given(state=WORKING_STATES)
 def test_any_working_state_round_trips_through_json(state: WorkingState) -> None:
     assert WorkingState.from_json(state.to_json()) == state
+
+
+@given(board=BOARDS)
+def test_any_board_round_trips_through_dict(board: Board) -> None:
+    assert Board.from_dict(board.to_dict()) == board
