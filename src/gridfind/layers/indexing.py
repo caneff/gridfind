@@ -21,7 +21,7 @@ its own match fail (`2C != C`) though `C` is plainly placed. A doubler on a
 marked or indexed cell is therefore transparent to the rule, with no special
 case: the read never reaches `value_expr` in the first place.
 
-Scope: width-1 cells only, per spec #591/#597 — `d0` is a not-yet-widened
+Scope: width-1 cells only — `d0` is a not-yet-widened
 cell's sole slot and a widened S-cell's always-real first slot alike, so
 this reads correctly for every width-1 puzzle without declaring `s_blind`.
 Full S-cell membership (an S-cell counts as placing either digit, a control

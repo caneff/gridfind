@@ -6,7 +6,7 @@ through `sudokumaker.document_to_link`, so a reviewer can read exactly what
 each fixture exercises and regenerate the whole set with `main()`.
 
 One `found-`/`broke-` pair per axis (`type 600` row-indexing, `type 601`
-column-indexing — spec #591/#597; gridfind owns this wire type, so the split
+column-indexing; gridfind owns this wire type, so the split
 is a build-time choice rather than read off a real link). Each `found-*`
 fixture pins its one marked cell to its own coordinate — the involution's
 self-referential fixed point, `(R,C)=V ⟺ (R,V)=C` (or the row-axis

@@ -6,7 +6,7 @@ solve happened to satisfy it — plus verdict-seam found/broke behaviour for
 both axes, and the ADR-0009 digit-read exception (a doubler never shifts the
 index).
 
-Scope: width-1 cells only, per spec #591/#597 — S-cell membership and the
+Scope: width-1 cells only — S-cell membership and the
 index-0 refusal are a follow-on layer change, tested in their own file
 alongside the `s_blind` composition proof.
 """
