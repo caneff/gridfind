@@ -272,6 +272,10 @@ _GOLDEN_REPORTS = {
     "broke-thermo-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,300} · active: 300 · verdict: broke"
     ),
+    "broke-thermo-doubler-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,300,2001} ·"
+        " active: 300, 2001 · verdict: broke"
+    ),
     "broke-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"
         " active: 10, 11 · verdict: broke"
@@ -366,6 +370,10 @@ _GOLDEN_REPORTS = {
     ),
     "found-thermo-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,300} · active: 300x2 · verdict: found"
+    ),
+    "found-thermo-doubler-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,300,2001} ·"
+        " active: 300, 2001 · verdict: found"
     ),
     "found-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"

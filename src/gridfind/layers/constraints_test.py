@@ -11,6 +11,7 @@ from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.s_blind import SBlindLayerError
 from gridfind.layers.schrodinger import Schrodinger
+from gridfind.layers.thermo import Thermo
 from gridfind.puzzle import Board, Constraint
 
 BOARD = GridCells()
@@ -84,7 +85,7 @@ def test_unknown_constraint_type_is_rejected() -> None:
 
 @pytest.mark.parametrize(
     "s_blind_type",
-    ["anti-knight", "anti-king", "thermo"],
+    ["anti-knight", "anti-king"],
 )
 def test_an_s_blind_layer_stacked_with_a_widening_layer_is_refused(
     s_blind_type: str,
@@ -103,7 +104,7 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
 ) -> None:
     # Both kropki pair layers read `engine.value_expr`, not a cell's single
     # content slot, so they carry no `s_blind` flag and stack freely with
-    # schrodinger — unlike anti-knight/anti-king/thermo above.
+    # schrodinger — unlike anti-knight/anti-king above.
     constraints = (Constraint(type=pair_relation_type), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -113,6 +114,16 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
         PairRelation(pair_relation_type, relation=PAIR_RELATIONS[pair_relation_type]),
         Schrodinger(),
     ]
+
+
+def test_thermo_composes_with_a_widening_layer() -> None:
+    # thermo reads engine.value_expr like the pair-relation family, so it
+    # carries no `s_blind` flag and stacks freely with schrodinger.
+    constraints = (Constraint(type="thermo"), Constraint(type="schrodinger"))
+
+    _, layers = build_stack(constraints, size=9)
+
+    assert layers == [BOARD, Thermo(), Schrodinger()]
 
 
 def test_an_s_blind_layer_alone_is_unaffected() -> None:
