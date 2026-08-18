@@ -1098,7 +1098,7 @@ def test_schrodinger_with_values_not_exceeding_size_is_malformed() -> None:
     # len(values) == size forces no S-cell at all — refused before classify,
     # not silently accepted as a degenerate classic sudoku.
     puzzle = Puzzle(
-        board=Board(size=9),  # default values 1-9, len == size
+        board=Board(size=9),
         constraints=(Constraint(type="schrodinger"),),
     )
 
@@ -1781,7 +1781,6 @@ def test_verdict_broke_for_a_repeat_on_the_main_diagonal() -> None:
 
 
 def test_verdict_broke_for_a_repeat_on_the_anti_diagonal() -> None:
-    # The anti-diagonal of a 4x4: R1C4, R2C3, R3C2, R4C1.
     assert_layer_newly_breaks(
         smaller=(),
         full=(

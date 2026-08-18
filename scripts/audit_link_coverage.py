@@ -52,7 +52,6 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
     non-disabled constraint, plus `cage:<kind>` for each non-disabled cosmetic
     cage. A disabled constraint is switched off, so it exercises nothing."""
     features: set[str] = set()
-    # Decoded JSON is untyped past the boundary — poke at it as Any.
     constraints: Any = payload.get("constraints") or []
     for constraint in constraints:
         if classify_constraint(constraint) == "disabled":

@@ -27,7 +27,6 @@ def regions_for(n: int, box_rows: int, box_cols: int) -> list[int]:
     ]
 
 
-# The classic decode's constraint tuple, in the order the decoder emits it.
 CLASSIC_CONSTRAINTS = (
     Constraint("rows-distinct"),
     Constraint("cols-distinct"),

@@ -95,7 +95,6 @@ def test_eval_link_shows_the_puzzle_link_verbatim_and_colors_only_the_solution()
     view = eval_link([link])
 
     assert view.puzzle_link == link
-    # Solution pane: the discovered doubler colored red.
     assert view.solution_link is not None
     document = link_to_document(view.solution_link)
     puzzle_data = cast("dict[str, Any]", document["puzzle"])
@@ -193,11 +192,9 @@ def test_archive_flags_moves_covered_stems_stamped_and_leaves_the_rest(
 
     archive_flags(flagged, archive, {"found-cage-4x4"}, issue_number=312)
 
-    # The covered stem left the store, stamped with the map it fed...
     assert load_archive(archive) == [
         {"stem": "found-cage-4x4", "comment": "witness off", "issue": 312}
     ]
-    # ...and the uncovered stem stayed put, untouched.
     assert load_flags(flagged) == [{"stem": "broke-xv-4x4", "comment": "leave me"}]
 
 
@@ -210,7 +207,6 @@ def test_archive_flags_accumulates_across_calls(tmp_path: Path) -> None:
     archive_flags(flagged, archive, {"a"}, issue_number=1)
     archive_flags(flagged, archive, {"b"}, issue_number=2)
 
-    # The earlier archived batch survives the later one.
     assert load_archive(archive) == [
         {"stem": "a", "comment": "first batch", "issue": 1},
         {"stem": "b", "comment": "second batch", "issue": 2},
@@ -422,7 +418,7 @@ def test_finish_endpoint_stops_the_server() -> None:
             timeout=5,
         )
         status = resp.status
-        serve.join(timeout=5)  # serve_forever returns once shutdown lands
+        serve.join(timeout=5)
     finally:
         server.shutdown()
         server.server_close()

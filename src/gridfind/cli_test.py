@@ -73,7 +73,7 @@ def test_found_prints_verdict_then_witness_grid(
     lines = out.rstrip("\n").split("\n")
     assert code == 0
     assert lines[0] == "found"
-    assert len(lines) > 1  # a grid body follows the verdict word
+    assert len(lines) > 1
 
 
 def test_sudokumaker_link_argument_prints_found_and_grid(
@@ -88,7 +88,7 @@ def test_sudokumaker_link_argument_prints_found_and_grid(
     lines = out.rstrip("\n").split("\n")
     assert code == 0
     assert lines[0] == "found"
-    assert len(lines) > 1  # a grid body follows the verdict word
+    assert len(lines) > 1
 
 
 def test_sudokumaker_link_on_stdin_matches_argument(

@@ -124,7 +124,6 @@ class _CageLayer:
 
     def emit(self, engine: Engine) -> None:
         for cage in engine.constraints_of(self.name):
-            # params is the open JSON boundary (object) — a layer narrows it.
             names = cast("list[str]", cage.params["cells"])
             total = cast("int", cage.params["sum"])
             cells = [engine.cells[n].content[0] for n in names]

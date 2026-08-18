@@ -66,7 +66,7 @@ def test_schrodinger_widens_every_cell_to_a_length_two_content_sequence() -> Non
         [GridCells(), Schrodinger()], board=Board(size=4, values=range(5))
     )
 
-    assert engine.cells  # a real grid, not an empty one
+    assert engine.cells
     assert all(len(cell.content) == 2 for cell in engine.cells.values())
 
 

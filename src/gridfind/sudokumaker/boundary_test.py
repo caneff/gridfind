@@ -96,7 +96,6 @@ def test_link_to_document_is_the_inverse_of_document_to_link() -> None:
             },
             "not a square grid",
         ),
-        # A declared size that the cell count contradicts.
         (
             {"cells": EMPTY_CELLS, "size": 6, "constraints": [{"type": 0}]},
             "do not match size",
@@ -179,9 +178,9 @@ def test_six_by_six_boxed_link_decodes_at_the_right_size() -> None:
     # placement, and a center mark land at 6x6 addresses, and the box partition
     # decodes to a bare regions-distinct.
     cells: list[dict[str, object]] = [{} for _ in range(36)]
-    cells[0] = {"given": True, "value": 5}  # R1C1
-    cells[7] = {"value": 3}  # R2C2
-    cells[35] = {"candidates": mask({2, 4})}  # R6C6
+    cells[0] = {"given": True, "value": 5}
+    cells[7] = {"value": 3}
+    cells[35] = {"candidates": mask({2, 4})}
     payload = encode_document(
         {
             "cells": cells,
@@ -200,7 +199,7 @@ def test_six_by_six_boxed_link_decodes_at_the_right_size() -> None:
 
 def test_four_by_four_link_decodes_at_the_right_size() -> None:
     cells: list[dict[str, object]] = [{} for _ in range(16)]
-    cells[15] = {"given": True, "value": 4}  # R4C4
+    cells[15] = {"given": True, "value": 4}
     payload = encode_document({"cells": cells, "size": 4, "constraints": [{"type": 0}]})
 
     puzzle, _ = link_to_puzzle(payload)

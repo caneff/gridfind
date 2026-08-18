@@ -108,7 +108,6 @@ def _fmt_bucket(tags: list[str]) -> str:
 def inspect_link(link: str) -> str:
     """One report line: size, givens, the constraint types present, each
     classification bucket that isn't empty, and the verdict."""
-    # JSON values are untyped past the decode boundary — poke at them as Any.
     data: Any = decode_payload(link)
     cells = data.get("cells") or []
     constraints = data.get("constraints") or []
