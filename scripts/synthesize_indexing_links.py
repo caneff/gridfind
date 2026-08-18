@@ -8,14 +8,16 @@ each fixture exercises and regenerate the whole set with `main()`.
 One `found-`/`broke-` pair per axis (`type 600` row-indexing, `type 601`
 column-indexing; gridfind owns this wire type, so the split
 is a build-time choice rather than read off a real link). Each pair marks
-R1C1 at digit 2, whose value names position 2 on the indexed line — down its
+R1C1, whose placed value names a position on the indexed line — down its
 column for row-indexing, across its row for column-indexing. The line's cell
 at that position must hold R1C1's own coordinate on the other axis (1). The
-`found-*` fixture gives that target cell the matching 1, so indexing is
-satisfied by a real placement rather than a self-referential tautology; the
-`broke-*` fixture gives it a conflicting digit, legal under classic sudoku
-alone, so the puzzle breaks *because of* indexing. The pair differs by
-exactly one cell, the indexed target.
+`found-*` fixture gives only that target cell the matching 1 and leaves R1C1
+empty, so indexing *forces* R1C1=2 and the completion shows the 2 emerging
+from the rule rather than being handed it. The `broke-*` fixture writes R1C1=2
+and gives the target a conflicting digit, legal under classic sudoku alone, so
+the puzzle breaks *because of* indexing. The blocks carry SudokuMaker's own
+indexer color so the link renders as the real indexer component, not a plain
+black square.
 
 A third `found-`/`broke-` pair proves the S-cell-aware behaviour:
 R1C4 marks column-indexing at digit 1, demanding
@@ -46,6 +48,12 @@ LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links
 
 _SIZE = 4
 
+# SudokuMaker's own indexer-component colors (semi-transparent), read off a
+# real 600/601 link: red for column-indexing, blue for row-indexing. An empty
+# style renders as a plain black square, not the indexer component, so every
+# synthesized block carries its axis color.
+_INDEXER_COLOR = {INDEXING_ROW_TYPE: "#0080f955", INDEXING_COL_TYPE: "#f9000055"}
+
 
 def _link(
     *,
@@ -68,7 +76,11 @@ def _link(
             "constraints": [
                 {"type": 0},
                 {"type": 1, "regions": region_numbers},
-                {"type": wire_type, "cells": list(marked_cells), "style": {}},
+                {
+                    "type": wire_type,
+                    "cells": list(marked_cells),
+                    "style": {"color": _INDEXER_COLOR[wire_type]},
+                },
             ],
         },
     }
@@ -76,14 +88,15 @@ def _link(
 
 
 def found_indexing_row_4x4() -> str:
-    """`found` — row-indexing (`type 600`) marks R1C1 at digit 2: value 2 names
-    position 2 down column 1, whose cell R2C1 must hold R1C1's row, 1. The
-    given R2C1=1 supplies that match, so indexing rides a real placement, not
-    a self-referential tautology."""
+    """`found` — row-indexing (`type 600`) marks R1C1 with no given value. Only
+    the target R2C1=1 is given: in column 1, digit 1 sits at row 2. Row-indexing
+    then forces R1C1=2 (value 2 names position 2 down column 1, whose cell holds
+    R1C1's row, 1), so the completion *shows* the 2 emerging from the rule rather
+    than being handed it."""
     return _link(
         wire_type=INDEXING_ROW_TYPE,
         marked_cells=(row_col_to_index(1, 1, _SIZE),),
-        givens={(1, 1): 2, (2, 1): 1},
+        givens={(2, 1): 1},
     )
 
 
@@ -100,13 +113,15 @@ def broke_indexing_row_4x4() -> str:
 
 
 def found_indexing_col_4x4() -> str:
-    """`found` — column-indexing (`type 601`) marks R1C1 at digit 2: value 2
-    names position 2 across row 1, whose cell R1C2 must hold R1C1's column, 1.
-    The given R1C2=1 supplies that match."""
+    """`found` — column-indexing (`type 601`) marks R1C1 with no given value.
+    Only the target R1C2=1 is given: in row 1, digit 1 sits at column 2.
+    Column-indexing then forces R1C1=2 (value 2 names position 2 across row 1,
+    whose cell holds R1C1's column, 1), so the completion *shows* the 2 emerging
+    from the rule rather than being handed it."""
     return _link(
         wire_type=INDEXING_COL_TYPE,
         marked_cells=(row_col_to_index(1, 1, _SIZE),),
-        givens={(1, 1): 2, (1, 2): 1},
+        givens={(1, 2): 1},
     )
 
 
@@ -144,7 +159,7 @@ def _scell_link(*, control_value: int, scell_pair: str, r1c2: int, r1c3: int) ->
                 {
                     "type": INDEXING_COL_TYPE,
                     "cells": [row_col_to_index(1, 4, _SIZE)],
-                    "style": {},
+                    "style": {"color": _INDEXER_COLOR[INDEXING_COL_TYPE]},
                 },
                 {
                     "name": "S-cell",
