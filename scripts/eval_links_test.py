@@ -103,13 +103,13 @@ def test_eval_link_shows_the_puzzle_link_verbatim_and_colors_only_the_solution()
     assert doubler_block["style"]["cage"]["color"] == _MARKER_COLOR_PALETTE[0]
 
 
-def test_view_for_presents_an_invalid_case_without_decoding() -> None:
-    # An `invalid-*` fixture is a malformed link the front door refuses; view_for
+def test_view_for_presents_a_malformed_case_without_decoding() -> None:
+    # A `malformed-*` fixture is a malformed link the front door refuses; view_for
     # must render it off its prefix alone, never decoding — decoding a malformed
     # link raises, which is exactly the crash the prefix guard avoids.
     garbage = "https://sudokumaker.app/?puzzle=not-a-real-payload"
-    view = view_for("invalid-scell-out-of-domain-4x4", [garbage])
-    assert view.kind == "invalid"
+    view = view_for("malformed-scell-out-of-domain-4x4", [garbage])
+    assert view.kind == "malformed"
     assert view.puzzle_link == garbage
     assert view.witness_grid is None
     assert view.solution_link is None

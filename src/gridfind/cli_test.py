@@ -323,7 +323,7 @@ def test_odd_cell_equality_cage_exits_two_with_stderr(
     captured = capsys.readouterr()
     assert code == 2
     assert captured.out == ""
-    assert "invalid puzzle document" in captured.err
+    assert "malformed puzzle document" in captured.err
 
 
 def test_non_classic_link_exits_two_with_stderr(

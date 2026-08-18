@@ -4,7 +4,7 @@ CLI front door.
 Each case file under `links/` holds the argv `cli.main` receives: any flag
 lines, then the link, one per line. Links are URL-encoded and carry no
 spaces, so the loader builds argv by `content.split()`. The filename stem
-starts `found-`, `broke-`, or `invalid-`; the loader partitions on the first
+starts `found-`, `broke-`, or `malformed-`; the loader partitions on the first
 `-` for the expected outcome.
 
 A `found` case gets two layers of assertion: the front-door contract (exit
@@ -12,7 +12,7 @@ A `found` case gets two layers of assertion: the front-door contract (exit
 `validate_witness` recovers the grid the CLI printed and checks it against
 the `Puzzle` `link_to_puzzle` recovers from the same link, never calling
 `verdict()` itself. A `broke` case trusts the curator's label: exit 1,
-`broke` on stdout, nothing more. An `invalid` case is a
+`broke` on stdout, nothing more. A `malformed` case is a
 malformed link the front door refuses before any verdict: exit 2, the error
 on stderr.
 
@@ -60,18 +60,18 @@ def test_link_case_matches_its_filename_verdict(
     path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     expected_kind, _, _ = path.stem.partition("-")
-    assert expected_kind in ("found", "broke", "invalid")
+    assert expected_kind in ("found", "broke", "malformed")
     argv = path.read_text().split()
 
     code = cli.main(argv, io.StringIO())
 
     captured = capsys.readouterr()
 
-    # An `invalid-*` case is a malformed link the front door refuses before any
+    # A `malformed-*` case is a malformed link the front door refuses before any
     # verdict: exit 2, the error on stderr, nothing on stdout.
-    if expected_kind == "invalid":
+    if expected_kind == "malformed":
         assert code == 2
-        assert "invalid puzzle document" in captured.err
+        assert "malformed puzzle document" in captured.err
         return
 
     lines = captured.out.split("\n")
@@ -226,7 +226,7 @@ def test_coverage_floor_every_link_reachable_variant_has_found_and_broke() -> No
     coverage: dict[int | str, dict[str, bool]] = {}
     for path in _CASES:
         kind, _, _ = path.stem.partition("-")
-        # `invalid-*` cases carry a malformed link `link_to_puzzle` won't read, so
+        # `malformed-*` cases carry a malformed link `link_to_puzzle` won't read, so
         # they name no variant and owe no found/broke pair.
         if kind not in ("found", "broke"):
             continue

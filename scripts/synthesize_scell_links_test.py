@@ -117,12 +117,12 @@ def test_broke_caged_cell_with_its_own_value_collides_and_reads_broke(
     assert (code, first) == (1, "broke")
 
 
-def test_invalid_out_of_domain_value_exits_two_as_a_malformed_document(
+def test_malformed_out_of_domain_value_exits_two_as_a_malformed_document(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    code, _, err = _front_door(syn.invalid_out_of_domain(), capsys)
+    code, _, err = _front_door(syn.malformed_out_of_domain(), capsys)
     assert code == 2
-    assert "invalid puzzle document" in err
+    assert "malformed puzzle document" in err
 
 
 def test_found_schrodinger_6x6_declares_one_scell_and_reads_found(
@@ -303,7 +303,7 @@ def _given_count(link: str) -> int:
         (syn.broke_consistency, 0),
         (syn.broke_settled, 1),
         (syn.broke_caged_value, 1),
-        (syn.invalid_out_of_domain, 0),
+        (syn.malformed_out_of_domain, 0),
     ],
     ids=lambda v: v.__name__ if callable(v) else str(v),
 )

@@ -12,7 +12,7 @@ the library solves the same puzzle. On current `main`:
 
 ```
 $ gridfind --schrodinger --reading classic '<6x6 sudokumaker link>'
-gridfind: invalid puzzle document: non-classic link: expected 81 cells
+gridfind: malformed puzzle document: non-classic link: expected 81 cells
 ```
 
 Exit code is non-zero. It is a clean rejection, not a crash — the CLI refuses a

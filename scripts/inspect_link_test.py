@@ -172,7 +172,7 @@ def test_main_reports_a_bad_link_error_on_stderr_and_still_exits_zero() -> None:
     # A rejected link is a per-link failure, not a batch failure: `main`
     # catches it, reports it on stderr, and still exits 0 (a bad link among
     # good ones must not kill the batch).
-    path = next(p for p in _LINK_CASES if p.stem.startswith("invalid"))
+    path = next(p for p in _LINK_CASES if p.stem.startswith("malformed"))
     link = path.read_text().split()[-1]
     err = io.StringIO()
 
@@ -193,7 +193,7 @@ def test_decode_payload_matches_link_to_document() -> None:
 
 # Golden report lines for every corpus link that `link_to_puzzle` accepts,
 # pinned so a decode-boundary refactor can't silently change what the
-# inspector reports (invalid-* links error out of `inspect_link` itself and
+# inspector reports (malformed-* links error out of `inspect_link` itself and
 # are exercised separately, through `main`, below).
 _GOLDEN_REPORTS = {
     "broke-anti-king-6x6": (
@@ -383,13 +383,13 @@ _GOLDEN_REPORTS = {
 _GOLDEN_CASES = [path for path in _LINK_CASES if path.stem in _GOLDEN_REPORTS]
 
 
-def test_golden_reports_cover_every_non_invalid_corpus_link() -> None:
+def test_golden_reports_cover_every_non_malformed_corpus_link() -> None:
     """A link case added under `links/` without a matching golden entry must
     fail here, not silently skip the pin."""
-    non_invalid = {
-        path.stem for path in _LINK_CASES if not path.stem.startswith("invalid")
+    non_malformed = {
+        path.stem for path in _LINK_CASES if not path.stem.startswith("malformed")
     }
-    assert set(_GOLDEN_REPORTS) == non_invalid
+    assert set(_GOLDEN_REPORTS) == non_malformed
 
 
 @pytest.mark.parametrize(
@@ -400,13 +400,13 @@ def test_inspect_link_report_is_pinned(path: Path) -> None:
     assert inspect_link(link) == _GOLDEN_REPORTS[path.stem]
 
 
-def test_inspect_link_invalid_case_still_errors_the_same_way() -> None:
+def test_inspect_link_malformed_case_still_errors_the_same_way() -> None:
     """The one corpus link `link_to_puzzle` rejects must keep failing inside
     `inspect_link` itself (caught and reported by `main`, not the classifier)
     so the boundary refactor doesn't change which stage sees the error."""
-    invalid = [path for path in _LINK_CASES if path.stem.startswith("invalid")]
-    assert invalid, "expected an invalid-* corpus link"
-    for path in invalid:
+    malformed = [path for path in _LINK_CASES if path.stem.startswith("malformed")]
+    assert malformed, "expected a malformed-* corpus link"
+    for path in malformed:
         link = path.read_text().split()[-1]
         with pytest.raises(Exception, match="not among"):
             inspect_link(link)
