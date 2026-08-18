@@ -6,9 +6,13 @@ solve happened to satisfy it — plus verdict-seam found/broke behaviour for
 both axes, and the ADR-0009 digit-read exception (a doubler never shifts the
 index).
 
-Scope: width-1 cells only — S-cell membership and the
-index-0 refusal are a follow-on layer change, tested in their own file
-alongside the `s_blind` composition proof.
+The width-1 tests above exercise a bare stack (no widening layer), where
+`Indexing` takes its `add_element` fast path. The S-cell tests below stack
+`schrodinger` alongside `indexing` and drive the `verdict()` seam directly
+(`SCellPin`/`SingletonPin` s_directives, `S_BOARD`'s `0..N` domain, mirroring
+`verdict_test.py`'s own S-cell fixtures) — membership over a widened cell's
+two slots and the index-0 refusal both only have a defined meaning once a
+widening layer is in the stack.
 """
 
 from __future__ import annotations
@@ -23,10 +27,16 @@ from gridfind.layers import build_stack
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import indexing_rules
 from gridfind.layers.indexing import Indexing
-from gridfind.puzzle import Board, Constraint, Given, Puzzle
+from gridfind.puzzle import Board, Constraint, Given, Puzzle, WorkingState
+from gridfind.s_directives import SCellPin, SDirective, SingletonPin
 from gridfind.verdict import verdict
 
 BOARD = Board(size=4)
+
+# A Schrödinger board small enough to solve fast: 5 digits (0-4) over a
+# 4-wide line, the classic `0..N` domain (ADR-0014) an indexing control's
+# index-0 refusal needs to be reachable at all.
+S_BOARD = Board(size=4, values=range(5))
 
 
 def _indexing(axis: str, cells: tuple[str, ...]) -> Constraint:
@@ -193,3 +203,151 @@ def test_indexing_reads_the_raw_digit_under_a_discovered_doubler() -> None:
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
     assert solver.value(engine.d0("R1C3")) == 1
     assert solver.value(modifier_value["R1C1"]) == 6
+
+
+def test_indexing_stacks_over_schrodinger_without_s_blind_refusal() -> None:
+    # indexing declares no s_blind, so the compose-time refusal
+    # (`build_stack`'s own `refuse_s_blind_over_widening` call) that rejects
+    # e.g. thermo + schrodinger must leave indexing + schrodinger standing —
+    # no `SBlindLayerError`, all the way through a built engine.
+    puzzle = Puzzle(
+        board=S_BOARD,
+        constraints=(Constraint(type="schrodinger"), _indexing("col", ("R1C2",))),
+    )
+
+    canonical, layers = build_stack(puzzle.constraints, size=S_BOARD.size)
+    build_engine(layers, tuple(canonical), board=S_BOARD)
+
+
+@pytest.mark.parametrize(
+    ("marked_cells", "s_directives", "givens"),
+    [
+        pytest.param(
+            ("R1C2",),
+            (SCellPin(address="R1C2", pair=frozenset({1, 3})),),
+            (Given(address="R1C1", digit=2), Given(address="R1C3", digit=2)),
+            id="s-cell control indexes from both digits",
+        ),
+        pytest.param(
+            ("R1C4",),
+            (
+                SingletonPin(address="R1C4", digit=1),
+                SCellPin(address="R1C1", pair=frozenset({1, 4})),
+            ),
+            (),
+            id="s-cell indexed cell matched by its second digit",
+        ),
+    ],
+)
+def test_s_cell_indexing_membership_resolves_found(
+    marked_cells: tuple[str, ...],
+    s_directives: tuple[SDirective, ...],
+    givens: tuple[Given, ...],
+) -> None:
+    puzzle = Puzzle(
+        board=S_BOARD,
+        constraints=(Constraint(type="schrodinger"), _indexing("col", marked_cells)),
+        givens=givens,
+    )
+    state = WorkingState(s_directives=s_directives)
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+
+
+_R1C4_INDEXES_1_INTO_R1C1 = (SingletonPin(address="R1C4", digit=1),)
+
+
+def test_s_cell_second_digit_target_contradiction_resolves_broke() -> None:
+    # R1C4 = 1 demands (R1,1)=R1C1 hold C=4, R1C4's own column. R1C1 is an
+    # S-cell pinned {1, 2} — neither digit is 4, so the demand on its second
+    # (and first) slot fails: the found parametrized case above pins R1C1 to
+    # {1, 4} instead, so this is that same shape with the match removed.
+    puzzle = Puzzle(
+        board=S_BOARD,
+        constraints=(Constraint(type="schrodinger"), _indexing("col", ("R1C4",))),
+    )
+    state = WorkingState(
+        s_directives=(
+            *_R1C4_INDEXES_1_INTO_R1C1,
+            SCellPin(address="R1C1", pair=frozenset({1, 2})),
+        )
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
+def test_s_cell_second_digit_target_contradiction_flips_found_when_stripped() -> None:
+    puzzle = Puzzle(board=S_BOARD, constraints=(Constraint(type="schrodinger"),))
+    state = WorkingState(
+        s_directives=(
+            *_R1C4_INDEXES_1_INTO_R1C1,
+            SCellPin(address="R1C1", pair=frozenset({1, 2})),
+        )
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+
+
+_R1C2_HOLDS_1_AND_3 = (SCellPin(address="R1C2", pair=frozenset({1, 3})),)
+
+
+def test_s_cell_control_second_digit_contradiction_resolves_broke() -> None:
+    # R1C2 is an S-cell holding {1, 3}: its second digit (3) demands
+    # (R1,3)=R1C3 hold C=2 (R1C2's own column), but R1C3 is separately
+    # given 4 — a contradiction on the S-cell's second index alone.
+    puzzle = Puzzle(
+        board=S_BOARD,
+        constraints=(Constraint(type="schrodinger"), _indexing("col", ("R1C2",))),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=4)),
+    )
+    state = WorkingState(s_directives=_R1C2_HOLDS_1_AND_3)
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
+def test_s_cell_control_second_digit_contradiction_flips_found_when_stripped() -> None:
+    # Strip-and-recheck: the same givens and S-cell pin alone (no indexing
+    # constraint) are satisfiable, so the broke fixture above proves the
+    # clue, not the givens or the pin.
+    puzzle = Puzzle(
+        board=S_BOARD,
+        constraints=(Constraint(type="schrodinger"),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=4)),
+    )
+    state = WorkingState(s_directives=_R1C2_HOLDS_1_AND_3)
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+
+
+def test_indexing_control_forced_to_zero_resolves_broke() -> None:
+    # 0 names no position: a control forced to it has no digit >= 1 to index
+    # from, so the layer's explicit refusal makes the state broke rather
+    # than silently satisfied.
+    puzzle = Puzzle(
+        board=S_BOARD,
+        constraints=(Constraint(type="schrodinger"), _indexing("col", ("R1C2",))),
+    )
+    state = WorkingState(s_directives=(SingletonPin(address="R1C2", digit=0),))
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
+def test_indexing_control_forced_to_zero_flips_found_with_the_clue_stripped() -> None:
+    puzzle = Puzzle(board=S_BOARD, constraints=(Constraint(type="schrodinger"),))
+    state = WorkingState(s_directives=(SingletonPin(address="R1C2", digit=0),))
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
