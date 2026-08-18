@@ -18,6 +18,8 @@ _EXPECTED_AXIS: dict[str, str] = {
     "broke-indexing-row-4x4": "row",
     "found-indexing-col-4x4": "col",
     "broke-indexing-col-4x4": "col",
+    "found-indexing-scell-col-4x4": "col",
+    "broke-indexing-scell-col-4x4": "col",
 }
 
 
