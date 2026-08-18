@@ -44,6 +44,10 @@ this doc covers the parts a linter can't.
   a cross-cutting parametrize when a known upcoming file split would fight it.
 - Markers must be registered (pytest runs `--strict-markers`). An `xfail` that
   passes is a failure (`xfail_strict`) — remove the marker when the bug is fixed.
+- When writing or reviewing tests, run the `python-testing-patterns` skill's
+  critical-eye pass — behavior ownership, duplicate coverage, brittle string
+  matching, overbroad fixtures, unit-vs-integration boundaries — before adding
+  assertions.
 
 ## Style
 
