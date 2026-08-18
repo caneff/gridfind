@@ -66,7 +66,7 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
 
 def build_coverage(links_dir: Path) -> dict[str, dict[str, int]]:
     """Tally, per feature, how many `found-` and how many `broke-` links
-    exercise it. Only these two verdict sides count — an `invalid-` link is a
+    exercise it. Only these two verdict sides count — a `malformed-` link is a
     decode-error case, not verdict coverage. Any other prefix is an unexpected
     corpus filename: warn to stderr (the repo's fail-loud norm) rather than let
     it slip out of the tally unseen."""
@@ -75,7 +75,7 @@ def build_coverage(links_dir: Path) -> dict[str, dict[str, int]]:
     }
     for link_file in sorted(links_dir.glob("*.txt")):
         side = link_file.name.split("-", 1)[0]
-        if side == "invalid":
+        if side == "malformed":
             continue
         if side not in _SIDES:
             print(

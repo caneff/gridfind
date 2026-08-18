@@ -254,7 +254,7 @@ def broke_caged_value() -> str:
     return grid.give_first_own_value(grid.scells[grid.first]).link()
 
 
-def invalid_out_of_domain() -> str:
+def malformed_out_of_domain() -> str:
     """4x4 S-cell whose cage `value` names a digit off the board — a malformed
     directive the front door refuses with exit 2, not a `broke` verdict."""
     return _SchrodingerGrid(2, 2).set_first_value(f"{_EXTRA},99").link()
@@ -429,8 +429,9 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
 
 
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The
-# filename stem's first token is the e2e verdict (`found`/`broke`/`invalid`);
-# the drift-guard test re-runs each `fn` and refuses a hand-edited file.
+# filename stem's first token is the e2e expected outcome (`found`/`broke`/
+# `malformed`); the drift-guard test re-runs each `fn` and refuses a
+# hand-edited file.
 CORPUS: dict[str, Callable[[], str]] = {
     "found-scell-pin-4x4": found_pin,
     "found-scell-half-4x4": found_half,
@@ -440,7 +441,7 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-scell-consistency-4x4": broke_consistency,
     "broke-schrodinger-4x4": broke_settled,
     "broke-scell-caged-value-4x4": broke_caged_value,
-    "invalid-scell-out-of-domain-4x4": invalid_out_of_domain,
+    "malformed-scell-out-of-domain-4x4": malformed_out_of_domain,
     "found-doubler-4x4": found_doubler_4x4,
     "found-doubled-scell-17cage-4x4": found_doubled_scell_17cage_4x4,
     "broke-doubler-4x4": broke_doubler_4x4,

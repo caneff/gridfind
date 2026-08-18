@@ -132,8 +132,8 @@ class LinkView(NamedTuple):
     puzzle_link: str
     witness_grid: str | None
     solution_link: str | None
-    # `kind` is the verdict word (`found`/`broke`/`unknown`), or `invalid` for a
-    # malformed link the front door refuses — carrying the puzzle link alone.
+    # `kind` is the verdict word (`found`/`broke`/`unknown`), or `malformed` for
+    # a malformed link the front door refuses — carrying the puzzle link alone.
 
 
 def pending_stems(
@@ -181,12 +181,12 @@ def changed_link_stems(base: str) -> set[str]:
 
 
 def view_for(stem: str, argv: Sequence[str]) -> LinkView:
-    """The view for one case file, keyed off its verdict prefix. An `invalid-*`
-    fixture is a malformed link the front door refuses (exit 2), so it carries
-    no verdict to eyeball and is presented without decoding; everything else
-    routes through `eval_link`."""
-    if stem.partition("-")[0] == "invalid":
-        return LinkView("invalid", argv[-1], witness_grid=None, solution_link=None)
+    """The view for one case file, keyed off its expected-outcome prefix. A
+    `malformed-*` fixture is a malformed link the front door refuses (exit 2),
+    so it carries no verdict to eyeball and is presented without decoding;
+    everything else routes through `eval_link`."""
+    if stem.partition("-")[0] == "malformed":
+        return LinkView("malformed", argv[-1], witness_grid=None, solution_link=None)
     return eval_link(argv)
 
 
@@ -231,7 +231,7 @@ _PAGE = """<!doctype html>
              color: #fff; margin-left: .4rem; }}
   .found {{ background: #2e7d32; }}
   .broke {{ background: #b71c1c; }}
-  .invalid {{ background: #b26a00; }}
+  .malformed {{ background: #b26a00; }}
   .panes {{ display: flex; gap: 1rem; }}
   .pane {{ flex: 1; min-width: 0; height: 78vh; border: 1px solid #ccc;
           border-radius: 6px; }}
@@ -315,7 +315,7 @@ def _pane(view: LinkView) -> str:
     """The right pane of a slide: the solution in an iframe for a `found` case,
     or a labelled empty pane when there is no solution to show."""
     if view.solution_link is None:
-        reason = "malformed link" if view.kind == "invalid" else f"{view.kind} case"
+        reason = "malformed link" if view.kind == "malformed" else f"{view.kind} case"
         return f'<div class="pane empty">no solution — {reason}</div>'
     answer = html.escape(view.solution_link, quote=True)
     return f'<iframe class="pane" allow="clipboard-write" data-src="{answer}"></iframe>'

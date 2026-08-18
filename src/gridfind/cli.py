@@ -89,7 +89,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
         ValueError,
         GridfindError,
     ) as err:
-        print(f"gridfind: invalid puzzle document: {err}", file=sys.stderr)
+        print(f"gridfind: malformed puzzle document: {err}", file=sys.stderr)
         return 2
 
     print(result.kind)
