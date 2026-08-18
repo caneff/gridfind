@@ -16,8 +16,8 @@ marked cell to a *different* digit and pins the cell the involution then
 demands to a conflicting one — both givens legal under classic sudoku alone,
 so the puzzle breaks *because of* indexing, not the givens.
 
-A third `found-`/`broke-` pair proves the S-cell-aware behaviour
-(gridfind#598): R1C4 marks column-indexing at digit 1, demanding
+A third `found-`/`broke-` pair proves the S-cell-aware behaviour:
+R1C4 marks column-indexing at digit 1, demanding
 `(R1,1)=R1C1` hold R1C4's own column (4); R1C1 is declared an S-cell via a
 `type 2001` `S-cell` marker cage (the sole decode-time S-cell channel,
 ADR-0012), matched through its *second* digit rather than its first — a
