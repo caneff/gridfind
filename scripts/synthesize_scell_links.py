@@ -277,7 +277,7 @@ def _doubler_document(
     `Sum`-named `type 2001` killer block for the sum cages, and a named `Doubler`
     marker block that stands up the modifier directives. The sum rides a named
     `Sum` cage, so no live rule sits on an unnamed cosmetic block — the path
-    spec #431's warn-drop silences; a `Sum` label decodes to a killer cage the
+    the unnamed-cage warn-drop silences; a `Sum` label decodes to a killer cage the
     same as an unnamed block (ADR-0012). With `with_scell_block` a
     named-but-empty `S-cell` block rides along, enabling Schrödinger mode by
     presence (widening the domain to `0…N`, giving every cell `is_s` freedom to
@@ -381,7 +381,7 @@ def broke_cosmetic_cage_sumless_4x4() -> str:
     the cage is a bare no-repeats rule; that rule alone makes the board
     unsatisfiable (drop the cage and it reads found). The cage is named `Sum`,
     not an unnamed cosmetic block, so its live no-repeats rule never rides the
-    unnamed path spec #431's warn-drop silences; a `Sum` label decodes to a
+    unnamed path the warn-drop silences; a `Sum` label decodes to a
     killer cage the same as an unnamed block (ADR-0012)."""
     cells: list[dict[str, object]] = [{} for _ in range(16)]
     cells[1] = {"given": True, "value": 2}

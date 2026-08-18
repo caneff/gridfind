@@ -149,7 +149,7 @@ def test_main_reports_unknown_flag_without_decoding_it() -> None:
     err = io.StringIO()
     code = main(["--bogus"], io.StringIO(), stderr=err)
     assert "unknown flag: --bogus" in err.getvalue()
-    assert code == 2  # nothing left to decode -> usage exit, not a crash
+    assert code == 2
 
 
 def test_main_prints_the_report_line_for_a_valid_link(

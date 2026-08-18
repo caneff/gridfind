@@ -25,7 +25,6 @@ from dataclasses import dataclass
 
 from gridfind.engine import Engine
 
-# A knight's eight L-hops: two along one axis, one along the other.
 KNIGHT_OFFSETS: tuple[tuple[int, int], ...] = (
     (-2, -1),
     (-2, 1),
@@ -37,7 +36,6 @@ KNIGHT_OFFSETS: tuple[tuple[int, int], ...] = (
     (2, 1),
 )
 
-# A king's eight neighbors: every orthogonal and diagonal step of one.
 KING_OFFSETS: tuple[tuple[int, int], ...] = (
     (-1, -1),
     (-1, 0),

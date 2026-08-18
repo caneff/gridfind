@@ -56,7 +56,6 @@ _SCHRODINGER_WIRE_CONSTRAINTS = [
     {"type": 303, "disabled": True},
 ]
 
-# The `S-cell` marker block that infers Schrödinger-ness, over cell 0.
 _S_CELL_MARKER = {"name": "S-cell", "type": 2001, "cages": [{"cells": [0]}]}
 
 
@@ -280,7 +279,7 @@ def test_a_red_cell_alone_is_not_a_doubler() -> None:
     # or modifier directive.
     regions_4x4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
     cells: list[dict[str, object]] = [{} for _ in range(16)]
-    cells[0] = {"colors": 2}  # a bare colors bit is inert, ignored on decode
+    cells[0] = {"colors": 2}
     payload = encode_document(
         {
             "cells": cells,
@@ -555,7 +554,7 @@ def test_s_cell_marker_cage_value_out_of_domain_digit_is_refused_as_malformed() 
     # S-cell directive and is refused at verdict as malformed (CONTEXT.md,
     # "malformed"), exactly as an out-of-domain given is — never softened to a
     # bare S-cell that a wrong `found` could slip through.
-    payload = _s_cell_cage_link("2,15")  # 15 is outside the board's 0..9 domain
+    payload = _s_cell_cage_link("2,15")
 
     puzzle, state = link_to_puzzle(payload)
 

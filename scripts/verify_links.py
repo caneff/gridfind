@@ -1,7 +1,7 @@
 """Fill a found link's witness back in as an openable SudokuMaker solution-link.
 
-A dev tool, on demand only (`just verify-links`) — the human oracle spec
-#244/ADR-0007 asks for: over every case file under `links/`, decode and
+A dev tool, on demand only (`just verify-links`) — the human oracle
+ADR-0007 asks for: over every case file under `links/`, decode and
 verdict the link exactly as `links_test.py` does. A `found` link's witness
 digits are written into the link's own decoded document as givens and
 re-encoded via `document_to_link`, so the printed link opens in the app with the
@@ -50,8 +50,8 @@ def fill_witness(
     source link never declared, and gridfind reads them only from named marker
     cages, never cell colors — so `_mark_witness_variants` extends each marker
     block to cover every variant cell the witness holds. A discovered S-cell
-    joins the `S-cell` block as a single-cell cage carrying its solved pair
-    (spec #349); a discovered modifier joins its marker block's cage. The
+    joins the `S-cell` block as a single-cell cage carrying its solved pair;
+    a discovered modifier joins its marker block's cage. The
     emitted solution then marks every S-cell and modifier by cage alone, and
     its own re-decode agrees with the witness it was built from."""
     filled: dict[str, object] = json.loads(json.dumps(document))

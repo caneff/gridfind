@@ -68,7 +68,7 @@ def _apply_placement(engine: Engine, placement: Placement) -> None:
     layer's per-cell sentinel already makes `d1 == d` unsatisfiable for a
     singleton, so the OR collapses on its own."""
     address, digit = placement.address, placement.digit
-    content = engine.contents(address)  # off-board raises here
+    content = engine.contents(address)
     _require_digit_in_content(engine, address, content, digit, f"placement.{address}")
 
 
@@ -95,7 +95,7 @@ def _apply_directives[Directive: _AddressedDirective](
     if values is None:
         raise MalformedPuzzleError(missing_msg)
     for directive in directives:
-        content = engine.contents(directive.address)  # off-board raises here
+        content = engine.contents(directive.address)
         apply_one(engine, values, directive, content)
 
 

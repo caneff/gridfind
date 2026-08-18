@@ -193,7 +193,7 @@ class Puzzle:
         """Read a Puzzle from an already-parsed JSON object — the seam a caller
         holding the whole document uses, so it reads a sub-object without
         re-serializing it for `from_json` to parse again."""
-        doc: Any = data  # parsed-JSON boundary, narrowed by the typed helpers
+        doc: Any = data
         return cls(
             board=Board.from_dict(doc["board"]),
             constraints=tuple(Constraint.from_dict(c) for c in doc["constraints"]),
@@ -247,7 +247,7 @@ class WorkingState:
     def from_dict(cls, data: dict[str, JsonValue]) -> WorkingState:
         """Read a WorkingState from an already-parsed JSON object — the seam a
         caller holding the whole document uses (see `Puzzle.from_dict`)."""
-        doc: Any = data  # parsed-JSON boundary, narrowed by the typed helpers
+        doc: Any = data
         return cls(
             places=tuple(
                 Placement(address=p["address"], digit=p["digit"]) for p in doc["places"]

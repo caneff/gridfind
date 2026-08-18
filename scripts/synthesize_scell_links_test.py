@@ -265,8 +265,8 @@ def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
 
 
 def test_found_doubled_scell_17cage_witness_never_doubles_a_digit_twice() -> None:
-    # The verdict seam of #384: a doubled S-cell doubles *both* its digits, so
-    # no two discovered doublers may share any doubled digit. Read the invariant
+    # A doubled S-cell doubles *both* its digits, so no two discovered
+    # doublers may share any doubled digit. Read the invariant
     # off the returned witness — each doubler contributes the digits its cell
     # displays (both for an S-cell), and those contributions must be disjoint.
     link = syn.found_doubled_scell_17cage_4x4()

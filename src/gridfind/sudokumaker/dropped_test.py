@@ -28,9 +28,9 @@ def test_inert_unmodeled_constraints_decode_quietly(
             "cells": EMPTY_CELLS,
             "constraints": [
                 *WIRE_CONSTRAINTS,
-                {"type": 250, "clues": []},  # empty, unmodeled clue list
-                {"type": 2000, "lines": [[0, 1]]},  # cosmetic pen-lines
-                {"type": 303, "input": {"groups": [{"cells": []}]}},  # empty group
+                {"type": 250, "clues": []},
+                {"type": 2000, "lines": [[0, 1]]},
+                {"type": 303, "input": {"groups": [{"cells": []}]}},
             ],
         }
     )

@@ -159,7 +159,9 @@ def build_stack(
     partition; `constant` builds a fresh `ConstantModifier(value=k)` instead
     of dispatching to the registry's `k = 0` nullifier default (ADR-0016).
     Both layers stay param-agnostic; only the instance the door builds them
-    with differs.
+    with differs. Two instances of this pattern still live inline; a third
+    type-directed exception should be extracted into a shared helper instead
+    of a third `elif` growing this method.
 
     The bare, no-param case of either — `regions-distinct` with no
     `params["regions"]`, `constant` with no `params["value"]` — is left to

@@ -144,8 +144,8 @@ def test_two_group_sums_each_constrain_their_own_cells_independently() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"][0] == 4  # 1 + 4 == 5
-    assert result.witness["R3C4"][0] == 4  # 6 + 4 == 10
+    assert result.witness["R1C2"][0] == 4
+    assert result.witness["R3C4"][0] == 4
 
 
 def test_a_broken_second_group_sum_breaks_the_whole_puzzle() -> None:
@@ -204,7 +204,7 @@ def test_a_v_clue_is_an_alias_for_a_group_sum_of_five() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"][0] == 2  # V binds the pair to 5
+    assert result.witness["R1C2"][0] == 2
 
 
 def test_an_x_clue_is_an_alias_for_a_group_sum_of_ten() -> None:
@@ -218,7 +218,7 @@ def test_an_x_clue_is_an_alias_for_a_group_sum_of_ten() -> None:
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"][0] == 7  # X binds the pair to 10
+    assert result.witness["R1C2"][0] == 7
 
 
 def test_a_group_sum_over_a_widened_cell_reads_its_s_value() -> None:

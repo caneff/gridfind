@@ -200,7 +200,7 @@ def test_a_puzzle_mixing_group_sum_and_pair_difference_resolves_correctly() -> N
 
     assert result.kind == "found"
     assert result.witness is not None
-    assert result.witness["R1C2"][0] == 4  # 1 + 4 == 5
+    assert result.witness["R1C2"][0] == 4
     assert abs(result.witness["R3C3"][0] - result.witness["R3C4"][0]) == 2
 
 

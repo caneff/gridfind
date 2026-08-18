@@ -77,7 +77,7 @@ def test_region_map_from_labels_groups_arbitrary_noncontiguous_labels() -> None:
 def test_region_map_from_labels_groups_a_noncontiguous_regions_cells() -> None:
     # One label's cells need not be adjacent — a region is whatever shares an
     # id, wherever it sits on the board.
-    labels = [0, 1, 1, 0]  # R1C1+R2C2 share label 0; R1C2+R2C1 share label 1
+    labels = [0, 1, 1, 0]
 
     region_map = RegionMap.from_labels(2, labels)
 

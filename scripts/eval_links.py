@@ -1,5 +1,5 @@
 """Human-eval tool over the link corpus (`just eval-links`), a sibling of the
-`verify_links` solution-link oracle (spec #244/ADR-0007). Where `verify_links`
+`verify_links` solution-link oracle (ADR-0007). Where `verify_links`
 answers "does the emitter agree with the front door", this one lays the raw
 material out for a person to check the verdict by eye.
 
@@ -102,6 +102,9 @@ def load_archive(path: Path) -> list[dict[str, str | int]]:
     return json.loads(path.read_text())["archived"]
 
 
+# Called by the `gridfind-flags-to-map` skill via `python -c`, not from any
+# Python import — static analysis (and a grep for callers) will not find that
+# call site. Do not delete this as dead code.
 def archive_flags(
     flagged_path: Path, archive_path: Path, stems: set[str], issue_number: int
 ) -> None:
@@ -412,7 +415,6 @@ class _ApprovalHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-        # Silence the default per-request stderr logging.
         pass
 
 

@@ -73,7 +73,7 @@ def test_found_prints_verdict_then_witness_grid(
     lines = out.rstrip("\n").split("\n")
     assert code == 0
     assert lines[0] == "found"
-    assert len(lines) > 1  # a grid body follows the verdict word
+    assert len(lines) > 1
 
 
 def test_sudokumaker_link_argument_prints_found_and_grid(
@@ -88,7 +88,7 @@ def test_sudokumaker_link_argument_prints_found_and_grid(
     lines = out.rstrip("\n").split("\n")
     assert code == 0
     assert lines[0] == "found"
-    assert len(lines) > 1  # a grid body follows the verdict word
+    assert len(lines) > 1
 
 
 def test_sudokumaker_link_on_stdin_matches_argument(
@@ -208,9 +208,9 @@ def _classic_schrodinger_link_with_a_settled_scell_position() -> str:
 def test_settled_digit_where_the_solution_needs_an_s_cell_is_broke(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # Spec #348: a settled large digit is a singleton pin (is_s == 0), so a
-    # cell whose only valid completion is an S-cell is not absorbed as its
-    # lower half — the puzzle reads broke, not found.
+    # A settled large digit is a singleton pin (is_s == 0), so a cell whose
+    # only valid completion is an S-cell is not absorbed as its lower half —
+    # the puzzle reads broke, not found.
     link = _classic_schrodinger_link_with_a_settled_scell_position()
 
     code = cli.main([link], io.StringIO())
@@ -254,7 +254,7 @@ def test_retired_variant_flags_are_rejected(
 ) -> None:
     # The color channel is gone: the CLI no longer accepts the variant flags,
     # so argparse refuses them (exit 2) rather than silently ignoring them.
-    # --ignore-unknown-named-cages retired alongside it (ADR-0012, #435): the
+    # --ignore-unknown-named-cages retired alongside it (ADR-0012): the
     # uniform warn-drop policy leaves no refusal for it to downgrade. argparse
     # rejects the flag before the puzzle argument is ever read, so a
     # throwaway string proves the point as well as a real link.

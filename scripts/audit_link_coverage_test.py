@@ -16,7 +16,6 @@ _LINKS_DIR = Path(__file__).resolve().parents[1] / "src" / "gridfind" / "links"
 
 def test_universe_tracks_registry_and_cage_kinds() -> None:
     universe = feature_universe()
-    # A decodable wire type shows up by its registry name.
     assert "anti-king" in universe
     assert "white-kropki" in universe
     # Each cosmetic-cage marker kind is its own row, including `constant` now
@@ -29,8 +28,8 @@ def test_universe_tracks_registry_and_cage_kinds() -> None:
 def test_link_features_reads_types_and_cage_kind() -> None:
     payload = {
         "constraints": [
-            {"type": 12},  # anti-king
-            {"type": 2001, "name": "Doubler"},  # cosmetic cage, doubler kind
+            {"type": 12},
+            {"type": 2001, "name": "Doubler"},
         ]
     }
     features = link_features(payload)
@@ -46,9 +45,9 @@ def test_link_features_skips_disabled() -> None:
 
 def test_find_holes_flags_missing_side() -> None:
     coverage = {
-        "thermo": {"found": 2, "broke": 1},  # covered both sides
-        "white-kropki": {"found": 1, "broke": 0},  # no broke
-        "cage:unnamed": {"found": 0, "broke": 0},  # neither
+        "thermo": {"found": 2, "broke": 1},
+        "white-kropki": {"found": 1, "broke": 0},
+        "cage:unnamed": {"found": 0, "broke": 0},
     }
     holes = find_holes(coverage)
     assert not any("thermo" in h for h in holes)
