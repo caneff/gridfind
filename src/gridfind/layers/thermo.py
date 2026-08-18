@@ -48,13 +48,13 @@ def _non_decreasing(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> N
 
 @dataclass
 class Thermo:
-    """`s_blind`: reads a cell through `engine.content`, its single slot —
-    undefined once a widening layer gives a cell a second slot (`build_stack`
-    refuses the combination)."""
+    """Reads each path cell through `engine.value_expr` (ADR-0009) — a plain
+    digit, a doubler's `2·value`, or an S-cell's combined `s_value` — never a
+    raw content slot, so it carries no `s_blind` flag and composes with a
+    doubler or Schrödinger board, same as the pair-relation family."""
 
     name: str = "thermo"
     depends_on: tuple[str, ...] = ("board",)
-    s_blind: bool = True
 
     def register(self, engine: Engine) -> None:
         pass
@@ -63,6 +63,16 @@ class Thermo:
         for clue in engine.constraints_of(self.name):
             path = cast("list[str]", clue.params["path"])
             slow = cast("bool", clue.params["slow"])
-            pairs = [(engine.content(a), engine.content(b)) for a, b in pairwise(path)]
+            # value_expr always reifies an actual solver variable (a plain
+            # cell's content, a doubler's modifier_value, an S-cell's
+            # s_value) rather than a compound expression, so it narrows back
+            # to IntVar, same as engine.content.
+            pairs = [
+                (
+                    cast("cp_model.IntVar", engine.value_expr(a)),
+                    cast("cp_model.IntVar", engine.value_expr(b)),
+                )
+                for a, b in pairwise(path)
+            ]
             rel = _non_decreasing if slow else _strictly_increasing
             emit_over_pairs(engine, pairs, rel)

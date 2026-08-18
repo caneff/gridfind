@@ -6,7 +6,10 @@ not that a solve happened to satisfy them — plus verdict-seam behaviour
 (found/broke).
 """
 
+from typing import cast
+
 import pytest
+from ortools.sat.python import cp_model
 
 from gridfind.engine import build_engine
 from gridfind.layers import build_stack
@@ -177,3 +180,58 @@ def test_a_slow_thermo_longer_than_the_grid_still_resolves_found() -> None:
     assert result.witness is not None
     values = [result.witness[address][0] for address in path]
     assert values == sorted(values)
+
+
+def test_thermo_reads_the_doubled_value_when_a_cell_is_the_modifier() -> None:
+    # A strict edge needs the tip strictly above 9 — unreachable as a raw
+    # digit (max 9) but reachable once R1C1 doubles: 2*5 = 10 > 9. Forcing
+    # R1C1 to be the modifier isolates the claim — the edge only balances if
+    # thermo read R1C1's folded value, not its raw digit.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _thermo(("R1C2", "R1C1"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C2") == 9)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert 2 * solver.value(engine.d0("R1C1")) > 9
+
+
+def test_a_slow_thermo_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # R1C1's digits combine to 2 (0+2), doubled to 4 (ADR-0010); R1C2 is a
+    # plain 4. A strict edge could not hold at 4 < 4, but the slow (<=) edge
+    # allows the tie — reachable only if thermo read R1C1's folded value, not
+    # its bare digit or s_value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _slow_thermo(("R1C2", "R1C1")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 0)
+    engine.model.add(content[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 4)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 4

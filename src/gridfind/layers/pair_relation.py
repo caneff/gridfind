@@ -1,5 +1,5 @@
 """`PairRelation`: the shared engine behind every binary pair-relation layer
-(a prefactor for `pair-ratio` and a reserved `pair-inequality`).
+(a prefactor for `pair-ratio`).
 
 A pair-relation clue names two cells and holds them to some binary relation
 — difference today, ratio and inequality later. One `PairRelation` instance,
@@ -42,9 +42,9 @@ class PairRelation:
     """Reads each pair's cells through `engine.value_expr` (ADR-0009), the
     same seam `group-sum` and a values-distinct `cage` already read: a plain
     digit, a doubler's `2·value`, or an S-cell's combined `s_value` (no
-    per-candidate rule). No `s_blind` flag — unlike `thermo` or
-    `offset_adjacency`, this family never reads a cell's raw content slot, so
-    it composes freely with a widening (Schrödinger) layer."""
+    per-candidate rule). No `s_blind` flag — unlike `offset_adjacency`, this
+    family never reads a cell's raw content slot, so it composes freely with
+    a widening (Schrödinger) layer."""
 
     name: str
     relation: RelationEmitter
