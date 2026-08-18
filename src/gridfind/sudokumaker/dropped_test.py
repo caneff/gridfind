@@ -14,6 +14,20 @@ from gridfind.sudokumaker.conftest import (
     constraint_link,
     encode_document,
 )
+from gridfind.sudokumaker.dropped import has_live_data
+
+
+@pytest.mark.parametrize(
+    ("cells", "live"),
+    [([0], True), ([5], True), ([], False)],
+    ids=["index-0", "index-nonzero", "empty"],
+)
+def test_cells_liveness_counts_index_zero(cells: list[int], live: bool) -> None:
+    # A cells-based constraint (indexing marks its control cell here) is live
+    # when the list is non-empty. Raw index 0 is R1C1, a real cell — the
+    # liveness check must read the list's length, not the truthiness of its
+    # entries, or a constraint on R1C1 reads as inert.
+    assert has_live_data({"type": 600, "cells": cells}) is live
 
 
 def test_inert_unmodeled_constraints_decode_quietly(

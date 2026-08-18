@@ -141,7 +141,7 @@ def has_live_data(constraint: dict[str, Any]) -> bool:
         return True
     for key in _LIVE_LIST_KEYS:
         value = constraint.get(key)
-        if isinstance(value, list) and any(value):
+        if isinstance(value, list) and value:
             return True
     payload = constraint.get("input")
     if isinstance(payload, dict):

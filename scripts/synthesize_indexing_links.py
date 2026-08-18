@@ -7,14 +7,15 @@ each fixture exercises and regenerate the whole set with `main()`.
 
 One `found-`/`broke-` pair per axis (`type 600` row-indexing, `type 601`
 column-indexing; gridfind owns this wire type, so the split
-is a build-time choice rather than read off a real link). Each `found-*`
-fixture pins its one marked cell to its own coordinate — the involution's
-self-referential fixed point, `(R,C)=V ⟺ (R,V)=C` (or the row-axis
-transpose) collapsing to a tautology when `V == C` — which a valid classic
-4x4 completion satisfies for free. Each `broke-*` fixture instead pins the
-marked cell to a *different* digit and pins the cell the involution then
-demands to a conflicting one — both givens legal under classic sudoku alone,
-so the puzzle breaks *because of* indexing, not the givens.
+is a build-time choice rather than read off a real link). Each pair marks
+R1C1 at digit 2, whose value names position 2 on the indexed line — down its
+column for row-indexing, across its row for column-indexing. The line's cell
+at that position must hold R1C1's own coordinate on the other axis (1). The
+`found-*` fixture gives that target cell the matching 1, so indexing is
+satisfied by a real placement rather than a self-referential tautology; the
+`broke-*` fixture gives it a conflicting digit, legal under classic sudoku
+alone, so the puzzle breaks *because of* indexing. The pair differs by
+exactly one cell, the indexed target.
 
 A third `found-`/`broke-` pair proves the S-cell-aware behaviour:
 R1C4 marks column-indexing at digit 1, demanding
@@ -75,47 +76,49 @@ def _link(
 
 
 def found_indexing_row_4x4() -> str:
-    """`found` — row-indexing (`type 600`) marks R2C1; the given R2C1=2 is the
-    involution's fixed point (`(2,C1)=2 ⟺ (2,C1)=2`), trivially satisfied by
-    any classic completion."""
+    """`found` — row-indexing (`type 600`) marks R1C1 at digit 2: value 2 names
+    position 2 down column 1, whose cell R2C1 must hold R1C1's row, 1. The
+    given R2C1=1 supplies that match, so indexing rides a real placement, not
+    a self-referential tautology."""
     return _link(
         wire_type=INDEXING_ROW_TYPE,
-        marked_cells=(row_col_to_index(2, 1, _SIZE),),
-        givens={(2, 1): 2},
+        marked_cells=(row_col_to_index(1, 1, _SIZE),),
+        givens={(1, 1): 2, (2, 1): 1},
     )
 
 
 def broke_indexing_row_4x4() -> str:
-    """`broke` — row-indexing marks R2C1=3, which demands `(3,C1)=R3C1` hold
-    `R=2`; R3C1 is separately given 4. Both givens are legal under classic
-    sudoku alone (different rows, different digits), so the break is the
-    indexing involution, not a plain classic collision."""
+    """`broke` — the row-indexing found pair's mismatch: R1C1=2 demands R2C1
+    hold 1, but R2C1 is given 3. Both givens are legal under classic sudoku
+    alone (different rows, different digits), so the break is the indexing
+    involution, not a plain classic collision."""
     return _link(
         wire_type=INDEXING_ROW_TYPE,
-        marked_cells=(row_col_to_index(2, 1, _SIZE),),
-        givens={(2, 1): 3, (3, 1): 4},
+        marked_cells=(row_col_to_index(1, 1, _SIZE),),
+        givens={(1, 1): 2, (2, 1): 3},
     )
 
 
 def found_indexing_col_4x4() -> str:
-    """`found` — column-indexing (`type 601`) marks R1C2; the given R1C2=2 is
-    the involution's fixed point (`(R1,2)=2 ⟺ (R1,2)=2`)."""
+    """`found` — column-indexing (`type 601`) marks R1C1 at digit 2: value 2
+    names position 2 across row 1, whose cell R1C2 must hold R1C1's column, 1.
+    The given R1C2=1 supplies that match."""
     return _link(
         wire_type=INDEXING_COL_TYPE,
-        marked_cells=(row_col_to_index(1, 2, _SIZE),),
-        givens={(1, 2): 2},
+        marked_cells=(row_col_to_index(1, 1, _SIZE),),
+        givens={(1, 1): 2, (1, 2): 1},
     )
 
 
 def broke_indexing_col_4x4() -> str:
-    """`broke` — column-indexing marks R1C2=3, which demands `(R1,3)=R1C3`
-    hold `C=2`; R1C3 is separately given 4. Both givens are legal under
-    classic sudoku alone (same row, different digits/columns), so the break
-    is the indexing involution, not a plain classic collision."""
+    """`broke` — the column-indexing found pair's mismatch: R1C1=2 demands R1C2
+    hold 1, but R1C2 is given 3. Both givens are legal under classic sudoku
+    alone (same row, different digits/columns), so the break is the indexing
+    involution, not a plain classic collision."""
     return _link(
         wire_type=INDEXING_COL_TYPE,
-        marked_cells=(row_col_to_index(1, 2, _SIZE),),
-        givens={(1, 2): 3, (1, 3): 4},
+        marked_cells=(row_col_to_index(1, 1, _SIZE),),
+        givens={(1, 1): 2, (1, 2): 3},
     )
 
 

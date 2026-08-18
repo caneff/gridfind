@@ -330,10 +330,10 @@ _GOLDEN_REPORTS = {
         "9x9 · 81 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
     "found-indexing-col-4x4": (
-        "4x4 · 16 cells · 1 given · types {0,1,601} · active: 601 · verdict: found"
+        "4x4 · 16 cells · 2 givens · types {0,1,601} · active: 601 · verdict: found"
     ),
     "found-indexing-row-4x4": (
-        "4x4 · 16 cells · 1 given · types {0,1,600} · active: 600 · verdict: found"
+        "4x4 · 16 cells · 2 givens · types {0,1,600} · active: 600 · verdict: found"
     ),
     "found-indexing-scell-col-4x4": (
         "4x4 · 16 cells · 3 givens · types {0,1,601,2001} ·"
