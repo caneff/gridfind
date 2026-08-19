@@ -237,6 +237,40 @@ def thermo_rules(engine: Engine) -> list[list[tuple[str, str]]]:
     return grouped
 
 
+def indexing_rules(engine: Engine) -> list[tuple[str, int, list[str]]]:
+    """Every indexing rule, as `(control address, coordinate, line)` — the
+    control cell's own address, the coordinate its `add_element` pins the
+    line's selected cell to, and the indexed line's cell addresses in
+    position order (`1..N`).
+
+    Reads the `element` proto `Indexing.emit` produces structurally: the
+    index expression's sole var is the control's `d0` (its `-1` offset is
+    the involution's own bookkeeping, not read here), the target expression's
+    constant offset is the coordinate (a plain int, never a var, since
+    `Indexing` pins it directly), and each `exprs` entry's sole var is one
+    line cell's `d0`, in emission order. Matched back to each clue's marked
+    cells by the control var, so the return order follows
+    `engine.constraints_of(\"indexing\")` and each clue's own `cells` order,
+    not the model's constraint-emission order.
+    """
+    address_of = _cell_addresses(engine)
+    by_control_var: dict[int, tuple[int, list[str]]] = {}
+    for constraint in engine.model.proto.constraints:
+        if not constraint.has_element():
+            continue
+        element = constraint.element
+        control_var = element.linear_index.vars[0]
+        coordinate = element.linear_target.offset
+        line = [address_of[expr.vars[0]] for expr in element.exprs]
+        by_control_var[control_var] = (coordinate, line)
+    rules: list[tuple[str, int, list[str]]] = []
+    for clue in engine.constraints_of("indexing"):
+        for address in cast("list[str]", clue.params["cells"]):
+            coordinate, line = by_control_var[engine.d0(address).index]
+            rules.append((address, coordinate, line))
+    return rules
+
+
 def distinct_count_targets(engine: Engine) -> dict[str, int]:
     """Every counting rule, as its label mapped to the number of distinct
     digits it demands.

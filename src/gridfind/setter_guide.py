@@ -23,6 +23,8 @@ from gridfind.sudokumaker.wire_types import (
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
     COSMETIC_CAGE_TYPE,
+    INDEXING_COL_TYPE,
+    INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
     KROPKI_WHITE_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
@@ -121,6 +123,25 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty"
         " thermometers list adds nothing.",
     ),
+    INDEXING_ROW_TYPE: SetterDoc(
+        display_name="Row Indexing (159)",
+        wire_block="type 600 {cells:[…], style?} — style is cosmetic.",
+        decode_result='One indexing Constraint per block, axis "row",'
+        " carrying every marked cell's address. Each marked cell (R,C)"
+        " states (V,C)=R for its placed digit V.",
+        verdict="Accept. disabled blocks are skipped; a block with no"
+        " usable cells is warn-and-dropped to stderr.",
+    ),
+    INDEXING_COL_TYPE: SetterDoc(
+        display_name="Column Indexing (159)",
+        wire_block="type 601 {cells:[…], style?} — style is cosmetic,"
+        " same shape as row indexing.",
+        decode_result='One indexing Constraint per block, axis "col",'
+        " carrying every marked cell's address. Each marked cell (R,C)"
+        " states (R,V)=C for its placed digit V.",
+        verdict="Accept. disabled blocks are skipped; a block with no"
+        " usable cells is warn-and-dropped to stderr.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -165,6 +186,8 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "killer-cage": "found-cage-4x4",
     "cosmetic-cage": "found-doubler-4x4",
     "thermo": "found-thermo-4x4",
+    "row-indexing": "found-indexing-row-4x4",
+    "col-indexing": "found-indexing-col-4x4",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",

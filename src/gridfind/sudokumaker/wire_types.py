@@ -74,3 +74,14 @@ ANTI_KNIGHT_TYPE = 13
 # name-only reading a `type 2001` cosmetic cage's top-level `name` gets
 # (`naming.named_component`).
 CUSTOM_CONSTRAINT_TYPE = 1000
+
+# type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
+# style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
+# The type number is the row-vs-column discriminator, exactly like 200/201's
+# white/black split. gridfind owns this wire type — no
+# research ticket — so unlike 200/201 the split below is a build-time choice,
+# not read off a real SudokuMaker link carrying both — the model does not
+# hinge on which is which (a future real link proving the assignment
+# backwards is a decode-detail swap, not a rebuild).
+INDEXING_ROW_TYPE = 600
+INDEXING_COL_TYPE = 601

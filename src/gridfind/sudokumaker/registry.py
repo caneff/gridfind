@@ -21,12 +21,18 @@ from gridfind.sudokumaker.edge_clues import (
     kropki_constraints,
     xv_constraints,
 )
+from gridfind.sudokumaker.indexing import (
+    col_indexing_constraints,
+    row_indexing_constraints,
+)
 from gridfind.sudokumaker.regions import regions_constraints
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
     COSMETIC_CAGE_TYPE,
+    INDEXING_COL_TYPE,
+    INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
     KROPKI_WHITE_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
@@ -104,6 +110,16 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=thermo_constraints,
         live_keys=("thermometers",),
         name="thermo",
+    ),
+    INDEXING_ROW_TYPE: DecodedType(
+        handler=row_indexing_constraints,
+        live_keys=("cells",),
+        name="row-indexing",
+    ),
+    INDEXING_COL_TYPE: DecodedType(
+        handler=col_indexing_constraints,
+        live_keys=("cells",),
+        name="col-indexing",
     ),
     NEGATIVE_DIAGONAL_TYPE: DecodedType(
         handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),

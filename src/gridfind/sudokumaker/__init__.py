@@ -24,7 +24,8 @@ unvalidated — a malformed matrix surfaces as
 
 Every wire type gridfind decodes or otherwise recognizes — givens, regions,
 and each opt-in variant decoder (XV, white-kropki, black-kropki, killer-cage,
-thermo, cosmetic-cage) — is one row in `DECODER_REGISTRY`: `link_to_puzzle`'s
+thermo, row-indexing, col-indexing, cosmetic-cage) — is one row in
+`DECODER_REGISTRY`: `link_to_puzzle`'s
 dispatch, `dropped.warn_on_dropped_constraints`, and `dropped.has_live_data`'s
 active/inert check all read that one table instead of each restating "type N
 is decoded" by hand.
