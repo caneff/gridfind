@@ -2,7 +2,7 @@
 (a prefactor for `pair-ratio`).
 
 A pair-relation clue names two cells and holds them to some binary relation
-— difference today, ratio and inequality later. One `PairRelation` instance,
+— difference and ratio. One `PairRelation` instance,
 built with a **relation-emitter** closure, pulls every constraint of its own
 `name` via `constraints_of` and applies the relation directly to its own two
 cells — a pair is not a many-cell walk, so it costs no walk of its own
