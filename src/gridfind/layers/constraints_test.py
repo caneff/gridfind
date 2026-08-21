@@ -6,6 +6,7 @@ from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.door import UnknownLayerError
+from gridfind.layers.outside_cells import OutsideCells
 from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
@@ -15,6 +16,7 @@ from gridfind.layers.thermo import Thermo
 from gridfind.puzzle import Board, Constraint
 
 BOARD = GridCells()
+OUTSIDE_CELLS = OutsideCells()
 ROWS_DISTINCT = DistinctOverGroups("rows-distinct", rows)
 COLS_DISTINCT = DistinctOverGroups("cols-distinct", cols)
 REGIONS_DISTINCT = DistinctOverGroups("regions-distinct", regions)
@@ -26,7 +28,7 @@ def test_bare_constraints_resolve_to_the_matching_layer_instances() -> None:
 
     _, layers = build_stack(constraints, size=9)
 
-    assert layers == [BOARD, ROWS_DISTINCT, COLS_DISTINCT]
+    assert layers == [BOARD, OUTSIDE_CELLS, ROWS_DISTINCT, COLS_DISTINCT]
 
 
 def test_sudoku_preset_expands_to_exactly_the_three_distinct_constraints() -> None:
@@ -46,7 +48,7 @@ def test_two_constraints_of_one_type_resolve_to_a_single_layer_instance() -> Non
 
     _, layers = build_stack(constraints, size=9)
 
-    assert layers == [BOARD, ROWS_DISTINCT]
+    assert layers == [BOARD, OUTSIDE_CELLS, ROWS_DISTINCT]
 
 
 def test_regions_distinct_with_params_dispatches_over_the_supplied_map() -> None:
@@ -68,7 +70,7 @@ def test_regions_distinct_with_no_params_still_dispatches_the_box_default() -> N
     # box-tiling layer instance — a classic sudoku is unchanged.
     _, layers = build_stack((Constraint(type="regions-distinct"),), size=9)
 
-    assert layers == [BOARD, REGIONS_DISTINCT]
+    assert layers == [BOARD, OUTSIDE_CELLS, REGIONS_DISTINCT]
 
 
 def test_regions_distinct_with_a_malformed_matrix_raises() -> None:
@@ -111,6 +113,7 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
 
     assert layers == [
         BOARD,
+        OUTSIDE_CELLS,
         PairRelation(pair_relation_type, relation=PAIR_RELATIONS[pair_relation_type]),
         Schrodinger(),
     ]
@@ -123,7 +126,7 @@ def test_thermo_composes_with_a_widening_layer() -> None:
 
     _, layers = build_stack(constraints, size=9)
 
-    assert layers == [BOARD, Thermo(), Schrodinger()]
+    assert layers == [BOARD, OUTSIDE_CELLS, Thermo(), Schrodinger()]
 
 
 def test_an_s_blind_layer_alone_is_unaffected() -> None:
@@ -131,20 +134,20 @@ def test_an_s_blind_layer_alone_is_unaffected() -> None:
     # its own.
     _, layers = build_stack((Constraint(type="anti-knight"),), size=9)
 
-    assert len(layers) == 2
+    assert len(layers) == 3
 
 
 def test_a_widening_layer_alone_is_unaffected() -> None:
     _, layers = build_stack((Constraint(type="schrodinger"),), size=9)
 
-    assert len(layers) == 2
+    assert len(layers) == 3
 
 
 def test_no_constraints_still_carries_the_compulsory_board_layer() -> None:
     canonical, layers = build_stack((), size=9)
 
     assert canonical == []
-    assert layers == [BOARD]
+    assert layers == [BOARD, OUTSIDE_CELLS]
 
 
 def test_a_board_constraint_dedups_onto_the_one_compulsory_board_layer() -> None:
@@ -153,7 +156,7 @@ def test_a_board_constraint_dedups_onto_the_one_compulsory_board_layer() -> None
     canonical, layers = build_stack((Constraint(type="board"),), size=9)
 
     assert canonical == [Constraint(type="board")]
-    assert layers == [BOARD]
+    assert layers == [BOARD, OUTSIDE_CELLS]
 
 
 def test_a_board_constraint_builds_one_grid_with_no_unruled_variables() -> None:
