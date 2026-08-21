@@ -146,6 +146,36 @@ def test_witness_render_draws_an_outside_cell_on_each_side_of_the_ring() -> None
     )
 
 
+def test_witness_render_draws_a_created_corner_outside_cell() -> None:
+    # A corner outside cell (row/col both off the grid) is usually never
+    # created — but when a clue genuinely names one, its solved value must
+    # still print, not vanish off the edge of the ring the way a position
+    # keyed only by an interior row/col would miss it.
+    grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (1,),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (4,),
+        "R0C0": (9,),
+        "R0C3": (7,),
+        "R3C0": (6,),
+        "R3C3": (5,),
+    }
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
+    witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
+
+    assert witness.render() == (
+        " 9           7 \n"
+        "   ┌───┬───┐   \n"
+        "   │ 1 │ 2 │   \n"
+        "   │   │   │   \n"
+        "   │ 3 │ 4 │   \n"
+        "   └───┴───┘   \n"
+        " 6           5 "
+    )
+
+
 def test_witness_render_is_unchanged_with_no_outside_cells() -> None:
     # No entry in `assignment` falls outside `grid` — the ring adds nothing,
     # byte-identical to the plain grid.

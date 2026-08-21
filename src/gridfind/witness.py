@@ -194,11 +194,13 @@ class Witness:
         def margin(token: str) -> str:
             return f" {token.rjust(width)} "
 
-        def ring_row(tokens: dict[int, str]) -> str:
+        def ring_row(
+            tokens: dict[int, str], left_corner: str, right_corner: str
+        ) -> str:
             row = "".join(
                 f"  {tokens.get(c, '').rjust(width)} " for c in range(1, n + 1)
             )
-            return blank() + row + " " + blank()
+            return margin(left_corner) + row + " " + margin(right_corner)
 
         bordered = [
             (
@@ -210,7 +212,17 @@ class Witness:
             )
             for index, line in enumerate(lines)
         ]
-        return "\n".join([ring_row(top), *bordered, ring_row(bottom)])
+        return "\n".join(
+            [
+                ring_row(top, outside.get((0, 0), ""), outside.get((0, n + 1), "")),
+                *bordered,
+                ring_row(
+                    bottom,
+                    outside.get((n + 1, 0), ""),
+                    outside.get((n + 1, n + 1), ""),
+                ),
+            ]
+        )
 
     def _outside_by_position(self) -> dict[tuple[int, int], str]:
         """Every `assignment` entry off `grid` (an outside cell), keyed by its
