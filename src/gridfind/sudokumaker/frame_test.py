@@ -376,7 +376,9 @@ def test_cli_main_found_when_a_border_kropki_dot_is_consistent(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # R1C3's given is 3; a ratio-2 dot to its outside neighbour R0C3 is
-    # satisfied by R0C3 = 6, the only value in 1..6 at ratio 2 from 3.
+    # satisfied by R0C3 = 6, the only value in 1..6 at ratio 2 from 3. Column
+    # C3 already holds a 6 of its own (R2C3) — outside cells sit outside
+    # inner-grid uniqueness, so the repeat is not, by itself, broke.
     link = frame_link(
         inner_solution=_INNER_SOLUTION,
         extra_constraints=[_black_kropki(_BORDER_INNER_EDGE, 2)],
@@ -384,8 +386,37 @@ def test_cli_main_found_when_a_border_kropki_dot_is_consistent(
 
     code = cli.main([link], io.StringIO())
 
+    out = capsys.readouterr().out.split("\n")
     assert code == 0
-    assert capsys.readouterr().out.split("\n")[0] == "found"
+    assert out[0] == "found"
+    # The witness renders the border ring: R0C3's forced 6 prints on the
+    # line above the box, aligned under its column.
+    assert "6" in out[1]
+
+
+def test_cli_main_broke_when_two_border_kropki_dots_on_one_outside_cell_conflict(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Two clues bind the one shared outside cell R0C4, neither orphaning the
+    # other: a black dot to inner R1C4 (given 4) forces R0C4 = 2 (ratio 2's
+    # only valid partner of 4); a white dot to border neighbour R0C3 forces
+    # {R0C3, R0C4} = {1, 6} (the only pair 5 apart in 1..6), so R0C4 in
+    # {1, 6}. The two demands share no value — broke only because both
+    # rules are live against the one cell at once. Either alone is
+    # satisfiable (a black-only or white-only link on this same fixture
+    # would read found), so this is not just one clue's own contradiction.
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[
+            _black_kropki(12, 2),  # R0C4 - R1C4 (given 4), ratio 2 -> R0C4 = 2
+            _white_kropki(4, 5),  # R0C3 - R0C4, diff 5 -> R0C4 in {1, 6}
+        ],
+    )
+
+    code = cli.main([link], io.StringIO())
+
+    assert code == 1
+    assert capsys.readouterr().out.split("\n")[0] == "broke"
 
 
 def test_cli_main_broke_when_a_border_kropki_dot_has_no_valid_partner(
