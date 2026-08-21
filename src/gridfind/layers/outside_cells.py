@@ -52,6 +52,7 @@ class OutsideCells:
                     engine.add_cell(
                         address, low=board.values.start, high=board.values[-1]
                     )
+                    engine.restrict(address, board.values)
 
     def emit(self, engine: Engine) -> None:
         pass
