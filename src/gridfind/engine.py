@@ -285,7 +285,9 @@ class Engine:
         content = self.contents(address)
         if len(content) == 1:
             return [(content[0], None)]
-        is_s = cast("dict[str, cp_model.IntVar]", self.structures["is_s"])
+        is_s = self.is_s()
+        if is_s is None:
+            raise ValueError("width-2 cell without an is_s structure")
         return [(content[0], None), (content[1], is_s[address])]
 
     def domain(self, address: str) -> list[int]:
