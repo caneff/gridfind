@@ -99,12 +99,15 @@ def link_to_puzzle(link: str) -> tuple[Puzzle, WorkingState]:
     # An escape-the-grid frame (`width == height == maxDigit + 2`) is rewritten
     # to its inner `N x N` document first, so the rest of this function decodes
     # a plain classic/jigsaw board — the frame adds no second decode path, it
-    # hands the existing one a smaller board (the border ring drops with a
-    # warning inside the peel).
+    # hands the existing one a smaller board. `peeled` also carries any
+    # border-touching kropki dot as an already-canonical `Constraint`, appended
+    # to the decoded puzzle below; everything else on the ring drops with a
+    # warning inside the peel.
     document = link_to_document(link)
-    inner = peel_escape_frame(document)
-    if inner is not None:
-        document = inner
+    peeled = peel_escape_frame(document)
+    border_constraints: tuple[Constraint, ...] = ()
+    if peeled is not None:
+        document, border_constraints = peeled
     puzzle_data: Any = document["puzzle"]
     size = board_size(puzzle_data)
     warn_on_dropped_constraints(puzzle_data)
@@ -184,6 +187,7 @@ def link_to_puzzle(link: str) -> tuple[Puzzle, WorkingState]:
         constraints.append(Constraint("schrodinger"))
     if cosmetic_cage_decode.modifier_constraint is not None:
         constraints.append(cosmetic_cage_decode.modifier_constraint)
+    constraints.extend(border_constraints)
 
     puzzle = Puzzle(board=board, constraints=tuple(constraints), givens=decoded.givens)
     state = WorkingState(

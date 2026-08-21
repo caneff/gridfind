@@ -1,15 +1,19 @@
 """The escape-the-grid frame peel: an `(N+2)x(N+2)` link whose domain is `1..N`
-decodes as the inner `N x N` puzzle, with the border ring dropped.
+decodes as the inner `N x N` puzzle, with a border-touching kropki dot kept as
+an outside-cell constraint and the rest of the ring dropped.
 
 A setter draws an escape-the-grid puzzle on a custom grid two cells wider than
 the real puzzle, a ring of scratch cells around the edge. The link states
 `width == height == maxDigit + 2`. gridfind reads the inner `N x N` as the real
 puzzle — domain `1..N`, drawn regions as its boxes, rows and columns distinct —
-and drops everything on the border ring with a warning, never a raise.
+keeps a kropki dot that touches the border ring as a `pair-difference`/
+`pair-ratio` constraint over the padded outside-cell address, and drops
+everything else on the ring with a warning, never a raise.
 """
 
 import io
 import re
+from typing import cast
 
 import pytest
 
@@ -45,6 +49,7 @@ def frame_link(
     postproc: bool = True,
     rowcol_cages: bool = True,
     border_ring: bool = True,
+    extra_constraints: list[dict[str, object]] | None = None,
 ) -> str:
     """A synthesised escape-the-grid link: an `8x8` frame (`maxDigit 6`) whose
     inner `6x6` carries `inner_solution` (all given when supplied), boxed by
@@ -56,7 +61,9 @@ def frame_link(
 
     `border_ring=False` fills the ring's region labels with an inner id instead
     of the `-1` sentinel, so the ring is not drawn outside the regions — the
-    link is frame-shaped but not an escape frame."""
+    link is frame-shaped but not an escape frame. `extra_constraints` rides
+    onto the wire `constraints` list verbatim — a border kropki test's own
+    `type 200`/`201` block, decoded against this helper's fixed `8x8` frame."""
     frame, inner = 8, 6
     if inner_regions is None:
         inner_regions = regions_for(inner, 2, 3)
@@ -100,6 +107,8 @@ def frame_link(
     if corner_givens:
         for corner in (0, frame - 1, frame * (frame - 1), frame * frame - 1):
             cells[corner] = {"given": True, "value": 1}
+    if extra_constraints is not None:
+        constraints.extend(extra_constraints)
     return encode_document(
         {
             "cells": cells,
@@ -219,6 +228,177 @@ def test_cli_main_returns_broke_when_an_inner_relation_is_violated(
     broken = list(_INNER_SOLUTION)
     broken[1] = 1
     code = cli.main([frame_link(inner_solution=broken)], io.StringIO())
+
+    assert code == 1
+    assert capsys.readouterr().out.split("\n")[0] == "broke"
+
+
+# Edges against the helper's fixed 8x8 frame, each shifted down to its padded
+# outside-cell pair by hand (verified independently of the decoder via
+# `edge_clues.edge_to_pair` + a manual -1 shift): edge 11 is R0C3-R1C3
+# (border-inner, vertical), edge 3 is R0C2-R0C3 (border-border, horizontal,
+# sharing R0C3 with edge 11), edge 13 is R0C5-R1C5 (border-inner, vertical,
+# whose inner endpoint the fixture's own solution sets to 5), and edge 18 is
+# R1C1-R1C2 (fully interior).
+_BORDER_INNER_EDGE = 11
+_BORDER_BORDER_EDGE = 3
+_BORDER_INNER_EDGE_AT_A_FIVE = 13
+_INTERIOR_EDGE = 18
+
+
+def _black_kropki(
+    edge: int, value: int, *, negative: list[int] | None = None
+) -> dict[str, object]:
+    block: dict[str, object] = {"type": 201, "clues": [{"value": value, "edge": edge}]}
+    if negative is not None:
+        block["negative"] = negative
+    return block
+
+
+def _white_kropki(edge: int, value: int) -> dict[str, object]:
+    return {"type": 200, "clues": [{"value": value, "edge": edge}]}
+
+
+def test_a_border_touching_black_kropki_dot_becomes_a_pair_ratio_constraint() -> None:
+    # The real link's black kropki dots tying a border cell to its inner
+    # neighbour, decoded onto the padded outside-cell address rather than
+    # dropped with the rest of the ring.
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_black_kropki(_BORDER_INNER_EDGE, 2)],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    assert (
+        Constraint("pair-ratio", params={"cells": ["R0C3", "R1C3"], "k": 2})
+        in puzzle.constraints
+    )
+
+
+def test_a_border_touching_white_kropki_dot_becomes_a_pair_difference_constraint() -> (
+    None
+):
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_white_kropki(_BORDER_BORDER_EDGE, 1)],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    assert (
+        Constraint("pair-difference", params={"cells": ["R0C2", "R0C3"], "diff": 1})
+        in puzzle.constraints
+    )
+
+
+def test_two_border_kropki_dots_on_the_same_outside_cell_both_decode() -> None:
+    # Two clues/decorations on one outside cell both bind — neither is
+    # orphaned: R0C3 is named by both a white dot (to its border neighbour
+    # R0C2) and a black dot (to its inner neighbour R1C3).
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[
+            _white_kropki(_BORDER_BORDER_EDGE, 1),
+            _black_kropki(_BORDER_INNER_EDGE, 2),
+        ],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    assert (
+        Constraint("pair-difference", params={"cells": ["R0C2", "R0C3"], "diff": 1})
+        in puzzle.constraints
+    )
+    assert (
+        Constraint("pair-ratio", params={"cells": ["R0C3", "R1C3"], "k": 2})
+        in puzzle.constraints
+    )
+
+
+def test_a_kropki_dot_that_touches_no_border_cell_still_drops_with_a_warning(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_black_kropki(_INTERIOR_EDGE, 2)],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    pair_types = ("pair-difference", "pair-ratio")
+    assert not any(c.type in pair_types for c in puzzle.constraints)
+    assert "interior kropki clue" in capsys.readouterr().err
+
+
+def test_a_border_kropki_blocks_negative_list_drops_with_a_warning(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_black_kropki(_BORDER_INNER_EDGE, 2, negative=[3])],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    # The positive dot still binds...
+    assert (
+        Constraint("pair-ratio", params={"cells": ["R0C3", "R1C3"], "k": 2})
+        in puzzle.constraints
+    )
+    # ...but no negated pair-ratio rides in from the unmodeled negative list.
+    assert not any(
+        c.type == "pair-ratio" and c.params.get("negate") for c in puzzle.constraints
+    )
+    assert "negative-space rule" in capsys.readouterr().err
+
+
+def test_a_corner_is_never_created_when_a_border_dot_names_its_neighbour() -> None:
+    # The corner R0C0 sits next to R0C1 and R1C0, but no clue in this fixture
+    # names it — the machinery must not invent it as a side effect of
+    # decoding a neighbouring border dot.
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_white_kropki(_BORDER_BORDER_EDGE, 1)],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    cells = {
+        cell
+        for c in puzzle.constraints
+        for cell in cast("list[str]", c.params.get("cells", []))
+    }
+    assert "R0C0" not in cells
+
+
+def test_cli_main_found_when_a_border_kropki_dot_is_consistent(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # R1C3's given is 3; a ratio-2 dot to its outside neighbour R0C3 is
+    # satisfied by R0C3 = 6, the only value in 1..6 at ratio 2 from 3.
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_black_kropki(_BORDER_INNER_EDGE, 2)],
+    )
+
+    code = cli.main([link], io.StringIO())
+
+    assert code == 0
+    assert capsys.readouterr().out.split("\n")[0] == "found"
+
+
+def test_cli_main_broke_when_a_border_kropki_dot_has_no_valid_partner(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # R1C5's given is 5, whose only ratio-2 partners (10, 2.5) both fall
+    # outside 1..6 — the outside cell has nothing it can hold, broke.
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_black_kropki(_BORDER_INNER_EDGE_AT_A_FIVE, 2)],
+    )
+
+    code = cli.main([link], io.StringIO())
 
     assert code == 1
     assert capsys.readouterr().out.split("\n")[0] == "broke"

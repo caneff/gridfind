@@ -1,7 +1,7 @@
 """`edge_clues`: the between-cells clues — XV (type 202), white kropki (200),
-black kropki (201) — and the `_edge_to_pair` primitive they share.
+black kropki (201) — and the `edge_to_pair` primitive they share.
 
-`_edge_to_pair` inverts SudokuMaker's edge index to the orthogonally-adjacent
+`edge_to_pair` inverts SudokuMaker's edge index to the orthogonally-adjacent
 cell pair it names; it is this module's own transform seam, tested directly.
 Each clue family decodes through `link_to_puzzle` to its gridfind constraint. All
 three types' negative lists are enforced (the negative-space mechanism).
@@ -20,7 +20,7 @@ from gridfind.sudokumaker.conftest import (
     constraint_link,
     encode_document,
 )
-from gridfind.sudokumaker.edge_clues import _edge_to_pair
+from gridfind.sudokumaker.edge_clues import edge_to_pair
 from gridfind.verdict import verdict
 
 
@@ -37,7 +37,7 @@ from gridfind.verdict import verdict
 def test_edge_to_pair_oracle_cases(edge: int, expected: tuple[str, str]) -> None:
     # Verified against a real link during design: all four fit the two
     # closed-form formulas exactly on a 9x9 board.
-    assert _edge_to_pair(edge, size=9) == expected
+    assert edge_to_pair(edge, size=9) == expected
 
 
 @st.composite
@@ -45,7 +45,7 @@ def _valid_edges(draw: st.DrawFn) -> tuple[int, int, str, int, int]:
     """A `(size, edge, orientation, r0, c0)` tuple where `edge` is a real,
     in-bounds edge of that orientation on a `size`x`size` board, and `r0, c0`
     is the 0-indexed source cell the edge names — built from the same
-    closed-form formulas `_edge_to_pair` inverts, so every draw is valid by
+    closed-form formulas `edge_to_pair` inverts, so every draw is valid by
     construction and carries its own expected answer."""
     size = draw(st.integers(min_value=2, max_value=15))
     orientation = draw(st.sampled_from(["horizontal", "vertical"]))
@@ -69,7 +69,7 @@ def test_edge_to_pair_decodes_the_exact_source_cells(
     # assert the exact addresses the same `r0, c0` the edge was built from.
     size, edge, orientation, r0, c0 = case
 
-    pair = _edge_to_pair(edge, size)
+    pair = edge_to_pair(edge, size)
 
     if orientation == "horizontal":
         expected = (format_address(r0 + 1, c0 + 1), format_address(r0 + 1, c0 + 2))
@@ -81,7 +81,7 @@ def test_edge_to_pair_decodes_the_exact_source_cells(
 def test_edge_to_pair_rejects_an_out_of_bounds_edge() -> None:
     # size=2's only edges are 0..7; 8 names no in-bounds pair.
     with pytest.raises(ValueError, match="edge"):
-        _edge_to_pair(8, size=2)
+        edge_to_pair(8, size=2)
 
 
 @pytest.mark.parametrize(

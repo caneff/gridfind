@@ -1,31 +1,45 @@
 """The escape-the-grid frame peel: an `(N+2)x(N+2)` link whose real puzzle is
 the inner `N x N`, rewritten to a plain inner document the rest of the decode
-reads unchanged.
+reads unchanged, plus any border-ring outside-cell constraints the link's own
+decorations name.
 
 A setter draws an escape-the-grid puzzle on a custom grid two cells wider than
-the real puzzle — a ring of scratch cells around the edge that a later ticket
-fills with outside clues. The link states `width == height == maxDigit + 2`: the
-frame width runs two cells past the digit domain.
+the real puzzle — a ring of scratch cells around the edge that outside clues
+attach to. The link states `width == height == maxDigit + 2`: the frame width
+runs two cells past the digit domain.
 
-`peel_escape_frame` recognises the frame and rewrites the document to the inner
-`N x N` puzzle — inner cells, size `N` (domain `1..N`), and the inner sub-block
-of the `type 1` region matrix as the board's boxes. Everything on the border
-ring drops with a stderr warning, never a raise: the cosmetic outline art
-(`type 2000`), the JSON-postproc custom constraint (`type 1000`), the
-hand-drawn `Rows`/`Cols` uniqueness cages (redundant — the inner grid supplies
-its own row/column distinctness once it is a real `N x N` board), and the fake
-corner givens marked solver-support. A border cell no clue references is never
-created.
+`peel_escape_frame` recognises the frame and returns the inner `N x N`
+document — inner cells, size `N` (domain `1..N`), and the inner sub-block of
+the `type 1` region matrix as the board's boxes — paired with the canonical
+`Constraint`s a border-touching kropki dot (`type 200`/`201`) decodes to
+against the padded outside-cell addressing (CONTEXT.md, "outside cell"; a
+border row/col reads `0` or `N + 1`, never colliding with the inner `1..N`).
+Everything else on the border ring drops with a stderr warning, never a
+raise: the cosmetic outline art (`type 2000`), the JSON-postproc custom
+constraint (`type 1000`), the hand-drawn `Rows`/`Cols` uniqueness cages
+(redundant — the inner grid supplies its own row/column distinctness once it
+is a real `N x N` board), the fake corner givens marked solver-support, a
+kropki clue that touches no border cell, and a border kropki block's own
+`negative` list (not yet modeled on the ring). A border cell no clue
+references is never created — the `outside-cells` layer
+(`layers.outside_cells`) creates a cell only for an address some
+constraint's own `cells` names.
 
 `link_to_puzzle` runs this first and, on a frame, decodes the returned inner
-document in place of the original — so the inner grid rides the same size,
-domain, region, given, and uniqueness path every other classic/jigsaw link
-does. One home per behavior: the peel adds no second decode, it hands the
-existing one a smaller board.
+document in place of the original and appends the border constraints
+verbatim to the decoded puzzle — so the inner grid rides the same size,
+domain, given, and uniqueness path every other classic/jigsaw link does, and
+a border kropki dot rides the same `pair-difference`/`pair-ratio` layers an
+ordinary interior dot does. One home per behavior: the peel adds no second
+edge decode of its own — it calls `edge_clues.edge_to_pair` and the kropki
+type's own builder (`edge_clues.KROPKI_PAIR_BUILDERS`), the same primitives
+the ordinary (fully-interior) kropki decode uses, over the frame's own
+padded width, then shifts the 1-indexed pair it gets back down to the padded
+outside-cell addressing.
 
-This ticket peels the inner grid and drops the ring. Creating outside cells for
-the border clues (Numbered Rooms and the rest) is the parent spec's next step;
-the drop rule for an unreferenced border cell is permanent and carries forward.
+Numbered Rooms and the rest of the border clue vocabulary (XV, the cages) are
+still unmodeled and drop with the ring's other scaffolding; only a kropki dot
+is decoded here.
 """
 
 from __future__ import annotations
@@ -33,16 +47,22 @@ from __future__ import annotations
 import sys
 from typing import Any, cast
 
+from gridfind.cell_geometry import format_address, parse_address
+from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import as_int
 from gridfind.sudokumaker.dropped import constraint_name
+from gridfind.sudokumaker.edge_clues import KROPKI_PAIR_BUILDERS, edge_to_pair
 
 _GIVENS_TYPE = 0
 _REGIONS_TYPE = 1
 
 
-def peel_escape_frame(document: dict[str, object]) -> dict[str, object] | None:
-    """The inner `N x N` document of an escape-the-grid frame, or `None` when
-    the link is not one.
+def peel_escape_frame(
+    document: dict[str, object],
+) -> tuple[dict[str, object], tuple[Constraint, ...]] | None:
+    """The inner `N x N` document of an escape-the-grid frame, paired with its
+    decoded border-kropki `Constraint`s, or `None` when the link is not a
+    frame.
 
     A frame is a square link whose declared domain is two digits short of its
     width — `width == height == maxDigit + 2` — with a border ring drawn outside
@@ -51,9 +71,9 @@ def peel_escape_frame(document: dict[str, object]) -> dict[str, object] | None:
     `N` (so the domain reads back as `1..N`), and the peeled `type 1` region
     matrix; the original stays untouched.
 
-    Every border-ring feature drops here with a loud stderr warning — the whole
-    ring is unmodeled in this ticket, so it fails loud rather than silently
-    shrinking the ruleset the verdict runs under."""
+    Every border-ring feature but a border-touching kropki dot drops here with
+    a loud stderr warning — most of the ring is still unmodeled, so it fails
+    loud rather than silently shrinking the ruleset the verdict runs under."""
     raw_puzzle = document.get("puzzle")
     if not isinstance(raw_puzzle, dict):
         return None
@@ -80,13 +100,62 @@ def peel_escape_frame(document: dict[str, object]) -> dict[str, object] | None:
             return None
         inner_constraints.append({"type": _REGIONS_TYPE, "regions": inner_labels})
 
+    border_constraints = tuple(_border_kropki_constraints(puzzle_data, frame, inner))
     _warn_dropped_border(puzzle_data, frame, inner)
     inner_puzzle: dict[str, object] = {
         "cells": _peel_inner(cells, frame, inner),
         "size": inner,
         "constraints": inner_constraints,
     }
-    return {**document, "puzzle": inner_puzzle}
+    return {**document, "puzzle": inner_puzzle}, border_constraints
+
+
+def _padded_pair(edge: int, frame: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    """`edge` decoded against the full `frame`x`frame` grid (`edge_to_pair`,
+    the one home for the edge arithmetic) and shifted down to the padded
+    outside-cell coordinate: the frame's own 1-indexed row/col minus one is
+    exactly `0..N+1`, with `0`/`N+1` the border ring and `1..N` the inner
+    grid's own addressing (CONTEXT.md, "outside cell")."""
+    a, b = edge_to_pair(edge, frame)
+    return _shift(a), _shift(b)
+
+
+def _shift(address: str) -> tuple[int, int]:
+    row, col = parse_address(address)
+    return row - 1, col - 1
+
+
+def _touches_border(position: tuple[int, int], inner: int) -> bool:
+    """`True` when a padded `(row, col)` sits on the border ring (`0` or
+    `inner + 1`), not inside the `1..inner` grid."""
+    row, col = position
+    return not (1 <= row <= inner and 1 <= col <= inner)
+
+
+def _border_kropki_constraints(
+    puzzle_data: dict[str, Any], frame: int, inner: int
+) -> list[Constraint]:
+    """Every `type 200`/`201` kropki clue whose decoded pair touches the
+    border ring, as its canonical `pair-difference`/`pair-ratio` `Constraint`
+    over the padded outside-cell addresses — built through
+    `edge_clues.KROPKI_PAIR_BUILDERS`, the same type-to-relation dispatch the
+    ordinary interior decode uses, so a border dot and an interior dot read
+    one clue's `value` the same way. A clue whose pair lands entirely inside
+    the `1..inner` grid is left for `_warn_dropped_kropki_remainder` to
+    account for — it is not modeled here."""
+    constraints: list[Constraint] = []
+    for block in puzzle_data.get("constraints", []):
+        if not isinstance(block, dict) or block.get("disabled") is True:
+            continue
+        builder = KROPKI_PAIR_BUILDERS.get(cast("object", block.get("type")))
+        if builder is None:
+            continue
+        for clue in cast("list[dict[str, Any]]", block.get("clues", [])):
+            position_a, position_b = _padded_pair(clue["edge"], frame)
+            if _touches_border(position_a, inner) or _touches_border(position_b, inner):
+                a, b = format_address(*position_a), format_address(*position_b)
+                constraints.append(builder(clue["value"], a, b))
+    return constraints
 
 
 def _frame_size(puzzle_data: dict[str, Any]) -> int | None:
@@ -147,20 +216,26 @@ def _border_indices(frame: int, inner: int) -> list[int]:
 
 
 def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) -> None:
-    """Warn to stderr for every border-ring feature this ticket drops: each
-    enabled constraint block that is neither givens (`type 0`) nor the peeled
-    regions (`type 1`) — the cosmetic outline, the postproc constraint, the
-    Rows/Cols cages — and any border cell carrying a given. Silence is the one
-    forbidden response: the ring is real data the verdict runs without.
+    """Warn to stderr for every border-ring feature this ticket still drops:
+    each enabled constraint block that is neither givens (`type 0`), the
+    peeled regions (`type 1`), nor a kropki block (`type 200`/`201`, handled
+    by `_warn_dropped_kropki_remainder` below) — the cosmetic outline, the
+    postproc constraint, the Rows/Cols cages — and any border cell carrying a
+    given. Silence is the one forbidden response: the ring is real data the
+    verdict runs without, save the border kropki dots `peel_escape_frame`
+    already forwarded.
 
-    The whole ring drops, so the warning is louder than
-    `dropped.has_live_data` — that predicate reads a cosmetic-only `type 2000`
-    outline as inert, but here it too is dropped puzzle content, so it warns."""
+    Louder than `dropped.has_live_data` for the blocks it does warn about —
+    that predicate reads a cosmetic-only `type 2000` outline as inert, but
+    here it too is dropped puzzle content, so it warns."""
     for block in puzzle_data.get("constraints", []):
         if not isinstance(block, dict):
             continue
         kind = block.get("type")
         if kind in (_GIVENS_TYPE, _REGIONS_TYPE) or block.get("disabled") is True:
+            continue
+        if kind in KROPKI_PAIR_BUILDERS:
+            _warn_dropped_kropki_remainder(block, frame, inner)
             continue
         name = constraint_name(block) or block.get("name")
         named = f" {name!r}" if isinstance(name, str) else ""
@@ -182,6 +257,38 @@ def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) ->
         print(
             f"warning: escape-the-grid frame: dropping {dropped_givens} border "
             "cell(s) carrying givens — inner grid judged without them",
+            file=sys.stderr,
+        )
+
+
+def _warn_dropped_kropki_remainder(
+    block: dict[str, Any], frame: int, inner: int
+) -> None:
+    """Warn to stderr for the part of a border kropki block
+    `_border_kropki_constraints` did not forward: a clue whose pair never
+    touches the border ring (the outside-cell machinery only models a clue
+    that names an outside cell), and the block's own `negative` list (the
+    negative-space mechanism is not modeled against the border ring)."""
+    kind = block.get("type")
+    non_border = sum(
+        1
+        for clue in cast("list[dict[str, Any]]", block.get("clues", []))
+        if not any(
+            _touches_border(position, inner)
+            for position in _padded_pair(clue["edge"], frame)
+        )
+    )
+    if non_border:
+        print(
+            f"warning: escape-the-grid frame: dropping {non_border} interior "
+            f"kropki clue(s) (type {kind!r}) — none names an outside cell",
+            file=sys.stderr,
+        )
+    negative = block.get("negative")
+    if isinstance(negative, list) and negative:
+        print(
+            "warning: escape-the-grid frame: dropping a border kropki block's "
+            f"negative-space rule (type {kind!r}) — not modeled on the ring",
             file=sys.stderr,
         )
 
