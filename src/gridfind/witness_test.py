@@ -90,6 +90,78 @@ def test_witness_render_draws_an_s_cell_as_a_curly_brace_pair() -> None:
     )
 
 
+def test_witness_render_draws_an_outside_cell_above_its_column() -> None:
+    # An escape-the-grid outside cell rides in `assignment` off an address
+    # `grid` never lays out (CONTEXT.md, "outside cell") — its own dot on the
+    # border ring, one line above the box, aligned under its column.
+    grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (1,),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (4,),
+        "R0C1": (9,),
+    }
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
+    witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
+
+    assert witness.render() == (
+        "     9         \n"
+        "   ┌───┬───┐   \n"
+        "   │ 1 │ 2 │   \n"
+        "   │   │   │   \n"
+        "   │ 3 │ 4 │   \n"
+        "   └───┴───┘   \n"
+        "               "
+    )
+
+
+def test_witness_render_draws_an_outside_cell_on_each_side_of_the_ring() -> None:
+    # All four sides at once: top/bottom above and below their column, left/
+    # right beside their row — a referenced side that isn't populated (no
+    # outside cell created there) stays blank, never invented.
+    grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (1,),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (4,),
+        "R0C1": (9,),
+        "R0C2": (7,),
+        "R1C0": (8,),
+        "R2C3": (6,),
+        "R3C2": (5,),
+    }
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
+    witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
+
+    assert witness.render() == (
+        "     9   7     \n"
+        "   ┌───┬───┐   \n"
+        " 8 │ 1 │ 2 │   \n"
+        "   │   │   │   \n"
+        "   │ 3 │ 4 │ 6 \n"
+        "   └───┴───┘   \n"
+        "         5     "
+    )
+
+
+def test_witness_render_is_unchanged_with_no_outside_cells() -> None:
+    # No entry in `assignment` falls outside `grid` — the ring adds nothing,
+    # byte-identical to the plain grid.
+    grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (1,),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (4,),
+    }
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
+    witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
+
+    assert witness.render() == "┌───┬───┐\n│ 1 │ 2 │\n│   │   │\n│ 3 │ 4 │\n└───┴───┘"
+
+
 def test_witness_identity_is_the_frozen_assignment_and_modifiers_tuple() -> None:
     # Hand-derived oracle (ADR-0015): the identity is the assignment and
     # modifiers dicts, each frozen into a tuple of their items in iteration

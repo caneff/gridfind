@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from gridfind import grid_text
+from gridfind.cell_geometry import parse_address
 from gridfind.layers.regions import RegionMap
 
 # A box-drawing glyph for a grid junction, keyed by which arms (up, down,
@@ -82,7 +83,14 @@ class Witness:
     still carries the digit, never the modifier's
     folded value — a given on a modified cell pins the digit, and the value
     derives from it at render/read time, not here. Empty on a puzzle with no
-    modifier layer, never `None`."""
+    modifier layer, never `None`.
+
+    `assignment` may hold more addresses than `grid` lays out: an
+    escape-the-grid puzzle's solved outside cells (CONTEXT.md, "outside
+    cell") ride in the same dict, off `Engine.cells`, keyed by their padded
+    `RxCy` address (row/col `0` or `N + 1`) — `render()` draws each as part
+    of the border ring around `grid`, blank wherever no outside cell was
+    created."""
 
     grid: list[list[str]]
     assignment: dict[str, tuple[int, ...]]
@@ -116,6 +124,11 @@ class Witness:
         parses back. Every cell is right-padded to the widest
         cell in the witness so columns stay aligned and the box banding
         survives whatever width an S-cell adds.
+
+        Any outside cell in `assignment` (an address `grid` never lays out)
+        draws as a plain, unwalled ring one line/column beyond the box on
+        its own side — no ring at all, byte-identical to the plain grid,
+        when `assignment` names none.
         """
         n = len(self.grid)
         region_id = {
@@ -161,4 +174,52 @@ class Witness:
                     for c in range(n)
                 )
                 lines.append(cells + ("│" if wall(b, n) else " "))
-        return "\n".join(lines)
+
+        outside = self._outside_by_position()
+        if not outside:
+            return "\n".join(lines)
+
+        top = {c: outside[(0, c)] for c in range(1, n + 1) if (0, c) in outside}
+        bottom = {
+            c: outside[(n + 1, c)] for c in range(1, n + 1) if (n + 1, c) in outside
+        }
+        left = {r: outside[(r, 0)] for r in range(1, n + 1) if (r, 0) in outside}
+        right = {
+            r: outside[(r, n + 1)] for r in range(1, n + 1) if (r, n + 1) in outside
+        }
+
+        def blank() -> str:
+            return " " * (width + 2)
+
+        def margin(token: str) -> str:
+            return f" {token.rjust(width)} "
+
+        def ring_row(tokens: dict[int, str]) -> str:
+            row = "".join(
+                f"  {tokens.get(c, '').rjust(width)} " for c in range(1, n + 1)
+            )
+            return blank() + row + " " + blank()
+
+        bordered = [
+            (
+                blank() + line + blank()
+                if index % 2 == 0
+                else margin(left.get(index // 2 + 1, ""))
+                + line
+                + margin(right.get(index // 2 + 1, ""))
+            )
+            for index, line in enumerate(lines)
+        ]
+        return "\n".join([ring_row(top), *bordered, ring_row(bottom)])
+
+    def _outside_by_position(self) -> dict[tuple[int, int], str]:
+        """Every `assignment` entry off `grid` (an outside cell), keyed by its
+        parsed `(row, col)` rather than its address string — `render()`'s
+        ring reads a position directly, the way it already reads `grid` by
+        row/col index."""
+        inside = {address for row in self.grid for address in row}
+        return {
+            parse_address(address): grid_text.format_cell(content)
+            for address, content in self.assignment.items()
+            if address not in inside
+        }
