@@ -80,6 +80,50 @@ def test_regions_distinct_with_a_malformed_matrix_raises() -> None:
         build_stack((constraint,), size=2)
 
 
+def test_extra_region_dispatches_to_a_distinct_over_groups() -> None:
+    # AC3: an `extra-region` block rides the same `DistinctOverGroups` rule
+    # rows/cols/regions do — its cells fed as one partition group — not a rule
+    # of its own. Asserted like `regions-distinct` with a supplied map: the
+    # built rule is a `DistinctOverGroups`, its group the block's cells.
+    constraint = Constraint(
+        type="extra-region", params={"cells": ["R1C1", "R2C2", "R3C3", "R4C4"]}
+    )
+
+    canonical, layers = build_stack((constraint,), size=4)
+
+    assert [type(layer) for layer in layers] == [
+        GridCells,
+        OutsideCells,
+        DistinctOverGroups,
+    ]
+    assert layers[2].name == "extra-region"
+    engine = build_engine(layers, tuple(canonical), board=Board(size=4))
+    groups = [sorted(g) for g in all_different_groups(engine)]
+    assert groups == [["R1C1", "R2C2", "R3C3", "R4C4"]]
+
+
+def test_two_extra_region_constraints_fold_into_one_distinct_partition() -> None:
+    # A windoku puzzle draws several windows, each its own `type 305` block.
+    # AC3 folds them into one `DistinctOverGroups` — every window keeps its own
+    # group in the one combined partition; several windows never collapse to a
+    # single group.
+    constraints = (
+        Constraint(type="extra-region", params={"cells": ["R1C1", "R1C2"]}),
+        Constraint(type="extra-region", params={"cells": ["R3C3", "R3C4"]}),
+    )
+
+    canonical, layers = build_stack(constraints, size=4)
+
+    assert [type(layer) for layer in layers] == [
+        GridCells,
+        OutsideCells,
+        DistinctOverGroups,
+    ]
+    engine = build_engine(layers, tuple(canonical), board=Board(size=4))
+    groups = sorted(sorted(g) for g in all_different_groups(engine))
+    assert groups == [["R1C1", "R1C2"], ["R3C3", "R3C4"]]
+
+
 def test_unknown_constraint_type_is_rejected() -> None:
     with pytest.raises(UnknownLayerError):
         build_stack((Constraint(type="not-a-real-rule"),), size=9)

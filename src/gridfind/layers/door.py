@@ -23,6 +23,7 @@ from gridfind.layers.constant_modifier import ConstantModifier
 from gridfind.layers.distinct import (
     DistinctOverGroups,
     cols,
+    extra_regions_from,
     negative_diagonal,
     positive_diagonal,
     regions,
@@ -135,6 +136,51 @@ def expand_constraints(constraints: tuple[Constraint, ...]) -> list[Constraint]:
     return expanded
 
 
+def _type_directed_layer(constraint: Constraint, size: int) -> Layer | None:
+    """A constraint type whose layer needs data beyond its own bare presence,
+    built fresh rather than taken from the registry's shared default. `None`
+    when `constraint` needs no special handling, so `build_stack` falls
+    through to that default.
+
+    Two cases, both param-agnostic (only the instance the door builds them
+    with differs): a `regions-distinct` constraint carrying
+    `params["regions"]` resolves through the shared
+    `region_map_for_constraints` rather than re-deriving the jigsaw-vs-box
+    branch inline, and builds a fresh `DistinctOverGroups` closed over that
+    partition; a `constant` constraint carrying `params["value"]` builds a
+    fresh `ConstantModifier(value=k)` instead of dispatching to the
+    registry's `k = 0` nullifier default (ADR-0016). `extra-region` is directed
+    too but aggregates every window at once, so it has its own builder
+    (`_extra_region_layer`) rather than this per-constraint one.
+    """
+    if constraint.type == "regions-distinct" and "regions" in constraint.params:
+        region_map = region_map_for_constraints([constraint], size)
+        return DistinctOverGroups(constraint.type, regions_from(region_map))
+    if constraint.type == "constant" and "value" in constraint.params:
+        value = cast("int", constraint.params["value"])
+        return ConstantModifier(value=value)
+    return None
+
+
+def _extra_region_layer(constraints: list[Constraint]) -> DistinctOverGroups | None:
+    """The `type 305` windoku windows folded into one `DistinctOverGroups`:
+    each block's cells one group of a single combined partition, so several
+    windows never overwrite one another through the type-keyed layer dedup.
+    `None` when the puzzle draws no extra region. Aggregated
+    across all `extra-region` constraints at once — unlike `regions-distinct`,
+    whose one partition rides a single constraint — so it cannot go through the
+    per-constraint `_type_directed_layer`.
+    """
+    blocks = [
+        cast("list[str]", constraint.params["cells"])
+        for constraint in constraints
+        if constraint.type == "extra-region"
+    ]
+    if not blocks:
+        return None
+    return DistinctOverGroups("extra-region", extra_regions_from(blocks))
+
+
 def build_stack(
     constraints: tuple[Constraint, ...],
     *,
@@ -158,42 +204,34 @@ def build_stack(
     its own constraints — the layer, not the layer twice. An
     unrecognized `type` is rejected.
 
-    A `regions-distinct` constraint carrying `params["regions"]`, and a
-    `constant` constraint carrying `params["value"]`, are the two
-    type-directed exceptions: `regions-distinct` resolves through the shared
-    `region_map_for_constraints` rather than re-deriving the jigsaw-vs-box
-    branch inline, and builds a fresh `DistinctOverGroups` closed over that
-    partition; `constant` builds a fresh `ConstantModifier(value=k)` instead
-    of dispatching to the registry's `k = 0` nullifier default (ADR-0016).
-    Both layers stay param-agnostic; only the instance the door builds them
-    with differs. Two instances of this pattern still live inline; a third
-    type-directed exception should be extracted into a shared helper instead
-    of a third `elif` growing this method.
-
-    The bare, no-param case of either — `regions-distinct` with no
-    `params["regions"]`, `constant` with no `params["value"]` — is left to
-    `setdefault` below rather than also routed through its special case: it
-    must keep returning the registry's one shared instance (tests key off
-    that identity for `regions-distinct`; `constant`'s shared instance is
-    already the `k = 0` default the special case would otherwise rebuild).
+    `_type_directed_layer` names the constraint types whose layer needs more
+    than its own bare presence to build (`regions-distinct`, `constant`);
+    everything else falls to `setdefault` below, returning the registry's one
+    shared instance. The bare, no-param case of
+    `regions-distinct`/`constant` — no `params["regions"]`/`params["value"]`
+    — is left to that same `setdefault` rather than also routed through the
+    helper: it must keep returning the registry's one shared instance (tests
+    key off that identity for `regions-distinct`; `constant`'s shared
+    instance is already the `k = 0` default the helper would otherwise
+    rebuild).
     """
     canonical = expand_constraints(constraints)
     layers: dict[str, Layer] = {
         "board": LAYER_REGISTRY["board"],
         "outside-cells": LAYER_REGISTRY["outside-cells"],
     }
+    extra_region = _extra_region_layer(canonical)
+    if extra_region is not None:
+        layers["extra-region"] = extra_region
     for constraint in canonical:
+        if constraint.type == "extra-region":
+            continue  # already folded into one layer by `_extra_region_layer`
         if constraint.type not in LAYER_REGISTRY:
             msg = f"unknown constraint type {constraint.type!r}"
             raise UnknownLayerError(msg)
-        if constraint.type == "regions-distinct" and "regions" in constraint.params:
-            region_map = region_map_for_constraints([constraint], size)
-            layers[constraint.type] = DistinctOverGroups(
-                constraint.type, regions_from(region_map)
-            )
-        elif constraint.type == "constant" and "value" in constraint.params:
-            value = cast("int", constraint.params["value"])
-            layers[constraint.type] = ConstantModifier(value=value)
+        override = _type_directed_layer(constraint, size)
+        if override is not None:
+            layers[constraint.type] = override
         else:
             layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
     refuse_s_blind_over_widening(layers)

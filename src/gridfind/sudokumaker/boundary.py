@@ -10,11 +10,14 @@ decoder in the package indexes into that bucket through.
 from __future__ import annotations
 
 import json
+import sys
 import urllib.parse
 from collections.abc import Iterator
 from typing import Any, cast
 
 from lzstring import LZString
+
+from gridfind.sudokumaker.addresses import addresses
 
 # The default board a link describes when it states no `size`/`width`:
 # SudokuMaker omits those headers only on the classic 9x9 (§4b, ADR-0011).
@@ -154,3 +157,25 @@ def enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[str,
     for block in buckets.get(type_, []):
         if block.get("disabled") is not True:
             yield block
+
+
+def enabled_block_addresses(
+    buckets: ConstraintBuckets, type_: int, size: int, name: str
+) -> Iterator[list[str]]:
+    """Every enabled `type_` block's flat `cells` list resolved to its cell
+    addresses, in wire order — the shared front the flat-cells clue decoders
+    (extra-region, row/col indexing) build one `Constraint` per block behind.
+    Folds the guard those decoders share beyond `enabled_blocks`: a block with
+    no usable `cells` carries no rule — gridfind warns to stderr naming the
+    clue `name` and drops it rather than emitting an empty clue, so a setter
+    who drew marked cells sees why the verdict doesn't reflect them."""
+    for block in enabled_blocks(buckets, type_):
+        cells = cast("list[int]", block.get("cells", []))
+        if not cells:
+            print(
+                f"warning: ignoring {name} block with no cells "
+                "— verdict computed without it",
+                file=sys.stderr,
+            )
+            continue
+        yield addresses(cells, size)
