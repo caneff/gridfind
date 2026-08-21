@@ -21,6 +21,7 @@ from gridfind.sudokumaker.edge_clues import (
     kropki_constraints,
     xv_constraints,
 )
+from gridfind.sudokumaker.extra_region import extra_region_constraints
 from gridfind.sudokumaker.indexing import (
     col_indexing_constraints,
     row_indexing_constraints,
@@ -31,6 +32,7 @@ from gridfind.sudokumaker.wire_types import (
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
     COSMETIC_CAGE_TYPE,
+    EXTRA_REGION_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
@@ -110,6 +112,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=thermo_constraints,
         live_keys=("thermometers",),
         name="thermo",
+    ),
+    EXTRA_REGION_TYPE: DecodedType(
+        handler=extra_region_constraints,
+        live_keys=("cells",),
+        name="extra-region",
     ),
     INDEXING_ROW_TYPE: DecodedType(
         handler=row_indexing_constraints,

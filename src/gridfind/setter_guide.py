@@ -23,6 +23,7 @@ from gridfind.sudokumaker.wire_types import (
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
     COSMETIC_CAGE_TYPE,
+    EXTRA_REGION_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
@@ -123,6 +124,16 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty"
         " thermometers list adds nothing.",
     ),
+    EXTRA_REGION_TYPE: SetterDoc(
+        display_name="Extra Region (Windoku)",
+        wire_block="type 305 {cells:[…]}.",
+        decode_result="One extra-region Constraint per block, carrying"
+        " every marked cell's address. Reuses the same DistinctOverGroups"
+        " rule rows/cols/regions ride: several blocks each contribute one"
+        " group to a single combined all-different partition.",
+        verdict="Accept. disabled blocks are skipped; a block with no"
+        " usable cells is warn-and-dropped to stderr.",
+    ),
     INDEXING_ROW_TYPE: SetterDoc(
         display_name="Row Indexing (159)",
         wire_block="type 600 {cells:[…], style?} — style is cosmetic.",
@@ -186,6 +197,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "killer-cage": "found-cage-4x4",
     "cosmetic-cage": "found-doubler-4x4",
     "thermo": "found-thermo-4x4",
+    "extra-region": "found-extra-region-4x4",
     "row-indexing": "found-indexing-row-4x4",
     "col-indexing": "found-indexing-col-4x4",
     "anti-knight": "found-anti-knight-4x4",

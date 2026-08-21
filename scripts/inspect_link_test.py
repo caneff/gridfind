@@ -233,6 +233,9 @@ _GOLDEN_REPORTS = {
     "broke-equality-rank-9x9": (
         "9x9 · 81 cells · 5 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
+    "broke-extra-region-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: broke"
+    ),
     "broke-indexing-col-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,601} · active: 601 · verdict: broke"
     ),
@@ -332,6 +335,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-equality-9x9": (
         "9x9 · 81 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: found"
+    ),
+    "found-extra-region-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: found"
     ),
     "found-indexing-col-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,601} · active: 601 · verdict: found"

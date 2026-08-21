@@ -75,6 +75,15 @@ ANTI_KNIGHT_TYPE = 13
 # (`naming.named_component`).
 CUSTOM_CONSTRAINT_TYPE = 1000
 
+# type 305 is a windoku-style extra region: `{cells: [...]}`, the same flat
+# raw-indices wire shape a `type 600`/`601` indexing block carries — one
+# block per drawn window, no nested `cages`/`value` the way a killer cage
+# carries. Decodes straight to `extra-region`, honored by reusing the
+# existing `DistinctOverGroups` layer with the named cells as one more group
+# in its partition (a puzzle drawing several windows carries several `type
+# 305` blocks, folded together at `layers.door`).
+EXTRA_REGION_TYPE = 305
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's

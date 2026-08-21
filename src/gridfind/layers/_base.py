@@ -10,8 +10,10 @@ constraints, which is why `emit_distinct_count` exists rather than one
 a vendor (CONTEXT.md, map #1 decision 13).
 
 `grid_content` and `emit_distinct_count` are package-internal APIs imported by
-`rows`, `cols`, `regions`, and `line_count`. They live here, not in any one
-layer file, because more than one layer needs them.
+`rows`, `cols`, `regions`, and `line_count`. `emit_distinct_group` is imported
+by `distinct.DistinctOverGroups` (which every distinct rule — rows, cols,
+regions, the diagonals, and windoku's extra regions — rides). They live
+here, not in any one layer file, because more than one layer needs them.
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ from collections.abc import Callable, Iterable
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, sole
 
 
 def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
@@ -95,6 +97,26 @@ def emit_house(
     for digit in engine.board.values:
         holds_digit = engine.reify_holds(slots, digit, label)
         engine.model.add(sum(holds_digit) == 1)
+
+
+def emit_distinct_group(
+    engine: Engine, cells: list[list[cp_model.IntVar]], *, label: str
+) -> None:
+    """Rule: every cell in `cells` holds a different digit. With no
+    `schrodinger` layer in the stack, every cell's content stays width 1 and
+    this is a plain `add_all_different`. With `schrodinger` present, `is_s`
+    rides in through `engine.is_s()` (never a direct reference to that layer)
+    and the is_S-gated counting rule `emit_house` builds fires instead, over
+    content already widened to length 2 by the time this runs in phase 2.
+
+    Called by `distinct.DistinctOverGroups` for each group of its partition —
+    the one home every distinct rule (rows, cols, regions, the diagonals, and
+    windoku's extra regions) closes a group of cells through.
+    """
+    if engine.is_s() is None:
+        engine.model.add_all_different([sole(content) for content in cells])
+    else:
+        emit_house(engine, cells, label=label)
 
 
 def emit_over_pairs(

@@ -27,9 +27,9 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from gridfind.cell_geometry import main_diagonals
-from gridfind.engine import Engine, sole
-from gridfind.layers._base import emit_house, grid_content
+from gridfind.cell_geometry import main_diagonals, parse_address
+from gridfind.engine import Engine
+from gridfind.layers._base import emit_distinct_group, grid_content
 from gridfind.layers.regions import RegionMap, region_map_for
 
 Cell = TypeVar("Cell")
@@ -93,18 +93,24 @@ def regions_from(region_map: RegionMap) -> Partition:
     return lambda grid: _cells_for(grid, region_map)
 
 
+def extra_regions_from(blocks: Iterable[Iterable[str]]) -> Partition:
+    """Every windoku `type 305` window's cells as one group of a single
+    `DistinctOverGroups` partition — the extra regions ride the same
+    all-different rule rows/cols/regions do, all windows folded into one
+    combined partition, never a rule of their own. Each
+    block's addresses are parsed to the `(row, col)` `RegionMap` `regions_from`
+    already cuts, so this reuses that one partition mechanism rather than
+    growing a second copy of it.
+    """
+    region_map = RegionMap([parse_address(a) for a in block] for block in blocks)
+    return regions_from(region_map)
+
+
 @dataclass
 class DistinctOverGroups:
     """Each group in the partition holds all-different digits. The rule shared
     by rows/cols/regions-distinct; the partition is what differs.
     Rides on `board`'s `grid` structure — registers nothing, emits in phase 2.
-
-    With no `schrodinger` layer in the stack, every cell's content stays
-    width 1 and each group gets a plain `add_all_different`. With
-    `schrodinger` present, `is_s` rides in through `engine.is_s()` (never a
-    direct reference to that layer) and each group instead gets the is_S-
-    gated counting rule `emit_house` builds, over content already widened to
-    length 2 by the time this runs in phase 2.
     """
 
     name: str
@@ -115,11 +121,6 @@ class DistinctOverGroups:
         pass
 
     def emit(self, engine: Engine) -> None:
-        is_s = engine.is_s()
         groups = self.partition(grid_content(engine))
         for index, group in enumerate(groups):
-            cells = list(group)
-            if is_s is None:
-                engine.model.add_all_different([sole(content) for content in cells])
-            else:
-                emit_house(engine, cells, label=f"{self.name}.{index}")
+            emit_distinct_group(engine, list(group), label=f"{self.name}.{index}")
