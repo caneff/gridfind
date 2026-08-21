@@ -9,6 +9,7 @@ and drops everything on the border ring with a warning, never a raise.
 """
 
 import io
+import re
 
 import pytest
 
@@ -195,7 +196,7 @@ def test_a_frame_shaped_link_without_a_border_ring_is_not_peeled() -> None:
     # The dimension relation alone is not enough: a region matrix whose ring
     # shares the inner ids is not drawn outside the regions, so the link is not
     # an escape frame. It falls through to the ordinary reject, not a mis-peel.
-    with pytest.raises(ValueError, match="domain 1..6 is not 8 digits"):
+    with pytest.raises(ValueError, match=re.escape("domain 1..6 is not 8 digits")):
         link_to_puzzle(frame_link(border_ring=False))
 
 

@@ -39,6 +39,7 @@ from gridfind.layers.offset_adjacency import (
     KNIGHT_OFFSETS,
     OffsetAdjacency,
 )
+from gridfind.layers.outside_cells import OutsideCells
 from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
@@ -56,6 +57,7 @@ class UnknownLayerError(GridfindError):
 
 LAYER_REGISTRY = {
     "board": GridCells(),
+    "outside-cells": OutsideCells(),
     "rows-distinct": DistinctOverGroups("rows-distinct", rows),
     "cols-distinct": DistinctOverGroups("cols-distinct", cols),
     "regions-distinct": DistinctOverGroups("regions-distinct", regions),
@@ -143,11 +145,14 @@ def build_stack(
     distinct canonical `type` through the registry, and return both the
     canonical constraints and the resulting stack.
 
-    The compulsory `board` layer is seeded into the stack before dispatch, so
-    a puzzle that also names `board` as a constraint dedups onto that same
-    entry rather than registering the grid a second time — `board` is not a
-    constraint (its grid comes from the puzzle's own board field), but a
-    setter naming it anyway costs one layer, not two.
+    The compulsory `board` and `outside-cells` layers are seeded into the
+    stack before dispatch, so a puzzle that also names `board` as a
+    constraint dedups onto that same entry rather than registering the grid a
+    second time — `board` is not a constraint (its grid comes from the
+    puzzle's own board field), but a setter naming it anyway costs one layer,
+    not two. `outside-cells` carries no constraint of its own either: it
+    stands ready to register any border address a decoration or clue names in
+    its own `params["cells"]`, empty or not.
 
     Two constraints of one type otherwise resolve to a single layer that loops
     its own constraints — the layer, not the layer twice. An
@@ -173,7 +178,10 @@ def build_stack(
     already the `k = 0` default the special case would otherwise rebuild).
     """
     canonical = expand_constraints(constraints)
-    layers: dict[str, Layer] = {"board": LAYER_REGISTRY["board"]}
+    layers: dict[str, Layer] = {
+        "board": LAYER_REGISTRY["board"],
+        "outside-cells": LAYER_REGISTRY["outside-cells"],
+    }
     for constraint in canonical:
         if constraint.type not in LAYER_REGISTRY:
             msg = f"unknown constraint type {constraint.type!r}"
