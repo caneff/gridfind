@@ -216,8 +216,8 @@ def _border_indices(frame: int, inner: int) -> list[int]:
 
 
 def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) -> None:
-    """Warn to stderr for every border-ring feature this ticket still drops:
-    each enabled constraint block that is neither givens (`type 0`), the
+    """Warn to stderr for every border-ring feature still dropped: each
+    enabled constraint block that is neither givens (`type 0`), the
     peeled regions (`type 1`), nor a kropki block (`type 200`/`201`, handled
     by `_warn_dropped_kropki_remainder` below) — the cosmetic outline, the
     postproc constraint, the Rows/Cols cages — and any border cell carrying a
