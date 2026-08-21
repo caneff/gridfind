@@ -7,8 +7,10 @@ enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
 cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
 `global_flags` (the payload-less `Somedoku` component),
 `edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
-(`DECODER_REGISTRY`), and `dropped` (the drop policy built on it) — with
-`link_to_puzzle` here as the one function that threads all of them together.
+(`DECODER_REGISTRY`), `dropped` (the drop policy built on it), and `frame`
+(the escape-the-grid peel that rewrites an `(N+2)` frame to its inner `N x N`
+document before any of the above run) — with `link_to_puzzle` here as the one
+function that threads all of them together.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from gridfind.sudokumaker.boundary import (
 from gridfind.sudokumaker.cages import cosmetic_cage_constraints
 from gridfind.sudokumaker.cells import CellDecode, decode_cell
 from gridfind.sudokumaker.dropped import warn_on_dropped_constraints
+from gridfind.sudokumaker.frame import peel_escape_frame
 from gridfind.sudokumaker.global_flags import has_somedoku_component
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
@@ -93,7 +96,16 @@ def link_to_puzzle(link: str) -> tuple[Puzzle, WorkingState]:
     could never satisfy alongside `line-count-distinct` at once (ADR-0017). A
     disabled `Somedoku` block, on either carrier, contributes nothing and the
     classic triplet decodes as usual."""
-    puzzle_data: Any = link_to_document(link)["puzzle"]
+    # An escape-the-grid frame (`width == height == maxDigit + 2`) is rewritten
+    # to its inner `N x N` document first, so the rest of this function decodes
+    # a plain classic/jigsaw board — the frame adds no second decode path, it
+    # hands the existing one a smaller board (the border ring drops with a
+    # warning inside the peel).
+    document = link_to_document(link)
+    inner = peel_escape_frame(document)
+    if inner is not None:
+        document = inner
+    puzzle_data: Any = document["puzzle"]
     size = board_size(puzzle_data)
     warn_on_dropped_constraints(puzzle_data)
     # One pass over puzzle_data["constraints"], grouped by wire `type`, so every
