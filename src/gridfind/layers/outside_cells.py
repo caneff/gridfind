@@ -2,8 +2,8 @@
 
 Mirrors `board` for cells off the grid (CONTEXT.md, "outside cell"): the sole
 creator of an outside cell, so two clues that both name the same border
-address bind the one cell `add_cell` first creates rather than each
-registering — and silently orphaning — their own (the `add_cell`
+address bind the one cell `engine.add_board_domain_cell` first creates rather
+than each registering — and silently orphaning — their own (the `add_cell`
 replace-orphan hazard). It never emits a rule of its own; a decoration or
 clue layer that names an outside cell's address reads it exactly like any
 grid cell, through the engine's ordinary content/value seams.
@@ -53,10 +53,7 @@ class OutsideCells:
                 if address in engine.cells:
                     continue
                 if _is_outside(address, board.size):
-                    engine.add_cell(
-                        address, low=board.values.start, high=board.values[-1]
-                    )
-                    engine.restrict(address, board.values)
+                    engine.add_board_domain_cell(address)
 
     def emit(self, engine: Engine) -> None:
         pass

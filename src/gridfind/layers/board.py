@@ -27,11 +27,9 @@ class GridCells:
     depends_on: tuple[str, ...] = ()
 
     def register(self, engine: Engine) -> None:
-        board = engine.board
         for row in engine.cell_geometry.grid:
             for address in row:
-                engine.add_cell(address, low=board.values.start, high=board.values[-1])
-                engine.restrict(address, board.values)
+                engine.add_board_domain_cell(address)
 
     def emit(self, engine: Engine) -> None:
         pass

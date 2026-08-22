@@ -152,6 +152,20 @@ class Engine:
         self.cells[address] = cell
         return cell
 
+    def add_board_domain_cell(self, address: str) -> Cell:
+        """Register a new cell at `address` carrying the board's own value
+        set — the one seam `board` and `outside-cells` both call, so a grid
+        cell and a border cell can never disagree on which digits they admit.
+        Bounds the variable to the domain's two ends and then restricts it to
+        the exact declared set, so a stepped domain (e.g. 2, 4, 6, 8) excludes
+        the gaps between them, not just anything between the low and high
+        ends."""
+        cell = self.add_cell(
+            address, low=self.board.values.start, high=self.board.values[-1]
+        )
+        self.restrict(address, self.board.values)
+        return cell
+
     def register_structure(self, name: str, value: object) -> None:
         """Publish `value` under `name` in the structure registry — the
         late-binding channel (ADR-0004) a producing layer writes to and a
