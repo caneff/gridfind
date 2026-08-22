@@ -45,6 +45,7 @@ is decoded here.
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterator
 from typing import Any, cast
 
 from gridfind.cell_geometry import format_address, parse_address
@@ -55,6 +56,18 @@ from gridfind.sudokumaker.edge_clues import KROPKI_PAIR_BUILDERS, edge_to_pair
 
 _GIVENS_TYPE = 0
 _REGIONS_TYPE = 1
+
+
+def _enabled_raw_blocks(puzzle_data: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    """Every enabled dict block of the raw, pre-bucket `constraints` list, in
+    wire order — the one skip rule (not a dict, or `disabled` is `True`) the
+    frame peel's own block walks share. Distinct from `boundary.enabled_blocks`:
+    that one walks the post-bucket table `bucket_constraints_by_type` builds,
+    which the peel runs before — the frame is recognised and rewritten off the
+    raw document, ahead of any bucketing."""
+    for block in puzzle_data.get("constraints", []):
+        if isinstance(block, dict) and block.get("disabled") is not True:
+            yield cast("dict[str, Any]", block)
 
 
 def peel_escape_frame(
@@ -144,9 +157,7 @@ def _border_kropki_constraints(
     the `1..inner` grid is left for `_warn_dropped_kropki_remainder` to
     account for — it is not modeled here."""
     constraints: list[Constraint] = []
-    for block in puzzle_data.get("constraints", []):
-        if not isinstance(block, dict) or block.get("disabled") is True:
-            continue
+    for block in _enabled_raw_blocks(puzzle_data):
         builder = KROPKI_PAIR_BUILDERS.get(cast("object", block.get("type")))
         if builder is None:
             continue
@@ -185,10 +196,8 @@ def _live_region_matrix(puzzle_data: dict[str, Any], frame: int) -> list[Any] | 
     """The frame's enabled `type 1` region matrix as a flat row-major list, or
     `None` when the link carries no live region block (an inner Latin square) or
     the block's matrix is not the frame's `F * F` size."""
-    for block in puzzle_data.get("constraints", []):
-        if not isinstance(block, dict):
-            continue
-        if block.get("type") != _REGIONS_TYPE or block.get("disabled") is True:
+    for block in _enabled_raw_blocks(puzzle_data):
+        if block.get("type") != _REGIONS_TYPE:
             continue
         matrix = block.get("regions")
         if not isinstance(matrix, list) or len(matrix) != frame * frame:
@@ -228,11 +237,9 @@ def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) ->
     Louder than `dropped.has_live_data` for the blocks it does warn about —
     that predicate reads a cosmetic-only `type 2000` outline as inert, but
     here it too is dropped puzzle content, so it warns."""
-    for block in puzzle_data.get("constraints", []):
-        if not isinstance(block, dict):
-            continue
+    for block in _enabled_raw_blocks(puzzle_data):
         kind = block.get("type")
-        if kind in (_GIVENS_TYPE, _REGIONS_TYPE) or block.get("disabled") is True:
+        if kind in (_GIVENS_TYPE, _REGIONS_TYPE):
             continue
         if kind in KROPKI_PAIR_BUILDERS:
             _warn_dropped_kropki_remainder(block, frame, inner)
