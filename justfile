@@ -1,7 +1,7 @@
 # One obvious entrypoint for the gate — agents and CI run `just check`.
 
 # Full gate (what CI runs). Run before calling any task done.
-check: lint typecheck test content-width-check
+check: lint typecheck test content-width-check link-coverage-check
 
 lint:
     uv run ruff check .
@@ -23,6 +23,13 @@ content-width-check:
         echo 'content[ read outside engine.py — route through Engine.contents()/domain() (issue #104)' >&2
         exit 1
     fi
+
+# Corpus-coverage drift guard (issue #633): a wire-type/cage-kind combination
+# with no `found-` or no `broke-` link under src/gridfind/links/ is a
+# coverage hole. Exits non-zero on any hole, gating the same way
+# content-width-check does.
+link-coverage-check:
+    uv run python scripts/audit_link_coverage.py
 
 # Auto-fix + format in place.
 fmt:

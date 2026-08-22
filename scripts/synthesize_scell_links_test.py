@@ -246,6 +246,38 @@ def test_unrecognized_named_cage_warns_and_drops_and_reads_found(
     assert "Foobar" in err
 
 
+def test_unnamed_cage_warns_and_drops_and_reads_found(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # An absent `name` (no `Foobar`, no `Sum`) is the other input the
+    # warn-drop treats the same as an unrecognized name: no rule rides the
+    # block, so the given solution alone decides the verdict.
+    link = syn.found_cosmetic_cage_unnamed_4x4()
+    puzzle, _ = link_to_puzzle(link)
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+    code, first, err = _front_door(link, capsys)
+    assert (code, first) == (0, "found")
+    assert "unnamed" in err
+
+
+@pytest.mark.parametrize(
+    "builder",
+    [syn.broke_cosmetic_cage_unnamed_4x4, syn.broke_cosmetic_cage_unrecognized_4x4],
+    ids=lambda v: v.__name__ if callable(v) else str(v),
+)
+def test_dropped_cage_reads_broke_on_an_unrelated_row_repeat(
+    builder: Callable[[], str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Both the unnamed and the unrecognized-named cage warn-drop the same
+    # way; a plain row-uniqueness violation elsewhere still reads broke
+    # either way, proving the drop reaches the broke side too, not just found.
+    link = builder()
+    puzzle, _ = link_to_puzzle(link)
+    assert all(c.type not in ("cage", "group-sum") for c in puzzle.constraints)
+    code, first, _ = _front_door(link, capsys)
+    assert (code, first) == (1, "broke")
+
+
 def test_found_doubled_scell_17cage_witness_carries_a_doubled_scell_at_r1c3(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

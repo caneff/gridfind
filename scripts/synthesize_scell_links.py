@@ -417,6 +417,68 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
     return document_to_link(wrap_document(cells, 4, constraints))
 
 
+def found_cosmetic_cage_unnamed_4x4() -> str:
+    """4x4, `found` — the same fully-given solution as
+    `found_cosmetic_cage_unrecognized_4x4`, carrying a nameless `type 2001`
+    cosmetic cage instead of a named one. `cosmetic_cage_kind` reports
+    `"unnamed"` for an absent name, the other input the warn-drop
+    (`cages.cosmetic_cage_constraints`) treats the same way as an
+    unrecognized name: the block carries no rule, so the verdict is computed
+    from the given solution alone."""
+    solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
+    cells: list[dict[str, object]] = [{"given": True, "value": d} for d in solution]
+    constraints: list[dict[str, object]] = [
+        {"type": 0},
+        {"type": 1, "regions": _DOUBLER_REGIONS},
+        {
+            "type": 2001,
+            "cages": [{"value": "6", "cells": [0, 6]}],
+            "style": _authored_cage_style(),
+        },
+    ]
+    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
+    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+
+
+def _broken_row_with_cosmetic_cage(cage_name: str | None) -> str:
+    """4x4, `broke` — R1C1 and R1C2 both given digit 1, a plain row-uniqueness
+    violation independent of any cage, carrying a `type 2001` cosmetic cage
+    named `cage_name` (`None` for an unnamed block) over unrelated cells. The
+    cage still warn-drops either way, so the break comes from the row repeat
+    alone — proving the drop reaches the broke side too, not just found."""
+    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells[0] = {"given": True, "value": 1}
+    cells[1] = {"given": True, "value": 1}
+    block: dict[str, object] = {
+        "type": 2001,
+        "cages": [{"cells": [4, 8]}],
+        "style": _authored_cage_style(),
+    }
+    if cage_name is not None:
+        block["name"] = cage_name
+    constraints: list[dict[str, object]] = [
+        {"type": 0},
+        {"type": 1, "regions": _DOUBLER_REGIONS},
+        block,
+    ]
+    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
+    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+
+
+def broke_cosmetic_cage_unnamed_4x4() -> str:
+    """4x4, `broke` — a row-repeat break (see `_broken_row_with_cosmetic_cage`)
+    carrying a nameless cosmetic cage: the `"unnamed"` side of the coverage
+    pair `found_cosmetic_cage_unnamed_4x4` starts."""
+    return _broken_row_with_cosmetic_cage(None)
+
+
+def broke_cosmetic_cage_unrecognized_4x4() -> str:
+    """4x4, `broke` — a row-repeat break (see `_broken_row_with_cosmetic_cage`)
+    carrying a cosmetic cage named `"Foobar"`: the `"unrecognized"` side of
+    the coverage pair `found_cosmetic_cage_unrecognized_4x4` starts."""
+    return _broken_row_with_cosmetic_cage("Foobar")
+
+
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The
 # filename stem's first token is the e2e expected outcome (`found`/`broke`/
 # `malformed`); the drift-guard test re-runs each `fn` and refuses a
@@ -437,6 +499,9 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-cosmetic-cage-sumless-4x4": broke_cosmetic_cage_sumless_4x4,
     "found-cosmetic-cage-4x4": found_cosmetic_cage_4x4,
     "found-cosmetic-cage-unrecognized-4x4": found_cosmetic_cage_unrecognized_4x4,
+    "found-cosmetic-cage-unnamed-4x4": found_cosmetic_cage_unnamed_4x4,
+    "broke-cosmetic-cage-unnamed-4x4": broke_cosmetic_cage_unnamed_4x4,
+    "broke-cosmetic-cage-unrecognized-4x4": broke_cosmetic_cage_unrecognized_4x4,
 }
 
 

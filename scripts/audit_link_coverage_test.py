@@ -43,6 +43,19 @@ def test_link_features_skips_disabled() -> None:
     assert "anti-king" not in link_features(payload)
 
 
+def test_link_features_reads_somedoku_off_the_custom_constraint_carrier() -> None:
+    # Somedoku's other name-bearing carrier (global_flags.py): a `type 1000`
+    # custom constraint whose `definition.name` is `Somedoku`, not a `type
+    # 2001` cosmetic cage. `broke-somedoku-9x9.txt` in the real corpus uses
+    # exactly this carrier.
+    payload = {
+        "constraints": [
+            {"type": 1000, "definition": {"name": "Somedoku"}},
+        ]
+    }
+    assert "cage:somedoku" in link_features(payload)
+
+
 def test_find_holes_flags_missing_side() -> None:
     coverage = {
         "thermo": {"found": 2, "broke": 1},
