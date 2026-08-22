@@ -13,32 +13,12 @@ from typing import Any, cast
 
 from gridfind.sudokumaker.naming import named_component, shape_needs_cells
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
-from gridfind.sudokumaker.wire_types import (
-    ANTI_KING_TYPE,
-    ANTI_KNIGHT_TYPE,
-    NEGATIVE_DIAGONAL_TYPE,
-    POSITIVE_DIAGONAL_TYPE,
-)
 
 # The union of every registered type's live-data keys, order-preserved and
 # deduped — `has_live_data` checks these instead of a hand-copied list that
 # happened to match what the decoders in `registry` read.
 _LIVE_LIST_KEYS: tuple[str, ...] = tuple(
     dict.fromkeys(key for entry in DECODER_REGISTRY.values() for key in entry.live_keys)
-)
-
-# Global toggles carry their rule in the bare type, not a payload, so
-# `has_live_data` can't read their liveness off a `live_keys` list the way it
-# does for clue/cage blocks — an enabled toggle's presence is the live rule.
-# The coverage-floor E2E gate turns red if a toggle row is added to the
-# registry without listing it here, so the two never drift.
-_TOGGLE_WIRE_TYPES = frozenset(
-    {
-        NEGATIVE_DIAGONAL_TYPE,
-        POSITIVE_DIAGONAL_TYPE,
-        ANTI_KING_TYPE,
-        ANTI_KNIGHT_TYPE,
-    }
 )
 
 
@@ -120,10 +100,12 @@ def warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
 
 def has_live_data(constraint: dict[str, Any]) -> bool:
     """True when a constraint carries a rule gridfind would honour: a global
-    toggle (anti-knight, anti-king, a diagonal), whose bare enabled presence is
-    the rule; a non-empty list under one of `DECODER_REGISTRY`'s `live_keys`
-    (`clues`/`negative`/`cages`); or a group holding real cells under
-    `input.groups`. Empty payloads and cosmetic-only `lines` are inert.
+    toggle (anti-knight, anti-king, a diagonal — the type's own row in
+    `DECODER_REGISTRY` marks `is_toggle`, so its bare enabled presence reads as
+    live with no hand-kept type list to drift from that flag); a non-empty
+    list under one of `DECODER_REGISTRY`'s `live_keys` (`clues`/`negative`/
+    `cages`); or a group holding real cells under `input.groups`. Empty
+    payloads and cosmetic-only `lines` are inert.
 
     `cages` is a killer-cage block's (`type 301`) payload. It is decoded now,
     so `warn_on_dropped_constraints` skips it — this entry marks
@@ -137,7 +119,8 @@ def has_live_data(constraint: dict[str, Any]) -> bool:
     predicate the decoder drops by. `Any` keeps the decoded-JSON
     boundary type (a dict narrowed from the untyped payload), as `link_to_puzzle`
     does for `puzzle_data`."""
-    if constraint.get("type") in _TOGGLE_WIRE_TYPES:
+    entry = DECODER_REGISTRY.get(constraint.get("type"))
+    if entry is not None and entry.is_toggle:
         return True
     for key in _LIVE_LIST_KEYS:
         value = constraint.get(key)
