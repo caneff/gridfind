@@ -1,0 +1,33 @@
+name: Nightly (slow + e2e)
+
+# The gate deselects `slow` and `e2e` to stay fast (ADR-0020). This job runs
+# them once a day so they cannot rot silently. A failed run shows up in
+# GitHub's own notifications — no issue-opener here by design.
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 07:00 UTC daily
+  workflow_dispatch: {}    # allow a manual run
+
+jobs:
+  slow-and-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0   # pin to current tag at setup time
+        with:
+          enable-cache: true
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      - name: Sync (includes dev group)
+        run: uv sync
+
+      # Call the justfile recipes so the run stays one home with local `just slow`.
+      - name: Slow library solves
+        run: just slow
+
+      - name: Real-link e2e
+        run: just e2e
