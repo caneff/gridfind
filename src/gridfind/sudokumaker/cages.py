@@ -1,6 +1,6 @@
 """Cell-group block decoders: killer cages (`type 301`), cosmetic cages
 (`type 2001` — killer-shaped but dispatched per its marker classification,
-`markers.cosmetic_cage_kind`), and thermometers (`type 300`, the one
+`naming.classify`), and thermometers (`type 300`, the one
 ordered-path block, grouped here alongside the cages since it shares their
 raw-indices-to-addresses wire shape and no other module in the split claims
 it).
@@ -17,11 +17,7 @@ from gridfind.engine import MalformedPuzzleError
 from gridfind.puzzle import Constraint, ModifierDirective
 from gridfind.sudokumaker.addresses import addresses
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
-from gridfind.sudokumaker.markers import (
-    CosmeticCageKind,
-    cosmetic_cage_kind,
-)
-from gridfind.sudokumaker.naming import named_component
+from gridfind.sudokumaker.naming import Role, classify, named_component
 from gridfind.sudokumaker.wire_types import CAGE_TYPE, COSMETIC_CAGE_TYPE, THERMO_TYPE
 
 _ModifierKind = Literal["doubler", "constant"]
@@ -161,7 +157,7 @@ class _CosmeticCageDecode:
         )
 
 
-def _warn_dropped_cosmetic_cage(block: dict[str, Any], kind: CosmeticCageKind) -> None:
+def _warn_dropped_cosmetic_cage(block: dict[str, Any], kind: Role) -> None:
     """Warn to stderr that a live `type 2001` block carries no rule: `kind` is
     `"unnamed"` (absent/blank name) or `"unrecognized"` (a name the registry
     doesn't answer for — a bare `Constant` with no parseable integer lands
@@ -230,13 +226,13 @@ def _resolve_modifier_constraint(
 
 
 def _decode_cosmetic_block(
-    kind: CosmeticCageKind,
+    kind: Role,
     block: dict[str, Any],
     cages: list[dict[str, Any]],
     size: int,
 ) -> tuple[_CosmeticCageDecode, tuple[_ModifierKind, int | None] | None]:
     """One `type 2001` block's contribution, decoded per `kind`
-    (`cosmetic_cage_kind`, ADR-0012, extended by ADR-0016 and ADR-0018), with
+    (`naming.classify`, ADR-0012, extended by ADR-0016 and ADR-0018), with
     no outer state: the block in, `(decode, declaration)` out. A
     `Sum`/`Killer`-labelled block graduates to killer-cage `Constraint`s
     (ADR-0008) — cells and value nest under `cages`, the same wire shape as a
@@ -337,7 +333,7 @@ def cosmetic_cage_constraints(
     decoded: list[_CosmeticCageDecode] = []
     modifier_declarations: list[tuple[_ModifierKind, int | None]] = []
     for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE):
-        kind = cosmetic_cage_kind(block.get("name"))
+        kind = classify(block.get("name"))
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
         decode, declaration = _decode_cosmetic_block(kind, block, cages, size)
         decoded.append(decode)

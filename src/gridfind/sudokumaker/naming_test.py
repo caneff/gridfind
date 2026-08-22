@@ -1,10 +1,11 @@
 """`naming`: the normalized-name -> shape registry both name-bearing carriers
 (a `type 2001` cosmetic cage's top-level `name`, a `type 1000` custom
-constraint's `definition.name`) route through. Whole-decode coverage of the
-carriers themselves lives beside their own modules — `markers_test.py`
-(`cosmetic_cage_kind` on `type 2001`), `registry_test.py` (the `type 1000`
-carrier-fitness warn-drop) — this file pins the registry and its
-normalization directly.
+constraint's `definition.name`) route through, plus `classify`, the public
+nine-way classifier a `type 2001` block's name sorts into. Whole-decode
+coverage of the carriers themselves lives beside their own modules —
+`markers_test.py` (the cosmetic-cage decode), `registry_test.py` (the
+`type 1000` carrier-fitness warn-drop) — this file pins the registry, its
+normalization, and `classify` directly.
 """
 
 from __future__ import annotations
@@ -13,9 +14,11 @@ import pytest
 from hypothesis import given as hyp_given
 from hypothesis import strategies as st
 
+from gridfind.sudokumaker.markers import MARKER_LABELS
 from gridfind.sudokumaker.naming import (
     _NAME_REGISTRY,
     _normalize_component_name,
+    classify,
     named_component,
     shape_needs_cells,
 )
@@ -146,3 +149,88 @@ def test_a_registered_name_survives_case_and_whitespace_variation(
 
     assert component is not None
     assert component.role == "doubler"
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        (None, "unnamed"),
+        ("", "unnamed"),
+        ("   ", "unnamed"),
+        ("Sum", "killer"),
+        ("Killer", "killer"),
+        ("Rellik", "rellik"),
+        ("Anti", "rellik"),
+        ("Doubler", "doubler"),
+        ("  doubler ", "doubler"),
+        ("S-cell", "s-cell"),
+        ("Schrödinger", "s-cell"),
+        ("Nullifier", "constant"),
+        ("Constant 5", "constant"),
+        ("Constant -3", "constant"),
+        ("Constant", "unrecognized"),
+        ("Constant xyz", "unrecognized"),
+        ("Somedoku", "somedoku"),
+        ("  somedoku ", "somedoku"),
+        ("Whimsy", "unrecognized"),
+    ],
+    ids=[
+        "none",
+        "empty",
+        "blank",
+        "sum-label",
+        "killer-label",
+        "rellik-label",
+        "anti-label",
+        "doubler",
+        "doubler-padded",
+        "s-cell",
+        "schrodinger",
+        "nullifier",
+        "constant-n",
+        "constant-negative",
+        "bare-constant",
+        "constant-non-numeric",
+        "somedoku",
+        "somedoku-padded-lower",
+        "unknown",
+    ],
+)
+def test_classify_sorts_the_name(name: object, expected: str) -> None:
+    # The public nine-way classifier is the one home every named-cosmetic-cage
+    # read routes through (ADR-0012, extended by ADR-0016):
+    # unnamed, killer cage, Doubler marker, S-cell marker, Constant/Nullifier
+    # marker, Somedoku global flag, or an unrecognized name — the decoder
+    # warn-drops both unnamed and unrecognized, so a bare `Constant` with no
+    # parseable integer stays unrecognized rather than silently becoming
+    # `k = 0`.
+    assert classify(name) == expected
+
+
+def test_marker_labels_covers_every_role() -> None:
+    # MARKER_LABELS is the public role -> accepted-names table setter_guide.py's
+    # cage-name-alias rows read directly; every name-bearing role
+    # classify recognizes has an entry here. `constant`'s only
+    # static alias is `Nullifier` — `Constant <N>` is parameterized, not a
+    # fixed name (ADR-0016).
+    assert set(MARKER_LABELS) == {
+        "killer",
+        "equality",
+        "rellik",
+        "doubler",
+        "s-cell",
+        "constant",
+        "somedoku",
+    }
+
+
+@pytest.mark.parametrize(
+    "role",
+    ["killer", "equality", "rellik", "doubler", "s-cell", "constant", "somedoku"],
+)
+def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
+    # Every name MARKER_LABELS lists under a role must classify to that role
+    # through classify. MARKER_LABELS and classify both read naming's one
+    # registry, so the two cannot drift.
+    for name in MARKER_LABELS[role]:
+        assert classify(name) == role

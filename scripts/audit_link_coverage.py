@@ -28,8 +28,7 @@ from typing import Any, get_args
 from inspect_link import classify_constraint, decode_payload
 
 from gridfind.sudokumaker.dropped import constraint_name
-from gridfind.sudokumaker.markers import CosmeticCageKind, cosmetic_cage_kind
-from gridfind.sudokumaker.naming import named_component
+from gridfind.sudokumaker.naming import Role, classify, named_component
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE, CUSTOM_CONSTRAINT_TYPE
 
@@ -45,7 +44,7 @@ def feature_universe() -> list[str]:
     type (its registry name), plus one `cage:<kind>` row per cosmetic-cage
     marker kind."""
     names = [decoded.name for decoded in DECODER_REGISTRY.values()]
-    kinds = [f"cage:{kind}" for kind in get_args(CosmeticCageKind)]
+    kinds = [f"cage:{kind}" for kind in get_args(Role)]
     return names + kinds
 
 
@@ -68,7 +67,7 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
         if decoded is not None:
             features.add(decoded.name)
         if constraint.get("type") == COSMETIC_CAGE_TYPE:
-            features.add(f"cage:{cosmetic_cage_kind(constraint.get('name'))}")
+            features.add(f"cage:{classify(constraint.get('name'))}")
         elif constraint.get("type") == CUSTOM_CONSTRAINT_TYPE:
             component = named_component(constraint_name(constraint))
             if component is not None and component.role == "somedoku":
