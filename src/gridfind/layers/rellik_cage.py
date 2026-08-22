@@ -53,6 +53,9 @@ def _value_bounds(engine: Engine, address: str) -> tuple[int, int]:
 
 @dataclass
 class RellikCage:
+    """An anti-cage: forbids any non-empty subset of its named cells from
+    summing to a chosen forbidden target; states no distinctness of its own."""
+
     name: str = "rellik-cage"
     depends_on: tuple[str, ...] = ("board",)
 

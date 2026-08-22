@@ -46,6 +46,9 @@ from gridfind.engine import Engine, MalformedPuzzleError
 
 @dataclass
 class Cage:
+    """A no-repeats-among-named-cells clue, over digits or over values per
+    `distinct-over`; states no sum and no cover pressure of its own."""
+
     name: str = "cage"
     depends_on: tuple[str, ...] = ("board",)
 

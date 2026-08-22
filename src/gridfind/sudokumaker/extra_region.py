@@ -19,6 +19,8 @@ from gridfind.sudokumaker.wire_types import EXTRA_REGION_TYPE
 
 
 def extra_region_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+    """Decode each enabled type-305 window block into its own `extra-region`
+    constraint carrying that window's cells."""
     return [
         Constraint("extra-region", params={"cells": cells})
         for cells in enabled_block_addresses(

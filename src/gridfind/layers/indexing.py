@@ -102,6 +102,10 @@ def _emit_indexing_cell(engine: Engine, address: str, axis: str) -> None:
 
 @dataclass
 class Indexing:
+    """SudokuMaker's self-referential 159 clue: a marked control cell's digit
+    names a position on its own line, which must hold the control's own
+    coordinate on the other axis."""
+
     name: str = "indexing"
     depends_on: tuple[str, ...] = ("board",)
 

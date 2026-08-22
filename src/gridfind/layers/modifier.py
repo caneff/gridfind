@@ -49,6 +49,9 @@ _HOUSE_PARTITIONS = (rows, cols, regions)
 
 @dataclass
 class ModifierPlacement:
+    """Places exactly one discovered modifier per row, column, and box, and
+    forces the modified cells' digits to be a distinct-digit transversal."""
+
     name: str = "modifier-placement"
     depends_on: tuple[str, ...] = ("board",)
 
