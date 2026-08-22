@@ -79,7 +79,9 @@ def _build_and_solve(
 
 
 @dataclass(frozen=True)
-class Verdict:
+class Result:
+    """A verdict, plus its witness when the verdict is found."""
+
     kind: VerdictKind
     witness: Witness | None = None
 
@@ -105,7 +107,7 @@ def verdict(
     working_state: WorkingState = EMPTY,
     *,
     time_limit_s: float = DEFAULT_TIME_LIMIT_S,
-) -> Verdict:
+) -> Result:
     """The headline entry point: found / broke / unknown for `puzzle` under
     `working_state`, with a witness on found. `working_state` defaults to
     `EMPTY` — a bare puzzle's own satisfiability. `time_limit_s` bounds the
@@ -116,10 +118,10 @@ def verdict(
     if solved.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
         witness = _witness_from(solved.engine, solved.solver, region_map)
-        return Verdict(kind="found", witness=witness)
+        return Result(kind="found", witness=witness)
     if solved.status == cp_model.INFEASIBLE:
-        return Verdict(kind="broke")
-    return Verdict(kind="unknown")
+        return Result(kind="broke")
+    return Result(kind="unknown")
 
 
 @dataclass(frozen=True)
