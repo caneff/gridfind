@@ -258,6 +258,36 @@ def test_restrict_checks_a_digit_against_the_boards_declared_values() -> None:
         engine.restrict("x", {9})
 
 
+def test_add_board_domain_cell_admits_every_declared_board_value() -> None:
+    engine = build_engine([], board=Board(size=4))
+
+    engine.add_board_domain_cell("x")
+
+    assert engine.domain("x") == [1, 2, 3, 4]
+
+
+def test_add_board_domain_cell_excludes_a_gap_in_a_stepped_board_domain() -> None:
+    # Bounding to the domain's two ends alone would admit 3, 5, 7 as well —
+    # this must also restrict to the exact declared set.
+    engine = build_engine([], board=Board(size=1, values=range(2, 9, 2)))
+    engine.add_board_domain_cell("x")
+    var = engine.contents("x")[0]
+    engine.model.add(var == 3)
+
+    status = cp_model.CpSolver().solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE
+
+
+def test_add_board_domain_cell_returns_the_registered_cell() -> None:
+    engine = build_engine([], board=Board(size=9))
+
+    cell = engine.add_board_domain_cell("x")
+
+    assert engine.cells["x"] is cell
+    assert cell.address == "x"
+
+
 def test_sole_returns_the_one_element_of_a_width_1_read() -> None:
     assert sole(("7",)) == "7"
     assert sole([42]) == 42
