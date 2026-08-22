@@ -126,9 +126,8 @@ class Witness:
         survives whatever width an S-cell adds.
 
         Any outside cell in `assignment` (an address `grid` never lays out)
-        draws as a plain, unwalled ring one line/column beyond the box on
-        its own side — no ring at all, byte-identical to the plain grid,
-        when `assignment` names none.
+        is drawn as a ring by `_wrap_in_ring` — byte-identical to the plain
+        grid, no ring at all, when `assignment` names none.
         """
         n = len(self.grid)
         region_id = {
@@ -178,7 +177,16 @@ class Witness:
         outside = self._outside_by_position()
         if not outside:
             return "\n".join(lines)
+        return self._wrap_in_ring(lines, width, outside)
 
+    def _wrap_in_ring(
+        self, lines: list[str], width: int, outside: dict[tuple[int, int], str]
+    ) -> str:
+        """The bordered box `render()` drew, plus a plain unwalled ring one
+        line/column beyond it for every outside cell — top/bottom above and
+        below their column, left/right beside their row, corners at the four
+        outer margin slots. A side with no outside cell there stays blank."""
+        n = len(self.grid)
         top = {c: outside[(0, c)] for c in range(1, n + 1) if (0, c) in outside}
         bottom = {
             c: outside[(n + 1, c)] for c in range(1, n + 1) if (n + 1, c) in outside
