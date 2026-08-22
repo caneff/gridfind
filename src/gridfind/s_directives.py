@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import cache
 from typing import Any, ClassVar, assert_never
 
 from gridfind.engine import MalformedPuzzleError
@@ -144,27 +143,22 @@ def s_directive_to_dict(directive: SDirective) -> dict[str, object]:
     return out
 
 
-@cache
-def _readers() -> dict[str, Callable[[Any], SDirective]]:
-    # Built lazily (not at module load) and cached — the parsed-JSON boundary
-    # a reader narrows is genuinely untyped (`d: Any`) until it picks a shape
-    # for the values.
-    return {
-        SingletonPin.kind: (
-            lambda d: SingletonPin(address=d["address"], digit=d["digit"])
-        ),
-        SCellPin.kind: (
-            lambda d: SCellPin(address=d["address"], pair=frozenset(d["pair"]))
-        ),
-        BareSingleton.kind: lambda d: BareSingleton(address=d["address"]),
-        BareSCell.kind: lambda d: BareSCell(address=d["address"]),
-        HalfSCell.kind: (lambda d: HalfSCell(address=d["address"], digit=d["digit"])),
-        SCellMarkRestriction.kind: (
-            lambda d: SCellMarkRestriction(
-                address=d["address"], digits=frozenset(d["digits"])
-            )
-        ),
-    }
+# The parsed-JSON boundary a reader narrows is genuinely untyped (`d: Any`)
+# until it picks a shape for the values.
+_READERS: dict[str, Callable[[Any], SDirective]] = {
+    SingletonPin.kind: (lambda d: SingletonPin(address=d["address"], digit=d["digit"])),
+    SCellPin.kind: (
+        lambda d: SCellPin(address=d["address"], pair=frozenset(d["pair"]))
+    ),
+    BareSingleton.kind: lambda d: BareSingleton(address=d["address"]),
+    BareSCell.kind: lambda d: BareSCell(address=d["address"]),
+    HalfSCell.kind: (lambda d: HalfSCell(address=d["address"], digit=d["digit"])),
+    SCellMarkRestriction.kind: (
+        lambda d: SCellMarkRestriction(
+            address=d["address"], digits=frozenset(d["digits"])
+        )
+    ),
+}
 
 
 def s_directive_from_dict(data: dict[str, object]) -> SDirective:
@@ -179,4 +173,4 @@ def s_directive_from_dict(data: dict[str, object]) -> SDirective:
     if not isinstance(kind, str):
         msg = f"s_directive 'kind' must be a string, got {kind!r}"
         raise TypeError(msg)
-    return _readers()[kind](data)
+    return _READERS[kind](data)

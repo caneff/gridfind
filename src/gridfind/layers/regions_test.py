@@ -5,8 +5,6 @@ from hypothesis import strategies as st
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.layers.regions import RegionMap, box_regions, region_map_for
 
-BOARD_SIZE = 9
-
 
 # Spelled out rather than read from BOX_SHAPE on purpose: an independent
 # statement of the convention, so a typo in the table fails a test instead of
