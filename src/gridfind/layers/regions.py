@@ -57,14 +57,14 @@ class RegionMap(list[list[tuple[int, int]]]):
 
     def to_labels(self, size: int) -> list[int]:
         """This region map as SudokuMaker's flat, row-major `type 1` array: entry
-        `(row - 1) * size + (col - 1)` is the number of the region holding cell
+        `row_col_to_index(row, col, size)` is the number of the region holding cell
         `RxCy`. The one home for serializing a `RegionMap` to the wire form,
         shared by the decode-time classic-tiling check and the corpus synthesizers.
         """
         region_numbers = [0] * (size * size)
         for number, region in enumerate(self):
             for row, col in region:
-                region_numbers[(row - 1) * size + (col - 1)] = number
+                region_numbers[row_col_to_index(row, col, size)] = number
         return region_numbers
 
     @classmethod
@@ -107,19 +107,6 @@ def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
         for band_row in range(row_bands)
         for band_col in range(col_bands)
     )
-
-
-def to_region_numbers(size: int, region_map: RegionMap) -> list[int]:
-    """A region map as SudokuMaker's flat, row-major `type 1` array: entry
-    `row_col_to_index(row, col, size)` is the number of the region holding cell
-    `RxCy`. The one home for serializing a `RegionMap` to the wire form,
-    shared by the decode-time classic-tiling check and the corpus synthesizers.
-    """
-    region_numbers = [0] * (size * size)
-    for number, region in enumerate(region_map):
-        for row, col in region:
-            region_numbers[row_col_to_index(row, col, size)] = number
-    return region_numbers
 
 
 def region_map_for(size: int) -> RegionMap:
