@@ -34,6 +34,10 @@ def _is_outside(address: str, size: int) -> bool:
 
 @dataclass
 class OutsideCells:
+    """The sole creator of every border-ring cell a clue names, so two clues
+    sharing one outside address bind the same cell instead of orphaning
+    each other's."""
+
     name: str = "outside-cells"
     depends_on: tuple[str, ...] = ()
 

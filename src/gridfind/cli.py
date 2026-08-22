@@ -45,6 +45,9 @@ def _is_link(value: str) -> bool:
 
 
 def main(argv: Sequence[str], stdin: TextIO) -> int:
+    """Read a puzzle document or SudokuMaker link from `argv`'s file argument
+    or `stdin`, print its verdict (plus a witness on `found`), and return the
+    process exit code."""
     parser = argparse.ArgumentParser(
         prog="gridfind",
         description="Read a {puzzle, working_state} JSON document or a "

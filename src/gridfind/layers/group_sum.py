@@ -42,6 +42,9 @@ from gridfind.engine import Engine
 
 @dataclass
 class GroupSum:
+    """A clue that sums (or, when `negate` is set, forbids summing) its named
+    cells' values to a target total; states no distinctness of its own."""
+
     name: str = "group-sum"
     depends_on: tuple[str, ...] = ("board",)
 

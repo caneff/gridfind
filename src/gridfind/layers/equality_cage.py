@@ -52,6 +52,9 @@ def _low_high_thresholds(board: BoardShape) -> tuple[int, int]:
 
 @dataclass
 class EqualityCage:
+    """A cage that forces equal counts of even and odd digits, and of low and
+    high digits, among its named cells; states no distinctness of its own."""
+
     name: str = "equality-cage"
     depends_on: tuple[str, ...] = ("board",)
 

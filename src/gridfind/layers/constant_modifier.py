@@ -29,6 +29,10 @@ from gridfind.layers.modifier import Modifier
 
 @dataclass
 class ConstantModifier(Modifier):
+    """A discovered modifier whose value, when placed, folds to a fixed
+    integer `k` (default 0, the nullifier), independent of the digit
+    beneath it."""
+
     name: str = "constant"
     value: int = 0
 

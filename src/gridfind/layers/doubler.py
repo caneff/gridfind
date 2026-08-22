@@ -25,6 +25,9 @@ from gridfind.layers.modifier import Modifier
 
 @dataclass
 class Doubler(Modifier):
+    """A discovered modifier whose value, when placed, folds to twice the
+    digit (or S-cell value) beneath it."""
+
     name: str = "doubler"
 
     def value_when_modified(
