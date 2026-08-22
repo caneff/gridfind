@@ -239,6 +239,9 @@ _GOLDEN_REPORTS = {
     "broke-equality-rank-9x9": (
         "9x9 · 81 cells · 5 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
+    "broke-even-4x4": (
+        "4x4 · 16 cells · 1 given · types {0,1,100} · active: 100 · verdict: broke"
+    ),
     "broke-extra-region-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: broke"
     ),
@@ -268,6 +271,13 @@ _GOLDEN_REPORTS = {
     ),
     "broke-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: broke"
+    ),
+    "broke-odd-4x4": (
+        "4x4 · 16 cells · 1 given · types {0,1,101} · active: 101 · verdict: broke"
+    ),
+    "broke-odd-doubler-4x4": (
+        "4x4 · 16 cells · 0 givens · types {0,1,101,2001} ·"
+        " active: 101, 2001 · verdict: broke"
     ),
     "broke-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: broke"
@@ -345,6 +355,9 @@ _GOLDEN_REPORTS = {
     "found-equality-9x9": (
         "9x9 · 81 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
+    "found-even-4x4": (
+        "4x4 · 16 cells · 1 given · types {0,1,100} · active: 100 · verdict: found"
+    ),
     "found-extra-region-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: found"
     ),
@@ -374,6 +387,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: found"
+    ),
+    "found-odd-4x4": (
+        "4x4 · 16 cells · 1 given · types {0,1,101} · active: 101 · verdict: found"
     ),
     "found-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"

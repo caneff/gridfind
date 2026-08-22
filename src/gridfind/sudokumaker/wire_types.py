@@ -57,6 +57,20 @@ CAGE_TYPE = 301
 # since the killer-cage tool refuses to store one.
 COSMETIC_CAGE_TYPE = 2001
 
+# type 100 is even: `{cells: [...], style: {...}}`, the same flat
+# raw-indices wire shape a `type 600`/`601` indexing block carries. The type
+# number is the even/odd discriminator, exactly like 200/201's white/black
+# split. Decodes straight to `parity`, read value mode (`Engine.value_expr`,
+# ADR-0009) — a doubled cell's mapped `2·d` is always even, and an S-cell's
+# combined `s_value` is judged the same way.
+EVEN_TYPE = 100
+
+# type 101 is odd: the same `{cells: [...], style: {...}}` wire shape as
+# even, the type number the sole discriminator (100 vs 101). Read value
+# mode like even — an odd clue over a doubled cell is therefore
+# unsatisfiable (`2·d` is never odd), the deliberate value reading.
+ODD_TYPE = 101
+
 # SudokuMaker's global toggles — bare `{type: N}` blocks, one per rule, read
 # off real links (the two diagonals also carry a cosmetic `style` gridfind
 # ignores). The two diagonals are independent switches: negative is the `\`

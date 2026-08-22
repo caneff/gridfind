@@ -23,12 +23,14 @@ from gridfind.sudokumaker.wire_types import (
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
     COSMETIC_CAGE_TYPE,
+    EVEN_TYPE,
     EXTRA_REGION_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
     KROPKI_WHITE_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
+    ODD_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     THERMO_TYPE,
     XV_TYPE,
@@ -153,6 +155,27 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; a block with no"
         " usable cells is warn-and-dropped to stderr.",
     ),
+    EVEN_TYPE: SetterDoc(
+        display_name="Even",
+        wire_block="type 100 {cells:[…], style?} — style is cosmetic,"
+        " same shape as row/column indexing.",
+        decode_result='One parity Constraint per block, parity "even",'
+        " carrying every marked cell's address. Reads value mode: 2·d over"
+        " a doubler, combined s_value over an S-cell, the bare digit"
+        " otherwise — so a doubled cell is always even.",
+        verdict="Accept. disabled blocks are skipped; a block with no"
+        " usable cells is warn-and-dropped to stderr.",
+    ),
+    ODD_TYPE: SetterDoc(
+        display_name="Odd",
+        wire_block="type 101 {cells:[…], style?} — style is cosmetic,"
+        " same shape as even.",
+        decode_result='One parity Constraint per block, parity "odd",'
+        " carrying every marked cell's address. Reads the same value mode"
+        " as even — so a doubled cell is never odd, unsatisfiable.",
+        verdict="Accept. disabled blocks are skipped; a block with no"
+        " usable cells is warn-and-dropped to stderr.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -200,6 +223,8 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "extra-region": "found-extra-region-4x4",
     "row-indexing": "found-indexing-row-4x4",
     "col-indexing": "found-indexing-col-4x4",
+    "even": "found-even-4x4",
+    "odd": "found-odd-4x4",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",
