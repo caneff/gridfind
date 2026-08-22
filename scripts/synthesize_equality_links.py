@@ -24,13 +24,11 @@ which is why the corpus lives at 9x9, not 4x4.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
+
+from _corpus import boxed_document, regenerate
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import document_to_link
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 _SIZE = 9
 
@@ -40,26 +38,18 @@ def _link(*, cage_cols: tuple[int, ...], givens: tuple[tuple[int, int], ...]) ->
     `cage_cols` cells. `givens` is `(col, value)` pairs placed in row 1, the only
     filled cells; rows 2-9 stay empty."""
     cage_index_list = [row_col_to_index(1, col, _SIZE) for col in cage_cols]
-    cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
-    for col, value in givens:
-        cells[row_col_to_index(1, col, _SIZE)] = {"given": True, "value": value}
-    region_numbers = box_regions(_SIZE, 3, 3).to_labels(_SIZE)
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {
-            "cells": cells,
-            "size": _SIZE,
-            "constraints": [
-                {"type": 0},
-                {"type": 1, "regions": region_numbers},
-                {
-                    "name": "Equality",
-                    "type": 2001,
-                    "cages": [{"cells": cage_index_list}],
-                },
-            ],
-        },
-    }
+    document = boxed_document(
+        3,
+        3,
+        givens={(1, col): value for col, value in givens},
+        constraints=[
+            {
+                "name": "Equality",
+                "type": 2001,
+                "cages": [{"cells": cage_index_list}],
+            }
+        ],
+    )
     return document_to_link(document)
 
 
@@ -117,9 +107,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every equality-cage corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

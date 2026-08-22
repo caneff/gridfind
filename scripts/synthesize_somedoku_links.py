@@ -30,11 +30,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from _corpus import regenerate
+
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
 
 _HERE = Path(__file__).resolve().parent
-LINKS_DIR = _HERE.parent / "src" / "gridfind" / "links"
 _TEMPLATE_PATH = _HERE / "somedoku_template.json"
 
 _SIZE = 9
@@ -82,9 +83,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every somedoku corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

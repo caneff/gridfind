@@ -1,9 +1,10 @@
 """Guards for the synthesized 159-indexing corpus.
 
-Two axes, both fast (decode only, no solve — the front-door verdict drive
-lives in the on-demand `links_test` e2e suite): the committed file matches
-its synthesizer byte for byte, and each link decodes to an `indexing`
-constraint carrying the expected axis.
+Fast (decode only, no solve — the front-door verdict drive lives in the
+on-demand `links_test` e2e suite): each link decodes to an `indexing`
+constraint carrying the expected axis. The drift guard that the committed
+file matches its synthesizer byte for byte lives in `corpus_drift_test.py`,
+auto-discovered over every synthesizer.
 """
 
 from __future__ import annotations
@@ -21,15 +22,6 @@ _EXPECTED_AXIS: dict[str, str] = {
     "found-indexing-scell-col-4x4": "col",
     "broke-indexing-scell-col-4x4": "col",
 }
-
-
-@pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
-def test_committed_corpus_file_matches_its_synthesizer(name: str) -> None:
-    """The committed corpus is built in code, never hand-authored: each file is
-    exactly its synthesizer's output. A hand-edit (or a stale regenerate) turns
-    this red."""
-    path = syn.LINKS_DIR / f"{name}.txt"
-    assert path.read_text() == syn.CORPUS[name]() + "\n"
 
 
 @pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))

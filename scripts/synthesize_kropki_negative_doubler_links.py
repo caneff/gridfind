@@ -34,23 +34,15 @@ value is 4 and `|1 - 4| = 3`, not forbidden: `found`.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
+
+from _corpus import boxed_document, regenerate
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import document_to_link
+from gridfind.sudokumaker.edge_clues import pair_to_edge
 from gridfind.sudokumaker.wire_types import KROPKI_WHITE_TYPE
 
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
-
-
-def _horizontal_edge(size: int, row: int, col: int) -> int:
-    """The `edge` index of the horizontal pair starting at 1-based `(row,
-    col)` and its right neighbor — `edge_clues._edge_to_pair`'s `edge =
-    2*size*r0 + c0 + 1` formula, inverted for a known pair instead of a known
-    edge."""
-    r0, c0 = row - 1, col - 1
-    return 2 * size * r0 + c0 + 1
+_SIZE = 6
 
 
 def _link(*, r4c5: int) -> str:
@@ -59,27 +51,20 @@ def _link(*, r4c5: int) -> str:
     second given pair R4C4/R4C5 — an unmarked adjacency the rule reaches —
     and a `Doubler` marker cage declaring R4C5 a modifier, so the rule reads
     `2 * r4c5` rather than `r4c5` itself."""
-    size = 6
-    givens = {(1, 1): 1, (1, 2): 2, (4, 4): 1, (4, 5): r4c5}
-    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, size)] = {"given": True, "value": value}
-    region_numbers = box_regions(size, 2, 3).to_labels(size)
-    doubler_cell = row_col_to_index(4, 5, size)
-    constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": region_numbers},
-        {
-            "type": KROPKI_WHITE_TYPE,
-            "clues": [{"value": 1, "edge": _horizontal_edge(size, 1, 1)}],
-            "negative": [7],
-        },
-        {"name": "Doubler", "type": 2001, "cages": [{"cells": [doubler_cell]}]},
-    ]
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {"cells": cells, "size": size, "constraints": constraints},
-    }
+    doubler_cell = row_col_to_index(4, 5, _SIZE)
+    document = boxed_document(
+        2,
+        3,
+        givens={(1, 1): 1, (1, 2): 2, (4, 4): 1, (4, 5): r4c5},
+        constraints=[
+            {
+                "type": KROPKI_WHITE_TYPE,
+                "clues": [{"value": 1, "edge": pair_to_edge(1, 1, _SIZE)}],
+                "negative": [7],
+            },
+            {"name": "Doubler", "type": 2001, "cages": [{"cells": [doubler_cell]}]},
+        ],
+    )
     return document_to_link(document)
 
 
@@ -110,9 +95,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 def main() -> None:
     """Regenerate every kropki-negative-doubler corpus file from its
     synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

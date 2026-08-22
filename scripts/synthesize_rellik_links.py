@@ -16,13 +16,11 @@ cage's cells otherwise free, so a completion avoiding sum 3 exists (e.g.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
+
+from _corpus import boxed_document, regenerate
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import document_to_link
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 _BOX_H = 2
 _BOX_W = 2
@@ -51,27 +49,24 @@ def _document(
     """A boxed 4x4 SudokuMaker document with `givens` (1-based `(row, col)` ->
     digit) and one `Rellik`-named cosmetic cage over `cage_cells`, labelled
     `target`."""
-    cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, _SIZE)] = {"given": True, "value": value}
-    region_numbers = box_regions(_SIZE, _BOX_H, _BOX_W).to_labels(_SIZE)
-    constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": region_numbers},
-        {
-            "name": "Rellik",
-            "type": 2001,
-            "cages": [
-                {
-                    "value": str(target),
-                    "cells": [row_col_to_index(r, c, _SIZE) for r, c in cage_cells],
-                }
-            ],
-            "style": _authored_cage_style(),
-        },
-    ]
-    puzzle = {"cells": cells, "size": _SIZE, "constraints": constraints}
-    return {"formatVersion": "1.5.0", "puzzle": puzzle}
+    return boxed_document(
+        _BOX_H,
+        _BOX_W,
+        givens=givens,
+        constraints=[
+            {
+                "name": "Rellik",
+                "type": 2001,
+                "cages": [
+                    {
+                        "value": str(target),
+                        "cells": [row_col_to_index(r, c, _SIZE) for r, c in cage_cells],
+                    }
+                ],
+                "style": _authored_cage_style(),
+            }
+        ],
+    )
 
 
 def found_rellik_4x4() -> str:
@@ -108,9 +103,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every rellik corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":
