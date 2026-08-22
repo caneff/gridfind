@@ -91,9 +91,15 @@ def test_sudokumaker_link_argument_prints_found_and_grid(
     assert len(lines) > 1
 
 
-def test_sudokumaker_link_on_stdin_matches_argument(
+def test_sudokumaker_link_on_stdin_reaches_the_same_verdict_as_argument(
     capsys: pytest.CaptureFixture[str], classic_link: str
 ) -> None:
+    # The two CLI entry paths — a bare link argument and the same link on
+    # stdin — must reach the same verdict. The witness grid itself is not
+    # asserted: the found solver runs many workers (`verdict.py`), so a
+    # multi-solution link's grid varies run to run. This pins routing
+    # equivalence, not the grid (the renderer's contract lives in
+    # `witness_test.py`).
     cli.main([classic_link], io.StringIO())
     argument_out = capsys.readouterr().out
 
@@ -101,7 +107,7 @@ def test_sudokumaker_link_on_stdin_matches_argument(
     stdin_out = capsys.readouterr().out
 
     assert code == 0
-    assert stdin_out == argument_out
+    assert stdin_out.splitlines()[0] == argument_out.splitlines()[0] == "found"
 
 
 def _classic_schrodinger_solution_link(
