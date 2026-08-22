@@ -176,6 +176,36 @@ def test_witness_render_draws_a_created_corner_outside_cell() -> None:
     )
 
 
+def test_wrap_in_ring_places_tokens_by_position() -> None:
+    # _wrap_in_ring only needs the box's own drawn lines, the cell width, and
+    # the outside-by-position mapping — it doesn't derive them itself, so
+    # it's testable directly without going through render()'s box-drawing.
+    # Same fixture and expected output as
+    # test_witness_render_draws_an_outside_cell_above_its_column, called one
+    # layer lower.
+    grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
+    assignment: dict[str, tuple[int, ...]] = {
+        "R1C1": (1,),
+        "R1C2": (2,),
+        "R2C1": (3,),
+        "R2C2": (4,),
+    }
+    region_map = RegionMap([[(1, 1), (2, 1)], [(1, 2), (2, 2)]])
+    witness = Witness(grid=grid, assignment=assignment, region_map=region_map)
+    lines = ["┌───┬───┐", "│ 1 │ 2 │", "│   │   │", "│ 3 │ 4 │", "└───┴───┘"]
+    outside = {(0, 1): "9"}
+
+    assert witness._wrap_in_ring(lines, 1, outside) == (
+        "     9         \n"
+        "   ┌───┬───┐   \n"
+        "   │ 1 │ 2 │   \n"
+        "   │   │   │   \n"
+        "   │ 3 │ 4 │   \n"
+        "   └───┴───┘   \n"
+        "               "
+    )
+
+
 def test_witness_render_is_unchanged_with_no_outside_cells() -> None:
     # No entry in `assignment` falls outside `grid` — the ring adds nothing,
     # byte-identical to the plain grid.
