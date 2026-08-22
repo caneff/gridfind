@@ -353,6 +353,40 @@ def test_assignment_keeps_both_digits_of_a_widened_s_cell_and_slices_the_rest() 
     assert engine.assignment(solver) == {"s": (2, 5), "p": (8,)}
 
 
+def test_real_digit_slots_degrades_to_the_single_d0_slot_on_a_width_1_cell() -> None:
+    engine = build_engine([], board=BOARD)
+    cell = engine.add_cell("x", low=1, high=9)
+
+    assert engine.real_digit_slots("x") == [(cell.content[0], None)]
+
+
+def test_real_digit_slots_pairs_d0_with_none_and_d1_with_its_is_s_guard() -> None:
+    engine = build_engine([], board=BOARD)
+    s_cell = engine.add_cell("s", low=1, high=9, width=2)
+    is_s = {"s": engine.model.new_bool_var("s.is_s")}
+    engine.register_structure("is_s", is_s)
+
+    assert engine.real_digit_slots("s") == [
+        (s_cell.content[0], None),
+        (s_cell.content[1], is_s["s"]),
+    ]
+
+
+def test_real_digit_slots_on_an_off_board_address_raises() -> None:
+    engine = build_engine([], board=BOARD)
+
+    with pytest.raises(MalformedPuzzleError, match="off the board"):
+        engine.real_digit_slots("nope")
+
+
+def test_real_digit_slots_on_a_width_2_cell_without_is_s_raises_gridfind() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("s", low=1, high=9, width=2)
+
+    with pytest.raises(GridfindError, match="without an is_s structure"):
+        engine.real_digit_slots("s")
+
+
 def test_discovered_modifiers_is_empty_without_a_modifier_layer() -> None:
     engine = build_engine([], board=BOARD)
     engine.add_cell("a", low=1, high=9)

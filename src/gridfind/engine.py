@@ -271,6 +271,25 @@ class Engine:
             return modifier_value[address]
         return self.base_value(address)
 
+    def real_digit_slots(
+        self, address: str
+    ) -> list[tuple[cp_model.IntVar, cp_model.IntVar | None]]:
+        """A cell's real digit(s), each paired with its guard: `d0` is always
+        real (guard `None`); `d1`, when present, is real only when `is_s`
+        holds. This is digit mode's gated read (ADR-0019 decision 6) — the
+        engine's one contribution to a digit-set clue (clone, and any future
+        sibling), which supplies only its predicate and adds
+        `.only_enforce_if(guard)` on the gated term, never seeing the
+        sentinel that fills a singleton's second slot. A width-1 cell (no
+        schrödinger layer in the stack) degrades to the single `d0` slot."""
+        content = self.contents(address)
+        if len(content) == 1:
+            return [(content[0], None)]
+        is_s = self.is_s()
+        if is_s is None:
+            raise GridfindError("width-2 cell without an is_s structure")
+        return [(content[0], None), (content[1], is_s[address])]
+
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending.
 
