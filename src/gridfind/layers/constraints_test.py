@@ -6,6 +6,7 @@ from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.door import UnknownLayerError
+from gridfind.layers.offset_adjacency import KNIGHT_OFFSETS, OffsetAdjacency
 from gridfind.layers.outside_cells import OutsideCells
 from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
@@ -178,13 +179,17 @@ def test_an_s_blind_layer_alone_is_unaffected() -> None:
     # its own.
     _, layers = build_stack((Constraint(type="anti-knight"),), size=9)
 
-    assert len(layers) == 3
+    assert layers == [
+        BOARD,
+        OUTSIDE_CELLS,
+        OffsetAdjacency("anti-knight", KNIGHT_OFFSETS),
+    ]
 
 
 def test_a_widening_layer_alone_is_unaffected() -> None:
     _, layers = build_stack((Constraint(type="schrodinger"),), size=9)
 
-    assert len(layers) == 3
+    assert layers == [BOARD, OUTSIDE_CELLS, Schrodinger()]
 
 
 def test_no_constraints_still_carries_the_compulsory_board_layer() -> None:
