@@ -20,7 +20,7 @@ from gridfind.sudokumaker.conftest import (
     constraint_link,
     encode_document,
 )
-from gridfind.sudokumaker.edge_clues import edge_to_pair
+from gridfind.sudokumaker.edge_clues import edge_to_pair, pair_to_edge
 from gridfind.verdict import verdict
 
 
@@ -82,6 +82,42 @@ def test_edge_to_pair_rejects_an_out_of_bounds_edge() -> None:
     # size=2's only edges are 0..7; 8 names no in-bounds pair.
     with pytest.raises(ValueError, match="edge"):
         edge_to_pair(8, size=2)
+
+
+@pytest.mark.parametrize(
+    ("row", "col", "size", "expected_edge"),
+    [(5, 3, 9, 75), (8, 6, 9, 132)],
+    ids=["kropki-horizontal-75", "kropki-horizontal-132"],
+)
+def test_pair_to_edge_oracle_cases(
+    row: int, col: int, size: int, expected_edge: int
+) -> None:
+    # The inverse of the same two real-link horizontal cases
+    # `test_edge_to_pair_oracle_cases` decodes.
+    assert pair_to_edge(row, col, size) == expected_edge
+
+
+@st.composite
+def _valid_horizontal_pairs(draw: st.DrawFn) -> tuple[int, int, int]:
+    """A `(size, row, col)` tuple naming a real horizontal pair `(row, col)`-
+    `(row, col+1)` on a `size`x`size` board."""
+    size = draw(st.integers(min_value=2, max_value=15))
+    row = draw(st.integers(min_value=1, max_value=size))
+    col = draw(st.integers(min_value=1, max_value=size - 1))
+    return size, row, col
+
+
+@hyp_given(_valid_horizontal_pairs())
+def test_pair_to_edge_inverts_edge_to_pair(case: tuple[int, int, int]) -> None:
+    # `pair_to_edge` is `edge_to_pair`'s horizontal branch inverted: feeding
+    # its edge back through `edge_to_pair` must decode the exact pair it was
+    # built from.
+    size, row, col = case
+    edge = pair_to_edge(row, col, size)
+    assert edge_to_pair(edge, size) == (
+        format_address(row, col),
+        format_address(row, col + 1),
+    )
 
 
 @pytest.mark.parametrize(

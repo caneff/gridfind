@@ -18,28 +18,17 @@ default instead.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
-from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
+from _corpus import boxed_document, regenerate
+
 from gridfind.sudokumaker import document_to_link
+from gridfind.sudokumaker.edge_clues import pair_to_edge
 from gridfind.sudokumaker.wire_types import KROPKI_WHITE_TYPE
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 # The labelled difference both fixtures' dot carries — anything but the
 # default 1, so honoring it verbatim is the only way either fixture's
 # verdict can be right.
 _LABELLED_DIFF = 3
-
-
-def _horizontal_edge(size: int, row: int, col: int) -> int:
-    """The `edge` index of the horizontal pair starting at 1-based `(row,
-    col)` and its right neighbor — `edge_clues._edge_to_pair`'s `edge =
-    2*size*r0 + c0 + 1` formula, inverted for a known pair instead of a known
-    edge."""
-    r0, c0 = row - 1, col - 1
-    return 2 * size * r0 + c0 + 1
 
 
 def _link(
@@ -54,28 +43,23 @@ def _link(
     white-kropki dot, labelled `_LABELLED_DIFF`, on the horizontal edge
     starting at `(dot_row, dot_col)`."""
     size = box_h * box_w
-    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, size)] = {"given": True, "value": value}
-    region_numbers = box_regions(size, box_h, box_w).to_labels(size)
-    constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": region_numbers},
-        {
-            "type": KROPKI_WHITE_TYPE,
-            "clues": [
-                {
-                    "value": _LABELLED_DIFF,
-                    "edge": _horizontal_edge(size, dot_row, dot_col),
-                }
-            ],
-            "negative": [],
-        },
-    ]
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {"cells": cells, "size": size, "constraints": constraints},
-    }
+    document = boxed_document(
+        box_h,
+        box_w,
+        givens=givens,
+        constraints=[
+            {
+                "type": KROPKI_WHITE_TYPE,
+                "clues": [
+                    {
+                        "value": _LABELLED_DIFF,
+                        "edge": pair_to_edge(dot_row, dot_col, size),
+                    }
+                ],
+                "negative": [],
+            }
+        ],
+    )
     return document_to_link(document)
 
 
@@ -106,9 +90,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 def main() -> None:
     """Regenerate every labelled-non-default-kropki-value corpus file from
     its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

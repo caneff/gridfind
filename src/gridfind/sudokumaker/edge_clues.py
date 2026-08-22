@@ -77,6 +77,16 @@ def edge_to_pair(edge: int, size: int) -> tuple[str, str]:
     raise ValueError(msg)
 
 
+def pair_to_edge(row: int, col: int, size: int) -> int:
+    """The `edge` index of the horizontal pair starting at 1-based `(row,
+    col)` and its right neighbor — `edge_to_pair`'s horizontal branch
+    (`edge = 2*size*r0 + c0 + 1`) inverted for a caller that knows the pair
+    and wants the wire's edge number, the shape every corpus synthesizer that
+    labels a horizontal kropki/XV edge needs."""
+    r0, c0 = row - 1, col - 1
+    return 2 * size * r0 + c0 + 1
+
+
 def _orthogonal_pairs(size: int) -> list[tuple[str, str]]:
     """Every orthogonally-adjacent cell pair on a `size`x`size` board, each
     emitted once: grid x the two forward 4-neighbour offsets x

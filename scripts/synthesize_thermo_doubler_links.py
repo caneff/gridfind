@@ -22,38 +22,31 @@ only R1C2's given digit changes.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
+
+from _corpus import boxed_document, regenerate
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import THERMO_TYPE
 
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
+_SIZE = 4
 
 
 def _link(*, r1c2: int) -> str:
     """Assemble a 4x4, 2x2-boxed document: a length-2 thermo R1C1 -> R1C2
     (bulb R1C1, given 4), and a `Doubler` marker cage naming R1C2 alone, so
     the edge reads `2 * r1c2` rather than `r1c2` itself."""
-    size = 4
-    givens = {(1, 1): 4, (1, 2): r1c2}
-    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, size)] = {"given": True, "value": value}
-    region_numbers = box_regions(size, 2, 2).to_labels(size)
-    path = [row_col_to_index(1, 1, size), row_col_to_index(1, 2, size)]
-    doubler_cell = row_col_to_index(1, 2, size)
-    constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": region_numbers},
-        {"type": THERMO_TYPE, "slow": False, "thermometers": [path]},
-        {"name": "Doubler", "type": 2001, "cages": [{"cells": [doubler_cell]}]},
-    ]
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {"cells": cells, "size": size, "constraints": constraints},
-    }
+    path = [row_col_to_index(1, 1, _SIZE), row_col_to_index(1, 2, _SIZE)]
+    doubler_cell = row_col_to_index(1, 2, _SIZE)
+    document = boxed_document(
+        2,
+        2,
+        givens={(1, 1): 4, (1, 2): r1c2},
+        constraints=[
+            {"type": THERMO_TYPE, "slow": False, "thermometers": [path]},
+            {"name": "Doubler", "type": 2001, "cages": [{"cells": [doubler_cell]}]},
+        ],
+    )
     return document_to_link(document)
 
 
@@ -81,9 +74,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every thermo-doubler corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

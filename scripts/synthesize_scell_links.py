@@ -21,12 +21,10 @@ the solver reconstructs the grid rather than reading back an answer key.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
-from gridfind.layers.regions import box_regions
+from _corpus import blank_cells, boxed_document, regenerate, wrap_document
+
 from gridfind.sudokumaker import document_to_link
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 # The classic extra digit the Schrödinger layer widens the domain by (k = 1);
 # 0 sits below every ordinary given (which use 1..N), so an S-cell pinned
@@ -72,23 +70,19 @@ def _base_document(
     cells: list[dict[str, object]],
 ) -> dict[str, object]:
     """Wrap synthesized cells and S-cell marker cages into a SudokuMaker document."""
-    size = box_h * box_w
-    region_numbers = box_regions(size, box_h, box_w).to_labels(size)
-    puzzle = {
-        "cells": cells,
-        "size": size,
-        "constraints": [
-            {"type": 0},
-            {"type": 1, "regions": region_numbers},
+    return boxed_document(
+        box_h,
+        box_w,
+        cells=cells,
+        constraints=[
             {
                 "name": "S-cell",
                 "type": 2001,
                 "cages": scell_cages,
                 "style": _authored_cage_style(),
-            },
+            }
         ],
-    }
-    return {"formatVersion": "1.5.0", "puzzle": puzzle}
+    )
 
 
 class _SchrodingerGrid:
@@ -282,7 +276,7 @@ def _doubler_document(
     named-but-empty `S-cell` block rides along, enabling Schrödinger mode by
     presence (widening the domain to `0…N`, giving every cell `is_s` freedom to
     be discovered) without pinning any cell (ADR-0014)."""
-    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells = blank_cells(4)
     for index, value in givens.items():
         cells[index] = {"given": True, "value": value}
     constraints: list[dict[str, object]] = [
@@ -303,8 +297,7 @@ def _doubler_document(
     ]
     if with_scell_block:
         constraints.append({"name": "S-cell", "type": 2001, "cages": []})
-    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return {"formatVersion": "1.5.0", "puzzle": puzzle}
+    return wrap_document(cells, 4, constraints)
 
 
 def found_doubler_4x4() -> str:
@@ -360,7 +353,6 @@ def found_cosmetic_cage_4x4() -> str:
     cell 6 = 2). The mirror of `broke_cosmetic_cage_sumless_4x4`: a numeric
     value graduates the cage to a `group-sum`, where an empty one leaves only
     the bare no-repeats rule."""
-    cells: list[dict[str, object]] = [{} for _ in range(16)]
     constraints: list[dict[str, object]] = [
         {"type": 0},
         {"type": 1, "regions": _DOUBLER_REGIONS},
@@ -371,8 +363,7 @@ def found_cosmetic_cage_4x4() -> str:
             "style": _authored_cage_style(),
         },
     ]
-    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link(wrap_document(blank_cells(4), 4, constraints))
 
 
 def broke_cosmetic_cage_sumless_4x4() -> str:
@@ -383,7 +374,7 @@ def broke_cosmetic_cage_sumless_4x4() -> str:
     not an unnamed cosmetic block, so its live no-repeats rule never rides the
     unnamed path the warn-drop silences; a `Sum` label decodes to a
     killer cage the same as an unnamed block (ADR-0012)."""
-    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells = blank_cells(4)
     cells[1] = {"given": True, "value": 2}
     cells[7] = {"given": True, "value": 2}
     constraints: list[dict[str, object]] = [
@@ -396,8 +387,7 @@ def broke_cosmetic_cage_sumless_4x4() -> str:
             "style": _authored_cage_style(),
         },
     ]
-    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link(wrap_document(cells, 4, constraints))
 
 
 def found_cosmetic_cage_unrecognized_4x4() -> str:
@@ -424,8 +414,7 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
             "style": _authored_cage_style(),
         },
     ]
-    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link(wrap_document(cells, 4, constraints))
 
 
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The
@@ -453,9 +442,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":
