@@ -398,7 +398,7 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
     rows, and columns), both holding solution digit 3: a `Sum`/`Killer`-named
     cage over the same cells would break immediately, since a killer cage
     forbids a repeated digit among its own cells (ADR-0012). Because
-    `cosmetic_cage_kind` reports `"unrecognized"`, the cage is warn-dropped
+    `naming.classify` reports `"unrecognized"`, the cage is warn-dropped
     instead, so the verdict is computed from the given solution alone and
     reads found — proving the drop, not a coincidence, is what keeps it
     found."""
@@ -420,7 +420,7 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
 def found_cosmetic_cage_unnamed_4x4() -> str:
     """4x4, `found` — the same fully-given solution as
     `found_cosmetic_cage_unrecognized_4x4`, carrying a nameless `type 2001`
-    cosmetic cage instead of a named one. `cosmetic_cage_kind` reports
+    cosmetic cage instead of a named one. `naming.classify` reports
     `"unnamed"` for an absent name, the other input the warn-drop
     (`cages.cosmetic_cage_constraints`) treats the same way as an
     unrecognized name: the block carries no rule, so the verdict is computed

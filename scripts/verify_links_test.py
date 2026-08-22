@@ -212,7 +212,7 @@ def test_fill_witness_folds_a_discovered_doubler_into_the_cage() -> None:
 def test_fill_witness_folds_a_discovered_constant_into_the_cage() -> None:
     # A constant modifier the solver found but the source link never declared is
     # folded into the `Constant` cage, so every modifier cell is marked by cage —
-    # the same discovery path as the doubler, routed through `cosmetic_cage_kind`.
+    # the same discovery path as the doubler, routed through `naming.classify`.
     size = 4
     grid = _grid(size)
     addresses = [address for row in grid for address in row]
