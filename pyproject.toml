@@ -69,7 +69,7 @@ addopts = "-ra --strict-markers --strict-config -m \"not e2e and not slow\""
 xfail_strict = true
 markers = [
   "e2e: exercises a real SudokuMaker link end to end — through the CLI front door, or the library path (`enumerate_witnesses`) direct (slow CP-SAT solves); deselected by default, run via `just e2e`.",
-  "slow: a library test whose CP-SAT solve is too slow for the default gate (e.g. an exhaustive enumeration); deselected by default, run via `just slow`.",
+  "slow: a test whose solve reliably costs over 1 second (ADR-0020) — wall time is the rule, not category; deselected by default, run via `just slow` and nightly in CI.",
 ]
 
 # --- coverage (soft) ---

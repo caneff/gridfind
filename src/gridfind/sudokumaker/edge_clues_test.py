@@ -363,9 +363,10 @@ def test_kropki_negative_rule_ignores_the_inert_override_boolean(
         ),
     ],
 )
-# Marked slow: this doubler/S-cell solve can exceed the default gate's time
-# limit on a loaded CI runner and come back `unknown` instead of found/broke.
-# Run it via `just slow`.
+# Marked slow: the `[doubler]` case reliably costs ~1.65s, over the 1-second
+# bar (ADR-0020). Run it via `just slow`. Separately, its 10s solver budget can
+# race to `unknown` under load — tracked as its own flake in #661, not the
+# reason for this mark.
 @pytest.mark.slow
 def test_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
     modifier_block: dict[str, object],

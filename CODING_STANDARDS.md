@@ -44,6 +44,12 @@ this doc covers the parts a linter can't.
   a cross-cutting parametrize when a known upcoming file split would fight it.
 - Markers must be registered (pytest runs `--strict-markers`). An `xfail` that
   passes is a failure (`xfail_strict`) — remove the marker when the bug is fixed.
+- A test is **`slow`** when its solve reliably costs **over 1 second** — wall
+  time is the only rule, not "exhaustive" or "property-based"
+  ([ADR-0020](docs/adr/0020-slow-test-is-over-one-second.md)). Never mark a test
+  `slow` to hide flakiness; a test that returns `unknown` under load is a bug to
+  fix. `slow` and `e2e` are deselected from the gate and run nightly via
+  `just slow` / `just e2e`.
 - When writing or reviewing tests, run the `python-testing-patterns` skill's
   critical-eye pass — behavior ownership, duplicate coverage, brittle string
   matching, overbroad fixtures, unit-vs-integration boundaries — before adding
