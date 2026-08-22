@@ -28,14 +28,12 @@ diagonal alone can only turn `broke` if the switch decoded to the right one.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
-from gridfind.cell_geometry import row_col_to_index
+from _corpus import boxed_document, regenerate
 
 # The toggle wire types are imported from wire_types.py — their one shared
 # home — so the corpus builds off the same numbers the decoder reads by,
 # never a second copy.
-from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
@@ -43,8 +41,6 @@ from gridfind.sudokumaker.wire_types import (
     NEGATIVE_DIAGONAL_TYPE,
     POSITIVE_DIAGONAL_TYPE,
 )
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 # The cosmetic style SudokuMaker writes onto a diagonal block. Display-only —
 # `link_to_puzzle` ignores it — but carried so the emitted link matches the app's.
@@ -68,20 +64,12 @@ def _link(
 ) -> str:
     """Assemble a boxed SudokuMaker document with the given clues and toggle
     blocks, then encode it to an openable link."""
-    size = box_h * box_w
-    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, size)] = {"given": True, "value": value}
-    region_numbers = box_regions(size, box_h, box_w).to_labels(size)
-    constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": region_numbers},
-        *(_toggle_block(wire_type) for wire_type in toggles),
-    ]
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {"cells": cells, "size": size, "constraints": constraints},
-    }
+    document = boxed_document(
+        box_h,
+        box_w,
+        givens=givens,
+        constraints=[_toggle_block(wire_type) for wire_type in toggles],
+    )
     return document_to_link(document)
 
 
@@ -205,9 +193,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every toggle corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

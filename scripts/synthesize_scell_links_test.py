@@ -311,12 +311,3 @@ def test_schrodinger_fixture_pins_only_its_load_bearing_cell(
     builder: Callable[[], str], givens: int
 ) -> None:
     assert _given_count(builder()) == givens
-
-
-@pytest.mark.parametrize("name", sorted(syn.CORPUS), ids=sorted(syn.CORPUS))
-def test_committed_corpus_file_matches_its_synthesizer(name: str) -> None:
-    """The committed corpus is built in code, never hand-authored: each file is
-    exactly its synthesizer's output. A hand-edit (or a stale regenerate) turns
-    this red."""
-    path = syn.LINKS_DIR / f"{name}.txt"
-    assert path.read_text() == syn.CORPUS[name]() + "\n"

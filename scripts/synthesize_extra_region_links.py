@@ -20,14 +20,12 @@ collision.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
+
+from _corpus import boxed_document, regenerate
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import EXTRA_REGION_TYPE
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 _SIZE = 4
 
@@ -39,27 +37,17 @@ _WINDOW = ((2, 2), (2, 3), (3, 2), (3, 3))
 def _link(givens: dict[tuple[int, int], int]) -> str:
     """A boxed 4x4 SudokuMaker document with one extra-region block over
     `_WINDOW`, plus classic `given` placements."""
-    cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, _SIZE)] = {"given": True, "value": value}
-    region_numbers = box_regions(_SIZE, 2, 2).to_labels(_SIZE)
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {
-            "cells": cells,
-            "size": _SIZE,
-            "constraints": [
-                {"type": 0},
-                {"type": 1, "regions": region_numbers},
-                {
-                    "type": EXTRA_REGION_TYPE,
-                    "cells": [
-                        row_col_to_index(row, col, _SIZE) for row, col in _WINDOW
-                    ],
-                },
-            ],
-        },
-    }
+    document = boxed_document(
+        2,
+        2,
+        givens=givens,
+        constraints=[
+            {
+                "type": EXTRA_REGION_TYPE,
+                "cells": [row_col_to_index(row, col, _SIZE) for row, col in _WINDOW],
+            }
+        ],
+    )
     return document_to_link(document)
 
 
@@ -90,9 +78,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every extra-region corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

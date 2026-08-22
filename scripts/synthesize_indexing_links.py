@@ -37,14 +37,12 @@ assignments otherwise.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
+
+from _corpus import boxed_document, regenerate
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import INDEXING_COL_TYPE, INDEXING_ROW_TYPE
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 _SIZE = 4
 
@@ -64,26 +62,18 @@ def _link(
     """A boxed 4x4 SudokuMaker document with one indexing block of `wire_type`
     marking `marked_cells` (raw row-major indices), plus classic `given`
     placements."""
-    cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, _SIZE)] = {"given": True, "value": value}
-    region_numbers = box_regions(_SIZE, 2, 2).to_labels(_SIZE)
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {
-            "cells": cells,
-            "size": _SIZE,
-            "constraints": [
-                {"type": 0},
-                {"type": 1, "regions": region_numbers},
-                {
-                    "type": wire_type,
-                    "cells": list(marked_cells),
-                    "style": {"color": _INDEXER_COLOR[wire_type]},
-                },
-            ],
-        },
-    }
+    document = boxed_document(
+        2,
+        2,
+        givens=givens,
+        constraints=[
+            {
+                "type": wire_type,
+                "cells": list(marked_cells),
+                "style": {"color": _INDEXER_COLOR[wire_type]},
+            }
+        ],
+    )
     return document_to_link(document)
 
 
@@ -143,34 +133,25 @@ def _scell_link(*, control_value: int, scell_pair: str, r1c2: int, r1c3: int) ->
     through a `type 2001` `S-cell` marker cage — the cell the control's
     index targets; and R1C2/R1C3 given, filling row 1's two ordinary
     remaining digits so the row's classic `0..4` cover is complete."""
-    cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
-    cells[row_col_to_index(1, 4, _SIZE)] = {"given": True, "value": control_value}
-    cells[row_col_to_index(1, 2, _SIZE)] = {"given": True, "value": r1c2}
-    cells[row_col_to_index(1, 3, _SIZE)] = {"given": True, "value": r1c3}
-    region_numbers = box_regions(_SIZE, 2, 2).to_labels(_SIZE)
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {
-            "cells": cells,
-            "size": _SIZE,
-            "constraints": [
-                {"type": 0},
-                {"type": 1, "regions": region_numbers},
-                {
-                    "type": INDEXING_COL_TYPE,
-                    "cells": [row_col_to_index(1, 4, _SIZE)],
-                    "style": {"color": _INDEXER_COLOR[INDEXING_COL_TYPE]},
-                },
-                {
-                    "name": "S-cell",
-                    "type": 2001,
-                    "cages": [
-                        {"value": scell_pair, "cells": [row_col_to_index(1, 1, _SIZE)]}
-                    ],
-                },
-            ],
-        },
-    }
+    document = boxed_document(
+        2,
+        2,
+        givens={(1, 4): control_value, (1, 2): r1c2, (1, 3): r1c3},
+        constraints=[
+            {
+                "type": INDEXING_COL_TYPE,
+                "cells": [row_col_to_index(1, 4, _SIZE)],
+                "style": {"color": _INDEXER_COLOR[INDEXING_COL_TYPE]},
+            },
+            {
+                "name": "S-cell",
+                "type": 2001,
+                "cages": [
+                    {"value": scell_pair, "cells": [row_col_to_index(1, 1, _SIZE)]}
+                ],
+            },
+        ],
+    )
     return document_to_link(document)
 
 
@@ -204,9 +185,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every indexing corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":

@@ -24,35 +24,23 @@ pair alone regardless of how the rest of the board could be filled.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
-from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
+from _corpus import boxed_document, regenerate
+
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import XV_TYPE
-
-LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 
 
 def _link(*, r3c4: int) -> str:
     """Assemble a 4x4, 2x2-boxed document: a bare `negative: [5]` XV block
     (no positive clues) and one given pair, R3C3/R3C4, whose sum with `r3c4`
     alone decides the verdict."""
-    size = 4
-    givens = {(3, 3): 3, (3, 4): r3c4}
-    cells: list[dict[str, object]] = [{} for _ in range(size * size)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, size)] = {"given": True, "value": value}
-    region_numbers = box_regions(size, 2, 2).to_labels(size)
-    constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": region_numbers},
-        {"type": XV_TYPE, "clues": [], "negative": [5]},
-    ]
-    document = {
-        "formatVersion": "1.5.0",
-        "puzzle": {"cells": cells, "size": size, "constraints": constraints},
-    }
+    document = boxed_document(
+        2,
+        2,
+        givens={(3, 3): 3, (3, 4): r3c4},
+        constraints=[{"type": XV_TYPE, "clues": [], "negative": [5]}],
+    )
     return document_to_link(document)
 
 
@@ -81,9 +69,7 @@ CORPUS: dict[str, Callable[[], str]] = {
 
 def main() -> None:
     """Regenerate every xv-negative corpus file from its synthesizer."""
-    for name, fn in CORPUS.items():
-        (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
-        print(f"wrote {name}.txt")
+    regenerate(CORPUS)
 
 
 if __name__ == "__main__":
