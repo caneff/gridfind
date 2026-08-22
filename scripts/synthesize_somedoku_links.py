@@ -30,9 +30,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from _corpus import regenerate
+from _corpus import blank_cells, place_givens, regenerate
 
-from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
 
 _HERE = Path(__file__).resolve().parent
@@ -52,9 +51,8 @@ def _link(givens: dict[tuple[int, int], int]) -> str:
     """Re-encode the Somedoku template with the given clues to an openable
     link. Every non-given cell stays the template's empty `{}`."""
     document = _template()
-    cells: list[dict[str, object]] = [{} for _ in range(_SIZE * _SIZE)]
-    for (row, col), value in givens.items():
-        cells[row_col_to_index(row, col, _SIZE)] = {"given": True, "value": value}
+    cells = blank_cells(_SIZE)
+    place_givens(cells, _SIZE, givens)
     document["puzzle"]["cells"] = cells
     return document_to_link(document)
 
