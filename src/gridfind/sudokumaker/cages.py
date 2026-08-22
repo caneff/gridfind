@@ -229,11 +229,15 @@ def _resolve_modifier_constraint(
     return Constraint("constant", params={"value": next(iter(values))})
 
 
-def cosmetic_cage_constraints(
-    buckets: ConstraintBuckets, size: int
-) -> _CosmeticCageDecode:
-    """The `type 2001` cosmetic-cage blocks decoded per their top-level `name`
-    (`cosmetic_cage_kind`, ADR-0012, extended by ADR-0016 and ADR-0018): a
+def _decode_cosmetic_block(
+    kind: CosmeticCageKind,
+    block: dict[str, Any],
+    cages: list[dict[str, Any]],
+    size: int,
+) -> tuple[_CosmeticCageDecode, tuple[_ModifierKind, int | None] | None]:
+    """One `type 2001` block's contribution, decoded per `kind`
+    (`cosmetic_cage_kind`, ADR-0012, extended by ADR-0016 and ADR-0018), with
+    no outer state: the block in, `(decode, declaration)` out. A
     `Sum`/`Killer`-labelled block graduates to killer-cage `Constraint`s
     (ADR-0008) — cells and value nest under `cages`, the same wire shape as a
     `type 301` block, each cage's raw `cells` indices mapping row-major to
@@ -251,28 +255,81 @@ def cosmetic_cage_constraints(
     `cage`/`group-sum` — the block's `cages` still supply the cell list, just
     not a killer rule; the modifier's own `k` is read from the name
     (`Nullifier` = `Constant 0`), never a per-cage `value` field, which is
-    refused outright when present (`_refuse_marker_cage_value_field`). The
-    single `doubler`/`constant` `Constraint` every modifier-marked block
-    agrees on is resolved once, across the whole link
-    (`_resolve_modifier_constraint`), and returned on `modifier_constraint`;
-    a link mixing modifier kinds or naming a `Constant` block two different
-    `k`s is refused with `MalformedPuzzleError`. An `S-cell`/`Schrödinger`-
-    marked block emits no cage/modifier `Constraint` here: instead it
-    contributes its own presence (`has_scell_block`) and, for each cell it
-    contains, that cell's marker cage's raw `value` (`scell_values`) — the
-    two S-cell signals `link_to_puzzle` reads for the per-cell decode pass
-    (ADR-0014). A `Somedoku`-marked block likewise emits no `Constraint`
-    here — it carries no cell-level reading at all, cells and value alike
-    ignored — contributing only its own presence (`has_somedoku_block`),
-    which `link_to_puzzle` folds with the `type 1000` carrier
-    (`global_flags.has_somedoku_component`) to decide whether the
-    `line-count-distinct` constraint stands up puzzle-wide. An **unnamed**
-    block, or one whose name gridfind does not recognize (a bare `Constant`
-    with no parseable integer included), carries no rule at all — only a
-    recognized name selects one. A non-empty one is dropped with a loud
+    refused outright when present (`_refuse_marker_cage_value_field`). When the
+    block actually marks cells, its `(kind, k)` is returned as the declaration
+    — the caller resolves the single puzzle-wide modifier `Constraint` across
+    every block's declaration (`_resolve_modifier_constraint`); every other
+    kind returns `None` for the declaration. An `S-cell`/`Schrödinger`-marked
+    block emits no cage/modifier `Constraint`: instead it contributes its own
+    presence (`has_scell_block`) and, for each cell it contains, that cell's
+    marker cage's raw `value` (`scell_values`) — the two S-cell signals
+    `link_to_puzzle` reads for the per-cell decode pass (ADR-0014). A
+    `Somedoku`-marked block likewise emits no `Constraint` — it carries no
+    cell-level reading at all, cells and value alike ignored — contributing
+    only its own presence (`has_somedoku_block`), which `link_to_puzzle` folds
+    with the `type 1000` carrier (`global_flags.has_somedoku_component`) to
+    decide whether the `line-count-distinct` constraint stands up puzzle-wide.
+    An **unnamed** block, or one whose name gridfind does not recognize (a bare
+    `Constant` with no parseable integer included), carries no rule at all —
+    only a recognized name selects one. A non-empty one is dropped with a loud
     stderr warning naming the block or its unrecognized name; an empty one
-    adds nothing and warns nothing, the same as any other empty block. A
-    `disabled` block is skipped entirely.
+    adds nothing and warns nothing, the same as any other empty block."""
+    if kind in ("unnamed", "unrecognized"):
+        if cages:
+            _warn_dropped_cosmetic_cage(block, kind)
+        return _CosmeticCageDecode(), None
+    if kind == "s-cell":
+        scell_values = {
+            cell_address: cage.get("value")
+            for cage in cages
+            for cell_address in addresses(cage["cells"], size)
+        }
+        return (
+            _CosmeticCageDecode(scell_values=scell_values, has_scell_block=True),
+            None,
+        )
+    if kind == "somedoku":
+        return _CosmeticCageDecode(has_somedoku_block=True), None
+    if kind in ("doubler", "constant"):
+        _refuse_marker_cage_value_field(cages, kind)
+        modifiers = tuple(
+            ModifierDirective(format_address, is_modifier=True)
+            for cage in cages
+            for format_address in addresses(cage["cells"], size)
+        )
+        declaration = None
+        if modifiers:
+            component = named_component(block.get("name"))
+            value = component.value if component is not None else None
+            declaration = (kind, value)
+        return _CosmeticCageDecode(modifier_directives=modifiers), declaration
+    if kind == "equality":
+        return _CosmeticCageDecode(
+            constraints=tuple(_equality_cages(cages, size))
+        ), None
+    if kind == "rellik":
+        constraints = _cages_with_optional_total(
+            cages, size, _cosmetic_cage_numeric_value, "rellik-cage"
+        )
+        return _CosmeticCageDecode(constraints=tuple(constraints)), None
+    constraints = _cages_with_optional_total(
+        cages, size, _cosmetic_cage_numeric_value, "group-sum"
+    )
+    return _CosmeticCageDecode(constraints=tuple(constraints)), None
+
+
+def cosmetic_cage_constraints(
+    buckets: ConstraintBuckets, size: int
+) -> _CosmeticCageDecode:
+    """The `type 2001` cosmetic-cage blocks, each decoded independently by
+    `_decode_cosmetic_block` and gathered here: every block's decode is
+    appended to the merged result (`_CosmeticCageDecode.concat`), and a
+    modifier-marked block's declaration — when it made one — is appended to
+    the list `_resolve_modifier_constraint` reduces to the single
+    `doubler`/`constant` `Constraint` the whole link agrees on (`None` when
+    the link declares no modifier at all, ADR-0016); a link mixing modifier
+    kinds or naming a `Constant` block two different `k`s is refused with
+    `MalformedPuzzleError`. A `disabled` block is skipped entirely.
 
     This is the one pass `link_to_puzzle` makes over the link's `type 2001`
     blocks — cage/modifier constraints, S-cell presence and pinning, and the
@@ -282,51 +339,10 @@ def cosmetic_cage_constraints(
     for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE):
         kind = cosmetic_cage_kind(block.get("name"))
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
-        if kind in ("unnamed", "unrecognized"):
-            if cages:
-                _warn_dropped_cosmetic_cage(block, kind)
-            continue
-        if kind == "s-cell":
-            scell_values = {
-                cell_address: cage.get("value")
-                for cage in cages
-                for cell_address in addresses(cage["cells"], size)
-            }
-            decoded.append(
-                _CosmeticCageDecode(scell_values=scell_values, has_scell_block=True)
-            )
-            continue
-        if kind == "somedoku":
-            decoded.append(_CosmeticCageDecode(has_somedoku_block=True))
-            continue
-        if kind in ("doubler", "constant"):
-            _refuse_marker_cage_value_field(cages, kind)
-            modifiers = tuple(
-                ModifierDirective(format_address, is_modifier=True)
-                for cage in cages
-                for format_address in addresses(cage["cells"], size)
-            )
-            if modifiers:
-                component = named_component(block.get("name"))
-                value = component.value if component is not None else None
-                modifier_declarations.append((kind, value))
-            decoded.append(_CosmeticCageDecode(modifier_directives=modifiers))
-            continue
-        if kind == "equality":
-            decoded.append(
-                _CosmeticCageDecode(constraints=tuple(_equality_cages(cages, size)))
-            )
-            continue
-        if kind == "rellik":
-            constraints = _cages_with_optional_total(
-                cages, size, _cosmetic_cage_numeric_value, "rellik-cage"
-            )
-            decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
-            continue
-        constraints = _cages_with_optional_total(
-            cages, size, _cosmetic_cage_numeric_value, "group-sum"
-        )
-        decoded.append(_CosmeticCageDecode(constraints=tuple(constraints)))
+        decode, declaration = _decode_cosmetic_block(kind, block, cages, size)
+        decoded.append(decode)
+        if declaration is not None:
+            modifier_declarations.append(declaration)
     modifier_constraint = _resolve_modifier_constraint(modifier_declarations)
     return replace(
         _CosmeticCageDecode.concat(decoded), modifier_constraint=modifier_constraint
