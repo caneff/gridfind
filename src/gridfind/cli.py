@@ -30,7 +30,7 @@ from typing import TextIO
 from gridfind.engine import GridfindError
 from gridfind.puzzle import Puzzle, WorkingState
 from gridfind.sudokumaker import link_to_puzzle
-from gridfind.verdict import Verdict, verdict
+from gridfind.verdict import Result, verdict
 
 
 def _is_link(value: str) -> bool:
@@ -101,7 +101,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
     return 0 if result.kind == "found" else 1
 
 
-def _verdict_of(text: str) -> Verdict:
+def _verdict_of(text: str) -> Result:
     stripped = text.strip()
     if _is_link(stripped):
         puzzle, state = link_to_puzzle(stripped)

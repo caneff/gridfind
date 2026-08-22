@@ -15,7 +15,7 @@ import pytest
 from lzstring import LZString
 
 from gridfind import cli
-from gridfind.verdict import Verdict
+from gridfind.verdict import Result
 
 FOUND_DOC: dict[str, object] = {
     "puzzle": {
@@ -385,7 +385,7 @@ def test_unknown_prints_word_alone(
 ) -> None:
     # Classic 9x9 always decides fast, so `unknown` can't be produced through
     # the real solver at this seam; stub the verdict to force the branch.
-    monkeypatch.setattr(cli, "verdict", lambda *a, **k: Verdict(kind="unknown"))
+    monkeypatch.setattr(cli, "verdict", lambda *a, **k: Result(kind="unknown"))
     code = cli.main([str(_write_doc(tmp_path, "found.json", FOUND_DOC))], io.StringIO())
 
     assert code == 1
