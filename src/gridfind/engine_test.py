@@ -204,6 +204,20 @@ def test_domain_on_an_off_board_address_raises() -> None:
         engine.domain("nope")
 
 
+def test_require_in_domain_passes_a_digit_the_board_offers() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("x", low=1, high=9)
+
+    engine.require_in_domain("x", (5,))  # no raise
+
+
+def test_require_in_domain_rejects_a_digit_the_board_never_offered() -> None:
+    engine = build_engine([], board=Board(size=5))
+
+    with pytest.raises(MalformedPuzzleError, match=r"9.*'x'"):
+        engine.require_in_domain("x", (9,))
+
+
 def test_restrict_pins_a_cell_to_a_singleton_digit() -> None:
     engine = build_engine([], board=BOARD)
     engine.add_cell("x", low=1, high=9)
