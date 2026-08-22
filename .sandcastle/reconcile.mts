@@ -231,7 +231,7 @@ function renderNextFooter(nextMerges: NextMerge[]): string {
   lines.push(
     `  /sandcastle-watch                           # re-run to continue the drain`
   );
-  return `Next — copy-paste, bottom-up:\n${lines.join("\n")}`;
+  return `Next — copy-paste, top to bottom (run the first line first):\n${lines.join("\n")}`;
 }
 
 // Topologically order a run's built issues so a PR whose base is another PR
