@@ -1,11 +1,11 @@
 """`DECODER_REGISTRY`: the one table wire-type -> (handler, live-data payload
-keys, display name) that `link_to_puzzle` dispatches through,
+keys, display name, toggle flag) that `link_to_puzzle` dispatches through,
 `dropped.warn_on_dropped_constraints` treats as the already-modeled ruleset,
-and `dropped.has_live_data` reads `live_keys` from. Also the global-toggle
-types (anti-knight, anti-king, the two diagonals) and their shared handler
-factory `_global_toggle_handler` — bare enabled-presence-is-the-rule blocks
-that exist only to feed rows into this registry, so they're defined alongside
-it rather than given their own module.
+and `dropped.has_live_data` reads `live_keys`/`is_toggle` from. Also the
+global-toggle types (anti-knight, anti-king, the two diagonals) and their
+shared handler factory `_global_toggle_handler` — bare
+enabled-presence-is-the-rule blocks that exist only to feed rows into this
+registry, so they're defined alongside it rather than given their own module.
 """
 
 from __future__ import annotations
@@ -72,12 +72,17 @@ class DecodedType:
     `regions_constraints` like every other generically-dispatched handler),
     `live_keys` are the payload keys that mark this type's wire shape as
     carrying a real rule (read by `dropped.has_live_data`, generalized to
-    unmodeled types too), and `name` labels it in the decoder's own warnings.
+    unmodeled types too), `name` labels it in the decoder's own warnings, and
+    `is_toggle` marks a global toggle — a bare enabled block with no payload,
+    whose presence alone is the rule — so `dropped.has_live_data` can derive
+    its toggle set straight off this table instead of a hand-kept list that
+    could drift from it.
     """
 
     handler: Callable[[ConstraintBuckets, int], list[Constraint]] | None
     live_keys: tuple[str, ...]
     name: str
+    is_toggle: bool = False
 
 
 DECODER_REGISTRY: dict[int, DecodedType] = {
@@ -132,20 +137,24 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
         live_keys=(),
         name="negative-diagonal",
+        is_toggle=True,
     ),
     POSITIVE_DIAGONAL_TYPE: DecodedType(
         handler=_global_toggle_handler(POSITIVE_DIAGONAL_TYPE, "positive-diagonal"),
         live_keys=(),
         name="positive-diagonal",
+        is_toggle=True,
     ),
     ANTI_KING_TYPE: DecodedType(
         handler=_global_toggle_handler(ANTI_KING_TYPE, "anti-king"),
         live_keys=(),
         name="anti-king",
+        is_toggle=True,
     ),
     ANTI_KNIGHT_TYPE: DecodedType(
         handler=_global_toggle_handler(ANTI_KNIGHT_TYPE, "anti-knight"),
         live_keys=(),
         name="anti-knight",
+        is_toggle=True,
     ),
 }
