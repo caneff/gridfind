@@ -27,9 +27,11 @@ from typing import Any, get_args
 # classification; reuse both instead of a second decode of the same link.
 from inspect_link import classify_constraint, decode_payload
 
+from gridfind.sudokumaker.dropped import constraint_name
 from gridfind.sudokumaker.markers import CosmeticCageKind, cosmetic_cage_kind
+from gridfind.sudokumaker.naming import named_component
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
-from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
+from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE, CUSTOM_CONSTRAINT_TYPE
 
 _LINKS_DIR = Path(__file__).resolve().parents[1] / "src" / "gridfind" / "links"
 
@@ -50,7 +52,13 @@ def feature_universe() -> list[str]:
 def link_features(payload: Mapping[str, object]) -> set[str]:
     """The features one decoded puzzle exercises: the registry name of each
     non-disabled constraint, plus `cage:<kind>` for each non-disabled cosmetic
-    cage. A disabled constraint is switched off, so it exercises nothing."""
+    cage. A disabled constraint is switched off, so it exercises nothing.
+    `Somedoku` (the sole `global-flag` name, naming.py) rides either
+    name-bearing carrier — a `type 2001` cosmetic cage's top-level `name`, or
+    a `type 1000` custom constraint's `definition.name`
+    (`global_flags.has_somedoku_component`) — so the second carrier is
+    checked here too, through the same `named_component` lookup, rather than
+    a hand-rolled second read of the same name."""
     features: set[str] = set()
     constraints: Any = payload.get("constraints") or []
     for constraint in constraints:
@@ -61,6 +69,10 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
             features.add(decoded.name)
         if constraint.get("type") == COSMETIC_CAGE_TYPE:
             features.add(f"cage:{cosmetic_cage_kind(constraint.get('name'))}")
+        elif constraint.get("type") == CUSTOM_CONSTRAINT_TYPE:
+            component = named_component(constraint_name(constraint))
+            if component is not None and component.role == "somedoku":
+                features.add("cage:somedoku")
     return features
 
 
