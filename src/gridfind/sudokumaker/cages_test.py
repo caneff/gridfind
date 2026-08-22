@@ -14,8 +14,9 @@ an unnamed/unrecognized one the decoder warn-drops (ADR-0012).
 
 import pytest
 
-from gridfind.puzzle import Constraint
+from gridfind.puzzle import Constraint, ModifierDirective
 from gridfind.sudokumaker import link_to_puzzle
+from gridfind.sudokumaker.cages import _CosmeticCageDecode, _decode_cosmetic_block
 from gridfind.sudokumaker.conftest import constraint_link
 
 
@@ -471,3 +472,68 @@ def test_disabled_or_empty_caged_block_decodes_to_nothing_quietly(
 
     assert all(c.type not in decoded_types for c in puzzle.constraints)
     assert capsys.readouterr().err == ""
+
+
+def test_decode_cosmetic_block_returns_killer_constraints_with_no_declaration() -> None:
+    # A pure call, no loop: `kind` selects the killer-cage rule and the
+    # declaration slot stays `None` — only a modifier-marked block with cells
+    # returns one.
+    decode, declaration = _decode_cosmetic_block(
+        "killer", {"name": "Sum"}, [{"value": "7", "cells": [0, 1]}], size=9
+    )
+
+    assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in decode.constraints
+    assert (
+        Constraint("group-sum", params={"cells": ["R1C1", "R1C2"], "sum": 7})
+        in decode.constraints
+    )
+    assert declaration is None
+
+
+def test_decode_cosmetic_block_returns_declaration_for_modifier_with_cells() -> None:
+    # A `Doubler`/`Constant`-marked block with cells returns its `(kind, k)`
+    # declaration alongside the modifier directives — the only branch that
+    # produces one.
+    decode, declaration = _decode_cosmetic_block(
+        "doubler", {"name": "Doubler"}, [{"cells": [0]}], size=9
+    )
+
+    assert decode.modifier_directives == (ModifierDirective("R1C1", is_modifier=True),)
+    assert declaration == ("doubler", None)
+
+
+def test_decode_cosmetic_block_skips_declaration_for_an_empty_modifier() -> None:
+    # An empty `Doubler` block marks no cell, so it contributes no
+    # declaration — the same "no cells, no fact" rule an empty killer cage
+    # block follows.
+    decode, declaration = _decode_cosmetic_block(
+        "doubler", {"name": "Doubler"}, [], size=9
+    )
+
+    assert decode == _CosmeticCageDecode()
+    assert declaration is None
+
+
+def test_decode_cosmetic_block_warns_and_returns_an_empty_decode_for_unnamed(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # An unnamed block with cages warns (the loud-drop side effect lives in
+    # the pure decode, not the gathering loop) and returns an empty decode
+    # and no declaration.
+    decode, declaration = _decode_cosmetic_block(
+        "unnamed", {"type": 2001}, [{"value": "7", "cells": [0, 1]}], size=9
+    )
+
+    assert decode == _CosmeticCageDecode()
+    assert declaration is None
+    assert "unnamed cosmetic cage" in capsys.readouterr().err
+
+
+def test_decode_cosmetic_block_returns_scell_values_with_no_declaration() -> None:
+    decode, declaration = _decode_cosmetic_block(
+        "s-cell", {"name": "S-cell"}, [{"value": "5", "cells": [0]}], size=9
+    )
+
+    assert decode.scell_values == {"R1C1": "5"}
+    assert decode.has_scell_block is True
+    assert declaration is None
