@@ -288,19 +288,25 @@ class Engine:
             for digit in range(low, high + 1)
         ]
 
-    def restrict(self, address: str, digits: Iterable[int]) -> None:
-        """Fix a cell to a set of digits — a given or placement is a
-        singleton set, a candidate a subset, both one operation.
-        Each digit is checked against the board's own declared values, the
-        one authority on what a cell may hold, not a domain re-derived from
-        the solver variable — an unknown address raises separately."""
-        var = self.d0(address)
-        allowed = sorted(set(digits))
-        for digit in allowed:
+    def require_in_domain(self, address: str, digits: Iterable[int]) -> None:
+        """Refuse a digit the board never offered — the one home for the
+        malformed-digit guard, checked against the board's own declared
+        values, not a domain re-derived from the solver variable. Shared by
+        `restrict` (d0 only) and the applier's directive checks, which reach
+        both pair slots of a Schrödinger cell."""
+        for digit in digits:
             if digit not in self.board.values:
                 values = list(self.board.values)
                 msg = f"digit {digit} is not among {values} for cell {address!r}"
                 raise MalformedPuzzleError(msg)
+
+    def restrict(self, address: str, digits: Iterable[int]) -> None:
+        """Fix a cell to a set of digits — a given or placement is a
+        singleton set, a candidate a subset, both one operation. An
+        unknown address raises separately."""
+        var = self.d0(address)
+        allowed = sorted(set(digits))
+        self.require_in_domain(address, allowed)
         self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
 
     def reify_holds(

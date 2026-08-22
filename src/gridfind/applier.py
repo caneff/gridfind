@@ -148,7 +148,7 @@ def _apply_one_s_directive(
 ) -> None:
     address = directive.address
     if isinstance(directive, SingletonPin):
-        _require_in_domain(engine, address, (directive.digit,))
+        engine.require_in_domain(address, (directive.digit,))
         engine.model.add(content[0] == directive.digit)
         engine.model.add(is_s[address] == 0)
     elif isinstance(directive, BareSingleton):
@@ -166,7 +166,7 @@ def _apply_one_s_directive(
             engine.model.add_allowed_assignments([slot], allowed)
     elif isinstance(directive, SCellPin):
         low, high = sorted(directive.pair)
-        _require_in_domain(engine, address, (low, high))
+        engine.require_in_domain(address, (low, high))
         engine.model.add(content[0] == low)
         engine.model.add(content[1] == high)
         engine.model.add(is_s[address] == 1)
@@ -218,17 +218,6 @@ def _require_digit_in_content(
     Schrödinger cell — after confirming it's on the board. The idiom an
     ordinary placement and a half-S-cell pin both need: `reify_holds` builds
     the membership OR, `add_bool_or` pins it true."""
-    _require_in_domain(engine, address, (digit,))
+    engine.require_in_domain(address, (digit,))
     holds = engine.reify_holds(content, digit, label)
     engine.model.add_bool_or(holds)
-
-
-def _require_in_domain(engine: Engine, address: str, digits: tuple[int, ...]) -> None:
-    """Refuse a pin naming a digit the board never offered — the same content
-    rule that governs a given or candidate (`engine.restrict`), but reaching
-    both pair slots, which `restrict` (d0 only) cannot."""
-    for digit in digits:
-        if digit not in engine.board.values:
-            values = list(engine.board.values)
-            msg = f"digit {digit} is not among {values} for cell {address!r}"
-            raise MalformedPuzzleError(msg)
