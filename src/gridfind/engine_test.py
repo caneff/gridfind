@@ -379,6 +379,14 @@ def test_real_digit_slots_on_an_off_board_address_raises() -> None:
         engine.real_digit_slots("nope")
 
 
+def test_real_digit_slots_on_a_width_2_cell_without_is_s_raises_gridfind() -> None:
+    engine = build_engine([], board=BOARD)
+    engine.add_cell("s", low=1, high=9, width=2)
+
+    with pytest.raises(GridfindError, match="without an is_s structure"):
+        engine.real_digit_slots("s")
+
+
 def test_discovered_modifiers_is_empty_without_a_modifier_layer() -> None:
     engine = build_engine([], board=BOARD)
     engine.add_cell("a", low=1, high=9)

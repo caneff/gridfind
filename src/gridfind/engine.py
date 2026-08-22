@@ -287,7 +287,7 @@ class Engine:
             return [(content[0], None)]
         is_s = self.is_s()
         if is_s is None:
-            raise ValueError("width-2 cell without an is_s structure")
+            raise GridfindError("width-2 cell without an is_s structure")
         return [(content[0], None), (content[1], is_s[address])]
 
     def domain(self, address: str) -> list[int]:
