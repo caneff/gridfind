@@ -1,30 +1,23 @@
-"""Named marker-cage classification (ADR-0012, routed through the name ->
-shape registry), extended with a parameterized `"constant"` kind by
-ADR-0016, a payload-less `"somedoku"` kind, and two more
-cage-selector kinds, `"equality"` and `"rellik"` (ADR-0018)): a
-`type 2001` cosmetic-cage block's top-level
-`name` sorted into `"unnamed"`, `"killer"`, `"equality"`, `"rellik"`,
-`"doubler"`, `"s-cell"`, `"constant"`, `"somedoku"`, or `"unrecognized"`
-(`cosmetic_cage_kind`), and
-the display-only marker colorizer (`colorize_marker_cages`) that ranks the
-marker kinds a link actually carries onto a fixed palette. The S-cell
-presence/pinning signals `cosmetic_cage_kind` feeds are read in
-`cages.cosmetic_cage_constraints`'s single walk over the block, not here. The
-public `MARKER_LABELS` dict is the role -> accepted-names table, built once
-from `naming.aliases_by_role` and read directly by `setter_guide.py`'s
-cage-name-alias rendering — the public seam that keeps it off `naming`'s
-private grouping; `"constant"`'s only static alias is `Nullifier`, since
-`Constant <N>` is a parameterized name naming.py parses rather than a fixed
-key.
+"""The display-only marker colorizer (`colorize_marker_cages`) that ranks the
+marker kinds a link actually carries onto a fixed palette — name
+classification itself lives in `naming.classify` (ADR-0012, ADR-0016,
+ADR-0018); this module only reads its result. The S-cell presence/pinning
+signals a marker kind feeds are read in `cages.cosmetic_cage_constraints`'s
+single walk over the block, not here. The public `MARKER_LABELS` dict is the
+role -> accepted-names table, built once from `naming.aliases_by_role` and
+read directly by `setter_guide.py`'s cage-name-alias rendering — the public
+seam that keeps it off `naming`'s private grouping; `"constant"`'s only
+static alias is `Nullifier`, since `Constant <N>` is a parameterized name
+naming.py parses rather than a fixed key.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 from gridfind.sudokumaker.boundary import bucket_constraints_by_type, enabled_blocks
-from gridfind.sudokumaker.naming import aliases_by_role, named_component
+from gridfind.sudokumaker.naming import Role, aliases_by_role, classify
 from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 
 # A low-saturation display palette for named marker cages, cosmetic only —
@@ -34,54 +27,12 @@ from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE
 # types (`_MARKER_KIND_PRIORITY`, near `colorize_marker_cages`).
 _MARKER_COLOR_PALETTE: tuple[str, ...] = ("#fd2323ff", "#2372fdff")
 
-CosmeticCageKind = Literal[
-    "unnamed",
-    "killer",
-    "equality",
-    "rellik",
-    "doubler",
-    "s-cell",
-    "constant",
-    "somedoku",
-    "unrecognized",
-]
-
 # Role -> its accepted `type 2001` names, the public seam `setter_guide.py`
 # reads for cage-name-alias rendering. Built from `naming.aliases_by_role` so
 # the alias data keeps one home (the name -> shape registry); this exposes it
-# publicly without a second copy. `cosmetic_cage_kind` classifies through
+# publicly without a second copy. `naming.classify` classifies through
 # `naming.named_component`, not this table, so the two cannot drift.
 MARKER_LABELS: dict[str, frozenset[str]] = aliases_by_role()
-
-
-def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
-    """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
-    ADR-0016 and ADR-0018) into one of nine kinds: `"unnamed"`
-    (absent/blank — a purely decorative block that carries no rule),
-    `"killer"` (a recognized `Sum`/`Killer` label that selects the
-    killer-cage rule), `"equality"` (a recognized `Equality` label that
-    selects `cage` + `equality-cage`), `"rellik"` (a recognized `Rellik`/`Anti`
-    label that selects the anti-cage subset-sum ban, the cage's numeric value
-    read as the forbidden total), `"doubler"` (a `Doubler` position marker),
-    `"s-cell"` (an `S-cell`/`Schrödinger` position marker), `"constant"` (a
-    `Constant <N>`/`Nullifier` position marker whose `k` is read from the name
-    itself), `"somedoku"` (the payload-less `Somedoku` global flag — cells and
-    value ignored), or `"unrecognized"` (a name `link_to_puzzle` cannot answer
-    for — a bare `Constant` with no parseable integer lands here too, never
-    silently `k = 0`). `"unnamed"` and `"unrecognized"` share the same fate
-    downstream — a loud stderr warn-drop, never a rule (ADR-0012) — but stay
-    distinct kinds here since the warning they produce names the block
-    differently. Matching is case-insensitive and trimmed, via the shared
-    `naming.named_component` lookup.
-
-    This is the one home the named-cosmetic-cage reads route through — the cage
-    decoder, the S-cell presence and membership channels, marker colorizing,
-    and dev tools that recognize a marker block without decoding the whole
-    link all switch on this kind."""
-    component = named_component(name)
-    if component is None:
-        return "unrecognized" if isinstance(name, str) and name.strip() else "unnamed"
-    return component.role
 
 
 # The order `colorize_marker_cages` claims `_MARKER_COLOR_PALETTE` slots in
@@ -90,7 +41,7 @@ def cosmetic_cage_kind(name: object) -> CosmeticCageKind:
 # Constant marker cages is refused at decode time (ADR-0016), but this
 # raw-JSON colorizer runs before any decode validation, so both still rank
 # here for a document that pairs one of them with S-cell.
-_MARKER_KIND_PRIORITY: tuple[CosmeticCageKind, ...] = ("s-cell", "doubler", "constant")
+_MARKER_KIND_PRIORITY: tuple[Role, ...] = ("s-cell", "doubler", "constant")
 
 
 def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
@@ -112,7 +63,7 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
     puzzle_data = cast("dict[str, object]", colored["puzzle"])
     buckets = bucket_constraints_by_type(puzzle_data)
     blocks = list(enabled_blocks(buckets, COSMETIC_CAGE_TYPE))
-    present_kinds = {cosmetic_cage_kind(block.get("name")) for block in blocks}
+    present_kinds = {classify(block.get("name")) for block in blocks}
     color_of_kind = dict(
         zip(
             (kind for kind in _MARKER_KIND_PRIORITY if kind in present_kinds),
@@ -121,7 +72,7 @@ def colorize_marker_cages(document: dict[str, object]) -> dict[str, object]:
         )
     )
     for block in blocks:
-        color = color_of_kind.get(cosmetic_cage_kind(block.get("name")))
+        color = color_of_kind.get(classify(block.get("name")))
         if color is not None:
             style = cast("dict[str, Any]", block.setdefault("style", {}))
             cage_style = cast("dict[str, Any]", style.setdefault("cage", {}))

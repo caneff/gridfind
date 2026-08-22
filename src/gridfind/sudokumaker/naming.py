@@ -30,6 +30,23 @@ from typing import Literal
 
 _Shape = Literal["cage-selector", "cell-marker", "global-flag"]
 
+# The one role enum a `type 2001` cosmetic cage's `name` sorts into
+# (`classify`): the seven named roles a `_NamedComponent` carries, plus
+# `"unnamed"` (absent/blank name) and `"unrecognized"` (a name the registry
+# doesn't answer for), which `classify` alone produces — no real component
+# ever carries either.
+Role = Literal[
+    "unnamed",
+    "killer",
+    "equality",
+    "rellik",
+    "doubler",
+    "s-cell",
+    "constant",
+    "somedoku",
+    "unrecognized",
+]
+
 # `cage-selector`/`cell-marker` need a cage's cells; `global-flag` needs
 # nothing — its name alone is the whole signal, so carrier-fitness admits it
 # on a carrier with no cells too (`shape_needs_cells`).
@@ -49,17 +66,17 @@ def shape_needs_cells(shape: _Shape) -> bool:
 @dataclass(frozen=True)
 class _NamedComponent:
     """A name the registry recognizes: `role` is the specific behavior it
-    selects (`cosmetic_cage_kind`'s `"doubler"`/`"s-cell"`/`"constant"`/
-    `"somedoku"`, `"killer"` for either killer-cage label, or `"equality"`
-    for the equality-cage label), `shape` is
-    the payload need carrier-fitness checks, and `value` is the integer a
-    `"constant"` role carries (`k`, read from the name itself — `Constant
-    <N>`/`Nullifier`) — `None` for every other role, which needs no payload
-    of its own."""
+    selects (`classify`'s `"doubler"`/`"s-cell"`/`"constant"`/`"somedoku"`,
+    `"killer"` for either killer-cage label, or `"equality"` for the
+    equality-cage label), `shape` is the payload need carrier-fitness checks,
+    and `value` is the integer a `"constant"` role carries (`k`, read from
+    the name itself — `Constant <N>`/`Nullifier`) — `None` for every other
+    role, which needs no payload of its own. `role` is typed `Role` for reuse
+    across the module, but a real component only ever holds one of the seven
+    named values — never `"unnamed"`/`"unrecognized"`, which `classify`
+    alone produces."""
 
-    role: Literal[
-        "killer", "equality", "rellik", "doubler", "s-cell", "constant", "somedoku"
-    ]
+    role: Role
     shape: _Shape
     value: int | None = None
 
@@ -133,6 +150,36 @@ def named_component(name: object) -> _NamedComponent | None:
     if component is not None:
         return component
     return _parsed_constant_component(normalized)
+
+
+def classify(name: object) -> Role:
+    """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
+    ADR-0016 and ADR-0018) into one of nine kinds: `"unnamed"`
+    (absent/blank — a purely decorative block that carries no rule),
+    `"killer"` (a recognized `Sum`/`Killer` label that selects the
+    killer-cage rule), `"equality"` (a recognized `Equality` label that
+    selects `cage` + `equality-cage`), `"rellik"` (a recognized `Rellik`/`Anti`
+    label that selects the anti-cage subset-sum ban, the cage's numeric value
+    read as the forbidden total), `"doubler"` (a `Doubler` position marker),
+    `"s-cell"` (an `S-cell`/`Schrödinger` position marker), `"constant"` (a
+    `Constant <N>`/`Nullifier` position marker whose `k` is read from the name
+    itself), `"somedoku"` (the payload-less `Somedoku` global flag — cells and
+    value ignored), or `"unrecognized"` (a name `link_to_puzzle` cannot answer
+    for — a bare `Constant` with no parseable integer lands here too, never
+    silently `k = 0`). `"unnamed"` and `"unrecognized"` share the same fate
+    downstream — a loud stderr warn-drop, never a rule (ADR-0012) — but stay
+    distinct kinds here since the warning they produce names the block
+    differently. Matching is case-insensitive and trimmed, via
+    `named_component`.
+
+    This is the one home the named-cosmetic-cage reads route through — the
+    cage decoder, the S-cell presence and membership channels, marker
+    colorizing, and dev tools that recognize a marker block without decoding
+    the whole link all switch on this kind."""
+    component = named_component(name)
+    if component is None:
+        return "unrecognized" if isinstance(name, str) and name.strip() else "unnamed"
+    return component.role
 
 
 def aliases_by_role() -> dict[str, frozenset[str]]:

@@ -21,8 +21,8 @@ from typing import Any, cast
 
 from gridfind.cell_geometry import format_address
 from gridfind.sudokumaker import (
+    classify,
     colorize_marker_cages,
-    cosmetic_cage_kind,
     document_to_link,
     link_to_document,
     link_to_puzzle,
@@ -85,7 +85,7 @@ def _mark_witness_variants(
         if not isinstance(block, dict) or block.get("disabled") is True:
             continue
         typed_block = cast("dict[str, Any]", block)
-        kind = cosmetic_cage_kind(block.get("name"))
+        kind = classify(block.get("name"))
         if kind == "s-cell":
             _mark_scell_block(typed_block, witness, size, index_of)
         elif kind in ("doubler", "constant"):

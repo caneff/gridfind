@@ -1,11 +1,9 @@
 """`markers`: the named cosmetic cages that declare a puzzle feature rather than
 a constraint — `Doubler`, `Constant <N>` / `Nullifier`, and `S-cell` — plus the
-classifier and the display colorizer.
+display colorizer. Name classification itself (`naming.classify`) is tested
+in `naming_test.py`.
 
-`cosmetic_cage_kind` is the one home that reads a cage's name into its kind
-(unnamed / killer / rellik / doubler / s-cell / constant / unrecognized,
-ADR-0012, ADR-0018). A
-`Doubler` or `Constant` cage emits modifier directives; an `S-cell` cage
+A `Doubler` or `Constant` cage emits modifier directives; an `S-cell` cage
 declares S-cells, infers Schrödinger-ness
 from its mere presence, and sources each cell's pin/half/bare directive from its
 own `value` (ADR-0014). `colorize_marker_cages` writes the cosmetic display
@@ -27,12 +25,7 @@ from gridfind.s_directives import (
     SDirective,
     SingletonPin,
 )
-from gridfind.sudokumaker import (
-    colorize_marker_cages,
-    cosmetic_cage_kind,
-    document_to_link,
-    link_to_puzzle,
-)
+from gridfind.sudokumaker import colorize_marker_cages, document_to_link, link_to_puzzle
 from gridfind.sudokumaker.conftest import (
     EMPTY_CELLS,
     JIGSAW_REGIONS,
@@ -41,7 +34,7 @@ from gridfind.sudokumaker.conftest import (
     encode_document,
     mask,
 )
-from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE, MARKER_LABELS
+from gridfind.sudokumaker.markers import _MARKER_COLOR_PALETTE
 from gridfind.verdict import verdict
 
 # A Schrödinger link's own cosmetic vocabulary: unknown types the decoder must
@@ -95,91 +88,6 @@ def _s_cell_cage_link(
             ],
         }
     )
-
-
-@pytest.mark.parametrize(
-    ("name", "expected"),
-    [
-        (None, "unnamed"),
-        ("", "unnamed"),
-        ("   ", "unnamed"),
-        ("Sum", "killer"),
-        ("Killer", "killer"),
-        ("Rellik", "rellik"),
-        ("Anti", "rellik"),
-        ("Doubler", "doubler"),
-        ("  doubler ", "doubler"),
-        ("S-cell", "s-cell"),
-        ("Schrödinger", "s-cell"),
-        ("Nullifier", "constant"),
-        ("Constant 5", "constant"),
-        ("Constant -3", "constant"),
-        ("Constant", "unrecognized"),
-        ("Constant xyz", "unrecognized"),
-        ("Somedoku", "somedoku"),
-        ("  somedoku ", "somedoku"),
-        ("Whimsy", "unrecognized"),
-    ],
-    ids=[
-        "none",
-        "empty",
-        "blank",
-        "sum-label",
-        "killer-label",
-        "rellik-label",
-        "anti-label",
-        "doubler",
-        "doubler-padded",
-        "s-cell",
-        "schrodinger",
-        "nullifier",
-        "constant-n",
-        "constant-negative",
-        "bare-constant",
-        "constant-non-numeric",
-        "somedoku",
-        "somedoku-padded-lower",
-        "unknown",
-    ],
-)
-def test_cosmetic_cage_kind_classifies_the_name(name: object, expected: str) -> None:
-    # The public seven-way classifier is the one home every named-cosmetic-cage
-    # read routes through (ADR-0012, extended by ADR-0016):
-    # unnamed, killer cage, Doubler marker, S-cell marker, Constant/Nullifier
-    # marker, Somedoku global flag, or an unrecognized name — the decoder
-    # warn-drops both unnamed and unrecognized, so a bare `Constant` with no
-    # parseable integer stays unrecognized rather than silently becoming
-    # `k = 0`.
-    assert cosmetic_cage_kind(name) == expected
-
-
-def test_marker_labels_covers_every_role() -> None:
-    # MARKER_LABELS is the public role -> accepted-names table setter_guide.py's
-    # cage-name-alias rows read directly; every name-bearing role
-    # cosmetic_cage_kind recognizes has an entry here. `constant`'s only
-    # static alias is `Nullifier` — `Constant <N>` is parameterized, not a
-    # fixed name (ADR-0016).
-    assert set(MARKER_LABELS) == {
-        "killer",
-        "equality",
-        "rellik",
-        "doubler",
-        "s-cell",
-        "constant",
-        "somedoku",
-    }
-
-
-@pytest.mark.parametrize(
-    "role",
-    ["killer", "equality", "rellik", "doubler", "s-cell", "constant", "somedoku"],
-)
-def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
-    # Every name MARKER_LABELS lists under a role must classify to that role
-    # through cosmetic_cage_kind. MARKER_LABELS and cosmetic_cage_kind both
-    # read naming's one registry, so the two cannot drift.
-    for name in MARKER_LABELS[role]:
-        assert cosmetic_cage_kind(name) == role
 
 
 def test_doubler_named_cage_emits_modifier_directives_and_no_cage() -> None:

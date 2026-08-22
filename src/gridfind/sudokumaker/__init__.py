@@ -84,19 +84,16 @@ from gridfind.sudokumaker.boundary import document_to_link, link_to_document
 from gridfind.sudokumaker.cells import write_cell
 from gridfind.sudokumaker.decode import link_to_puzzle
 from gridfind.sudokumaker.dropped import constraint_name, has_live_data
-from gridfind.sudokumaker.markers import (
-    CosmeticCageKind,
-    colorize_marker_cages,
-    cosmetic_cage_kind,
-)
+from gridfind.sudokumaker.markers import colorize_marker_cages
+from gridfind.sudokumaker.naming import Role, classify
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
 __all__ = [
     "DECODER_REGISTRY",
-    "CosmeticCageKind",
+    "Role",
+    "classify",
     "colorize_marker_cages",
     "constraint_name",
-    "cosmetic_cage_kind",
     "document_to_link",
     "has_live_data",
     "link_to_document",
