@@ -70,18 +70,12 @@ No engine, no `verdict` call. Schema in, model out.
 document back to an openable link. Two later pieces of work both need it,
 so it lands once, on its own.
 
-The decode is split by responsibility across this package's modules —
-`boundary` (document decompress/compress, size/domain, the shared
-enabled-block walk), `cells` (per-cell decode), `cages` (killer/cosmetic
-cages, thermometers), `markers` (named marker-cage classification, ADR-0012),
-`global_flags` (the payload-less `Somedoku` component),
-`edge_clues` (XV/kropki), `regions` (the `type 1` block), `registry`
-(the lean `DECODER_REGISTRY` dispatch table), `dropped` (the drop policy
-built on top of it), and `decode` (`link_to_puzzle` itself, the one function
-that threads all of them together). `link_to_puzzle`/`document_to_link` are the
-package's public door, alongside the rest of the public tool surface listed
-in `__all__` below; a module-private (`_`-prefixed) name is imported from its
-owning submodule directly.
+The decode is split by responsibility across this package's modules — see
+`decode`'s own docstring for the authored module-by-module map.
+`link_to_puzzle`/`document_to_link` are the package's public door, alongside
+the rest of the public tool surface listed in `__all__` below; a
+module-private (`_`-prefixed) name is imported from its owning submodule
+directly.
 """
 
 from __future__ import annotations
