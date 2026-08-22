@@ -272,21 +272,15 @@ class Engine:
         return self.base_value(address)
 
     def domain(self, address: str) -> list[int]:
-        """The digit values a cell may hold, ascending, decoded from its
-        solver domain rather than from the two ends of it.
+        """The digit values a cell may hold, ascending.
 
-        A solver variable states its domain as flat pairs of closed
-        intervals. Every board gridfind builds today gives a cell one
-        unbroken interval, so the multi-interval path is decoded but not yet
-        exercised; a constraint that holds a cell to a stepped digit set is
-        what will exercise it.
+        A solver variable states its domain as one closed interval: a low
+        bound and a high bound. This reads those two bounds and expands them
+        into the full ascending list.
         """
         domain = list(self.d0(address).proto.domain)
-        return [
-            digit
-            for low, high in zip(domain[::2], domain[1::2], strict=True)
-            for digit in range(low, high + 1)
-        ]
+        low, high = domain[0], domain[-1]
+        return list(range(low, high + 1))
 
     def require_in_domain(self, address: str, digits: Iterable[int]) -> None:
         """Refuse a digit the board never offered — the one home for the
