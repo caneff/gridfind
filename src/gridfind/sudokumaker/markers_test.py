@@ -255,8 +255,6 @@ def test_doubler_marker_cell_with_a_given_still_decodes_both() -> None:
 
 
 def test_doubler_constraint_is_synthesized_once_across_marker_blocks() -> None:
-    # A link may carry more than one Doubler marker block; the synthesized
-    # `doubler` constraint must still appear exactly once.
     payload = encode_document(
         {
             "cells": EMPTY_CELLS,
@@ -443,8 +441,6 @@ def test_two_constant_marker_cages_disagreeing_on_k_is_refused() -> None:
 
 
 def test_two_constant_marker_cages_agreeing_on_k_decode_once() -> None:
-    # Two blocks naming the same k are consistent, not a conflict — the
-    # synthesized `constant` constraint still appears once.
     payload = encode_document(
         {
             "cells": EMPTY_CELLS,
@@ -539,8 +535,6 @@ def test_s_cell_marker_center_marks_layer_a_restriction_not_a_candidate() -> Non
 
 
 def test_s_cell_marker_without_center_marks_emits_no_restriction() -> None:
-    # Marks are optional: a caged cell with no center marks carries only its
-    # cage directive, no restriction to layer.
     payload = _s_cell_cage_link("2,7")
 
     _, state = link_to_puzzle(payload)

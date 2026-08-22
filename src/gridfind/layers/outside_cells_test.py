@@ -56,8 +56,6 @@ def test_two_constraints_naming_the_same_outside_cell_share_one_cell() -> None:
     b = Constraint("pair-ratio", params={"cells": ["R0C1", "R0C2"], "k": 2})
     engine = build_engine([GridCells(), OutsideCells()], (a, b), board=Board(size=4))
 
-    # The grid's own 16 cells, plus exactly R0C1 and R0C2 — R0C1 named twice
-    # (once by each clue) still costs one cell, not two.
     assert len(engine.cells) == 4 * 4 + 2
 
 

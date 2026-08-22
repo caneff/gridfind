@@ -31,8 +31,6 @@ LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links
 
 _SIZE = 4
 
-# The windoku-style offset block straddling all four boxes of a boxed 4x4
-# board.
 _WINDOW = ((2, 2), (2, 3), (3, 2), (3, 3))
 
 

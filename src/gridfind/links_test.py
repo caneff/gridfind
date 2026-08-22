@@ -67,8 +67,6 @@ def test_link_case_matches_its_filename_verdict(
 
     captured = capsys.readouterr()
 
-    # A `malformed-*` case is a malformed link the front door refuses before any
-    # verdict: exit 2, the error on stderr, nothing on stdout.
     if expected_kind == "malformed":
         assert code == 2
         assert "malformed puzzle document" in captured.err

@@ -37,9 +37,6 @@ from gridfind.sudokumaker.conftest import EMPTY_CELLS, WIRE_CONSTRAINTS
 def test_global_toggle_round_trips_through_encode_and_decode(
     block: dict[str, object], constraint_type: str
 ) -> None:
-    # Each global toggle decodes to its gridfind constraint, and document_to_link
-    # reverses it: a document carrying the wire block survives encode -> decode
-    # with the matching Constraint present.
     document: dict[str, object] = {
         "formatVersion": "1.5.0",
         "puzzle": {"cells": EMPTY_CELLS, "constraints": [*WIRE_CONSTRAINTS, block]},

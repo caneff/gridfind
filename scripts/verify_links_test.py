@@ -188,8 +188,6 @@ def test_fill_witness_cages_a_discovered_s_cell() -> None:
 
 
 def test_fill_witness_folds_a_discovered_doubler_into_the_cage() -> None:
-    # A doubler the solver found but the source link never declared is folded
-    # into the `Doubler` cage, so every modifier cell is marked by cage.
     size = 4
     grid = _grid(size)
     addresses = [address for row in grid for address in row]
@@ -321,11 +319,8 @@ def _doubler_cage_link(*, doubler: bool) -> str:
 
 
 def test_verify_link_decodes_a_doubler_marker() -> None:
-    # Without the marker the cage sums the raw givens, 1+2=3 ≠ 4: broke.
     assert verify_link([_doubler_cage_link(doubler=False)]) == "broke"
 
-    # With the marker R1C1's digit counts twice, 2·1+2=4: found, so the
-    # emitter reports a solution-link rather than `broke`.
     solution_link = verify_link([_doubler_cage_link(doubler=True)])
     assert solution_link.startswith("https://sudokumaker.app/?puzzle=")
 

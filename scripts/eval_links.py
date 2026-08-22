@@ -115,7 +115,7 @@ def archive_flags(
     flags = load_flags(flagged_path)
     moved = [{**flag, "issue": issue_number} for flag in flags if flag["stem"] in stems]
     if not moved:
-        return  # nothing covered — a true no-op, leaving both files untouched
+        return
     kept = [flag for flag in flags if flag["stem"] not in stems]
     archived = load_archive(archive_path)
     archived.extend(moved)

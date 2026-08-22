@@ -90,7 +90,6 @@ def test_step_returns_the_target_cell_in_space() -> None:
 def test_step_returns_none_stepping_off_the_declared_space() -> None:
     geometry = cell_geometry(Board(size=9))
 
-    # Up 2 from row 1 leaves the space — no cell is declared at row -1.
     assert geometry.step("R1C1", -2, 1) is None
 
 

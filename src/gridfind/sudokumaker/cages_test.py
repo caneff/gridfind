@@ -212,8 +212,6 @@ def test_named_rellik_or_anti_cage_decodes_as_a_rellik_cage(
 
 
 def test_multiple_named_equality_cages_each_decode_to_their_own_constraint() -> None:
-    # One block carries many cages under `cages`, exactly as a `type 301`
-    # block does.
     payload = constraint_link(
         {
             "name": "Equality",
