@@ -45,8 +45,6 @@ def test_found_pin_declares_one_scell_and_the_solver_discovers_the_rest(
 ) -> None:
     link = syn.found_pin()
     pins = [d for d in _state(link).s_directives if isinstance(d, SCellPin)]
-    # Exactly one S-cell is declared; a 4x4 Schrödinger reads found only if the
-    # solver discovers the other three, so found here is a real solve.
     assert len(pins) == 1
     code, first, _ = _front_door(link, capsys)
     assert (code, first) == (0, "found")

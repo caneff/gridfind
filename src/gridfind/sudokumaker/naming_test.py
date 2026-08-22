@@ -139,8 +139,6 @@ def test_registered_shapes_and_their_cell_need() -> None:
 def test_a_registered_name_survives_case_and_whitespace_variation(
     padding: str, upper: bool
 ) -> None:
-    # Every registered name recognizes case-insensitively and trimmed,
-    # whatever the specific padding or casing a link happens to carry.
     name = "doubler".upper() if upper else "doubler"
     varied = f"{padding}{name}{padding}"
 

@@ -71,7 +71,6 @@ def _over_large_region_puzzle() -> Puzzle:
 
 
 def test_unique_puzzle_returns_one_exhaustive_witness() -> None:
-    # A one-cell board over the single digit {1} has exactly one completion.
     puzzle = Puzzle(board=Board(size=1))
 
     result = enumerate_witnesses(puzzle, limit=5)
@@ -82,8 +81,6 @@ def test_unique_puzzle_returns_one_exhaustive_witness() -> None:
 
 
 def test_exactly_two_puzzle_returns_two_distinct_exhaustive_witnesses() -> None:
-    # A one-cell board over {1, 2} with nothing to pin it has exactly two
-    # completions.
     puzzle = Puzzle(board=Board(size=1, values=range(1, 3)))
 
     result = enumerate_witnesses(puzzle, limit=5)

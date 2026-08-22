@@ -143,8 +143,6 @@ def test_inner_regions_decode_as_boxes_and_rows_cols_are_distinct() -> None:
 
 
 def test_inner_givens_are_honored_and_border_givens_are_not() -> None:
-    # The inner given at R1C1 (value 1) survives; the fake corner givens on the
-    # border ring never enter the puzzle.
     puzzle, _ = link_to_puzzle(frame_link(inner_solution=_INNER_SOLUTION))
 
     assert Given("R1C1", 1) in puzzle.givens
@@ -165,9 +163,6 @@ def test_inner_jigsaw_regions_ride_onto_params() -> None:
 def test_border_scaffolding_drops_with_warnings_not_a_raise(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # The cosmetic outline (type 2000), the postproc constraint (type 1000), the
-    # Rows/Cols cages (type 2001), and the corner givens all drop to stderr — no
-    # raise, no silent drop.
     link_to_puzzle(frame_link(inner_solution=_INNER_SOLUTION))
 
     err = capsys.readouterr().err

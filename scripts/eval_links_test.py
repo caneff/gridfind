@@ -175,7 +175,6 @@ def test_record_flag_accumulates_several_flags_on_one_stem(tmp_path: Path) -> No
     record_flag(store, "found-cage-4x4", "first note")
     record_flag(store, "found-cage-4x4", "second note")
 
-    # A second flag adds an entry, never replaces the first.
     assert load_flags(store) == [
         {"stem": "found-cage-4x4", "comment": "first note"},
         {"stem": "found-cage-4x4", "comment": "second note"},
@@ -336,7 +335,6 @@ def test_render_page_keeps_the_button_onclick_attribute_intact() -> None:
 
     assert 'onclick="flag(this, &quot;found-cage-4x4&quot;)"' in html
     assert 'onclick="approve(this, &quot;found-cage-4x4&quot;)"' in html
-    # the broken shape — a bare quote that terminates the attribute — is gone
     assert 'flag(this, "found-cage-4x4"' not in html
 
 

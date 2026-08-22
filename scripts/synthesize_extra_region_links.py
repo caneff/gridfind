@@ -29,8 +29,6 @@ from gridfind.sudokumaker.wire_types import EXTRA_REGION_TYPE
 
 _SIZE = 4
 
-# The windoku-style offset block straddling all four boxes of a boxed 4x4
-# board.
 _WINDOW = ((2, 2), (2, 3), (3, 2), (3, 3))
 
 
