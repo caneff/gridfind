@@ -32,7 +32,7 @@ from typing import cast
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine
-from gridfind.layers._base import emit_over_pairs
+from gridfind.layers._base import abs_diff_var, emit_over_pairs
 from gridfind.puzzle import JsonValue
 
 ReadingMode = str  # "value" or "digit"
@@ -45,18 +45,12 @@ def _whisper(
     params: Mapping[str, JsonValue],
 ) -> None:
     """Every adjacent path pair's values differ by at least `minDifference`.
-    Mints one fresh aux var per pair, self-named from the pair's own variable
-    names (`differs_by`'s pattern) — its span covers the widest possible
-    `|a - b|` read off each operand's own declared bounds, since a value_expr
-    may be a doubler's `2*value` or an S-cell's `s_value`, both wider than a
-    bare digit."""
+    Mints one fresh aux var `d == |a - b|` per pair via `abs_diff_var`
+    (`differs_by`'s shared mint), then pins it to `d >= minimum`."""
     minimum = cast("int", params["minDifference"])
 
     def rel(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:
-        a_domain, b_domain = list(a.proto.domain), list(b.proto.domain)
-        span = max(a_domain[-1] - b_domain[0], b_domain[-1] - a_domain[0])
-        d = engine.model.new_int_var(0, span, f"{a.name}-{b.name}.gap")
-        engine.model.add_abs_equality(d, a - b)
+        d = abs_diff_var(engine, a, b, suffix="gap")
         engine.model.add(d >= minimum)
 
     emit_over_pairs(engine, list(pairwise(sequence)), rel)
