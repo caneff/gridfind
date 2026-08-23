@@ -35,6 +35,7 @@ from gridfind.layers.doubler import Doubler
 from gridfind.layers.equality_cage import EqualityCage
 from gridfind.layers.group_sum import GroupSum
 from gridfind.layers.indexing import Indexing
+from gridfind.layers.line import Line
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.offset_adjacency import (
     KING_OFFSETS,
@@ -80,6 +81,7 @@ LAYER_REGISTRY = {
     "rellik-cage": RellikCage(),
     "equality-cage": EqualityCage(),
     "thermo": Thermo(),
+    "line": Line(),
     "indexing": Indexing(),
     "parity": Parity(),
     "quadruple": Quadruple(),

@@ -117,6 +117,19 @@ CLONE_TYPE = 302
 # over an S-cell, the bare digit otherwise — read value mode like even/odd.
 QUADRUPLE_TYPE = 303
 
+# type 401 is a whisper line: `{lines: [[cell indices, ordered], …],
+# minDifference: int}`. Each path becomes its own `line` Constraint carrying
+# `relation: "whisper"` and the path's addresses; `minDifference` (German 5,
+# Dutch 4, or any setter-chosen threshold) rides through onto every path in
+# the block, read at the `Line` layer, not defaulted here — a block missing
+# it is a malformed whisper clue, not a "no minimum" one. This is the first
+# wire type of the nine-relation line-clue family (spec #672); every other
+# relation (renban 400, palindrome 402, between 403, region-sum 404, sequence
+# 405, grouped-line 406, lockout 407, double-arrow 409) shares the same
+# `lines`-path wire shape and decodes to the same `Constraint("line", ...)`
+# shape through its own `DECODER_REGISTRY` row.
+WHISPER_TYPE = 401
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's
