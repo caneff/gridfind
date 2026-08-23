@@ -22,6 +22,7 @@ from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
+    CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
@@ -186,6 +187,17 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         " s_value over an S-cell, the bare digit otherwise).",
         verdict="Accept. disabled blocks are skipped.",
     ),
+    CLONE_TYPE: SetterDoc(
+        display_name="Clone",
+        wire_block="type 302 {input:{groups:[{cells}]}}.",
+        decode_result="One clone Constraint per group of two or more cells:"
+        " the cells of a group must hold equal digit sets — digits only, never"
+        " the modifier marking (a cloned cell does not inherit its source's"
+        " doubler/constant), read through real_digit_slots so two S-cells"
+        " compare their unordered pairs.",
+        verdict="Accept. A group with fewer than two cells, and a disabled"
+        " block, are skipped.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -236,6 +248,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "even": "found-even-4x4",
     "odd": "found-odd-4x4",
     "quadruple": "found-quadruple-4x4",
+    "clone": "found-clone-4x4",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",

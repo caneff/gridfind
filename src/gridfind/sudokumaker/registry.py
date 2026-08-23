@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 from gridfind.sudokumaker.cages import cage_constraints, thermo_constraints
+from gridfind.sudokumaker.clone import clone_constraints
 from gridfind.sudokumaker.edge_clues import (
     black_kropki_constraints,
     kropki_constraints,
@@ -33,6 +34,7 @@ from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
+    CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
@@ -152,6 +154,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=quadruple_constraints,
         live_keys=("clues",),
         name="quadruple",
+    ),
+    CLONE_TYPE: DecodedType(
+        handler=clone_constraints,
+        live_keys=(),
+        name="clone",
     ),
     NEGATIVE_DIAGONAL_TYPE: DecodedType(
         handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
