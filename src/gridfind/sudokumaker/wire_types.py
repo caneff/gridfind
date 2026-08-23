@@ -117,6 +117,15 @@ CLONE_TYPE = 302
 # over an S-cell, the bare digit otherwise — read value mode like even/odd.
 QUADRUPLE_TYPE = 303
 
+# type 400 is a renban line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "renban"` and
+# the path's addresses — no extra block param; renban's distinctness-and-span
+# rule needs nothing beyond the path. This is the first **digit-mode**
+# relation of the nine-relation line-clue family (spec #672): the `Line`
+# layer reads it through `Engine.real_digit_slots` rather than `value_expr`,
+# so a Schrödinger cell on the line contributes both its digits to the run.
+RENBAN_TYPE = 400
+
 # type 401 is a whisper line: `{lines: [[cell indices, ordered], …],
 # minDifference: int}`. Each path becomes its own `line` Constraint carrying
 # `relation: "whisper"` and the path's addresses; `minDifference` (German 5,

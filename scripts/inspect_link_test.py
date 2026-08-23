@@ -295,6 +295,9 @@ _GOLDEN_REPORTS = {
     "broke-rellik-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
+    "broke-renban-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,400} · active: 400 · verdict: broke"
+    ),
     "broke-scell-caged-value-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
@@ -415,6 +418,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-rellik-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
+    ),
+    "found-renban-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,400} · active: 400 · verdict: found"
     ),
     "found-scell-bare-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
