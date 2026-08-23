@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import cast
 
+import pytest
 from ortools.sat.python import cp_model
 
 from gridfind.engine import build_engine
@@ -18,6 +19,7 @@ from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import numbered_rooms_rules
 from gridfind.layers.numbered_rooms import NumberedRooms
 from gridfind.layers.outside_cells import OutsideCells
+from gridfind.layers.s_blind import SBlindLayerError
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
 
@@ -133,3 +135,15 @@ def test_numbered_rooms_reads_the_raw_digit_under_a_discovered_doubler() -> None
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
     assert solver.value(engine.d0("R0C2")) == 4
+
+
+def test_numbered_rooms_stacked_with_schrodinger_is_refused() -> None:
+    # Every read here (`d0` on the near cell, the line, and the outside
+    # cell) takes only a cell's first content slot: a widened cell's second
+    # slot would go unconstrained by this rule. `s_blind = True` makes
+    # `build_stack` refuse the combination up front rather than silently
+    # under-constrain a real S-cell.
+    constraints = (_numbered_rooms(), Constraint(type="schrodinger"))
+
+    with pytest.raises(SBlindLayerError, match="numbered-rooms"):
+        build_stack(constraints, size=BOARD.size)
