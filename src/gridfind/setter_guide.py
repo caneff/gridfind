@@ -32,6 +32,7 @@ from gridfind.sudokumaker.wire_types import (
     NEGATIVE_DIAGONAL_TYPE,
     ODD_TYPE,
     POSITIVE_DIAGONAL_TYPE,
+    QUADRUPLE_TYPE,
     THERMO_TYPE,
     XV_TYPE,
 )
@@ -176,6 +177,15 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; a block with no"
         " usable cells is warn-and-dropped to stderr.",
     ),
+    QUADRUPLE_TYPE: SetterDoc(
+        display_name="Quadruple",
+        wire_block="type 303 {clues:[{corner, digits}]}.",
+        decode_result="One quadruple Constraint per clue: corner resolves"
+        " to its 2x2 block's four cells; each of digits must equal at"
+        " least one of those cells' values (2·d over a doubler, combined"
+        " s_value over an S-cell, the bare digit otherwise).",
+        verdict="Accept. disabled blocks are skipped.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -225,6 +235,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "col-indexing": "found-indexing-col-4x4",
     "even": "found-even-4x4",
     "odd": "found-odd-4x4",
+    "quadruple": "found-quadruple-4x4",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",
