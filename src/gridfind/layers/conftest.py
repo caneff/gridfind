@@ -104,20 +104,34 @@ def _abs_equality_targets(engine: Engine) -> dict[int, tuple[int, int]]:
     return targets
 
 
-def pair_difference_rules(engine: Engine) -> list[tuple[list[str], int]]:
-    """Every pair-difference rule, as the pair's addresses and its target
-    `k`. Reads the `lin_max` `add_abs_equality` produces for its aux var `d`
-    structurally (`_abs_equality_targets`), then `d`'s pinning `d == k`
-    off the same single-var-sum seam `distinct_count_targets` reads its
-    counting totals from."""
+def _abs_equality_edges(engine: Engine) -> list[tuple[str, str, int]]:
+    """Every `add_abs_equality` aux var's pin, as the pair's addresses and its
+    pinning bound, in emission order. Reads the `lin_max` `add_abs_equality`
+    produces for its aux var `d` structurally (`_abs_equality_targets`), then
+    `d`'s pinning `d == k` (pair-difference) or `d >= k` (whisper) off the
+    same single-var-sum seam `distinct_count_targets` reads its counting
+    totals from — that read never looks past the bound's lower end, so it
+    recovers `>=`'s floor exactly as it would `==`'s single value.
+
+    The one home both `pair_difference_rules` and `line_rules` group this
+    same edge list through, each in its own shape."""
     address_of = _cell_addresses(engine)
     pins = {
         variables[0]: total for variables, total in _sums(engine) if len(variables) == 1
     }
     return [
-        ([address_of[a_index], address_of[b_index]], pins[target_var])
+        (address_of[a_index], address_of[b_index], pins[target_var])
         for target_var, (a_index, b_index) in _abs_equality_targets(engine).items()
         if target_var in pins
+    ]
+
+
+def pair_difference_rules(engine: Engine) -> list[tuple[list[str], int]]:
+    """Every pair-difference rule, as the pair's addresses and its target
+    `k`, read off `_abs_equality_edges`'s shared walk."""
+    return [
+        ([a_address, b_address], k)
+        for a_address, b_address, k in _abs_equality_edges(engine)
     ]
 
 
@@ -126,23 +140,11 @@ def line_rules(engine: Engine) -> list[list[tuple[str, str, int]]]:
     addresses and its emitted threshold, in path order.
 
     Whisper's `|a - b| >= k` edge compiles to the identical two-part shape
-    `pair_difference_rules` already reads its exact `d == k` target from: the
-    `add_abs_equality` aux var's target (`_abs_equality_targets`) paired with
-    its own pinning bound, read off the single-var linear constraint's
-    `domain[0]` (`_sums`) — that read never looks past the bound's lower end,
-    so it recovers `>=`'s floor exactly as it would `==`'s single value.
-    Regrouped by each clue's own path length in emission order, the same walk
-    `thermo_rules` uses for its own edges.
+    `pair_difference_rules` reads (`_abs_equality_edges`), regrouped by each
+    clue's own path length in emission order, the same walk `thermo_rules`
+    uses for its own edges.
     """
-    address_of = _cell_addresses(engine)
-    pins = {
-        variables[0]: total for variables, total in _sums(engine) if len(variables) == 1
-    }
-    edges = [
-        (address_of[a_index], address_of[b_index], pins[target_var])
-        for target_var, (a_index, b_index) in _abs_equality_targets(engine).items()
-        if target_var in pins
-    ]
+    edges = _abs_equality_edges(engine)
     grouped: list[list[tuple[str, str, int]]] = []
     cursor = 0
     for clue in engine.constraints_of("line"):

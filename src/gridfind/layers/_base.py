@@ -119,6 +119,32 @@ def emit_distinct_group(
         emit_house(engine, cells, label=label)
 
 
+def abs_diff_var(
+    engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar, *, suffix: str
+) -> cp_model.IntVar:
+    """Mint one fresh aux var `d == |a - b|`, self-named from the pair's own
+    variable names plus `suffix` (e.g. `differs_by`'s `.diff`, whisper's
+    `.gap`) since neither caller's `rel` carries a label of its own.
+
+    `d`'s span must cover the widest possible `|a - b|`, read off each
+    operand's own declared bounds rather than the board's raw digit range: a's
+    or b's value_expr may be a doubler's `2*value` or an S-cell's `s_value`,
+    both wider than a bare digit. `list(...)` first — the raw proto
+    container's own negative indexing is unreliable.
+
+    The one home for this mint: `pair_difference.differs_by` and
+    `line._whisper` both need `d == |a - b|` as the first step of an
+    otherwise-different pin (`d == k` / `d != k` vs. `d >= k`), so the span
+    computation and `add_abs_equality` call live here once rather than
+    forking with the pin.
+    """
+    a_domain, b_domain = list(a.proto.domain), list(b.proto.domain)
+    span = max(a_domain[-1] - b_domain[0], b_domain[-1] - a_domain[0])
+    d = engine.model.new_int_var(0, span, f"{a.name}-{b.name}.{suffix}")
+    engine.model.add_abs_equality(d, a - b)
+    return d
+
+
 def emit_over_pairs(
     engine: Engine,
     pairs: list[tuple[cp_model.IntVar, cp_model.IntVar]],
