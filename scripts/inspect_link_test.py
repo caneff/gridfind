@@ -289,6 +289,9 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 0 givens · types {0,1,302,2001} · active: 2001, 302 ·"
         " verdict: broke"
     ),
+    "broke-palindrome-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,402} · active: 402 · verdict: broke"
+    ),
     "broke-quadruple-4x4": (
         "4x4 · 16 cells · 4 givens · types {0,1,303} · active: 303 · verdict: broke"
     ),
@@ -406,6 +409,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-odd-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,101} · active: 101 · verdict: found"
+    ),
+    "found-palindrome-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,402} · active: 402 · verdict: found"
     ),
     "found-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"

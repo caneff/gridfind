@@ -139,6 +139,16 @@ RENBAN_TYPE = 400
 # shape through its own `DECODER_REGISTRY` row.
 WHISPER_TYPE = 401
 
+# type 402 is a palindrome line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "palindrome"` and
+# the path's addresses — no extra block param; palindrome's mirror-pair rule
+# needs nothing beyond the path. This is the second digit-mode relation of the
+# nine-relation line-clue family (spec #672), and the first
+# **position-structured** one: unlike renban's set-structured pooling, a
+# Schrödinger-widened cell on the path has no defined mirror-pair fold, so the
+# `Line` layer refuses loud rather than guess one.
+PALINDROME_TYPE = 402
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's
