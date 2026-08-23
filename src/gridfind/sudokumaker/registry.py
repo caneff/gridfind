@@ -27,6 +27,7 @@ from gridfind.sudokumaker.indexing import (
     row_indexing_constraints,
 )
 from gridfind.sudokumaker.parity import even_constraints, odd_constraints
+from gridfind.sudokumaker.quadruple import quadruple_constraints
 from gridfind.sudokumaker.regions import regions_constraints
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
@@ -42,6 +43,7 @@ from gridfind.sudokumaker.wire_types import (
     NEGATIVE_DIAGONAL_TYPE,
     ODD_TYPE,
     POSITIVE_DIAGONAL_TYPE,
+    QUADRUPLE_TYPE,
     THERMO_TYPE,
     XV_TYPE,
 )
@@ -145,6 +147,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=odd_constraints,
         live_keys=("cells",),
         name="odd",
+    ),
+    QUADRUPLE_TYPE: DecodedType(
+        handler=quadruple_constraints,
+        live_keys=("clues",),
+        name="quadruple",
     ),
     NEGATIVE_DIAGONAL_TYPE: DecodedType(
         handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),

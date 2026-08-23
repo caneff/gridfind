@@ -98,6 +98,13 @@ CUSTOM_CONSTRAINT_TYPE = 1000
 # 305` blocks, folded together at `layers.door`).
 EXTRA_REGION_TYPE = 305
 
+# type 303 is a quadruple-clue block: `{clues: [{corner, digits}]}`. Each
+# `corner` names a 2x2 block (`quadruple.corner_to_quad`); each of its
+# `digits` must equal at least one of those four cells' values
+# (`Engine.value_expr`, ADR-0009) — `2·d` over a doubler, combined `s_value`
+# over an S-cell, the bare digit otherwise — read value mode like even/odd.
+QUADRUPLE_TYPE = 303
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's

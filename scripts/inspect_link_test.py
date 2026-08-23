@@ -282,6 +282,9 @@ _GOLDEN_REPORTS = {
     "broke-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: broke"
     ),
+    "broke-quadruple-4x4": (
+        "4x4 · 16 cells · 4 givens · types {0,1,303} · active: 303 · verdict: broke"
+    ),
     "broke-rellik-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
@@ -393,6 +396,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"
+    ),
+    "found-quadruple-4x4": (
+        "4x4 · 16 cells · 1 given · types {0,1,303} · active: 303 · verdict: found"
     ),
     "found-rellik-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
