@@ -32,6 +32,7 @@ from gridfind.sudokumaker.wire_types import (
     KROPKI_WHITE_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
     ODD_TYPE,
+    PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
     RENBAN_TYPE,
@@ -225,6 +226,18 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         " adds nothing. A block missing minDifference raises KeyError —"
         " no invented default.",
     ),
+    PALINDROME_TYPE: SetterDoc(
+        display_name="Palindrome Line",
+        wire_block="type 402 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "palindrome",'
+        " order preserved; no extra block param. Each mirror pair"
+        " (i, n-1-i) must hold the same real digit (real_digit_slots); an"
+        " odd-length path's middle cell is free. A Schrödinger-widened path"
+        " cell has no defined mirror-pair fold and raises loud rather than"
+        " guess one.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -278,6 +291,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "clone": "found-clone-4x4",
     "renban": "found-renban-4x4",
     "whisper": "found-whisper-4x4",
+    "palindrome": "found-palindrome-4x4",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",

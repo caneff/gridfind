@@ -29,6 +29,15 @@ real digit slot distinct, and the run's spread (`max - min`) one less than
 however many real slots the path actually carries — a Schrödinger cell's
 extra, gated slot included, so a 2-cell path holding an S-cell can seat a
 3-digit run.
+
+Palindrome is the second digit-mode row, and the first **position-structured**
+one: every mirror pair `(i, n-1-i)` of the path holds the same real digit, its
+odd-length middle cell (read by no pair) left free. Position structure means
+each cell must fold to one real digit before the mirror pairing runs, so
+unlike renban's set-structured pooling a Schrödinger-widened cell has no
+defined fold — `_single_real_digits` raises through `sole` (`engine.py`)
+rather than guess one. This is the shared position-structured Schrödinger
+raise grouped-line (#682) reuses.
 """
 
 from __future__ import annotations
@@ -40,7 +49,7 @@ from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, sole
 from gridfind.layers._base import abs_diff_var, emit_over_pairs
 from gridfind.puzzle import JsonValue
 
@@ -119,9 +128,34 @@ def _renban(
     engine.model.add(maximum - minimum == slot_count - 1)
 
 
+def _single_real_digits(sequence: DigitSequence) -> list[cp_model.IntVar]:
+    """The position-structured Schrödinger raise: fold each path cell's real
+    digit slots to its one real digit via `sole` (`engine.py`) before a
+    position- or window-structured relation pairs or windows them. Renban's
+    set-structured pooling quantifies over every real slot instead and never
+    calls this. A cell Schrödinger-widened to two real slots has no defined
+    fold — which slot the relation's rule would mean is not stated anywhere
+    — so `sole` raises `GridfindError` loud rather than guess one. Palindrome
+    is the first caller; grouped-line (#682) reuses this same fold."""
+    return [sole(cell)[0] for cell in sequence]
+
+
+def _palindrome(
+    engine: Engine,
+    sequence: DigitSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Every mirror pair `(i, n-1-i)` holds the same real digit; an
+    odd-length path's middle cell is read by neither pair and so stays free."""
+    digits = _single_real_digits(sequence)
+    for i in range(len(digits) // 2):
+        engine.model.add(digits[i] == digits[-1 - i])
+
+
 LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "whisper": ("value", _whisper),
     "renban": ("digit", _renban),
+    "palindrome": ("digit", _palindrome),
 }
 
 

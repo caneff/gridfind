@@ -1,8 +1,10 @@
 """`line` behaviour, tested at two seams, mirroring `thermo_test.py`: the
 direct rule readback via `line_rules` (whisper) / `all_different_groups`
 (renban) — that a clue emitted its own rule shape, not that a solve happened
-to satisfy it — plus verdict-seam behaviour (found/broke) for both relations
-the family carries so far.
+to satisfy it — plus verdict-seam behaviour (found/broke) for every relation
+the family carries so far. Palindrome, like clone (`clone_test.py`), has no
+structural readback helper of its own — its rule is a plain digit equality,
+so its coverage stays at the verdict/direct-model seam.
 """
 
 from typing import cast
@@ -10,7 +12,7 @@ from typing import cast
 import pytest
 from ortools.sat.python import cp_model
 
-from gridfind.engine import build_engine
+from gridfind.engine import GridfindError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.conftest import all_different_groups, line_rules
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
@@ -32,6 +34,10 @@ def _whisper(path: tuple[str, ...], min_difference: int) -> Constraint:
 
 def _renban(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "renban", "path": list(path)})
+
+
+def _palindrome(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "palindrome", "path": list(path)})
 
 
 @pytest.mark.parametrize(
@@ -314,3 +320,71 @@ def test_renban_schrodinger_cell_leaving_a_gap_resolves_infeasible() -> None:
     status = solver.solve(engine.model)
 
     assert status == cp_model.INFEASIBLE
+
+
+def test_a_mirrored_palindrome_resolves_found() -> None:
+    # R1C1 and R9C9 are the mirror pair; both given the same digit mirrors
+    # cleanly regardless of the free middle cell.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_palindrome(("R1C1", "R5C5", "R9C9")),),
+        givens=(Given(address="R1C1", digit=3), Given(address="R9C9", digit=3)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c = (result.witness[address][0] for address in ("R1C1", "R9C9"))
+    assert a == c
+
+
+def test_an_unmirrored_palindrome_resolves_broke() -> None:
+    # Both mirror-pair cells given, different digits — a direct contradiction
+    # since no completion can make them equal.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_palindrome(("R1C1", "R5C5", "R9C9")),),
+        givens=(Given(address="R1C1", digit=3), Given(address="R9C9", digit=4)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_an_odd_length_palindromes_middle_cell_is_free() -> None:
+    # Same mirrored ends both times; only the middle given digit changes.
+    # Both resolve found, so no palindrome rule pins the middle to one value.
+    for middle_digit in (1, 2):
+        puzzle = Puzzle(
+            board=BOARD,
+            constraints=(_palindrome(("R1C1", "R5C5", "R9C9")),),
+            givens=(
+                Given(address="R1C1", digit=3),
+                Given(address="R9C9", digit=3),
+                Given(address="R5C5", digit=middle_digit),
+            ),
+        )
+
+        result = verdict(puzzle)
+
+        assert result.kind == "found"
+
+
+def test_a_multi_slot_schrodinger_cell_on_the_palindrome_raises() -> None:
+    # Palindrome is position-structured, unlike renban's set-structured
+    # pooling: a Schrödinger-widened path cell has no defined mirror-pair
+    # rule, so it refuses loud (via `sole`, engine.py) rather than guess one.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            _palindrome(("R1C1", "R2C2", "R3C3")),
+        ),
+    )
+
+    with pytest.raises(GridfindError):
+        verdict(puzzle)
