@@ -34,6 +34,7 @@ from gridfind.sudokumaker.wire_types import (
     ODD_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
+    RENBAN_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
     XV_TYPE,
@@ -199,6 +200,19 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. A group with fewer than two cells, and a disabled"
         " block, are skipped.",
     ),
+    RENBAN_TYPE: SetterDoc(
+        display_name="Renban Line",
+        wire_block="type 400 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "renban",'
+        " order preserved; no extra block param. Every real digit slot on"
+        " the path (both of a Schrödinger cell's, gated by real_digit_slots)"
+        " must be distinct, and the run's spread must equal one less than"
+        " however many real slots the path carries — a consecutive,"
+        " non-repeating run the line enforces on its own, off any"
+        " box/region.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
     WHISPER_TYPE: SetterDoc(
         display_name="Whisper Line (German/Dutch)",
         wire_block="type 401 {lines:[[cell indices, ordered], …], minDifference:int}.",
@@ -262,6 +276,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "odd": "found-odd-4x4",
     "quadruple": "found-quadruple-4x4",
     "clone": "found-clone-4x4",
+    "renban": "found-renban-4x4",
     "whisper": "found-whisper-4x4",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",

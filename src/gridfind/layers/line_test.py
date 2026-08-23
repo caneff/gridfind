@@ -1,8 +1,8 @@
 """`line` behaviour, tested at two seams, mirroring `thermo_test.py`: the
-direct rule readback via `line_rules` — that a clue emitted its own
-adjacent-pair edges at the right threshold, not that a solve happened to
-satisfy them — plus verdict-seam behaviour (found/broke) for the whisper
-relation, the family's first row.
+direct rule readback via `line_rules` (whisper) / `all_different_groups`
+(renban) — that a clue emitted its own rule shape, not that a solve happened
+to satisfy it — plus verdict-seam behaviour (found/broke) for both relations
+the family carries so far.
 """
 
 from typing import cast
@@ -12,7 +12,7 @@ from ortools.sat.python import cp_model
 
 from gridfind.engine import build_engine
 from gridfind.layers import build_stack
-from gridfind.layers.conftest import line_rules
+from gridfind.layers.conftest import all_different_groups, line_rules
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
 
@@ -28,6 +28,10 @@ def _whisper(path: tuple[str, ...], min_difference: int) -> Constraint:
             "minDifference": min_difference,
         },
     )
+
+
+def _renban(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "renban", "path": list(path)})
 
 
 @pytest.mark.parametrize(
@@ -198,3 +202,115 @@ def test_whisper_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
     assert solver.value(engine.value_expr("R1C1")) == 4
+
+
+def test_a_satisfiable_renban_resolves_found() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_renban(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=5),),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    values = sorted(result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert len(set(values)) == 3
+    assert values[-1] - values[0] == 2
+
+
+def test_a_renban_with_a_gap_resolves_broke() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_renban(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=4)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_renban_repeat_resolves_broke_with_no_region_backing() -> None:
+    # No rows/cols/regions constraint at all — renban enforces its own
+    # distinctness, so a repeat is broke even off any box or region.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_renban(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=3), Given(address="R1C2", digit=3)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_renban_all_different_reaches_both_slots_of_a_widened_cell() -> None:
+    # The set-structured Schrödinger split, read back structurally
+    # (mirroring `cage_test.py`'s own widened-cell readback): renban's
+    # all-different rule runs over both of a widened cell's slots, not just
+    # its `d0`, so an S-cell contributes both digits to the run.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(Constraint(type="schrodinger"), _renban(("R1C1", "R1C2"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+
+    assert all_different_groups(engine) == [["R1C1", "R1C1", "R1C2", "R1C2"]]
+
+
+def test_renban_schrodinger_cell_contributes_both_digits_to_the_run() -> None:
+    # R1C1 is forced S with digits {0, 2}; R1C2 is a plain 1 — together the
+    # 2-cell path seats the 3-digit run 0-1-2, feasible only because the
+    # S-cell's second digit joins the run alongside its first.
+    board = Board(size=2, values=range(3))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(Constraint(type="schrodinger"), _renban(("R1C1", "R1C2"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    r1c1 = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 0)
+    engine.model.add(r1c1[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_renban_schrodinger_cell_leaving_a_gap_resolves_infeasible() -> None:
+    # Same shape as above, but the S-cell's second digit (3) leaves a gap
+    # against the singleton's 1 — {0, 1, 3} is not a consecutive run, so this
+    # must fail even though every digit is distinct. Proves `max` reads the
+    # S-cell's real digit under its guard rather than the sentinel that would
+    # sit there were the cell not S.
+    board = Board(size=2, values=range(4))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(Constraint(type="schrodinger"), _renban(("R1C1", "R1C2"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    r1c1 = engine.contents("R1C1")
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(r1c1[0] == 0)
+    engine.model.add(r1c1[1] == 3)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status == cp_model.INFEASIBLE

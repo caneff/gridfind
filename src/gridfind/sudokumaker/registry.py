@@ -27,7 +27,7 @@ from gridfind.sudokumaker.indexing import (
     col_indexing_constraints,
     row_indexing_constraints,
 )
-from gridfind.sudokumaker.line import whisper_constraints
+from gridfind.sudokumaker.line import renban_constraints, whisper_constraints
 from gridfind.sudokumaker.parity import even_constraints, odd_constraints
 from gridfind.sudokumaker.quadruple import quadruple_constraints
 from gridfind.sudokumaker.regions import regions_constraints
@@ -47,6 +47,7 @@ from gridfind.sudokumaker.wire_types import (
     ODD_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
+    RENBAN_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
     XV_TYPE,
@@ -161,6 +162,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=clone_constraints,
         live_keys=(),
         name="clone",
+    ),
+    RENBAN_TYPE: DecodedType(
+        handler=renban_constraints,
+        live_keys=("lines",),
+        name="renban",
     ),
     WHISPER_TYPE: DecodedType(
         handler=whisper_constraints,

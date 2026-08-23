@@ -6,20 +6,29 @@ per-alias relation table.
 `LINE_RELATIONS` is the one growth point: each row is `(reading_mode,
 predicate)`, keyed by the clue's own `params["relation"]` alias. `emit` owns
 the three family-wide decisions once — the path read, the reading-mode seam
-selection, and (in a later relation) the Schrödinger digit-mode rule — so a
-new relation costs one table row and one predicate, never a new layer or
-decode path. Only `"value"` mode is wired so far: it reads each path cell
-through `engine.value_expr` (ADR-0009, precedence `modifier_value -> s_value
--> digit`), so a doubler or a Schrödinger cell on the line counts as its
-folded value, the same seam `thermo` and the pair-relation family already
-read. The `"digit"` arm (`engine.real_digit_slots`, ADR-0019) is left for the
-first digit-mode relation to add.
+selection, and the Schrödinger digit-mode rule — so a new relation costs one
+table row and one predicate, never a new layer or decode path. A
+`"value"`-mode relation reads each path cell through `engine.value_expr`
+(ADR-0009, precedence `modifier_value -> s_value -> digit`), so a doubler or
+a Schrödinger cell on the line counts as its folded value, the same seam
+`thermo` and the pair-relation family already read. A `"digit"`-mode relation
+reads each path cell through `engine.real_digit_slots` (ADR-0019 dec 6)
+instead — a list of `(digit, guard)` pairs per cell, `d0`'s guard always
+`None`, `d1`'s the cell's `is_s` — the same gated seam `clone` reads a
+digit-set clue through, so a Schrödinger cell on a set-structured digit
+relation (renban) contributes both its digits, never folded to one `s_value`.
 
-Whisper is the first row: for each adjacent path pair, `|value_expr(i) -
+Whisper is the value-mode row: for each adjacent path pair, `|value_expr(i) -
 value_expr(i+1)| >= params["minDifference"]` — German (5) and Dutch (4) are
 this same relation at a different threshold. `minDifference` is read with a
 bare subscript, so a clue missing it raises `KeyError` rather than falling
 back to an invented default.
+
+Renban is the first digit-mode row, and states nothing beyond the path: every
+real digit slot distinct, and the run's spread (`max - min`) one less than
+however many real slots the path actually carries — a Schrödinger cell's
+extra, gated slot included, so a 2-cell path holding an S-cell can seat a
+3-digit run.
 """
 
 from __future__ import annotations
@@ -36,12 +45,17 @@ from gridfind.layers._base import abs_diff_var, emit_over_pairs
 from gridfind.puzzle import JsonValue
 
 ReadingMode = str  # "value" or "digit"
-LinePredicate = Callable[[Engine, list[cp_model.IntVar], Mapping[str, JsonValue]], None]
+ValueSequence = list[cp_model.IntVar]
+DigitSlot = tuple[cp_model.IntVar, cp_model.IntVar | None]
+DigitSequence = list[list[DigitSlot]]
+ValuePredicate = Callable[[Engine, ValueSequence, Mapping[str, JsonValue]], None]
+DigitPredicate = Callable[[Engine, DigitSequence, Mapping[str, JsonValue]], None]
+LinePredicate = ValuePredicate | DigitPredicate
 
 
 def _whisper(
     engine: Engine,
-    sequence: list[cp_model.IntVar],
+    sequence: ValueSequence,
     params: Mapping[str, JsonValue],
 ) -> None:
     """Every adjacent path pair's values differ by at least `minDifference`.
@@ -56,8 +70,58 @@ def _whisper(
     emit_over_pairs(engine, list(pairwise(sequence)), rel)
 
 
+def _renban(
+    engine: Engine,
+    sequence: DigitSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Every real digit slot on the path distinct, and `max - min` one less
+    than the count of real slots — a run of that many consecutive,
+    non-repeating digits, owning its own distinctness (no cage/region
+    needed).
+
+    Distinctness rides the same sentinel trick `cage`'s `distinct-over:
+    "digit"` mode uses (`layers/cage.py`): a non-S-cell's second slot sits on
+    its own per-cell sentinel, always above every real digit, so a plain
+    `add_all_different` over every raw slot — gated or not — already forbids
+    a real repeat, no `only_enforce_if` needed. `min` needs no gating either,
+    for the same reason: a sentinel can never be the smallest value present.
+
+    `max` cannot take the same shortcut: a sentinel left in would inflate it.
+    Each gated slot instead contributes a fresh var pinned to its own digit
+    under its guard, the board's own floor otherwise — a value no real digit
+    on the path can fall beneath, so it never wins a max it does not belong
+    in. `slot_count` — one per path cell, plus one more per realized
+    Schrödinger cell — is the same guard sum, read as a plain linear
+    expression rather than reified.
+    """
+    board = engine.board
+    low, high = board.values[0], board.values[-1]
+    slots = [slot for cell in sequence for slot in cell]
+    digits = [digit for digit, _ in slots]
+    engine.model.add_all_different(digits)
+
+    max_terms: list[cp_model.IntVar] = []
+    for digit, guard in slots:
+        if guard is None:
+            max_terms.append(digit)
+            continue
+        term = engine.model.new_int_var(low, high, f"{digit.name}.renban_span")
+        engine.model.add(term == digit).only_enforce_if(guard)
+        engine.model.add(term == low).only_enforce_if(guard.negated())
+        max_terms.append(term)
+
+    slot_count = len(sequence) + sum(guard for _, guard in slots if guard is not None)
+    minimum = engine.model.new_int_var(low, high, f"{digits[0].name}.renban_min")
+    maximum = engine.model.new_int_var(low, high, f"{digits[0].name}.renban_max")
+    engine.model.add_min_equality(minimum, digits)
+    engine.model.add_max_equality(maximum, max_terms)
+    engine.model.add(maximum - minimum == slot_count - 1)
+
+
 LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "whisper": ("value", _whisper),
+    "renban": ("digit", _renban),
 }
 
 
@@ -79,13 +143,18 @@ class Line:
             relation = cast("str", clue.params["relation"])
             reading_mode, predicate = LINE_RELATIONS[relation]
             path = cast("list[str]", clue.params["path"])
-            if reading_mode != "value":
+            if reading_mode == "value":
+                value_sequence = [
+                    cast("cp_model.IntVar", engine.value_expr(address))
+                    for address in path
+                ]
+                cast("ValuePredicate", predicate)(engine, value_sequence, clue.params)
+            elif reading_mode == "digit":
+                digit_sequence = [engine.real_digit_slots(address) for address in path]
+                cast("DigitPredicate", predicate)(engine, digit_sequence, clue.params)
+            else:
                 msg = (
                     f"{relation!r} line relation reads {reading_mode!r} mode, "
                     "not yet built"
                 )
                 raise NotImplementedError(msg)
-            sequence = [
-                cast("cp_model.IntVar", engine.value_expr(address)) for address in path
-            ]
-            predicate(engine, sequence, clue.params)
