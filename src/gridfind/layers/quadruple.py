@@ -18,13 +18,8 @@ from gridfind.engine import Engine
 def _emit_quadruple_digit(
     engine: Engine, addresses: list[str], digit: int, label: str
 ) -> None:
-    present = []
-    for i, address in enumerate(addresses):
-        indicator = engine.model.new_bool_var(f"{label}.{i}")
-        value = engine.value_expr(address)
-        engine.model.add(value == digit).only_enforce_if(indicator)
-        engine.model.add(value != digit).only_enforce_if(indicator.negated())
-        present.append(indicator)
+    values = [engine.value_expr(address) for address in addresses]
+    present = engine.reify_holds(values, digit, label)
     engine.model.add_bool_or(present)
 
 

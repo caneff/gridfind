@@ -337,7 +337,7 @@ class Engine:
         self.model.add_allowed_assignments([var], [(digit,) for digit in allowed])
 
     def reify_holds(
-        self, slots: list[cp_model.IntVar], digit: int, label: str
+        self, slots: Sequence[cp_model.LinearExprT], digit: int, label: str
     ) -> list[cp_model.IntVar]:
         """For each slot, a reified bool tracking whether it holds `digit` — the
         "does this slot hold this digit" idiom. It lives on the engine, the spine
@@ -346,7 +346,9 @@ class Engine:
         `emit_house`) fold it into house rules, and `verdict` ORs it across a
         cell's slots for a half-S-cell's "digit appears among the two slots"
         membership. `layers._base` is layers-internal, so a shared
-        helper cannot live there."""
+        helper cannot live there. `slots` takes a general linear expression,
+        not just a raw content var, so `quadruple` can reify presence over
+        `value_expr` (ADR-0009's doubler/S-cell-aware value) the same way."""
         holds_digit = []
         for i, slot in enumerate(slots):
             indicator = self.model.new_bool_var(f"{label}.holds{digit}.{i}")
