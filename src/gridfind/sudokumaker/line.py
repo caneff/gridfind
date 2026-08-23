@@ -2,7 +2,8 @@
 the same `lines`-path walk (`_line_constraints`) since every relation decodes
 to the identical `Constraint("line", ...)` shape (spec #672) and differs only
 in its `relation` alias and whatever block-level knobs that alias reads
-(whisper's `minDifference`; renban and palindrome state none). `thermo_constraints`
+(whisper's `minDifference`; grouped's `groups`; renban and palindrome state
+none). `thermo_constraints`
 (`cages.py`) is the prior-art template for a `lines`-path block this shared
 walk itself follows.
 """
@@ -15,7 +16,12 @@ from typing import cast
 from gridfind.puzzle import Constraint, JsonValue
 from gridfind.sudokumaker.addresses import addresses
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
-from gridfind.sudokumaker.wire_types import PALINDROME_TYPE, RENBAN_TYPE, WHISPER_TYPE
+from gridfind.sudokumaker.wire_types import (
+    GROUPED_TYPE,
+    PALINDROME_TYPE,
+    RENBAN_TYPE,
+    WHISPER_TYPE,
+)
 
 
 def _line_constraints(
@@ -64,6 +70,24 @@ def palindrome_constraints(buckets: ConstraintBuckets, size: int) -> list[Constr
     block-level knob, palindrome's own mirror-pair rule needs nothing beyond
     the path."""
     return _line_constraints(buckets, size, PALINDROME_TYPE, "palindrome")
+
+
+def grouped_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+    """The `type 406` grouped (entropic/modular/parity) lines as `line`
+    `Constraint`s, each carrying the block's own `groups` verbatim, never
+    defaulted, so a block that omits it surfaces the gap at the `Line` layer
+    (`params["groups"]` bare subscript) rather than here — the same posture
+    `whisper_constraints` takes for `minDifference`. `groups` is taken to
+    already be a list of digit bitmasks on the wire (`wire_types.GROUPED_TYPE`);
+    the partition-over-the-board-digits check lives at the `Line` layer, where
+    the board's own digit domain is in scope."""
+    return _line_constraints(
+        buckets,
+        size,
+        GROUPED_TYPE,
+        "grouped",
+        block_params=lambda block: {"groups": block["groups"]},
+    )
 
 
 def whisper_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:

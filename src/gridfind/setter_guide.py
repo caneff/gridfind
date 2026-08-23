@@ -26,6 +26,7 @@ from gridfind.sudokumaker.wire_types import (
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
+    GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
@@ -238,6 +239,23 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    GROUPED_TYPE: SetterDoc(
+        display_name="Grouped Line (Entropic/Modular/Parity)",
+        wire_block="type 406 {lines:[[cell indices, ordered], …],"
+        " groups:[bitmask, …]} — groups rides onto every path in the block.",
+        decode_result='One line Constraint per path, relation "grouped",'
+        " order preserved; groups rides through verbatim. Every window of"
+        " len(groups) consecutive path cells (real_digit_slots, folded like"
+        " palindrome) must hold one digit from each group — entropic,"
+        " modular, and parity all ride this one rule, keyed only by which"
+        " groups they name.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing. A block missing groups raises KeyError — no"
+        " invented default. groups that leave a gap or overlap the board's"
+        " digits raise MalformedPuzzleError. A Schrödinger-widened path cell"
+        " has no defined single-window fold and raises loud rather than"
+        " guess one.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -292,6 +310,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "renban": "found-renban-4x4",
     "whisper": "found-whisper-4x4",
     "palindrome": "found-palindrome-4x4",
+    "grouped": "found-grouped-entropic-9x9",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",

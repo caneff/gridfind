@@ -149,6 +149,24 @@ WHISPER_TYPE = 401
 # `Line` layer refuses loud rather than guess one.
 PALINDROME_TYPE = 402
 
+# type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
+# indices, ordered], …], groups: [bitmask, …]}`. Each path becomes its own
+# `line` Constraint carrying `relation: "grouped"` and the path's addresses;
+# `groups` rides through onto every path in the block verbatim, read at the
+# `Line` layer, not defaulted here — a block missing it is a malformed
+# grouped-line clue, not a "no groups" one. The third digit-mode relation of
+# the nine-relation line-clue family (spec #672), and — like palindrome — a
+# position/window-structured one: a Schrödinger-widened path cell has no
+# defined single-window fold, so the `Line` layer refuses loud through the
+# same `sole`-backed raise palindrome stood up, rather than guess one. No real
+# `type 406` link was available to ground-truth the wire shape (the same gap
+# clone's `type 302` and quadruple's `corner_to_quad` document); `groups` is
+# taken to already be a list of digit bitmasks on the wire — SudokuMaker's own
+# bitmask convention for a digit set (`sudokumaker.cells._write_s_cell`'s
+# `candidates` field) — a one-function swap in `grouped_constraints` if a real
+# link corrects it.
+GROUPED_TYPE = 406
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's

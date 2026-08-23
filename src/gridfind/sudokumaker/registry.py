@@ -28,6 +28,7 @@ from gridfind.sudokumaker.indexing import (
     row_indexing_constraints,
 )
 from gridfind.sudokumaker.line import (
+    grouped_constraints,
     palindrome_constraints,
     renban_constraints,
     whisper_constraints,
@@ -43,6 +44,7 @@ from gridfind.sudokumaker.wire_types import (
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
+    GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
@@ -182,6 +184,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=palindrome_constraints,
         live_keys=("lines",),
         name="palindrome",
+    ),
+    GROUPED_TYPE: DecodedType(
+        handler=grouped_constraints,
+        live_keys=("lines",),
+        name="grouped",
     ),
     NEGATIVE_DIAGONAL_TYPE: DecodedType(
         handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),
