@@ -35,6 +35,7 @@ from gridfind.sudokumaker.wire_types import (
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
     THERMO_TYPE,
+    WHISPER_TYPE,
     XV_TYPE,
 )
 
@@ -198,6 +199,18 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. A group with fewer than two cells, and a disabled"
         " block, are skipped.",
     ),
+    WHISPER_TYPE: SetterDoc(
+        display_name="Whisper Line (German/Dutch)",
+        wire_block="type 401 {lines:[[cell indices, ordered], …], minDifference:int}.",
+        decode_result='One line Constraint per path, relation "whisper",'
+        " order preserved; minDifference rides onto every path in the"
+        " block. Each adjacent pair's values (2·d over a doubler, combined"
+        " s_value over an S-cell, the bare digit otherwise) must differ by"
+        " at least minDifference.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing. A block missing minDifference raises KeyError —"
+        " no invented default.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -249,6 +262,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "odd": "found-odd-4x4",
     "quadruple": "found-quadruple-4x4",
     "clone": "found-clone-4x4",
+    "whisper": "found-whisper-4x4",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",
