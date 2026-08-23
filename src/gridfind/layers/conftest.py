@@ -271,6 +271,39 @@ def indexing_rules(engine: Engine) -> list[tuple[str, int, list[str]]]:
     return rules
 
 
+def numbered_rooms_rules(engine: Engine) -> list[tuple[str, str, list[str]]]:
+    """Every numbered-rooms rule, as `(outside address, near-cell address,
+    line)` — the outside cell `add_element`'s target names, the line's own
+    near cell (`line[0]`) whose digit `add_element`'s index reads, and the
+    line addresses in emission order.
+
+    Reads the `element` proto `NumberedRooms.emit` produces structurally,
+    mirroring `indexing_rules`: the index expression's sole var is the near
+    cell's `d0` (its `-1` offset is the involution's own bookkeeping, not
+    read here). Unlike `indexing_rules`'s fixed-int coordinate, the target
+    here is itself a variable — the outside cell's own `d0`, not a plain
+    int — so it is read as `linear_target.vars[0]` rather than `.offset`.
+    """
+    address_of = _cell_addresses(engine)
+    by_index_var: dict[int, tuple[int, list[str]]] = {}
+    for constraint in engine.model.proto.constraints:
+        if not constraint.has_element():
+            continue
+        element = constraint.element
+        index_var = element.linear_index.vars[0]
+        target_var = element.linear_target.vars[0]
+        line = [address_of[expr.vars[0]] for expr in element.exprs]
+        by_index_var[index_var] = (target_var, line)
+    rules: list[tuple[str, str, list[str]]] = []
+    for clue in engine.constraints_of("numbered-rooms"):
+        cells = cast("list[str]", clue.params["cells"])
+        outside, near = cells[0], cells[1]
+        target_var, line = by_index_var[engine.d0(near).index]
+        assert address_of[target_var] == outside
+        rules.append((outside, near, line))
+    return rules
+
+
 def distinct_count_targets(engine: Engine) -> dict[str, int]:
     """Every counting rule, as its label mapped to the number of distinct
     digits it demands.
