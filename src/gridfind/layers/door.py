@@ -19,6 +19,7 @@ from typing import cast
 from gridfind.engine import GridfindError, Layer, MalformedPuzzleError
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
+from gridfind.layers.clone import Clone
 from gridfind.layers.constant_modifier import ConstantModifier
 from gridfind.layers.distinct import (
     DistinctOverGroups,
@@ -82,6 +83,7 @@ LAYER_REGISTRY = {
     "indexing": Indexing(),
     "parity": Parity(),
     "quadruple": Quadruple(),
+    "clone": Clone(),
 }
 
 # Two mechanisms expand a constraint at load, and they
