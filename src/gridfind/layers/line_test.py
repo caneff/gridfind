@@ -2,9 +2,10 @@
 direct rule readback via `line_rules` (whisper) / `all_different_groups`
 (renban) — that a clue emitted its own rule shape, not that a solve happened
 to satisfy it — plus verdict-seam behaviour (found/broke) for every relation
-the family carries so far. Palindrome, like clone (`clone_test.py`), has no
-structural readback helper of its own — its rule is a plain digit equality,
-so its coverage stays at the verdict/direct-model seam.
+the family carries so far. Palindrome and grouped-line, like clone
+(`clone_test.py`), have no structural readback helper of their own — their
+rules read digit equality/group-membership, not addresses, so their coverage
+stays at the verdict/direct-model seam.
 """
 
 from typing import cast
@@ -12,13 +13,23 @@ from typing import cast
 import pytest
 from ortools.sat.python import cp_model
 
-from gridfind.engine import GridfindError, build_engine
+from gridfind.engine import GridfindError, MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.conftest import all_different_groups, line_rules
 from gridfind.puzzle import Board, Constraint, Given, Puzzle
 from gridfind.verdict import verdict
 
 BOARD = Board(size=9)
+
+
+def _mask(*digits: int) -> int:
+    mask = 0
+    for digit in digits:
+        mask |= 1 << digit
+    return mask
+
+
+ENTROPIC_GROUPS = [_mask(1, 2, 3), _mask(4, 5, 6), _mask(7, 8, 9)]
 
 
 def _whisper(path: tuple[str, ...], min_difference: int) -> Constraint:
@@ -38,6 +49,12 @@ def _renban(path: tuple[str, ...]) -> Constraint:
 
 def _palindrome(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "palindrome", "path": list(path)})
+
+
+def _grouped(path: tuple[str, ...], groups: list[int]) -> Constraint:
+    return Constraint(
+        "line", params={"relation": "grouped", "path": list(path), "groups": groups}
+    )
 
 
 @pytest.mark.parametrize(
@@ -383,6 +400,104 @@ def test_a_multi_slot_schrodinger_cell_on_the_palindrome_raises() -> None:
         constraints=(
             Constraint(type="schrodinger"),
             _palindrome(("R1C1", "R2C2", "R3C3")),
+        ),
+    )
+
+    with pytest.raises(GridfindError):
+        verdict(puzzle)
+
+
+def test_a_satisfiable_entropic_grouped_line_resolves_found() -> None:
+    # One digit per band (low/mid/high) across the line's sole 3-cell window.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_grouped(("R1C1", "R2C2", "R3C3"), ENTROPIC_GROUPS),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R2C2", digit=4),
+            Given(address="R3C3", digit=7),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_a_repeated_band_in_one_window_resolves_broke() -> None:
+    # R1C1 and R2C2 both land in the low band {1,2,3} — the window's own
+    # rule (one cell per band) is violated directly by the givens, no
+    # completion needed.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_grouped(("R1C1", "R2C2", "R3C3"), ENTROPIC_GROUPS),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R2C2", digit=2),
+            Given(address="R3C3", digit=7),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_the_band_repeats_every_group_count_cells_along_a_longer_line() -> None:
+    # A 4-cell path has two overlapping windows (0-2, 1-3); since each window
+    # is its own full permutation of the three bands and windows 0 and 1
+    # share cells 1 and 2, cell 3 is forced into cell 0's band. Same band,
+    # different digit (1 and 2, both low) resolves found; a different band
+    # (1 low, 4 mid) resolves broke, isolating the cross-window cycle as the
+    # sole cause.
+    path = ("R1C1", "R2C2", "R3C3", "R4C4")
+
+    found = Puzzle(
+        board=BOARD,
+        constraints=(_grouped(path, ENTROPIC_GROUPS),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R4C4", digit=2)),
+    )
+    broke = Puzzle(
+        board=BOARD,
+        constraints=(_grouped(path, ENTROPIC_GROUPS),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R4C4", digit=4)),
+    )
+
+    assert verdict(found).kind == "found"
+    result = verdict(broke)
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+@pytest.mark.parametrize(
+    "groups",
+    [
+        pytest.param([_mask(1, 2), _mask(3, 4)], id="gap"),
+        pytest.param([_mask(1, 2, 3, 4), _mask(4, 5, 6, 7, 8, 9)], id="overlap"),
+    ],
+)
+def test_groups_that_do_not_partition_the_board_raise(groups: list[int]) -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_grouped(("R1C1", "R2C2", "R3C3"), groups),),
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        verdict(puzzle)
+
+
+def test_a_multi_slot_schrodinger_cell_on_the_grouped_line_raises() -> None:
+    # Grouped-line is window-structured, the same posture as palindrome: a
+    # Schrödinger-widened path cell has no defined single-window fold, so it
+    # refuses loud (via `sole`, engine.py) rather than guess one.
+    board = Board(size=4, values=range(5))
+    groups = [_mask(0, 1), _mask(2, 3, 4)]
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            _grouped(("R1C1", "R2C2", "R3C3"), groups),
         ),
     )
 

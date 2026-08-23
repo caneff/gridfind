@@ -37,7 +37,16 @@ each cell must fold to one real digit before the mirror pairing runs, so
 unlike renban's set-structured pooling a Schrödinger-widened cell has no
 defined fold — `_single_real_digits` raises through `sole` (`engine.py`)
 rather than guess one. This is the shared position-structured Schrödinger
-raise grouped-line (#682) reuses.
+raise grouped-line reuses.
+
+Grouped-line is the third digit-mode row, and the second position/window-
+structured one (reusing `_single_real_digits`, hence palindrome's same raise
+on a Schrödinger-widened path cell): `params["groups"]` names digit-bitmask
+groups partitioning the board, and every window of `len(groups)` consecutive
+path cells holds one digit from each group — the one rule entropic, modular,
+and parity all ride, keyed only by which groups they name. A partition with a
+gap or overlap raises `MalformedPuzzleError` at emit, where the board's own
+digit domain is in scope.
 """
 
 from __future__ import annotations
@@ -49,7 +58,7 @@ from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, sole
+from gridfind.engine import Engine, MalformedPuzzleError, sole
 from gridfind.layers._base import abs_diff_var, emit_over_pairs
 from gridfind.puzzle import JsonValue
 
@@ -152,10 +161,77 @@ def _palindrome(
         engine.model.add(digits[i] == digits[-1 - i])
 
 
+def _validate_partition(groups: list[int], board_values: range) -> None:
+    """`groups` (each a digit bitmask, bit `d` set meaning digit `d` is a
+    member) must partition the board's own digits — no digit left uncovered
+    (a gap) and no digit claimed by two groups (an overlap). Checked here,
+    against `engine.board`, rather than at decode: the board's digit domain
+    is not in scope at decode time, and a malformed partition is a puzzle-wide
+    fact, not a per-wire-block one."""
+    domain_mask = 0
+    for value in board_values:
+        domain_mask |= 1 << value
+    union = 0
+    overlap = 0
+    for mask in groups:
+        overlap |= union & mask
+        union |= mask
+    if union != domain_mask or overlap:
+        msg = (
+            f"grouped-line groups {groups!r} do not partition the board's "
+            f"digits {list(board_values)!r} — check for a gap or overlap"
+        )
+        raise MalformedPuzzleError(msg)
+
+
+def _grouped(
+    engine: Engine,
+    sequence: DigitSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Entropic / modular / parity, one rule: `params["groups"]` names `G`
+    digit-bitmask groups partitioning the board (`_validate_partition`), and
+    every window of `G` consecutive path cells holds one digit from each
+    group — the line cycles the partition.
+
+    Window-structured like palindrome's mirror pairing, so it shares
+    palindrome's Schrödinger raise: each path cell folds to its one real
+    digit via `_single_real_digits` before windowing, refusing loud on a
+    multi-slot cell rather than guess which slot the window would mean.
+
+    Each digit is mapped to its group index through a table constraint (the
+    `(digit, group_index)` pairs the partition names), then each window's `G`
+    group-index vars are pinned all-different — with exactly `G` slots over a
+    `0..G-1` domain, all-different already forces a bijection, i.e. every
+    group hit exactly once, with no separate "exactly one" bookkeeping
+    needed.
+    """
+    groups = cast("list[int]", params["groups"])
+    _validate_partition(groups, engine.board.values)
+
+    digits = _single_real_digits(sequence)
+    group_count = len(groups)
+    table = [
+        (value, group_index)
+        for group_index, mask in enumerate(groups)
+        for value in engine.board.values
+        if mask & (1 << value)
+    ]
+    group_of = [
+        engine.model.new_int_var(0, group_count - 1, f"{digit.name}.group")
+        for digit in digits
+    ]
+    for digit, group in zip(digits, group_of, strict=True):
+        engine.model.add_allowed_assignments([digit, group], table)
+    for start in range(len(digits) - group_count + 1):
+        engine.model.add_all_different(group_of[start : start + group_count])
+
+
 LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "whisper": ("value", _whisper),
     "renban": ("digit", _renban),
     "palindrome": ("digit", _palindrome),
+    "grouped": ("digit", _grouped),
 }
 
 
