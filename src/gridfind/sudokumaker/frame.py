@@ -60,16 +60,11 @@ from gridfind.sudokumaker.addresses import index_to_address
 from gridfind.sudokumaker.boundary import as_int
 from gridfind.sudokumaker.dropped import constraint_name
 from gridfind.sudokumaker.edge_clues import KROPKI_PAIR_BUILDERS, edge_to_pair
+from gridfind.sudokumaker.naming import named_component
 from gridfind.sudokumaker.wire_types import CUSTOM_CONSTRAINT_TYPE
 
 _GIVENS_TYPE = 0
 _REGIONS_TYPE = 1
-
-# `definition.name`, normalized (case-insensitive, trimmed — the same
-# normalization `naming._normalize_component_name` uses for the other
-# name-bearing carriers), that selects the Numbered Rooms decode below out of
-# every other `type 1000` custom constraint (`Postproc`, `Somedoku`, ...).
-_NUMBERED_ROOMS_NAME = "numbered rooms"
 
 
 def _enabled_raw_blocks(puzzle_data: dict[str, Any]) -> Iterator[dict[str, Any]]:
@@ -188,13 +183,15 @@ def _border_kropki_constraints(
 
 def _is_numbered_rooms_block(block: dict[str, Any]) -> bool:
     """True when `block` is a `type 1000` custom constraint whose declared
-    `definition.name` (`dropped.constraint_name`) is `Numbered Rooms`,
-    case-insensitive and trimmed — the same normalization every other
-    name-bearing carrier in the package reads by."""
+    `definition.name` (`dropped.constraint_name`) names the `Numbered Rooms`
+    component — recognized through the one shared registry lookup
+    (`naming.named_component`, the `"numbered-rooms"` role), the same seam
+    `global_flags.has_somedoku_component` reads its own name by, never a
+    second private name check."""
     if block.get("type") != CUSTOM_CONSTRAINT_TYPE:
         return False
-    name = constraint_name(block)
-    return isinstance(name, str) and name.strip().lower() == _NUMBERED_ROOMS_NAME
+    component = named_component(constraint_name(block))
+    return component is not None and component.role == "numbered-rooms"
 
 
 def _numbered_rooms_group_addresses(

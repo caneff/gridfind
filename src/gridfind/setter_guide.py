@@ -299,6 +299,16 @@ _CAGE_NAME_GROUPS: tuple[tuple[str, frozenset[str], str, str], ...] = (
         ),
         "found-somedoku-4x4",
     ),
+    (
+        "numbered rooms",
+        MARKER_LABELS["numbered-rooms"],
+        (
+            "Escape-the-grid clue on a type 1000 custom constraint: each "
+            "outside cell holds the digit its row/column's near-to-far line "
+            "holds at the position the near cell's own digit names"
+        ),
+        "found-numbered-rooms-6x6",
+    ),
 )
 
 

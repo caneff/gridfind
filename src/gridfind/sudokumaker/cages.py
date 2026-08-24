@@ -159,11 +159,14 @@ class _CosmeticCageDecode:
 
 def _warn_dropped_cosmetic_cage(block: dict[str, Any], kind: Role) -> None:
     """Warn to stderr that a live `type 2001` block carries no rule: `kind` is
-    `"unnamed"` (absent/blank name) or `"unrecognized"` (a name the registry
+    `"unnamed"` (absent/blank name), `"unrecognized"` (a name the registry
     doesn't answer for — a bare `Constant` with no parseable integer lands
-    here too, ADR-0016) — either way only a recognized name selects a rule
-    (ADR-0012), so the verdict is computed without this block. Named after
-    the case so the message tells the setter which one they hit."""
+    here too, ADR-0016), or `"numbered-rooms"` (a recognized global-flag name
+    whose escape-the-grid clue is not a cosmetic-cage rule, so a cage carrier
+    naming it selects nothing) — either way only a recognized cage name selects
+    a rule (ADR-0012), so the verdict is computed without this block. The
+    unnamed case gets its own message; every other kind is named by its
+    `name` so the message tells the setter which one they hit."""
     if kind == "unnamed":
         msg = "warning: ignoring unnamed cosmetic cage — verdict computed without it"
     else:
@@ -270,7 +273,11 @@ def _decode_cosmetic_block(
     only a recognized name selects one. A non-empty one is dropped with a loud
     stderr warning naming the block or its unrecognized name; an empty one
     adds nothing and warns nothing, the same as any other empty block."""
-    if kind in ("unnamed", "unrecognized"):
+    if kind in ("unnamed", "unrecognized", "numbered-rooms"):
+        # `numbered-rooms` is a `type 1000` escape-the-grid clue (`frame`),
+        # never a cosmetic-cage rule — a `type 2001` carrier naming it selects
+        # no cage, so it drops loud like an unrecognized name rather than
+        # falling through to the killer-cage default below.
         if cages:
             _warn_dropped_cosmetic_cage(block, kind)
         return _CosmeticCageDecode(), None

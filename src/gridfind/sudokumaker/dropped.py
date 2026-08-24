@@ -45,11 +45,12 @@ def warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
     so it is not part of
     the puzzle even for a type gridfind knows how to decode. A remaining
     enabled unmodeled constraint whose `definition.name` names a `global-flag`
-    component (`naming.named_component`) — `Somedoku`, so
-    far — passes through untouched regardless of its own payload: the
+    component (`naming.named_component`) — `Somedoku` or `Numbered
+    Rooms` — passes through untouched regardless of its own payload: the
     component needs no cells, so it is never a misplaced declaration, and it
-    is recognized and decoded elsewhere (`global_flags.has_somedoku_component`),
-    not dropped. One naming a cage-selector/cell-marker component
+    is recognized and decoded elsewhere (`global_flags.has_somedoku_component`
+    for Somedoku, `frame` for Numbered Rooms), not dropped. One naming a
+    cage-selector/cell-marker component
     instead, whose shape needs a cage's cells the constraint doesn't carry
     (`_carrier_supplies_cage_cells`), is a misplaced declaration — dropped
     loudly, naming the component, regardless of whether its own payload would

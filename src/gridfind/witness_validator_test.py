@@ -4,6 +4,7 @@ row fails — proving the validator actually checks rather than just parsing.
 Extended to a Schrödinger board to pin the S-cell pair `{a b}` branch of the
 permutation check the same way."""
 
+import dataclasses
 import json
 import re
 
@@ -177,3 +178,37 @@ def test_validate_witness_rejects_a_cell_line_carrying_an_extra_token() -> None:
     drifted = "\n".join(lines)
 
     assert validate_witness(drifted, puzzle) is False
+
+
+def test_validate_witness_accepts_a_grid_inside_an_outside_ring() -> None:
+    # An escape-the-grid witness renders the solved outside cells as a ring
+    # around the bordered inner grid (Witness._wrap_in_ring). The validator
+    # peels that ring and checks the inner grid against the inner puzzle —
+    # the same puzzle link_to_puzzle returns for a framed link — so a legal
+    # completion still validates with the ring present.
+    puzzle, state = _build(FOUND_4X4_DOC)
+    result = verdict(puzzle, state)
+    assert result.witness is not None
+
+    framed = dataclasses.replace(
+        result.witness,
+        assignment={**result.witness.assignment, "R0C1": (1,)},
+    )
+
+    assert validate_witness(framed.render(), puzzle) is True
+
+
+def test_validate_witness_rejects_a_bad_inner_grid_inside_an_outside_ring() -> None:
+    # Peeling the ring must not blind the validator to the inner grid: a
+    # duplicate punched into row 1 is still caught with the ring present,
+    # exactly as it is without one.
+    puzzle, state = _build(FOUND_4X4_DOC)
+    result = verdict(puzzle, state)
+    assert result.witness is not None
+
+    first_row = result.witness.grid[0]
+    corrupted = dict(result.witness.assignment)
+    corrupted[first_row[1]] = corrupted[first_row[0]]
+    framed = dataclasses.replace(result.witness, assignment={**corrupted, "R0C1": (1,)})
+
+    assert validate_witness(framed.render(), puzzle) is False

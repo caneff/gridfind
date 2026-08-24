@@ -78,6 +78,20 @@ def test_somedoku_is_a_global_flag() -> None:
     assert component.value is None
 
 
+def test_numbered_rooms_is_a_global_flag() -> None:
+    # The `Numbered Rooms` type-1000 clue is recognized through the same
+    # shared registry lookup as every other named carrier, so
+    # `frame.py`'s escape-the-grid decoder reads it via `named_component`
+    # rather than a second, private name check. Its shape is `global-flag`:
+    # like Somedoku it carries no cage cells, so carrier-fitness admits it
+    # on a type-1000 carrier untouched.
+    component = named_component("Numbered Rooms")
+    assert component is not None
+    assert component.role == "numbered-rooms"
+    assert component.shape == "global-flag"
+    assert component.value is None
+
+
 def test_nullifier_is_the_k_0_spelling_of_constant() -> None:
     component = named_component("Nullifier")
     assert component is not None
@@ -221,12 +235,22 @@ def test_marker_labels_covers_every_role() -> None:
         "s-cell",
         "constant",
         "somedoku",
+        "numbered-rooms",
     }
 
 
 @pytest.mark.parametrize(
     "role",
-    ["killer", "equality", "rellik", "doubler", "s-cell", "constant", "somedoku"],
+    [
+        "killer",
+        "equality",
+        "rellik",
+        "doubler",
+        "s-cell",
+        "constant",
+        "somedoku",
+        "numbered-rooms",
+    ],
 )
 def test_marker_labels_every_listed_name_classifies_to_its_role(role: str) -> None:
     # Every name MARKER_LABELS lists under a role must classify to that role

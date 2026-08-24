@@ -31,7 +31,7 @@ from typing import Literal
 _Shape = Literal["cage-selector", "cell-marker", "global-flag"]
 
 # The one role enum a `type 2001` cosmetic cage's `name` sorts into
-# (`classify`): the seven named roles a `_NamedComponent` carries, plus
+# (`classify`): the eight named roles a `_NamedComponent` carries, plus
 # `"unnamed"` (absent/blank name) and `"unrecognized"` (a name the registry
 # doesn't answer for), which `classify` alone produces — no real component
 # ever carries either.
@@ -44,6 +44,7 @@ Role = Literal[
     "s-cell",
     "constant",
     "somedoku",
+    "numbered-rooms",
     "unrecognized",
 ]
 
@@ -72,7 +73,7 @@ class _NamedComponent:
     and `value` is the integer a `"constant"` role carries (`k`, read from
     the name itself — `Constant <N>`/`Nullifier`) — `None` for every other
     role, which needs no payload of its own. `role` is typed `Role` for reuse
-    across the module, but a real component only ever holds one of the seven
+    across the module, but a real component only ever holds one of the eight
     named values — never `"unnamed"`/`"unrecognized"`, which `classify`
     alone produces."""
 
@@ -91,8 +92,11 @@ class _NamedComponent:
 # `S-cell`/`Schrödinger`/`Schrodinger` share `"s-cell"`: the umlaut spelling
 # and its ASCII fold are the same marker. `Nullifier` is the static `k = 0`
 # spelling of `"constant"`; `Constant <N>` at any other `k` is not a static key
-# here — see `_parsed_constant_component`. `Somedoku` is the sole `global-flag`
-# name: its own role, needing no payload.
+# here — see `_parsed_constant_component`. `Somedoku` and `Numbered Rooms` are
+# the two `global-flag` names, each its own role: the name alone is admitted on
+# a type-1000 carrier that has no cage cells, and the rule it selects is
+# decoded elsewhere — `line-count-distinct` for Somedoku (`global_flags`),
+# the escape-the-grid `numbered-rooms` clue for Numbered Rooms (`frame`).
 _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "sum": _NamedComponent(role="killer", shape="cage-selector"),
     "killer": _NamedComponent(role="killer", shape="cage-selector"),
@@ -105,6 +109,7 @@ _NAME_REGISTRY: dict[str, _NamedComponent] = {
     "schrodinger": _NamedComponent(role="s-cell", shape="cell-marker"),
     "nullifier": _NamedComponent(role="constant", shape="cell-marker", value=0),
     "somedoku": _NamedComponent(role="somedoku", shape="global-flag"),
+    "numbered rooms": _NamedComponent(role="numbered-rooms", shape="global-flag"),
 }
 
 # `Constant <N>`, case/whitespace-normalized: a leading `constant` token, one
@@ -154,7 +159,7 @@ def named_component(name: object) -> _NamedComponent | None:
 
 def classify(name: object) -> Role:
     """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
-    ADR-0016 and ADR-0018) into one of nine kinds: `"unnamed"`
+    ADR-0016 and ADR-0018) into one of ten kinds: `"unnamed"`
     (absent/blank — a purely decorative block that carries no rule),
     `"killer"` (a recognized `Sum`/`Killer` label that selects the
     killer-cage rule), `"equality"` (a recognized `Equality` label that
@@ -164,7 +169,9 @@ def classify(name: object) -> Role:
     `"s-cell"` (an `S-cell`/`Schrödinger` position marker), `"constant"` (a
     `Constant <N>`/`Nullifier` position marker whose `k` is read from the name
     itself), `"somedoku"` (the payload-less `Somedoku` global flag — cells and
-    value ignored), or `"unrecognized"` (a name `link_to_puzzle` cannot answer
+    value ignored), `"numbered-rooms"` (the `Numbered Rooms` global-flag name,
+    whose escape-the-grid clue `frame` decodes from the block's own `input`,
+    never a cage), or `"unrecognized"` (a name `link_to_puzzle` cannot answer
     for — a bare `Constant` with no parseable integer lands here too, never
     silently `k = 0`). `"unnamed"` and `"unrecognized"` share the same fate
     downstream — a loud stderr warn-drop, never a rule (ADR-0012) — but stay
