@@ -44,7 +44,7 @@ def test_inert_unmodeled_constraints_decode_quietly(
                 *WIRE_CONSTRAINTS,
                 {"type": 250, "clues": []},
                 {"type": 2000, "lines": [[0, 1]]},
-                {"type": 303, "input": {"groups": [{"cells": []}]}},
+                {"type": 302, "input": {"groups": [{"cells": []}]}},
             ],
         }
     )

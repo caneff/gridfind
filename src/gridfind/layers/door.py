@@ -19,6 +19,7 @@ from typing import cast
 from gridfind.engine import GridfindError, Layer, MalformedPuzzleError
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
+from gridfind.layers.clone import Clone
 from gridfind.layers.constant_modifier import ConstantModifier
 from gridfind.layers.distinct import (
     DistinctOverGroups,
@@ -34,6 +35,7 @@ from gridfind.layers.doubler import Doubler
 from gridfind.layers.equality_cage import EqualityCage
 from gridfind.layers.group_sum import GroupSum
 from gridfind.layers.indexing import Indexing
+from gridfind.layers.line import Line
 from gridfind.layers.line_count import LineCountDistinct
 from gridfind.layers.numbered_rooms import NumberedRooms
 from gridfind.layers.offset_adjacency import (
@@ -46,6 +48,7 @@ from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.parity import Parity
+from gridfind.layers.quadruple import Quadruple
 from gridfind.layers.regions import region_map_for_constraints
 from gridfind.layers.rellik_cage import RellikCage
 from gridfind.layers.s_blind import refuse_s_blind_over_widening
@@ -79,9 +82,12 @@ LAYER_REGISTRY = {
     "rellik-cage": RellikCage(),
     "equality-cage": EqualityCage(),
     "thermo": Thermo(),
+    "line": Line(),
     "indexing": Indexing(),
     "parity": Parity(),
     "numbered-rooms": NumberedRooms(),
+    "quadruple": Quadruple(),
+    "clone": Clone(),
 }
 
 # Two mechanisms expand a constraint at load, and they

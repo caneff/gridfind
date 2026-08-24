@@ -14,11 +14,28 @@ from typing import Any, cast
 from gridfind.sudokumaker.naming import named_component, shape_needs_cells
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
+# `lines` is the one registered live-data key deliberately excluded from the
+# union below. SudokuMaker reuses that field name for two unrelated wire
+# shapes: the native line-clue family's own cell-index path (`whisper` and
+# its eight registered siblings, spec #672) and `type 2000`'s cosmetic
+# freehand outline (a list of pixel-coordinate points, `frame.py`) — a
+# `lines` list on some other, still-unmodeled type is therefore never
+# reliable evidence of a real rule the way `clues`/`negative`/`cages`
+# genuinely are. A registered line-family type's own liveness is unaffected:
+# `has_live_data` checks a *registered* type's own `live_keys` directly,
+# before ever falling back to this generic, cross-type set.
+_AMBIGUOUS_GENERIC_KEYS = frozenset({"lines"})
+
 # The union of every registered type's live-data keys, order-preserved and
 # deduped — `has_live_data` checks these instead of a hand-copied list that
-# happened to match what the decoders in `registry` read.
-_LIVE_LIST_KEYS: tuple[str, ...] = tuple(
-    dict.fromkeys(key for entry in DECODER_REGISTRY.values() for key in entry.live_keys)
+# happened to match what the decoders in `registry` read, for a constraint
+# whose own type is not itself registered.
+_GENERIC_LIVE_KEYS: tuple[str, ...] = tuple(
+    key
+    for key in dict.fromkeys(
+        key for entry in DECODER_REGISTRY.values() for key in entry.live_keys
+    )
+    if key not in _AMBIGUOUS_GENERIC_KEYS
 )
 
 
@@ -104,9 +121,13 @@ def has_live_data(constraint: dict[str, Any]) -> bool:
     toggle (anti-knight, anti-king, a diagonal — the type's own row in
     `DECODER_REGISTRY` marks `is_toggle`, so its bare enabled presence reads as
     live with no hand-kept type list to drift from that flag); a non-empty
-    list under one of `DECODER_REGISTRY`'s `live_keys` (`clues`/`negative`/
-    `cages`); or a group holding real cells under `input.groups`. Empty
-    payloads and cosmetic-only `lines` are inert.
+    list under one of its own `live_keys` when the type is registered
+    (`DECODER_REGISTRY`'s per-type contract — thermo's `thermometers`,
+    whisper's `lines`), else under the cross-type generic set (`clues`/
+    `negative`/`cages`) for a constraint whose type isn't registered at all;
+    or a group holding real cells under `input.groups`. Empty payloads and a
+    still-unmodeled type's cosmetic-only `lines` (`type 2000`'s outline art,
+    the same field name the line-clue family's own path carries) are inert.
 
     `cages` is a killer-cage block's (`type 301`) payload. It is decoded now,
     so `warn_on_dropped_constraints` skips it — this entry marks
@@ -123,7 +144,8 @@ def has_live_data(constraint: dict[str, Any]) -> bool:
     entry = DECODER_REGISTRY.get(constraint.get("type"))
     if entry is not None and entry.is_toggle:
         return True
-    for key in _LIVE_LIST_KEYS:
+    keys = entry.live_keys if entry is not None else _GENERIC_LIVE_KEYS
+    for key in keys:
         value = constraint.get(key)
         if isinstance(value, list) and value:
             return True

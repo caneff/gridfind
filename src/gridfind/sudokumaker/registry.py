@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 from gridfind.sudokumaker.cages import cage_constraints, thermo_constraints
+from gridfind.sudokumaker.clone import clone_constraints
 from gridfind.sudokumaker.edge_clues import (
     black_kropki_constraints,
     kropki_constraints,
@@ -26,23 +27,36 @@ from gridfind.sudokumaker.indexing import (
     col_indexing_constraints,
     row_indexing_constraints,
 )
+from gridfind.sudokumaker.line import (
+    grouped_constraints,
+    palindrome_constraints,
+    renban_constraints,
+    whisper_constraints,
+)
 from gridfind.sudokumaker.parity import even_constraints, odd_constraints
+from gridfind.sudokumaker.quadruple import quadruple_constraints
 from gridfind.sudokumaker.regions import regions_constraints
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
+    CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
+    GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
     KROPKI_WHITE_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
     ODD_TYPE,
+    PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
+    QUADRUPLE_TYPE,
+    RENBAN_TYPE,
     THERMO_TYPE,
+    WHISPER_TYPE,
     XV_TYPE,
 )
 
@@ -145,6 +159,36 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=odd_constraints,
         live_keys=("cells",),
         name="odd",
+    ),
+    QUADRUPLE_TYPE: DecodedType(
+        handler=quadruple_constraints,
+        live_keys=("clues",),
+        name="quadruple",
+    ),
+    CLONE_TYPE: DecodedType(
+        handler=clone_constraints,
+        live_keys=(),
+        name="clone",
+    ),
+    RENBAN_TYPE: DecodedType(
+        handler=renban_constraints,
+        live_keys=("lines",),
+        name="renban",
+    ),
+    WHISPER_TYPE: DecodedType(
+        handler=whisper_constraints,
+        live_keys=("lines",),
+        name="whisper",
+    ),
+    PALINDROME_TYPE: DecodedType(
+        handler=palindrome_constraints,
+        live_keys=("lines",),
+        name="palindrome",
+    ),
+    GROUPED_TYPE: DecodedType(
+        handler=grouped_constraints,
+        live_keys=("lines",),
+        name="grouped",
     ),
     NEGATIVE_DIAGONAL_TYPE: DecodedType(
         handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),

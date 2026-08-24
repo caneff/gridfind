@@ -22,17 +22,23 @@ from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
     CAGE_TYPE,
+    CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
+    GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
     KROPKI_WHITE_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
     ODD_TYPE,
+    PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
+    QUADRUPLE_TYPE,
+    RENBAN_TYPE,
     THERMO_TYPE,
+    WHISPER_TYPE,
     XV_TYPE,
 )
 
@@ -176,6 +182,80 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; a block with no"
         " usable cells is warn-and-dropped to stderr.",
     ),
+    QUADRUPLE_TYPE: SetterDoc(
+        display_name="Quadruple",
+        wire_block="type 303 {clues:[{corner, digits}]}.",
+        decode_result="One quadruple Constraint per clue: corner resolves"
+        " to its 2x2 block's four cells; each of digits must equal at"
+        " least one of those cells' values (2·d over a doubler, combined"
+        " s_value over an S-cell, the bare digit otherwise).",
+        verdict="Accept. disabled blocks are skipped.",
+    ),
+    CLONE_TYPE: SetterDoc(
+        display_name="Clone",
+        wire_block="type 302 {input:{groups:[{cells}]}}.",
+        decode_result="One clone Constraint per group of two or more cells:"
+        " the cells of a group must hold equal digit sets — digits only, never"
+        " the modifier marking (a cloned cell does not inherit its source's"
+        " doubler/constant), read through real_digit_slots so two S-cells"
+        " compare their unordered pairs.",
+        verdict="Accept. A group with fewer than two cells, and a disabled"
+        " block, are skipped.",
+    ),
+    RENBAN_TYPE: SetterDoc(
+        display_name="Renban Line",
+        wire_block="type 400 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "renban",'
+        " order preserved; no extra block param. Every real digit slot on"
+        " the path (both of a Schrödinger cell's, gated by real_digit_slots)"
+        " must be distinct, and the run's spread must equal one less than"
+        " however many real slots the path carries — a consecutive,"
+        " non-repeating run the line enforces on its own, off any"
+        " box/region.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
+    WHISPER_TYPE: SetterDoc(
+        display_name="Whisper Line (German/Dutch)",
+        wire_block="type 401 {lines:[[cell indices, ordered], …], minDifference:int}.",
+        decode_result='One line Constraint per path, relation "whisper",'
+        " order preserved; minDifference rides onto every path in the"
+        " block. Each adjacent pair's values (2·d over a doubler, combined"
+        " s_value over an S-cell, the bare digit otherwise) must differ by"
+        " at least minDifference.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing. A block missing minDifference raises KeyError —"
+        " no invented default.",
+    ),
+    PALINDROME_TYPE: SetterDoc(
+        display_name="Palindrome Line",
+        wire_block="type 402 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "palindrome",'
+        " order preserved; no extra block param. Each mirror pair"
+        " (i, n-1-i) must hold the same real digit (real_digit_slots); an"
+        " odd-length path's middle cell is free. A Schrödinger-widened path"
+        " cell has no defined mirror-pair fold and raises loud rather than"
+        " guess one.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
+    GROUPED_TYPE: SetterDoc(
+        display_name="Grouped Line (Entropic/Modular/Parity)",
+        wire_block="type 406 {lines:[[cell indices, ordered], …],"
+        " groups:[bitmask, …]} — groups rides onto every path in the block.",
+        decode_result='One line Constraint per path, relation "grouped",'
+        " order preserved; groups rides through verbatim. Every window of"
+        " len(groups) consecutive path cells (real_digit_slots, folded like"
+        " palindrome) must hold one digit from each group — entropic,"
+        " modular, and parity all ride this one rule, keyed only by which"
+        " groups they name.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing. A block missing groups raises KeyError — no"
+        " invented default. groups that leave a gap or overlap the board's"
+        " digits raise MalformedPuzzleError. A Schrödinger-widened path cell"
+        " has no defined single-window fold and raises loud rather than"
+        " guess one.",
+    ),
     NEGATIVE_DIAGONAL_TYPE: SetterDoc(
         display_name="Negative Diagonal (\\)",
         wire_block="type 10 {style?} — a bare toggle; style is cosmetic.",
@@ -225,6 +305,12 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "col-indexing": "found-indexing-col-4x4",
     "even": "found-even-4x4",
     "odd": "found-odd-4x4",
+    "quadruple": "found-quadruple-4x4",
+    "clone": "found-clone-4x4",
+    "renban": "found-renban-4x4",
+    "whisper": "found-whisper-4x4",
+    "palindrome": "found-palindrome-4x4",
+    "grouped": "found-grouped-entropic-9x9",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",

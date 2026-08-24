@@ -98,6 +98,75 @@ CUSTOM_CONSTRAINT_TYPE = 1000
 # 305` blocks, folded together at `layers.door`).
 EXTRA_REGION_TYPE = 305
 
+# type 302 is a clone block: `{input: {groups: [{cells: [...]}]}}` — the
+# nested `input.groups` wire shape SudokuMaker's custom-constraint tool writes,
+# the same shape `dropped.has_live_data` already reads to tell a populated clone
+# block from an inert one. Each group's cells must hold equal digit *sets* —
+# digits only, never the modifier marking (a cloned cell does not inherit its
+# source's doubler/constant) — read digit mode through `Engine.real_digit_slots`
+# (ADR-0019 dec 4/6) so the sentinel filling a singleton's second slot is never
+# compared. No real `type 302` link was committed to ground-truth the wire shape;
+# it is taken from the in-repo `has_live_data` reader, a one-function swap if a
+# real link corrects it — the same posture 303's `corner_to_quad` records.
+CLONE_TYPE = 302
+
+# type 303 is a quadruple-clue block: `{clues: [{corner, digits}]}`. Each
+# `corner` names a 2x2 block (`quadruple.corner_to_quad`); each of its
+# `digits` must equal at least one of those four cells' values
+# (`Engine.value_expr`, ADR-0009) — `2·d` over a doubler, combined `s_value`
+# over an S-cell, the bare digit otherwise — read value mode like even/odd.
+QUADRUPLE_TYPE = 303
+
+# type 400 is a renban line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "renban"` and
+# the path's addresses — no extra block param; renban's distinctness-and-span
+# rule needs nothing beyond the path. This is the first **digit-mode**
+# relation of the nine-relation line-clue family (spec #672): the `Line`
+# layer reads it through `Engine.real_digit_slots` rather than `value_expr`,
+# so a Schrödinger cell on the line contributes both its digits to the run.
+RENBAN_TYPE = 400
+
+# type 401 is a whisper line: `{lines: [[cell indices, ordered], …],
+# minDifference: int}`. Each path becomes its own `line` Constraint carrying
+# `relation: "whisper"` and the path's addresses; `minDifference` (German 5,
+# Dutch 4, or any setter-chosen threshold) rides through onto every path in
+# the block, read at the `Line` layer, not defaulted here — a block missing
+# it is a malformed whisper clue, not a "no minimum" one. This is the first
+# wire type of the nine-relation line-clue family (spec #672); every other
+# relation (renban 400, palindrome 402, between 403, region-sum 404, sequence
+# 405, grouped-line 406, lockout 407, double-arrow 409) shares the same
+# `lines`-path wire shape and decodes to the same `Constraint("line", ...)`
+# shape through its own `DECODER_REGISTRY` row.
+WHISPER_TYPE = 401
+
+# type 402 is a palindrome line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "palindrome"` and
+# the path's addresses — no extra block param; palindrome's mirror-pair rule
+# needs nothing beyond the path. This is the second digit-mode relation of the
+# nine-relation line-clue family (spec #672), and the first
+# **position-structured** one: unlike renban's set-structured pooling, a
+# Schrödinger-widened cell on the path has no defined mirror-pair fold, so the
+# `Line` layer refuses loud rather than guess one.
+PALINDROME_TYPE = 402
+
+# type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
+# indices, ordered], …], groups: [bitmask, …]}`. Each path becomes its own
+# `line` Constraint carrying `relation: "grouped"` and the path's addresses;
+# `groups` rides through onto every path in the block verbatim, read at the
+# `Line` layer, not defaulted here — a block missing it is a malformed
+# grouped-line clue, not a "no groups" one. The third digit-mode relation of
+# the nine-relation line-clue family (spec #672), and — like palindrome — a
+# position/window-structured one: a Schrödinger-widened path cell has no
+# defined single-window fold, so the `Line` layer refuses loud through the
+# same `sole`-backed raise palindrome stood up, rather than guess one. No real
+# `type 406` link was available to ground-truth the wire shape (the same gap
+# clone's `type 302` and quadruple's `corner_to_quad` document); `groups` is
+# taken to already be a list of digit bitmasks on the wire — SudokuMaker's own
+# bitmask convention for a digit set (`sudokumaker.cells._write_s_cell`'s
+# `candidates` field) — a one-function swap in `grouped_constraints` if a real
+# link corrects it.
+GROUPED_TYPE = 406
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's

@@ -245,6 +245,12 @@ _GOLDEN_REPORTS = {
     "broke-extra-region-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: broke"
     ),
+    "broke-grouped-entropic-9x9": (
+        "9x9 · 81 cells · 3 givens · types {0,1,406} · active: 406 · verdict: broke"
+    ),
+    "broke-grouped-parity-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,406} · active: 406 · verdict: broke"
+    ),
     "broke-indexing-col-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,601} · active: 601 · verdict: broke"
     ),
@@ -287,8 +293,24 @@ _GOLDEN_REPORTS = {
     "broke-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: broke"
     ),
+    "broke-clone-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,302} · active: 302 · verdict: broke"
+    ),
+    "broke-clone-scell-4x4": (
+        "4x4 · 16 cells · 0 givens · types {0,1,302,2001} · active: 2001, 302 ·"
+        " verdict: broke"
+    ),
+    "broke-palindrome-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,402} · active: 402 · verdict: broke"
+    ),
+    "broke-quadruple-4x4": (
+        "4x4 · 16 cells · 4 givens · types {0,1,303} · active: 303 · verdict: broke"
+    ),
     "broke-rellik-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
+    ),
+    "broke-renban-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,400} · active: 400 · verdict: broke"
     ),
     "broke-scell-caged-value-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001 · verdict: broke"
@@ -309,6 +331,9 @@ _GOLDEN_REPORTS = {
     "broke-thermo-doubler-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,300,2001} ·"
         " active: 300, 2001 · verdict: broke"
+    ),
+    "broke-whisper-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,401} · active: 401 · verdict: broke"
     ),
     "broke-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"
@@ -366,6 +391,12 @@ _GOLDEN_REPORTS = {
     "found-extra-region-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: found"
     ),
+    "found-grouped-entropic-9x9": (
+        "9x9 · 81 cells · 3 givens · types {0,1,406} · active: 406 · verdict: found"
+    ),
+    "found-grouped-parity-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,406} · active: 406 · verdict: found"
+    ),
     "found-indexing-col-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,601} · active: 601 · verdict: found"
     ),
@@ -401,11 +432,23 @@ _GOLDEN_REPORTS = {
     "found-odd-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,101} · active: 101 · verdict: found"
     ),
+    "found-palindrome-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,402} · active: 402 · verdict: found"
+    ),
     "found-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"
     ),
+    "found-clone-4x4": (
+        "4x4 · 16 cells · 1 given · types {0,1,302} · active: 302 · verdict: found"
+    ),
+    "found-quadruple-4x4": (
+        "4x4 · 16 cells · 1 given · types {0,1,303} · active: 303 · verdict: found"
+    ),
     "found-rellik-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
+    ),
+    "found-renban-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,400} · active: 400 · verdict: found"
     ),
     "found-scell-bare-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
@@ -435,6 +478,9 @@ _GOLDEN_REPORTS = {
     "found-thermo-doubler-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,300,2001} ·"
         " active: 300, 2001 · verdict: found"
+    ),
+    "found-whisper-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,401} · active: 401 · verdict: found"
     ),
     "found-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"
