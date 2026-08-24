@@ -37,6 +37,7 @@ from gridfind.layers.group_sum import GroupSum
 from gridfind.layers.indexing import Indexing
 from gridfind.layers.line import Line
 from gridfind.layers.line_count import LineCountDistinct
+from gridfind.layers.numbered_rooms import NumberedRooms
 from gridfind.layers.offset_adjacency import (
     KING_OFFSETS,
     KNIGHT_OFFSETS,
@@ -84,6 +85,7 @@ LAYER_REGISTRY = {
     "line": Line(),
     "indexing": Indexing(),
     "parity": Parity(),
+    "numbered-rooms": NumberedRooms(),
     "quadruple": Quadruple(),
     "clone": Clone(),
 }

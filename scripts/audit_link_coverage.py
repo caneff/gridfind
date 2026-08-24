@@ -52,12 +52,11 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
     """The features one decoded puzzle exercises: the registry name of each
     non-disabled constraint, plus `cage:<kind>` for each non-disabled cosmetic
     cage. A disabled constraint is switched off, so it exercises nothing.
-    `Somedoku` (the sole `global-flag` name, naming.py) rides either
-    name-bearing carrier — a `type 2001` cosmetic cage's top-level `name`, or
-    a `type 1000` custom constraint's `definition.name`
-    (`global_flags.has_somedoku_component`) — so the second carrier is
-    checked here too, through the same `named_component` lookup, rather than
-    a hand-rolled second read of the same name."""
+    A `global-flag` name (naming.py — `Somedoku`, `Numbered Rooms`) rides a
+    `type 1000` custom constraint's `definition.name` as well as a `type 2001`
+    cosmetic cage's top-level `name`, so that second carrier is checked here
+    too, keyed on the `named_component` shape rather than a hand-rolled
+    per-name read."""
     features: set[str] = set()
     constraints: Any = payload.get("constraints") or []
     for constraint in constraints:
@@ -70,8 +69,8 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
             features.add(f"cage:{classify(constraint.get('name'))}")
         elif constraint.get("type") == CUSTOM_CONSTRAINT_TYPE:
             component = named_component(constraint_name(constraint))
-            if component is not None and component.role == "somedoku":
-                features.add("cage:somedoku")
+            if component is not None and component.shape == "global-flag":
+                features.add(f"cage:{component.role}")
     return features
 
 

@@ -18,6 +18,7 @@ from typing import cast
 import pytest
 
 from gridfind import cli
+from gridfind.cell_geometry import row_col_to_index
 from gridfind.puzzle import Board, Constraint, Given
 from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.conftest import (
@@ -422,6 +423,121 @@ def test_cli_main_broke_when_a_border_kropki_dot_has_no_valid_partner(
     link = frame_link(
         inner_solution=_INNER_SOLUTION,
         extra_constraints=[_black_kropki(_BORDER_INNER_EDGE_AT_A_FIVE, 2)],
+    )
+
+    code = cli.main([link], io.StringIO())
+
+    assert code == 1
+    assert capsys.readouterr().out.split("\n")[0] == "broke"
+
+
+# Numbered Rooms: a `type 1000` custom constraint named `Numbered Rooms`
+# whose `input.groups` each carry one group's raw cell indices — head the
+# outside cell, tail its line ordered from the clue inward (the issue's own
+# spec for `CustomIndexComponent`). The fixture below marks the top border
+# above inner column 3: frame column 4 (`3 + 1`, the padding), frame rows
+# `1..7` (row 1 the outside cell, rows `2..7` the six inner cells).
+_NUMBERED_ROOMS_FRAME_COL = 4
+
+
+def _numbered_rooms_group(inner_col: int) -> list[int]:
+    """The raw frame-relative cell indices of the top-border Numbered Rooms
+    group above `inner_col` (1-based) on the fixture's fixed `8x8` frame:
+    the outside cell (frame row 1) followed by the six inner cells (frame
+    rows 2..7), same frame column throughout."""
+    frame_col = inner_col + 1
+    return [row_col_to_index(row, frame_col, 8) for row in range(1, 8)]
+
+
+def _numbered_rooms_block(*groups: list[int]) -> dict[str, object]:
+    return {
+        "type": 1000,
+        "definition": {"name": "Numbered Rooms"},
+        "input": {"groups": [{"cells": cells} for cells in groups]},
+    }
+
+
+def test_a_numbered_rooms_group_becomes_a_numbered_rooms_constraint() -> None:
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_numbered_rooms_block(_numbered_rooms_group(3))],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    assert (
+        Constraint(
+            "numbered-rooms",
+            params={"cells": ["R0C3", "R1C3", "R2C3", "R3C3", "R4C3", "R5C3", "R6C3"]},
+        )
+        in puzzle.constraints
+    )
+
+
+def test_a_disabled_numbered_rooms_block_decodes_to_nothing_quietly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    block = _numbered_rooms_block(_numbered_rooms_group(3))
+    block["disabled"] = True
+    link = frame_link(inner_solution=_INNER_SOLUTION, extra_constraints=[block])
+
+    puzzle, _ = link_to_puzzle(link)
+
+    assert all(c.type != "numbered-rooms" for c in puzzle.constraints)
+    assert "Numbered Rooms" not in capsys.readouterr().err
+
+
+def test_a_numbered_rooms_group_whose_head_is_not_a_border_cell_drops_with_a_warning(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A group built from frame rows 2..8 (instead of 1..7) never touches the
+    # border ring — malformed data the decode cannot read as a Numbered
+    # Rooms relation, so it warns rather than silently modeling nothing.
+    interior_only = [row_col_to_index(row, 4, 8) for row in range(2, 9)]
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_numbered_rooms_block(interior_only)],
+    )
+
+    puzzle, _ = link_to_puzzle(link)
+
+    assert all(c.type != "numbered-rooms" for c in puzzle.constraints)
+    assert "Numbered Rooms" in capsys.readouterr().err
+
+
+def test_cli_main_found_when_a_numbered_rooms_group_is_consistent(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Column 3's line, near to far (R1C3..R6C3), is [3, 6, 1, 4, 2, 5]. The
+    # near cell (3) names position 3, whose cell (R3C3) holds 1 — the
+    # outside cell R0C3 is forced to 1.
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[_numbered_rooms_block(_numbered_rooms_group(3))],
+    )
+
+    code = cli.main([link], io.StringIO())
+
+    out = capsys.readouterr().out.split("\n")
+    assert code == 0
+    assert out[0] == "found"
+    assert "1" in out[1]
+
+
+def test_cli_main_broke_when_a_numbered_rooms_group_conflicts_with_a_kropki_dot(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The Numbered Rooms group above forces R0C3 = 1 (see the found test).
+    # A black-kropki ratio-2 dot to R1C3 (given 3) instead demands R0C3 = 6
+    # (3 x 2, R0C3's only in-range ratio-2 partner) — two live rules on the
+    # one shared outside cell (CONTEXT.md, "two clues bind the one cell"),
+    # neither orphaning the other, that share no value.
+    link = frame_link(
+        inner_solution=_INNER_SOLUTION,
+        extra_constraints=[
+            _numbered_rooms_block(_numbered_rooms_group(3)),
+            _black_kropki(_BORDER_INNER_EDGE, 2),
+        ],
     )
 
     code = cli.main([link], io.StringIO())

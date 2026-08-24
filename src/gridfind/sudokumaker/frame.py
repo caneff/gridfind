@@ -37,9 +37,15 @@ the ordinary (fully-interior) kropki decode uses, over the frame's own
 padded width, then shifts the 1-indexed pair it gets back down to the padded
 outside-cell addressing.
 
-Numbered Rooms and the rest of the border clue vocabulary (XV, the cages) are
-still unmodeled and drop with the ring's other scaffolding; only a kropki dot
-is decoded here.
+Numbered Rooms — a `type 1000` custom constraint named `Numbered Rooms` — is
+decoded here too: each of its `input.groups` carries one group's raw cell
+indices, head the outside cell and tail its row/column's line ordered from
+the clue inward (`CustomIndexComponent`'s own shape), read against the
+frame's own padded width exactly as a border kropki dot is, into one
+`numbered-rooms` `Constraint` per group — `layers.numbered_rooms` reads it
+back onto the shared element/indexing seam (ADR-0019). The rest of the
+border clue vocabulary (XV, the cages) is still unmodeled and drops with the
+ring's other scaffolding.
 """
 
 from __future__ import annotations
@@ -50,9 +56,12 @@ from typing import Any, cast
 
 from gridfind.cell_geometry import format_address, parse_address
 from gridfind.puzzle import Constraint
+from gridfind.sudokumaker.addresses import index_to_address
 from gridfind.sudokumaker.boundary import as_int
 from gridfind.sudokumaker.dropped import constraint_name
 from gridfind.sudokumaker.edge_clues import KROPKI_PAIR_BUILDERS, edge_to_pair
+from gridfind.sudokumaker.naming import named_component
+from gridfind.sudokumaker.wire_types import CUSTOM_CONSTRAINT_TYPE
 
 _GIVENS_TYPE = 0
 _REGIONS_TYPE = 1
@@ -113,7 +122,10 @@ def peel_escape_frame(
             return None
         inner_constraints.append({"type": _REGIONS_TYPE, "regions": inner_labels})
 
-    border_constraints = tuple(_border_kropki_constraints(puzzle_data, frame, inner))
+    border_constraints = (
+        *_border_kropki_constraints(puzzle_data, frame, inner),
+        *_numbered_rooms_constraints(puzzle_data, frame, inner),
+    )
     _warn_dropped_border(puzzle_data, frame, inner)
     inner_puzzle: dict[str, object] = {
         "cells": _peel_inner(cells, frame, inner),
@@ -167,6 +179,94 @@ def _border_kropki_constraints(
                 a, b = format_address(*position_a), format_address(*position_b)
                 constraints.append(builder(clue["value"], a, b))
     return constraints
+
+
+def _is_numbered_rooms_block(block: dict[str, Any]) -> bool:
+    """True when `block` is a `type 1000` custom constraint whose declared
+    `definition.name` (`dropped.constraint_name`) names the `Numbered Rooms`
+    component — recognized through the one shared registry lookup
+    (`naming.named_component`, the `"numbered-rooms"` role), the same seam
+    `global_flags.has_somedoku_component` reads its own name by, never a
+    second private name check."""
+    if block.get("type") != CUSTOM_CONSTRAINT_TYPE:
+        return False
+    component = named_component(constraint_name(block))
+    return component is not None and component.role == "numbered-rooms"
+
+
+def _numbered_rooms_group_addresses(
+    group: dict[str, Any], frame: int
+) -> list[str] | None:
+    """A Numbered Rooms group's raw `cells` (head the outside cell, tail its
+    line ordered from the clue inward — `CustomIndexComponent`'s own shape)
+    shifted down to the padded outside-cell addressing, or `None` when the
+    group carries too few cells to name a relation at all."""
+    raw_cells = group.get("cells")
+    if not isinstance(raw_cells, list) or len(raw_cells) < 2:
+        return None
+    return [
+        format_address(*_shift(index_to_address(cast("int", index), frame)))
+        for index in raw_cells
+    ]
+
+
+def _numbered_rooms_constraints(
+    puzzle_data: dict[str, Any], frame: int, inner: int
+) -> list[Constraint]:
+    """Every `Numbered Rooms` group whose head names an outside cell, as a
+    `numbered-rooms` `Constraint` carrying `params["cells"] = [outside,
+    *line]` — the shape `layers.numbered_rooms` reads back onto the shared
+    element/indexing seam (ADR-0019). A group that decodes to too few cells,
+    or whose head does not touch the border ring, carries no rule here;
+    `_warn_dropped_numbered_rooms_remainder` accounts for it instead of
+    silently modeling nothing."""
+    constraints: list[Constraint] = []
+    for block in _enabled_raw_blocks(puzzle_data):
+        if not _is_numbered_rooms_block(block):
+            continue
+        payload = block.get("input")
+        groups = payload.get("groups") if isinstance(payload, dict) else None
+        if not isinstance(groups, list):
+            continue
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            cells = _numbered_rooms_group_addresses(group, frame)
+            if cells is None:
+                continue
+            if not _touches_border(parse_address(cells[0]), inner):
+                continue
+            constraints.append(Constraint("numbered-rooms", params={"cells": cells}))
+    return constraints
+
+
+def _warn_dropped_numbered_rooms_remainder(
+    block: dict[str, Any], frame: int, inner: int
+) -> None:
+    """Warn to stderr for every group in a Numbered Rooms block
+    `_numbered_rooms_constraints` did not decode: too few cells to name a
+    relation, or a head that is not itself an outside address — the relation
+    is defined head-outside, tail-inward, so a group failing that shape
+    carries no rule gridfind can honour."""
+    payload = block.get("input")
+    groups = payload.get("groups") if isinstance(payload, dict) else None
+    if not isinstance(groups, list):
+        return
+    dropped = 0
+    for group in groups:
+        if not isinstance(group, dict):
+            dropped += 1
+            continue
+        cells = _numbered_rooms_group_addresses(group, frame)
+        if cells is None or not _touches_border(parse_address(cells[0]), inner):
+            dropped += 1
+    if dropped:
+        print(
+            f"warning: escape-the-grid frame: dropping {dropped} Numbered "
+            "Rooms group(s) whose shape gridfind cannot read as an "
+            "outside-cell relation — verdict computed without them",
+            file=sys.stderr,
+        )
 
 
 def _frame_size(puzzle_data: dict[str, Any]) -> int | None:
@@ -243,6 +343,9 @@ def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) ->
             continue
         if kind in KROPKI_PAIR_BUILDERS:
             _warn_dropped_kropki_remainder(block, frame, inner)
+            continue
+        if _is_numbered_rooms_block(block):
+            _warn_dropped_numbered_rooms_remainder(block, frame, inner)
             continue
         name = constraint_name(block) or block.get("name")
         named = f" {name!r}" if isinstance(name, str) else ""

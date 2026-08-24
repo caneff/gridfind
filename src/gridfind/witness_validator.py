@@ -109,8 +109,13 @@ def _parse_grid(rendered: str, size: int) -> list[list[Cell]] | None:
     so its two digits are never mistaken for two separate cells. `None` when
     the text doesn't have that many lines, or a cell line doesn't hold
     exactly `size` cell tokens — a shape mismatch, including a `render()`
-    layout drift from this contract, is a validation failure, not a crash."""
-    lines = [line for line in rendered.split("\n") if line]
+    layout drift from this contract, is a validation failure, not a crash.
+
+    An escape-the-grid witness prints an outside ring around the bordered
+    grid (`witness.Witness._wrap_in_ring`); `_strip_outside_ring` peels it
+    back to the inner block first, so the parse below reads the same
+    `size`x`size` grid whether or not the puzzle carried outside cells."""
+    lines = [line for line in _strip_outside_ring(rendered).split("\n") if line]
     if len(lines) != grid_text.line_count(size):
         return None
     grid = []
@@ -124,6 +129,36 @@ def _parse_grid(rendered: str, size: int) -> list[list[Cell]] | None:
             return None
         grid.append(cells)
     return grid
+
+
+def _strip_outside_ring(rendered: str) -> str:
+    """The inner bordered grid alone, with any escape-the-grid outside ring
+    peeled off. `witness.Witness._wrap_in_ring` draws that ring one line and
+    column beyond the box `render()` already drew, so the inner block is the
+    rectangle bounded by the outer box corners the render's junctions always
+    lay down — `┌` top-left through `┘` bottom-right. Slicing to that rectangle
+    drops the top/bottom ring rows and the left/right ring margins in one step,
+    and is a no-op on a plain witness whose `┌` already sits at column 0 with
+    no ring around it. A render with no box at all (no corner to find) is
+    returned unchanged, to fail the size parse below as the shape mismatch it
+    is rather than here."""
+    lines = rendered.split("\n")
+    top = next((index for index, line in enumerate(lines) if "┌" in line), None)
+    bottom = next(
+        (index for index in range(len(lines) - 1, -1, -1) if "┘" in lines[index]),
+        None,
+    )
+    if top is None or bottom is None:
+        return rendered
+    left = lines[top].index("┌")
+    right = lines[top].index("┐") + 1
+    # A plain (unframed) witness sits flush: its box top-left is line 0,
+    # column 0, with no ring around it. Leave it untouched so the strict parse
+    # below still catches a drifted extra token past the right border — only a
+    # real ring (box pushed inward by a margin, or a row above it) is peeled.
+    if top == 0 and left == 0:
+        return rendered
+    return "\n".join(line[left:right] for line in lines[top : bottom + 1])
 
 
 def _regions(
