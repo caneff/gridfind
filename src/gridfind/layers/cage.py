@@ -13,8 +13,9 @@ the default:
 
 - A **digits-distinct** cage forbids two cells holding the same *digit* — the
   classic killer rule, over the placed symbols. It reads every cell's real
-  digit slots through `Engine.real_digit_slots` (both of an S-cell's; a non-S
-  cell's `d1` sentinel is explained there, not here) into one
+  digit slots through `Engine.real_digit_values` (both of an S-cell's; a non-S
+  cell's `d1` sentinel is explained at its `real_digit_slots` base, not here)
+  into one
   `add_all_different`. With no `schrodinger` layer every cell is width 1, so
   this is the identical plain `add_all_different` `DistinctOverGroups`
   already emits.

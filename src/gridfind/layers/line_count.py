@@ -20,7 +20,7 @@ class LineCountDistinct:
     slots into the distinct-count rule, so an S-cell's two digits both count
     toward the line's total, the same as `rows-distinct`'s is_S-gated house
     rule treats them. `grid_content` resolves each slot through
-    `Engine.real_digit_slots`, so a non-S-cell's second slot drops out of the
+    `Engine.real_digit_values`, so a non-S-cell's second slot drops out of the
     count on its own with no gate here — it is not s-blind, this layer counts
     over whole content slots like `regions-distinct` does.
     """

@@ -11,7 +11,7 @@ is emitted.
 `clue.params["cells"]` may hold any number of marked cells across any number
 of clues; each is independent.
 
-Reads the placed digit (`Engine.d0`/`Engine.contents`), never `value_expr`
+Reads the placed digit (`Engine.d0`/`Engine.real_digit_values`), never `value_expr`
 (ADR-0009's digit-read exception, `CONTEXT.md`) — "digit `C` sits at the
 indexed cell" is a statement about the placed symbol, and a doubler's folded
 value would make its own match fail (`2C != C`) though `C` is plainly
@@ -33,8 +33,9 @@ coordinate to both position `a` and position `b`. Realized per marked cell
 as one implication per line position `p` and per control slot: "control
 holds `p`" ⟹ "line cell at `p` holds the coordinate" (`engine.reify_holds`
 + `add_bool_or(...).only_enforce_if(...)`, the house-rule idiom). Both sides
-read their slots through `engine.real_digit_slots`, the one place a non-S-cell's
-second slot is explained as a sentinel above every real digit — it never
+read their slots through `engine.real_digit_values`, whose `real_digit_slots`
+base is the one place a non-S-cell's second slot is explained as a sentinel
+above every real digit — it never
 matches a position or a coordinate and drops out of both sides on its own,
 no explicit `is_s` gate needed here, the same seam `line_count.py`/
 `_base.emit_house` route through.
