@@ -15,8 +15,8 @@ native `<` rather than a reified either-or or a hand-built truth table
 there is nothing a table would buy.
 
 The per-edge emission decomposes the path into consecutive pairs itself and
-applies the edge relation directly in that same loop — a two-line walk with a
-single caller earns no shared primitive of its own. `line`'s `whisper`
+applies the edge relation directly in that same loop — a walk with a single
+caller earns no shared primitive of its own. `line`'s `whisper`
 relation keeps its own pairwise walk (`emit_over_pairs` in `_base.py`) for its
 gap check.
 
