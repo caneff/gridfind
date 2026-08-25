@@ -61,10 +61,11 @@ from gridfind.sudokumaker.boundary import as_int
 from gridfind.sudokumaker.dropped import constraint_name
 from gridfind.sudokumaker.edge_clues import KROPKI_PAIR_BUILDERS, edge_to_pair
 from gridfind.sudokumaker.naming import named_component
-from gridfind.sudokumaker.wire_types import CUSTOM_CONSTRAINT_TYPE
-
-_GIVENS_TYPE = 0
-_REGIONS_TYPE = 1
+from gridfind.sudokumaker.wire_types import (
+    CUSTOM_CONSTRAINT_TYPE,
+    GIVENS_TYPE,
+    REGIONS_TYPE,
+)
 
 
 def _enabled_raw_blocks(puzzle_data: dict[str, Any]) -> Iterator[dict[str, Any]]:
@@ -109,7 +110,7 @@ def peel_escape_frame(
     if not isinstance(cells, list) or len(cells) != frame * frame:
         return None
 
-    inner_constraints: list[dict[str, Any]] = [{"type": _GIVENS_TYPE}]
+    inner_constraints: list[dict[str, Any]] = [{"type": GIVENS_TYPE}]
     matrix = _live_region_matrix(puzzle_data, frame)
     if matrix is not None:
         inner_labels = _peel_inner(matrix, frame, inner)
@@ -120,7 +121,7 @@ def peel_escape_frame(
         # ordinary reject path rather than mis-peel a genuine custom board.
         if not set(ring_labels).isdisjoint(inner_labels):
             return None
-        inner_constraints.append({"type": _REGIONS_TYPE, "regions": inner_labels})
+        inner_constraints.append({"type": REGIONS_TYPE, "regions": inner_labels})
 
     border_constraints = (
         *_border_kropki_constraints(puzzle_data, frame, inner),
@@ -297,7 +298,7 @@ def _live_region_matrix(puzzle_data: dict[str, Any], frame: int) -> list[Any] | 
     `None` when the link carries no live region block (an inner Latin square) or
     the block's matrix is not the frame's `F * F` size."""
     for block in _enabled_raw_blocks(puzzle_data):
-        if block.get("type") != _REGIONS_TYPE:
+        if block.get("type") != REGIONS_TYPE:
             continue
         matrix = block.get("regions")
         if not isinstance(matrix, list) or len(matrix) != frame * frame:
@@ -339,7 +340,7 @@ def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) ->
     here it too is dropped puzzle content, so it warns."""
     for block in _enabled_raw_blocks(puzzle_data):
         kind = block.get("type")
-        if kind in (_GIVENS_TYPE, _REGIONS_TYPE):
+        if kind in (GIVENS_TYPE, REGIONS_TYPE):
             continue
         if kind in KROPKI_PAIR_BUILDERS:
             _warn_dropped_kropki_remainder(block, frame, inner)
