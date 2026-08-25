@@ -24,7 +24,6 @@ import pytest
 from ortools.sat.python import cp_model
 
 from gridfind.engine import (
-    Combine,
     Engine,
     MalformedPuzzleError,
     build_engine,
@@ -365,22 +364,12 @@ def test_values_distinct_cage_collides_a_doubled_s_cell_at_twice_its_s_value() -
     assert status == cp_model.INFEASIBLE
 
 
-@pytest.mark.parametrize(
-    ("combine", "infeasible"),
-    [
-        pytest.param("sum", True, id="sum-makes-2-3-equal-5"),
-        pytest.param("concat", False, id="concat-makes-2-3-equal-23"),
-    ],
-)
-def test_schrodinger_combine_rule_sets_the_s_cell_value(
-    combine: Combine, *, infeasible: bool
-) -> None:
-    # The schrodinger layer's `combine` rule decides how an S-cell's two digits
-    # read as one value — the value it reifies into the s_value channel: {2, 3}
-    # is 5 under `sum`, 23 under `concat`. Beside a singleton 5, a values-distinct
-    # cage clashes only when the S-cell also reads 5.
+def test_schrodinger_combine_rule_sets_the_s_cell_value() -> None:
+    # The schrodinger layer sums an S-cell's two digits into the s_value
+    # channel: {2, 3} is worth 5. Beside a singleton 5, a values-distinct cage
+    # clashes since the S-cell also reads 5.
     engine = build_engine(
-        [GridCells(), Schrodinger(combine=combine), Cage()],
+        [GridCells(), Schrodinger(), Cage()],
         (_cage(("R1C1", "R1C2"), distinct_over="value"),),
         board=Board(size=4, values=range(6)),
     )
@@ -394,10 +383,7 @@ def test_schrodinger_combine_rule_sets_the_s_cell_value(
 
     status = cp_model.CpSolver().solve(engine.model)
 
-    if infeasible:
-        assert status == cp_model.INFEASIBLE
-    else:
-        assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert status == cp_model.INFEASIBLE
 
 
 def test_a_values_distinct_cage_resolves_found_through_verdict() -> None:
