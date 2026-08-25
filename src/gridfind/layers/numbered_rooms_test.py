@@ -140,9 +140,9 @@ def test_numbered_rooms_reads_the_raw_digit_under_a_discovered_doubler() -> None
 def test_numbered_rooms_stacked_with_schrodinger_is_refused() -> None:
     # Every read here (`d0` on the near cell, the line, and the outside
     # cell) takes only a cell's first content slot: a widened cell's second
-    # slot would go unconstrained by this rule. `s_blind = True` makes
-    # `build_stack` refuse the combination up front rather than silently
-    # under-constrain a real S-cell.
+    # slot would go unconstrained by this rule. `build_stack` names this
+    # layer type directly and refuses the combination up front rather than
+    # silently under-constrain a real S-cell.
     constraints = (_numbered_rooms(), Constraint(type="schrodinger"))
 
     with pytest.raises(SBlindLayerError, match="numbered-rooms"):

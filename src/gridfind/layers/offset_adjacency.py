@@ -61,7 +61,6 @@ class OffsetAdjacency:
     name: str
     offsets: tuple[tuple[int, int], ...]
     depends_on: tuple[str, ...] = ("board",)
-    s_blind: bool = True
 
     def register(self, engine: Engine) -> None:
         pass

@@ -144,8 +144,8 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
     pair_relation_type: str,
 ) -> None:
     # Both kropki pair layers read `engine.value_expr`, not a cell's single
-    # content slot, so they carry no `s_blind` flag and stack freely with
-    # schrodinger — unlike anti-knight/anti-king above.
+    # content slot, so they are not s-blind and stack freely with
+    # schrodinger — unlike anti-knight above.
     constraints = (Constraint(type=pair_relation_type), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -160,7 +160,7 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
 
 def test_thermo_composes_with_a_widening_layer() -> None:
     # thermo reads engine.value_expr like the pair-relation family, so it
-    # carries no `s_blind` flag and stacks freely with schrodinger.
+    # is not s-blind and stacks freely with schrodinger.
     constraints = (Constraint(type="thermo"), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)

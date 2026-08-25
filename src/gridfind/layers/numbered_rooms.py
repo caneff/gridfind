@@ -55,7 +55,6 @@ class NumberedRooms:
 
     name: str = "numbered-rooms"
     depends_on: tuple[str, ...] = ("board", "outside-cells")
-    s_blind: bool = True
 
     def register(self, engine: Engine) -> None:
         pass
