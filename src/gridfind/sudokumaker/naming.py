@@ -157,36 +157,55 @@ def named_component(name: object) -> _NamedComponent | None:
     return _parsed_constant_component(normalized)
 
 
+def classify_component(name: object) -> tuple[Role, _NamedComponent | None]:
+    """Classify `name` (ADR-0012, extended by ADR-0016 and ADR-0018) and hand
+    back the `_NamedComponent` it resolved to alongside the `Role`, in the
+    same pass — the one call site that needs both the dispatch kind and the
+    component's own payload (the cage decoder's `Doubler`/`Constant` arm,
+    which reads `k` off the component) reads this pair instead of classifying
+    with `classify` and then calling `named_component` a second time to
+    recover what `classify` already computed and discarded.
+
+    The `Role` is one of ten kinds: `"unnamed"` (absent/blank — a purely
+    decorative block that carries no rule), `"killer"` (a recognized
+    `Sum`/`Killer` label that selects the killer-cage rule), `"equality"` (a
+    recognized `Equality` label that selects `cage` + `equality-cage`),
+    `"rellik"` (a recognized `Rellik`/`Anti` label that selects the anti-cage
+    subset-sum ban, the cage's numeric value read as the forbidden total),
+    `"doubler"` (a `Doubler` position marker), `"s-cell"` (an
+    `S-cell`/`Schrödinger` position marker), `"constant"` (a `Constant
+    <N>`/`Nullifier` position marker whose `k` is read from the name itself —
+    the returned component's `value`), `"somedoku"` (the payload-less
+    `Somedoku` global flag — cells and value ignored), `"numbered-rooms"`
+    (the `Numbered Rooms` global-flag name, whose escape-the-grid clue
+    `frame` decodes from the block's own `input`, never a cage), or
+    `"unrecognized"` (a name `link_to_puzzle` cannot answer for — a bare
+    `Constant` with no parseable integer lands here too, never silently `k =
+    0`). `"unnamed"` and `"unrecognized"` share the same fate downstream — a
+    loud stderr warn-drop, never a rule (ADR-0012) — but stay distinct kinds
+    here since the warning they produce names the block differently; both
+    pair with a `None` component, since `named_component` answers for neither.
+    Matching is case-insensitive and trimmed, via `named_component`."""
+    component = named_component(name)
+    if component is None:
+        role: Role = (
+            "unrecognized" if isinstance(name, str) and name.strip() else "unnamed"
+        )
+        return role, None
+    return component.role, component
+
+
 def classify(name: object) -> Role:
-    """Classify a `type 2001` block's top-level `name` (ADR-0012, extended by
-    ADR-0016 and ADR-0018) into one of ten kinds: `"unnamed"`
-    (absent/blank — a purely decorative block that carries no rule),
-    `"killer"` (a recognized `Sum`/`Killer` label that selects the
-    killer-cage rule), `"equality"` (a recognized `Equality` label that
-    selects `cage` + `equality-cage`), `"rellik"` (a recognized `Rellik`/`Anti`
-    label that selects the anti-cage subset-sum ban, the cage's numeric value
-    read as the forbidden total), `"doubler"` (a `Doubler` position marker),
-    `"s-cell"` (an `S-cell`/`Schrödinger` position marker), `"constant"` (a
-    `Constant <N>`/`Nullifier` position marker whose `k` is read from the name
-    itself), `"somedoku"` (the payload-less `Somedoku` global flag — cells and
-    value ignored), `"numbered-rooms"` (the `Numbered Rooms` global-flag name,
-    whose escape-the-grid clue `frame` decodes from the block's own `input`,
-    never a cage), or `"unrecognized"` (a name `link_to_puzzle` cannot answer
-    for — a bare `Constant` with no parseable integer lands here too, never
-    silently `k = 0`). `"unnamed"` and `"unrecognized"` share the same fate
-    downstream — a loud stderr warn-drop, never a rule (ADR-0012) — but stay
-    distinct kinds here since the warning they produce names the block
-    differently. Matching is case-insensitive and trimmed, via
-    `named_component`.
+    """The `Role` half of `classify_component` — every caller that has no use
+    for the resolved `_NamedComponent` (the cage decoder is the one that
+    does) reads this instead.
 
     This is the one home the named-cosmetic-cage reads route through — the
     cage decoder, the S-cell presence and membership channels, marker
     colorizing, and dev tools that recognize a marker block without decoding
     the whole link all switch on this kind."""
-    component = named_component(name)
-    if component is None:
-        return "unrecognized" if isinstance(name, str) and name.strip() else "unnamed"
-    return component.role
+    role, _ = classify_component(name)
+    return role
 
 
 def aliases_by_role() -> dict[str, frozenset[str]]:
