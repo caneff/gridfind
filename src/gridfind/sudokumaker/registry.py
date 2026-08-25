@@ -22,9 +22,11 @@ from gridfind.sudokumaker.edge_clues import (
     kropki_constraints,
     xv_constraints,
 )
-from gridfind.sudokumaker.extra_region import extra_region_constraints
-from gridfind.sudokumaker.indexing import (
+from gridfind.sudokumaker.flat_cells import (
     col_indexing_constraints,
+    even_constraints,
+    extra_region_constraints,
+    odd_constraints,
     row_indexing_constraints,
 )
 from gridfind.sudokumaker.line import (
@@ -33,7 +35,6 @@ from gridfind.sudokumaker.line import (
     renban_constraints,
     whisper_constraints,
 )
-from gridfind.sudokumaker.parity import even_constraints, odd_constraints
 from gridfind.sudokumaker.quadruple import quadruple_constraints
 from gridfind.sudokumaker.regions import regions_constraints
 from gridfind.sudokumaker.wire_types import (
@@ -44,6 +45,7 @@ from gridfind.sudokumaker.wire_types import (
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
+    GIVENS_TYPE,
     GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
@@ -54,6 +56,7 @@ from gridfind.sudokumaker.wire_types import (
     PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
+    REGIONS_TYPE,
     RENBAN_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
@@ -103,8 +106,10 @@ class DecodedType:
 
 
 DECODER_REGISTRY: dict[int, DecodedType] = {
-    0: DecodedType(handler=None, live_keys=(), name="givens"),
-    1: DecodedType(handler=regions_constraints, live_keys=(), name="regions"),
+    GIVENS_TYPE: DecodedType(handler=None, live_keys=(), name="givens"),
+    REGIONS_TYPE: DecodedType(
+        handler=regions_constraints, live_keys=(), name="regions"
+    ),
     KROPKI_WHITE_TYPE: DecodedType(
         handler=kropki_constraints,
         live_keys=("clues", "negative"),

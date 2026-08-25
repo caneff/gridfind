@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
-fixture exercises and regenerate the whole set with `main()`.
+fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 The document is the setter's own Somedoku template, captured verbatim in
 `somedoku_template.json` and re-encoded with each fixture's givens. A real
@@ -30,7 +30,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from _corpus import blank_cells, place_givens, regenerate
+from _corpus import blank_cells, place_givens
 
 from gridfind.sudokumaker import document_to_link
 
@@ -77,12 +77,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-somedoku-9x9": found_somedoku_9x9,
     "broke-somedoku-9x9": broke_somedoku_9x9,
 }
-
-
-def main() -> None:
-    """Regenerate every somedoku corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

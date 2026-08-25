@@ -116,7 +116,7 @@ def decode_cell(
         directive = _scell_directive_from_value(address, scell_value, domain)
         directives: tuple[SDirective, ...] = (directive,)
         if "candidates" in cell:
-            marks = frozenset(d for d in domain if cell["candidates"] & (1 << d))
+            marks = _read_candidates_bitmask(cell["candidates"], domain)
             if marks:
                 directives += (SCellMarkRestriction(address, marks),)
         if "value" in cell:
@@ -129,9 +129,17 @@ def decode_cell(
             return CellDecode(givens=(Given(address, cell["value"]),))
         return CellDecode(places=(Placement(address, cell["value"]),))
     if "candidates" in cell:
-        digits = frozenset(d for d in domain if cell["candidates"] & (1 << d))
+        digits = _read_candidates_bitmask(cell["candidates"], domain)
         return CellDecode(candidates=(Candidate(address, digits),))
     return CellDecode()
+
+
+def _read_candidates_bitmask(bitmask: int, domain: range) -> frozenset[int]:
+    """A wire cell's `candidates` bitmask read as the set of domain digits it
+    marks — the one home for this read, called by both `decode_cell` branches
+    that carry a `candidates` field (the S-cell stray-marks restriction and the
+    plain pencil-mark candidate set)."""
+    return frozenset(d for d in domain if bitmask & (1 << d))
 
 
 def _scell_directive_from_value(
@@ -165,19 +173,25 @@ def _parse_scell_value(value: object, domain: range) -> tuple[int, ...]:
         parts = text.split(",")
         if len(parts) != _SCELL_PIN_DIGITS:
             return ()
-        a = _parse_digit(parts[0])
-        b = _parse_digit(parts[1])
-        return (a, b) if a is not None and b is not None else ()
+        return _parse_digit_pair(parts[0], parts[1])
     if (
         len(text) == _SCELL_PIN_DIGITS
         and text.isdigit()
         and domain.stop - 1 <= _MAX_SINGLE_DIGIT
     ):
-        a = _parse_digit(text[0])
-        b = _parse_digit(text[1])
-        return (a, b) if a is not None and b is not None else ()
+        return _parse_digit_pair(text[0], text[1])
     digit = _parse_digit(text)
     return (digit,) if digit is not None else ()
+
+
+def _parse_digit_pair(first: str, second: str) -> tuple[int, ...]:
+    """Both digit strings parsed, kept as the pair only if both parse cleanly —
+    the one home for this rule, called by `_parse_scell_value`'s comma and bare
+    two-digit shorthand paths alike. Either side failing to parse drops the
+    whole pair, never a lone digit."""
+    a = _parse_digit(first)
+    b = _parse_digit(second)
+    return (a, b) if a is not None and b is not None else ()
 
 
 def _parse_digit(text: str) -> int | None:

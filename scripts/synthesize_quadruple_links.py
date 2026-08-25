@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what
-each fixture exercises and regenerate the whole set with `main()`.
+each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Both fixtures clue the 2x2 block straddling all four boxes of a boxed 4x4
 board (R2C2/R2C3/R3C2/R3C3) rather than a box-aligned block: a box-aligned
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.quadruple import quad_to_corner
@@ -68,12 +68,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-quadruple-4x4": found_quadruple_4x4,
     "broke-quadruple-4x4": broke_quadruple_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every quadruple corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

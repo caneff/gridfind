@@ -8,22 +8,19 @@ nothing to add per script.
 from __future__ import annotations
 
 import importlib
-from pathlib import Path
 
 import pytest
-from _corpus import LINKS_DIR
-
-_SCRIPTS_DIR = Path(__file__).resolve().parent
+from _corpus import LINKS_DIR, discover_modules
 
 
 def _discover_cases() -> list[tuple[str, str]]:
     """Every `(module_stem, corpus_name)` pair across every
-    `synthesize_*_links.py` module beside this file."""
-    cases: list[tuple[str, str]] = []
-    for path in sorted(_SCRIPTS_DIR.glob("synthesize_*_links.py")):
-        module = importlib.import_module(path.stem)
-        cases.extend((path.stem, name) for name in sorted(module.CORPUS))
-    return cases
+    `synthesize_*_links.py` module `discover_modules` finds."""
+    return [
+        (module.__name__, name)
+        for module in discover_modules()
+        for name in sorted(module.CORPUS)
+    ]
 
 
 _CASES = _discover_cases()

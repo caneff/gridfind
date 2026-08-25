@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what
-each fixture exercises and regenerate the whole set with `main()`.
+each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Two groupings prove the one relation covers entropic, modular, and parity
 alike (spec #672's acceptance criterion): an entropic (low/mid/high band)
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
@@ -106,12 +106,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-grouped-parity-4x4": found_grouped_parity_4x4,
     "broke-grouped-parity-4x4": broke_grouped_parity_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every grouped-line corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()
