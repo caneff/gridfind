@@ -37,11 +37,10 @@ not here.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine
+from gridfind.engine import Engine, GridfindError
 from gridfind.layers.distinct import cols, regions, rows
 
 _HOUSE_PARTITIONS = (rows, cols, regions)
@@ -50,7 +49,17 @@ _HOUSE_PARTITIONS = (rows, cols, regions)
 @dataclass
 class ModifierPlacement:
     """Places exactly one discovered modifier per row, column, and box, and
-    forces the modified cells' digits to be a distinct-digit transversal."""
+    forces the modified cells' digits to be a distinct-digit transversal.
+
+    Satisfies the `Layer` protocol (`name`, `depends_on`) so it can compose
+    directly into a stack on its own — `modifier_test.py` builds
+    `[GridCells(), ModifierPlacement()]` to pin `is_modifier` in isolation,
+    and one test relies on `depends_on` to prove the missing-`board` guard
+    fires. Production never does this: `ModifierPlacement` is deliberately
+    absent from `LAYER_REGISTRY` (ADR-0016, decision #222) — a puzzle only
+    reaches it through `Modifier`'s `_placement` composition below (`Doubler`,
+    `ConstantModifier`), never directly.
+    """
 
     name: str = "modifier-placement"
     depends_on: tuple[str, ...] = ("board",)
@@ -63,9 +72,9 @@ class ModifierPlacement:
         engine.register_structure("is_modifier", is_modifier)
 
     def emit(self, engine: Engine) -> None:
-        is_modifier = cast(
-            "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
-        )
+        is_modifier = engine.is_modifier()
+        if is_modifier is None:
+            raise GridfindError("is_modifier missing — register never ran")
         grid = engine.cell_geometry.grid
         for partition in _HOUSE_PARTITIONS:
             for group in partition(grid):
@@ -161,9 +170,9 @@ class Modifier:
         engine.register_structure(
             "modifier_type", dict.fromkeys(engine.cells, self.name)
         )
-        is_modifier = cast(
-            "dict[str, cp_model.IntVar]", engine.structures["is_modifier"]
-        )
+        is_modifier = engine.is_modifier()
+        if is_modifier is None:
+            raise GridfindError("is_modifier missing — register never ran")
         modifier_value: dict[str, cp_model.IntVar] = {}
         for address in engine.cells:
             # The value beneath the modifier — the cell's `base_value`, which
