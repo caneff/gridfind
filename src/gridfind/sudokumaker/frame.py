@@ -50,7 +50,6 @@ ring's other scaffolding.
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Iterator
 from typing import Any, cast
 
@@ -349,10 +348,8 @@ def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) ->
             continue
         name = constraint_name(block) or block.get("name")
         named = f" {name!r}" if isinstance(name, str) else ""
-        print(
-            f"warning: escape-the-grid frame: dropping border constraint"
-            f"{named} (type {kind!r}) — inner grid judged without it",
-            file=sys.stderr,
+        warn_dropped(
+            f"escape-the-grid frame: dropping border constraint{named} (type {kind!r})"
         )
 
     cells = puzzle_data.get("cells", [])
@@ -364,10 +361,9 @@ def _warn_dropped_border(puzzle_data: dict[str, Any], frame: int, inner: int) ->
         and (cell.get("given") or cell.get("value") is not None)
     )
     if dropped_givens:
-        print(
-            f"warning: escape-the-grid frame: dropping {dropped_givens} border "
-            "cell(s) carrying givens — inner grid judged without them",
-            file=sys.stderr,
+        warn_dropped(
+            f"escape-the-grid frame: dropping {dropped_givens} border "
+            "cell(s) carrying givens"
         )
 
 
@@ -389,17 +385,15 @@ def _warn_dropped_kropki_remainder(
         )
     )
     if non_border:
-        print(
-            f"warning: escape-the-grid frame: dropping {non_border} interior "
-            f"kropki clue(s) (type {kind!r}) — none names an outside cell",
-            file=sys.stderr,
+        warn_dropped(
+            f"escape-the-grid frame: dropping {non_border} interior "
+            f"kropki clue(s) (type {kind!r}), none naming an outside cell"
         )
     negative = block.get("negative")
     if isinstance(negative, list) and negative:
-        print(
-            "warning: escape-the-grid frame: dropping a border kropki block's "
-            f"negative-space rule (type {kind!r}) — not modeled on the ring",
-            file=sys.stderr,
+        warn_dropped(
+            "escape-the-grid frame: dropping a border kropki block's "
+            f"negative-space rule (type {kind!r}), not modeled on the ring"
         )
 
 

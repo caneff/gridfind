@@ -172,6 +172,8 @@ def test_border_scaffolding_drops_with_warnings_not_a_raise(
     assert "'Rows'" in err
     assert "'Cols'" in err
     assert "border cell(s) carrying givens" in err
+    # Every border drop rides the one shared warn_dropped suffix.
+    assert "verdict computed without it" in err
 
 
 def test_a_clean_inner_frame_warns_about_nothing(
@@ -324,7 +326,9 @@ def test_a_kropki_dot_that_touches_no_border_cell_still_drops_with_a_warning(
 
     pair_types = ("pair-difference", "pair-ratio")
     assert not any(c.type in pair_types for c in puzzle.constraints)
-    assert "interior kropki clue" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "interior kropki clue" in err
+    assert "verdict computed without it" in err
 
 
 def test_a_border_kropki_blocks_negative_list_drops_with_a_warning(
@@ -346,7 +350,9 @@ def test_a_border_kropki_blocks_negative_list_drops_with_a_warning(
     assert not any(
         c.type == "pair-ratio" and c.params.get("negate") for c in puzzle.constraints
     )
-    assert "negative-space rule" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "negative-space rule" in err
+    assert "verdict computed without it" in err
 
 
 def test_a_corner_is_never_created_when_a_border_dot_names_its_neighbour() -> None:
