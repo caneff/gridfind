@@ -32,11 +32,12 @@ every digit it holds** — an S-cell control holding `{a, b}` sends its
 coordinate to both position `a` and position `b`. Realized per marked cell
 as one implication per line position `p` and per control slot: "control
 holds `p`" ⟹ "line cell at `p` holds the coordinate" (`engine.reify_holds`
-+ `add_bool_or(...).only_enforce_if(...)`, the house-rule idiom). A
-non-S-cell's second slot sits on its own sentinel, always above every real
-digit (`schrodinger`), so it never matches a position or a coordinate and
-drops out of both sides on its own — no explicit `is_s` gate needed, the
-same reasoning `line_count.py`/`_base.emit_house` lean on.
++ `add_bool_or(...).only_enforce_if(...)`, the house-rule idiom). Both sides
+read their slots through `engine.real_digit_slots`, the one place a non-S-cell's
+second slot is explained as a sentinel above every real digit — it never
+matches a position or a coordinate and drops out of both sides on its own,
+no explicit `is_s` gate needed here, the same seam `line_count.py`/
+`_base.emit_house` route through.
 
 Index 0 names no position, so a control may never hold it: enforced
 directly as `d0(control) != 0`, which (with `schrodinger`'s `d0 < d1`
@@ -77,14 +78,15 @@ def _emit_s_aware_indexing_cell(
     engine: Engine, address: str, row: int, col: int, axis: str
 ) -> None:
     coordinate = col if axis == "col" else row
-    control_content = engine.contents(address)
-    engine.model.add(control_content[0] != 0)
+    control_slots = [var for var, _guard in engine.real_digit_slots(address)]
+    engine.model.add(control_slots[0] != 0)
     for position, target in enumerate(_line_addresses(engine, row, col, axis), start=1):
         control_holds = engine.reify_holds(
-            control_content, position, f"{address}.holds{position}"
+            control_slots, position, f"{address}.holds{position}"
         )
+        target_slots = [var for var, _guard in engine.real_digit_slots(target)]
         target_holds = engine.reify_holds(
-            engine.contents(target),
+            target_slots,
             coordinate,
             f"{target}.holds{coordinate}.from.{address}",
         )
