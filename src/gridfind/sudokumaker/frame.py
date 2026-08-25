@@ -406,6 +406,6 @@ def _warn_dropped_kropki_remainder(
 
 def _is_border_index(index: int, frame: int, inner: int) -> bool:
     """True when a row-major frame index sits on the border ring (row/col `0` or
-    `frame - 1`), not in the inner `1..N` band."""
-    row, col = divmod(index, frame)
-    return not (1 <= row <= inner and 1 <= col <= inner)
+    `frame - 1`), not in the inner `1..N` band — the same ring test
+    `_touches_border` runs, reached here via `divmod` on the flat index."""
+    return _touches_border(divmod(index, frame), inner)
