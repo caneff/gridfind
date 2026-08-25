@@ -22,9 +22,11 @@ from gridfind.sudokumaker.edge_clues import (
     kropki_constraints,
     xv_constraints,
 )
-from gridfind.sudokumaker.extra_region import extra_region_constraints
-from gridfind.sudokumaker.indexing import (
+from gridfind.sudokumaker.flat_cells import (
     col_indexing_constraints,
+    even_constraints,
+    extra_region_constraints,
+    odd_constraints,
     row_indexing_constraints,
 )
 from gridfind.sudokumaker.line import (
@@ -33,7 +35,6 @@ from gridfind.sudokumaker.line import (
     renban_constraints,
     whisper_constraints,
 )
-from gridfind.sudokumaker.parity import even_constraints, odd_constraints
 from gridfind.sudokumaker.quadruple import quadruple_constraints
 from gridfind.sudokumaker.regions import regions_constraints
 from gridfind.sudokumaker.wire_types import (
