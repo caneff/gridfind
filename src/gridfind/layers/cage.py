@@ -65,7 +65,7 @@ class Cage:
                 slots = [
                     var
                     for address in addresses
-                    for var, _guard in engine.real_digit_slots(address)
+                    for var in engine.real_digit_values(address)
                 ]
                 engine.model.add_all_different(slots)
             elif distinct_over == "value":

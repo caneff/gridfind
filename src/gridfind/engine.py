@@ -296,6 +296,13 @@ class Engine:
             raise GridfindError("width-2 cell without an is_s structure")
         return [(content[0], None), (content[1], is_s[address])]
 
+    def real_digit_values(self, address: str) -> list[cp_model.IntVar]:
+        """A cell's real digit vars, guard dropped — for a caller that only
+        needs the vars themselves (a house or cage walk) and never inspects
+        which slot is sentinel-gated. Built on `real_digit_slots`, the one
+        place that knows the gating; this is its unwrap."""
+        return [var for var, _guard in self.real_digit_slots(address)]
+
     def domain(self, address: str) -> list[int]:
         """The digit values a cell may hold, ascending.
 

@@ -40,10 +40,7 @@ def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
     variable per cell folds it itself.
     """
     grid = engine.cell_geometry.grid
-    return [
-        [[var for var, _guard in engine.real_digit_slots(address)] for address in row]
-        for row in grid
-    ]
+    return [[engine.real_digit_values(address) for address in row] for row in grid]
 
 
 def emit_distinct_count(
