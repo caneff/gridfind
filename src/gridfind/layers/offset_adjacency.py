@@ -54,9 +54,9 @@ class OffsetAdjacency:
     Reads the grid and stepper off `board`'s geometry; registers nothing,
     emits in phase 2.
 
-    `s_blind`: reads a cell through `engine.content`, its single slot —
-    undefined once a widening layer gives a cell a second slot (`build_stack`
-    refuses the combination)."""
+    Reads a cell through `engine.content`, its single slot — undefined once a
+    widening layer gives a cell a second slot, so `layers.s_blind` names this
+    class directly and `build_stack` refuses the combination up front."""
 
     name: str
     offsets: tuple[tuple[int, int], ...]

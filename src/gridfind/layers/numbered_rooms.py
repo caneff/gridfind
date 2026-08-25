@@ -23,12 +23,12 @@ the line is transparent to the rule.
 into every stack), the rest the line's cells ordered from the clue inward —
 `line[0]` is the near cell whose own digit names the position.
 
-`s_blind`: unlike `indexing.py`, every read here (`d0` on the near cell, the
-line, and the outside cell) takes only a cell's first content slot, with no
-`is_s()` branch to widen the index or the target to a second slot. A widened
-outside or line cell would leave its `d1` unconstrained by this rule —
-silently, not loudly. Until an S-aware branch is built, the layer declares
-`s_blind = True` (`offset_adjacency`'s stance) so `build_stack` refuses the
+Unlike `indexing.py`, every read here (`d0` on the near cell, the line, and
+the outside cell) takes only a cell's first content slot, with no `is_s()`
+branch to widen the index or the target to a second slot. A widened outside
+or line cell would leave its `d1` unconstrained by this rule — silently, not
+loudly. Until an S-aware branch is built, `layers.s_blind` names this class
+directly (alongside `offset_adjacency`) so `build_stack` refuses the
 combination with `schrodinger` up front instead.
 """
 
