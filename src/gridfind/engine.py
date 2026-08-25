@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Literal, Protocol, cast
+from typing import Protocol, cast
 
 from ortools.sat.python import cp_model
 
@@ -31,7 +31,6 @@ from gridfind.cell_geometry import BoardShape, CellGeometry, cell_geometry
 # against these; everything else in the module is implementation detail.
 __all__ = [
     "Cell",
-    "Combine",
     "Engine",
     "GridfindError",
     "Layer",
@@ -40,13 +39,6 @@ __all__ = [
     "build_engine",
     "sole",
 ]
-
-Combine = Literal["sum", "concat"]
-"""How a two-digit S-cell's digits combine into one value: `sum` adds them
-(2 + 3 = 5); `concat` reads them base-10 with the first digit (`d0`)
-most-significant (2, 3 → 23). One choice per puzzle, owned by the schrödinger
-layer, which uses it to build each S-cell's value channel (ADR-0009). A
-single digit has nothing to combine."""
 
 
 class GridfindError(Exception):
