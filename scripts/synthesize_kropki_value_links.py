@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what value
-a fixture exercises and regenerate the whole set with `main()`.
+a fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Every existing white-kropki corpus link labels its dot with the default
 difference (1), so a decoder that silently coerced `value` to that default
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.edge_clues import pair_to_edge
@@ -85,13 +85,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-kropki-non-default-value-4x4": found_kropki_non_default_value_4x4,
     "broke-kropki-non-default-value-4x4": broke_kropki_non_default_value_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every labelled-non-default-kropki-value corpus file from
-    its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

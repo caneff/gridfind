@@ -1,20 +1,26 @@
 """The shared corpus-synthesis harness every `synthesize_*_links.py` script
-builds on: the one `links/` directory, the one blank-cells/givens/box-regions/
-`formatVersion` document builder, and the one write loop. Each synthesizer
-keeps only its own puzzle variant (`CORPUS` and the constraints its fixtures
-need) and calls this harness rather than hand-rolling a second copy — a fix
-to the write loop or the document shape lands here once, not in every script.
+builds on: the one `links/` directory, the one blank-cells/givens/box-or-
+jigsaw-regions/`formatVersion` document builder, the one authored-cage style,
+and the one write loop. Each synthesizer keeps only its own puzzle variant
+(`CORPUS` and the constraints its fixtures need) and calls this harness
+rather than hand-rolling a second copy — a fix to the write loop or the
+document shape lands here once, not in every script. `synthesize()` is the
+one driver that walks every module's `CORPUS` and regenerates it — run
+`uv run python scripts/_corpus.py` to regenerate the whole corpus.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+import importlib
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
+from types import ModuleType
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.layers.regions import box_regions
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
+_SCRIPTS_DIR = Path(__file__).resolve().parent
 
 
 def blank_cells(size: int) -> list[dict[str, object]]:
@@ -76,9 +82,64 @@ def boxed_document(
     )
 
 
+def jigsaw_document(
+    regions: Sequence[int],
+    size: int,
+    *,
+    cells: list[dict[str, object]] | None = None,
+    givens: dict[tuple[int, int], int] | None = None,
+    constraints: Sequence[dict[str, object]] = (),
+) -> dict[str, object]:
+    """The jigsaw sibling of `boxed_document`: blank `size`x`size` cells (or a
+    caller-built `cells`) with `givens` placed, wrapped with the classic
+    `type 0`/`type 1` pair — but `regions` is a literal label array a fixture
+    authors directly, not `box_regions`, for a puzzle whose regions aren't
+    rectangles."""
+    if cells is None:
+        cells = blank_cells(size)
+    if givens:
+        place_givens(cells, size, givens)
+    return wrap_document(
+        cells,
+        size,
+        [{"type": 0}, {"type": 1, "regions": list(regions)}, *constraints],
+    )
+
+
+def authored_cage_style() -> dict[str, object]:
+    """The default black cosmetic-cage style SudokuMaker writes for a
+    hand-drawn named cage — outline and label both `#000000`. A synthesized
+    cage block carries it so the emitted link is authentic: the cage renders
+    with its cosmetic-cage icon the way a setter's own link would, rather
+    than the style-less block SudokuMaker draws iconless. A fresh dict per
+    call, so no two blocks alias one object. Display-only — `link_to_puzzle`
+    never reads `style`."""
+    return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
+
+
 def regenerate(corpus: dict[str, Callable[[], str]]) -> None:
     """Write every `name -> fn` pair in `corpus` to `links/<name>.txt` — the
-    one write loop each synthesizer's `main()` calls."""
+    one write loop `synthesize` calls for each module's corpus."""
     for name, fn in corpus.items():
         (LINKS_DIR / f"{name}.txt").write_text(fn() + "\n")
         print(f"wrote {name}.txt")
+
+
+def discover_modules() -> Iterator[ModuleType]:
+    """Every `synthesize_*_links.py` module beside this file, imported in
+    sorted filename order — the one module-discovery walk `synthesize` and
+    `corpus_drift_test.py`'s parametrization both build on."""
+    for path in sorted(_SCRIPTS_DIR.glob("synthesize_*_links.py")):
+        yield importlib.import_module(path.stem)
+
+
+def synthesize() -> None:
+    """Regenerate every synthesizer's corpus: walks each `synthesize_*_links.py`
+    module's `CORPUS` through `regenerate` — the one driver that replaces
+    every script's own repeated `main`/docstring plumbing."""
+    for module in discover_modules():
+        regenerate(module.CORPUS)
+
+
+if __name__ == "__main__":
+    synthesize()
