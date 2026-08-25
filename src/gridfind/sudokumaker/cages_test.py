@@ -18,6 +18,7 @@ from gridfind.puzzle import Constraint, ModifierDirective
 from gridfind.sudokumaker import link_to_puzzle
 from gridfind.sudokumaker.cages import _CosmeticCageDecode, _decode_cosmetic_block
 from gridfind.sudokumaker.conftest import constraint_link
+from gridfind.sudokumaker.naming import named_component
 
 
 def test_cage_decodes_to_region_only_cage_constraint(
@@ -477,7 +478,11 @@ def test_decode_cosmetic_block_returns_killer_constraints_with_no_declaration() 
     # declaration slot stays `None` — only a modifier-marked block with cells
     # returns one.
     decode, declaration = _decode_cosmetic_block(
-        "killer", {"name": "Sum"}, [{"value": "7", "cells": [0, 1]}], size=9
+        "killer",
+        named_component("Sum"),
+        {"name": "Sum"},
+        [{"value": "7", "cells": [0, 1]}],
+        size=9,
     )
 
     assert Constraint("cage", params={"cells": ["R1C1", "R1C2"]}) in decode.constraints
@@ -493,11 +498,30 @@ def test_decode_cosmetic_block_returns_declaration_for_modifier_with_cells() -> 
     # declaration alongside the modifier directives — the only branch that
     # produces one.
     decode, declaration = _decode_cosmetic_block(
-        "doubler", {"name": "Doubler"}, [{"cells": [0]}], size=9
+        "doubler",
+        named_component("Doubler"),
+        {"name": "Doubler"},
+        [{"cells": [0]}],
+        size=9,
     )
 
     assert decode.modifier_directives == (ModifierDirective("R1C1", is_modifier=True),)
     assert declaration == ("doubler", None)
+
+
+def test_decode_cosmetic_block_reads_constant_value_from_the_component() -> None:
+    # The `k` in the declaration comes straight off the classified
+    # `_NamedComponent`'s own `value` — no second name-parse to recover it.
+    decode, declaration = _decode_cosmetic_block(
+        "constant",
+        named_component("Constant 5"),
+        {"name": "Constant 5"},
+        [{"cells": [0]}],
+        size=9,
+    )
+
+    assert decode.modifier_directives == (ModifierDirective("R1C1", is_modifier=True),)
+    assert declaration == ("constant", 5)
 
 
 def test_decode_cosmetic_block_skips_declaration_for_an_empty_modifier() -> None:
@@ -505,7 +529,7 @@ def test_decode_cosmetic_block_skips_declaration_for_an_empty_modifier() -> None
     # declaration — the same "no cells, no fact" rule an empty killer cage
     # block follows.
     decode, declaration = _decode_cosmetic_block(
-        "doubler", {"name": "Doubler"}, [], size=9
+        "doubler", named_component("Doubler"), {"name": "Doubler"}, [], size=9
     )
 
     assert decode == _CosmeticCageDecode()
@@ -519,7 +543,11 @@ def test_decode_cosmetic_block_warns_and_returns_an_empty_decode_for_unnamed(
     # the pure decode, not the gathering loop) and returns an empty decode
     # and no declaration.
     decode, declaration = _decode_cosmetic_block(
-        "unnamed", {"type": 2001}, [{"value": "7", "cells": [0, 1]}], size=9
+        "unnamed",
+        named_component(None),
+        {"type": 2001},
+        [{"value": "7", "cells": [0, 1]}],
+        size=9,
     )
 
     assert decode == _CosmeticCageDecode()
@@ -529,7 +557,11 @@ def test_decode_cosmetic_block_warns_and_returns_an_empty_decode_for_unnamed(
 
 def test_decode_cosmetic_block_returns_scell_values_with_no_declaration() -> None:
     decode, declaration = _decode_cosmetic_block(
-        "s-cell", {"name": "S-cell"}, [{"value": "5", "cells": [0]}], size=9
+        "s-cell",
+        named_component("S-cell"),
+        {"name": "S-cell"},
+        [{"value": "5", "cells": [0]}],
+        size=9,
     )
 
     assert decode.scell_values == {"R1C1": "5"}
