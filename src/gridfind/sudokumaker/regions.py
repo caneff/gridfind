@@ -10,6 +10,7 @@ from gridfind.cell_geometry import BOX_SHAPE
 from gridfind.layers.regions import region_map_for
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
+from gridfind.sudokumaker.wire_types import REGIONS_TYPE
 
 
 def regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
@@ -39,6 +40,6 @@ def regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
 def _regions_matrix(buckets: ConstraintBuckets) -> object | None:
     """The enabled `type 1` regions matrix from the link, or `None` when the
     link carries no live jigsaw block."""
-    for block in enabled_blocks(buckets, 1):
+    for block in enabled_blocks(buckets, REGIONS_TYPE):
         return block.get("regions")
     return None

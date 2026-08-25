@@ -44,6 +44,7 @@ from gridfind.sudokumaker.wire_types import (
     COSMETIC_CAGE_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
+    GIVENS_TYPE,
     GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
@@ -54,6 +55,7 @@ from gridfind.sudokumaker.wire_types import (
     PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
+    REGIONS_TYPE,
     RENBAN_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
@@ -103,8 +105,10 @@ class DecodedType:
 
 
 DECODER_REGISTRY: dict[int, DecodedType] = {
-    0: DecodedType(handler=None, live_keys=(), name="givens"),
-    1: DecodedType(handler=regions_constraints, live_keys=(), name="regions"),
+    GIVENS_TYPE: DecodedType(handler=None, live_keys=(), name="givens"),
+    REGIONS_TYPE: DecodedType(
+        handler=regions_constraints, live_keys=(), name="regions"
+    ),
     KROPKI_WHITE_TYPE: DecodedType(
         handler=kropki_constraints,
         live_keys=("clues", "negative"),

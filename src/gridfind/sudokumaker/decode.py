@@ -32,6 +32,7 @@ from gridfind.sudokumaker.dropped import warn_on_dropped_constraints
 from gridfind.sudokumaker.frame import peel_escape_frame
 from gridfind.sudokumaker.global_flags import has_somedoku_component
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
+from gridfind.sudokumaker.wire_types import REGIONS_TYPE
 
 
 def link_to_puzzle(link: str) -> tuple[Puzzle, WorkingState]:
@@ -180,7 +181,7 @@ def link_to_puzzle(link: str) -> tuple[Puzzle, WorkingState]:
     for wire_type, decoded_type in DECODER_REGISTRY.items():
         if decoded_type.handler is None:
             continue
-        if is_somedoku and wire_type == 1:
+        if is_somedoku and wire_type == REGIONS_TYPE:
             continue
         constraints.extend(decoded_type.handler(buckets, size))
     if is_schrodinger:

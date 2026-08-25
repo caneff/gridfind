@@ -8,6 +8,23 @@ package's world-facing door (`sudokumaker/__init__.py`'s `__all__`).
 
 from __future__ import annotations
 
+# type 0 is givens: a puzzle's givens are read per-cell (`cells.decode_cell`),
+# never off a block, so `DECODER_REGISTRY`'s own `0` row names the type but
+# leaves `handler=None` — nothing for the registry's generic dispatch to
+# build. `peel_escape_frame` mints a bare `{"type": GIVENS_TYPE}` block for
+# its rewritten inner document, mirroring the unconditional rows/cols every
+# other classic/jigsaw link gets.
+GIVENS_TYPE = 0
+
+# type 1 is the regions block: `{regions: [...]}}`, an `N x N` flat row-major
+# matrix of region labels. Present, it decodes to `regions-distinct` — bare
+# when the matrix equals the board's own box tiling, or carrying
+# `params["regions"]` verbatim for a jigsaw (`regions.regions_constraints`).
+# Absent, the puzzle is a Latin square with no boxes. A somedoku puzzle skips
+# this type entirely (`decode.link_to_puzzle`) — classic uniqueness is
+# incompatible with somedoku's distinct-count target below `N`.
+REGIONS_TYPE = 1
+
 # type 200 is white-kropki: `clues: [{value, edge}],
 # negative: [...]`, the same wire shape as XV. The type number *is* the
 # white/black discriminator — 200 is white/difference, 201 black/ratio — so
