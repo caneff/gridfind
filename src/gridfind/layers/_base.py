@@ -27,8 +27,8 @@ from gridfind.engine import Engine, sole
 
 def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
     """The grid's cells as their real-digit-slot sequences, resolved at call
-    time in phase 2 through `Engine.real_digit_slots` — the guard each slot
-    carries is dropped here, since every caller (a counting rule or a plain
+    time in phase 2 through `Engine.real_digit_values` — the guard-dropping
+    unwrap of `real_digit_slots`, since every caller (a counting rule or a plain
     AllDifferent) already tolerates a non-S-cell's sentinel second slot on its
     own (`real_digit_slots`'s docstring) and needs no `.only_enforce_if`.
 
@@ -85,8 +85,8 @@ def emit_house(
     """Rule: every digit in the board's domain occupies exactly one content
     slot across `cells` — `d0` always, `d1` too where it holds a real digit
     (an S-cell's second digit). No separate is_S gate is needed: `cells`
-    already came through `grid_content`'s `real_digit_slots` read, which is
-    the one place the sentinel invariant lives.
+    already came through `grid_content`'s `real_digit_values` read, whose
+    `real_digit_slots` base is the one place the sentinel invariant lives.
 
     No-repeats and cover collapse into this one rule: a house of `len(cells)`
     cells offers `sum(len(content) for content in cells)` real-or-sentinel

@@ -9,8 +9,8 @@ digits are all-different (a distinct-digit transversal over every real digit
 a cell contributes — `d0` for a plain cell, and an S-cell's `d1` too, since a
 doubled S-cell doubles both of its digits). Composing with `schrodinger`
 needs no guard against a cell being both modifier and S-cell: both slots come
-from `engine.real_digit_slots`, the one place a non-S-cell's `d1` sentinel is
-explained, so it never enters the count.
+from `engine.real_digit_values`, whose `real_digit_slots` base is the one place
+a non-S-cell's `d1` sentinel is explained, so it never enters the count.
 "All-different" is capped at-most-once per digit, not a bijection with
 `board.values` — `schrodinger` always widens `values` past `board.size`, and
 the one-per-house rule fixes the modifier count at exactly `board.size`, so a
@@ -96,11 +96,11 @@ class ModifierPlacement:
         in some slot"; at most one cell may, so no two modifiers ever share a
         doubled digit — true all-different, not a bijection with `board.values`.
 
-        Reading both slots needs no `is_s` gate: `engine.real_digit_slots` is
-        the one place the sentinel invariant lives, so its slots feed
-        `reify_holds` directly and a non-S-cell's second slot contributes
-        nothing on its own. `d0 < d1` keeps an S-cell's two slots distinct, so
-        a single cell never collides with itself.
+        Reading both slots needs no `is_s` gate: `engine.real_digit_values`
+        unwraps `real_digit_slots`, the one place the sentinel invariant lives,
+        so its slots feed `reify_holds` directly and a non-S-cell's second slot
+        contributes nothing on its own. `d0 < d1` keeps an S-cell's two slots
+        distinct, so a single cell never collides with itself.
 
         `<= 1`, not `== 1`: a bijection only holds when `len(values) ==
         board.size`, and `schrodinger` always widens `values` past `size`, so
