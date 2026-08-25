@@ -15,12 +15,10 @@ native `<` rather than a reified either-or or a hand-built truth table
 there is nothing a table would buy.
 
 The per-edge emission decomposes the path into consecutive pairs itself and
-applies the edge relation directly in that same loop — no walk primitive of
-its own, since the walk is two lines and had exactly one caller (issue #695:
-`emit_over_pairs` and its two one-line relation adapters were inlined back
-into `Thermo.emit`). `line`'s `whisper` relation (#674) separately reuses the
-`emit_over_pairs` walk in `_base.py` for its own pairwise gap check — that
-helper stays, just no longer for thermo's sake.
+applies the edge relation directly in that same loop — a two-line walk with a
+single caller earns no shared primitive of its own. `line`'s `whisper`
+relation keeps its own pairwise walk (`emit_over_pairs` in `_base.py`) for its
+gap check.
 
 The `slow` flag rides on every clue's params (decoded by `sudokumaker.py`)
 and picks the edge relation: `≤` when true, `<` otherwise.
