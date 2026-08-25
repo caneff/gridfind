@@ -36,7 +36,6 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
     # (ADR-0001: the contract's named vocabulary.)
     assert set(gridfind.engine.__all__) == {
         "Cell",
-        "Combine",
         "Engine",
         "GridfindError",
         "Layer",

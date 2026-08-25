@@ -277,13 +277,11 @@ and owns the working-state directives below.
   below. The single marking→meaning table for every S-cell channel is
   **ADR-0014**.
 
-- **combine** — how a two-digit S-cell's digits make one **value**: `sum`
-  (2 + 3 = 5, the default) or `concat` (2, 3 → 23). One choice for the whole
-  puzzle, owned by
-  this layer — it widens the cell, so it holds the rule. It reifies each cell's
-  value under this rule into the **`s_value`** channel (the shape the doubler
-  uses for `modifier_value`), so a values-distinct reader reads one value and
-  never asks how it was built (ADR-0009).
+- **s_value** — a two-digit S-cell's **value**: its two digits summed
+  (2 + 3 = 5, ADR-0010). This layer widens the cell, so it holds the rule,
+  reifying it into the `s_value` channel (the shape the doubler uses for
+  `modifier_value`), so a values-distinct reader reads one value and never
+  asks how it was built (ADR-0009).
 
 The Schrödinger working state spans two independent axes — **S-cell-ness** (is
 this position a singleton, an S-cell, or unknown?) and **digit-content** — so its
@@ -392,7 +390,7 @@ forces a cell to become an S-cell.
   A **values-distinct** cage forbids two cells holding the same **value**, read
   from whichever value channel a layer registered (ADR-0009): a plain cell's
   value is its digit, a **doubler**'s is its `modifier_value` (doubled amount),
-  an **S-cell**'s is its `s_value` (its two digits under the **combine** rule).
+  an **S-cell**'s is its `s_value` (its two digits summed).
   Two cells clash whenever those values are the same number — a doubler worth 18
   and an S-cell reading 18 collide, since a value is just a number. On a plain puzzle
   every value is a digit, so values-distinct reduces to digits-distinct.
