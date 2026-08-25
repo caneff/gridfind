@@ -78,13 +78,13 @@ def _emit_s_aware_indexing_cell(
     engine: Engine, address: str, row: int, col: int, axis: str
 ) -> None:
     coordinate = col if axis == "col" else row
-    control_slots = [var for var, _guard in engine.real_digit_slots(address)]
+    control_slots = engine.real_digit_values(address)
     engine.model.add(control_slots[0] != 0)
     for position, target in enumerate(_line_addresses(engine, row, col, axis), start=1):
         control_holds = engine.reify_holds(
             control_slots, position, f"{address}.holds{position}"
         )
-        target_slots = [var for var, _guard in engine.real_digit_slots(target)]
+        target_slots = engine.real_digit_values(target)
         target_holds = engine.reify_holds(
             target_slots,
             coordinate,

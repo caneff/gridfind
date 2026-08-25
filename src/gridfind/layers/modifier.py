@@ -110,7 +110,7 @@ class ModifierPlacement:
         for digit in engine.board.values:
             holds = []
             for address in engine.cells:
-                slots = [var for var, _guard in engine.real_digit_slots(address)]
+                slots = engine.real_digit_values(address)
                 slot_holds = engine.reify_holds(
                     slots, digit, label=f"{self.name}.{address}"
                 )
