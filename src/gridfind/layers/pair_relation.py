@@ -42,7 +42,7 @@ class PairRelation:
     """Reads each pair's cells through `engine.value_expr` (ADR-0009), the
     same seam `group-sum` and a values-distinct `cage` already read: a plain
     digit, a doubler's `2·value`, or an S-cell's combined `s_value` (no
-    per-candidate rule). No `s_blind` flag — unlike `offset_adjacency`, this
+    per-candidate rule). Not s-blind — unlike `offset_adjacency`, this
     family never reads a cell's raw content slot, so it composes freely with
     a widening (Schrödinger) layer."""
 

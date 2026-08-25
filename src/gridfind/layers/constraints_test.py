@@ -130,18 +130,12 @@ def test_unknown_constraint_type_is_rejected() -> None:
         build_stack((Constraint(type="not-a-real-rule"),), size=9)
 
 
-@pytest.mark.parametrize(
-    "s_blind_type",
-    ["anti-knight", "anti-king"],
-)
-def test_an_s_blind_layer_stacked_with_a_widening_layer_is_refused(
-    s_blind_type: str,
-) -> None:
-    # Each of these reads a cell's single content slot, which has no defined
-    # meaning once schrodinger widens every cell to two.
-    constraints = (Constraint(type=s_blind_type), Constraint(type="schrodinger"))
+def test_offset_adjacency_stacked_with_schrodinger_is_refused() -> None:
+    # offset_adjacency reads a cell's single content slot, which has no
+    # defined meaning once schrodinger widens every cell to two.
+    constraints = (Constraint(type="anti-knight"), Constraint(type="schrodinger"))
 
-    with pytest.raises(SBlindLayerError, match=s_blind_type):
+    with pytest.raises(SBlindLayerError, match="anti-knight"):
         build_stack(constraints, size=9)
 
 
@@ -150,8 +144,8 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
     pair_relation_type: str,
 ) -> None:
     # Both kropki pair layers read `engine.value_expr`, not a cell's single
-    # content slot, so they carry no `s_blind` flag and stack freely with
-    # schrodinger — unlike anti-knight/anti-king above.
+    # content slot, so they are not s-blind and stack freely with
+    # schrodinger — unlike anti-knight above.
     constraints = (Constraint(type=pair_relation_type), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -166,7 +160,7 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
 
 def test_thermo_composes_with_a_widening_layer() -> None:
     # thermo reads engine.value_expr like the pair-relation family, so it
-    # carries no `s_blind` flag and stacks freely with schrodinger.
+    # is not s-blind and stacks freely with schrodinger.
     constraints = (Constraint(type="thermo"), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)

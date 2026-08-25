@@ -50,7 +50,7 @@ def _non_decreasing(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> N
 class Thermo:
     """Reads each path cell through `engine.value_expr` (ADR-0009) — a plain
     digit, a doubler's `2·value`, or an S-cell's combined `s_value` — never a
-    raw content slot, so it carries no `s_blind` flag and composes with a
+    raw content slot, so it is not s-blind and composes with a
     doubler or Schrödinger board, same as the pair-relation family."""
 
     name: str = "thermo"
