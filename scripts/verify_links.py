@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
-from gridfind.cell_geometry import format_address
+from gridfind.cell_geometry import format_address, index_to_row_col
 from gridfind.sudokumaker import (
     classify,
     colorize_marker_cages,
@@ -58,7 +58,7 @@ def fill_witness(
     puzzle_data = cast("dict[str, object]", filled["puzzle"])
     cells = cast("list[dict[str, Any]]", puzzle_data["cells"])
     for i, cell in enumerate(cells):
-        address = format_address(i // size + 1, i % size + 1)
+        address = format_address(*index_to_row_col(i, size))
         write_cell(cell, witness[address])
     _mark_witness_variants(puzzle_data, witness, size)
     return filled
@@ -79,7 +79,7 @@ def _mark_witness_variants(
     if not isinstance(constraints, list):
         return
     index_of = {
-        format_address(i // size + 1, i % size + 1): i for i in range(size * size)
+        format_address(*index_to_row_col(i, size)): i for i in range(size * size)
     }
     for block in constraints:
         if not isinstance(block, dict) or block.get("disabled") is True:
@@ -102,7 +102,7 @@ def _mark_scell_block(
     covered: set[int] = set()
     for cage in cages:
         covered.update(cage["cells"])
-        addresses = [format_address(i // size + 1, i % size + 1) for i in cage["cells"]]
+        addresses = [format_address(*index_to_row_col(i, size)) for i in cage["cells"]]
         pairs = {witness[address] for address in addresses}
         if len(pairs) == 1:
             (pair,) = pairs
