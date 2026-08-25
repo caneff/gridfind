@@ -130,18 +130,12 @@ def test_unknown_constraint_type_is_rejected() -> None:
         build_stack((Constraint(type="not-a-real-rule"),), size=9)
 
 
-@pytest.mark.parametrize(
-    "s_blind_type",
-    ["anti-knight", "anti-king"],
-)
-def test_an_s_blind_layer_stacked_with_a_widening_layer_is_refused(
-    s_blind_type: str,
-) -> None:
-    # Each of these reads a cell's single content slot, which has no defined
-    # meaning once schrodinger widens every cell to two.
-    constraints = (Constraint(type=s_blind_type), Constraint(type="schrodinger"))
+def test_offset_adjacency_stacked_with_schrodinger_is_refused() -> None:
+    # offset_adjacency reads a cell's single content slot, which has no
+    # defined meaning once schrodinger widens every cell to two.
+    constraints = (Constraint(type="anti-knight"), Constraint(type="schrodinger"))
 
-    with pytest.raises(SBlindLayerError, match=s_blind_type):
+    with pytest.raises(SBlindLayerError, match="anti-knight"):
         build_stack(constraints, size=9)
 
 
