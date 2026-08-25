@@ -16,11 +16,9 @@ a cell carries a second slot to gate.
 Also owns each S-cell's **value**, since it is the layer that widens a cell to
 two digits (ADR-0009 decision 4). Just as the doubler reifies a cell's value
 into the `"modifier_value"` channel, this layer reifies each cell's value into
-the `"s_value"` channel — its `d0` when a singleton, its two digits combined
+the `"s_value"` channel — its `d0` when a singleton, its two digits summed
 when an S-cell — so a values-distinct reader reads one value, blind to how it
-was built. How the two digits combine (`sum` or `concat`) is the puzzle-wide
-`combine` rule this layer holds; no SudokuMaker link declares it yet, so it
-defaults to `sum` — a Schrödinger cell adds its two digits (ADR-0010).
+was built (ADR-0010).
 """
 
 from __future__ import annotations
@@ -29,19 +27,18 @@ from dataclasses import dataclass
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Combine, Engine, MalformedPuzzleError
+from gridfind.engine import Engine, MalformedPuzzleError
 
 
 @dataclass
 class Schrodinger:
-    """`widens`: gives every cell a second content slot (`d1`) — a layer that
-    is `s_blind` (reads only a cell's single slot) has no defined meaning
-    once this is in the stack (`build_stack` refuses the combination)."""
+    """Gives every cell a second content slot (`d1`) — a layer that reads
+    only a cell's single slot has no defined meaning once this is in the
+    stack, so `layers.s_blind` names `OffsetAdjacency`/`NumberedRooms`
+    directly and `build_stack` refuses the combination up front."""
 
     name: str = "schrodinger"
     depends_on: tuple[str, ...] = ("board",)
-    combine: Combine = "sum"
-    widens: bool = True
 
     def register(self, engine: Engine) -> None:
         board = engine.board
@@ -53,7 +50,7 @@ class Schrodinger:
             raise MalformedPuzzleError(msg)
         low = board.values[0]
         high = board.values[-1]
-        ceiling = high + high if self.combine == "sum" else high * 10 + high
+        ceiling = high + high
         is_s: dict[str, cp_model.IntVar] = {}
         s_value: dict[str, cp_model.IntVar] = {}
         for index, address in enumerate(engine.cells):
@@ -70,9 +67,9 @@ class Schrodinger:
             engine.model.add(d0 < d1)
             content.append(d1)
             is_s[address] = s
-            # This cell's value: d0 as a singleton, the two digits combined as
+            # This cell's value: d0 as a singleton, the two digits summed as
             # an S-cell — reified on is_s, mirroring the doubler's channel.
-            combined = d0 + d1 if self.combine == "sum" else d0 * 10 + d1
+            combined = d0 + d1
             value = engine.model.new_int_var(low, ceiling, f"{address}.s_value")
             engine.model.add(value == combined).only_enforce_if(s)
             engine.model.add(value == d0).only_enforce_if(s.negated())

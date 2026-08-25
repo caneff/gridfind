@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
-fixture exercises and regenerate the whole set with `main()`.
+fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 These fixtures cover the three global toggles gridfind reads off real
 SudokuMaker links: anti-knight (`type 13`), anti-king (`type 12`), and the two
@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 # The toggle wire types are imported from wire_types.py — their one shared
 # home — so the corpus builds off the same numbers the decoder reads by,
@@ -189,12 +189,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-positive-diagonal-only-4x4": found_positive_diagonal_only_4x4,
     "broke-positive-diagonal-only-4x4": broke_positive_diagonal_only_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every toggle corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

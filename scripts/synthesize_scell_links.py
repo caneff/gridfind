@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what marking
-case a fixture exercises and regenerate the whole set with `main()`.
+case a fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Every S-cell link declares its variant through a named `type 2001` marker cage
 (`name: "S-cell"`), the sole decode-time S-cell channel (CONTEXT.md
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import blank_cells, boxed_document, regenerate, wrap_document
+from _corpus import authored_cage_style, blank_cells, boxed_document, jigsaw_document
 
 from gridfind.sudokumaker import document_to_link
 
@@ -30,16 +30,6 @@ from gridfind.sudokumaker import document_to_link
 # 0 sits below every ordinary given (which use 1..N), so an S-cell pinned
 # `{0, base}` supplies the tenth digit its row/column/box would otherwise lack.
 _EXTRA = 0
-
-
-def _authored_cage_style() -> dict[str, object]:
-    """The default black cosmetic-cage style SudokuMaker writes for a hand-drawn
-    named cage — outline and label both `#000000`. A synthesized cage block
-    carries it so the emitted link is authentic: the cage renders with its
-    cosmetic-cage icon the way a setter's own link would, rather than the
-    style-less block SudokuMaker draws iconless. A fresh dict per call, so no two
-    blocks alias one object. Display-only — `link_to_puzzle` never reads `style`."""
-    return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
 
 
 def _solution_digit(row: int, col: int, box_h: int, box_w: int) -> int:
@@ -79,7 +69,7 @@ def _base_document(
                 "name": "S-cell",
                 "type": 2001,
                 "cages": scell_cages,
-                "style": _authored_cage_style(),
+                "style": authored_cage_style(),
             }
         ],
     )
@@ -280,24 +270,22 @@ def _doubler_document(
     for index, value in givens.items():
         cells[index] = {"given": True, "value": value}
     constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": _DOUBLER_REGIONS},
         {
             "name": "Sum",
             "type": 2001,
             "cages": sum_cages,
-            "style": _authored_cage_style(),
+            "style": authored_cage_style(),
         },
         {
             "name": "Doubler",
             "type": 2001,
             "cages": [{"cells": doubler_cells}],
-            "style": _authored_cage_style(),
+            "style": authored_cage_style(),
         },
     ]
     if with_scell_block:
         constraints.append({"name": "S-cell", "type": 2001, "cages": []})
-    return wrap_document(cells, 4, constraints)
+    return jigsaw_document(_DOUBLER_REGIONS, 4, cells=cells, constraints=constraints)
 
 
 def found_doubler_4x4() -> str:
@@ -354,16 +342,16 @@ def found_cosmetic_cage_4x4() -> str:
     value graduates the cage to a `group-sum`, where an empty one leaves only
     the bare no-repeats rule."""
     constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": _DOUBLER_REGIONS},
         {
             "name": "Sum",
             "type": 2001,
             "cages": [{"value": "3", "cells": [0, 6]}],
-            "style": _authored_cage_style(),
+            "style": authored_cage_style(),
         },
     ]
-    return document_to_link(wrap_document(blank_cells(4), 4, constraints))
+    return document_to_link(
+        jigsaw_document(_DOUBLER_REGIONS, 4, constraints=constraints)
+    )
 
 
 def broke_cosmetic_cage_sumless_4x4() -> str:
@@ -378,16 +366,16 @@ def broke_cosmetic_cage_sumless_4x4() -> str:
     cells[1] = {"given": True, "value": 2}
     cells[7] = {"given": True, "value": 2}
     constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": _DOUBLER_REGIONS},
         {
             "name": "Sum",
             "type": 2001,
             "cages": [{"value": "", "cells": [0, 6]}],
-            "style": _authored_cage_style(),
+            "style": authored_cage_style(),
         },
     ]
-    return document_to_link(wrap_document(cells, 4, constraints))
+    return document_to_link(
+        jigsaw_document(_DOUBLER_REGIONS, 4, cells=cells, constraints=constraints)
+    )
 
 
 def found_cosmetic_cage_unrecognized_4x4() -> str:
@@ -405,16 +393,16 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
     solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
     cells: list[dict[str, object]] = [{"given": True, "value": d} for d in solution]
     constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": _DOUBLER_REGIONS},
         {
             "name": "Foobar",
             "type": 2001,
             "cages": [{"value": "6", "cells": [0, 6]}],
-            "style": _authored_cage_style(),
+            "style": authored_cage_style(),
         },
     ]
-    return document_to_link(wrap_document(cells, 4, constraints))
+    return document_to_link(
+        jigsaw_document(_DOUBLER_REGIONS, 4, cells=cells, constraints=constraints)
+    )
 
 
 def found_cosmetic_cage_unnamed_4x4() -> str:
@@ -428,16 +416,15 @@ def found_cosmetic_cage_unnamed_4x4() -> str:
     solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
     cells: list[dict[str, object]] = [{"given": True, "value": d} for d in solution]
     constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": _DOUBLER_REGIONS},
         {
             "type": 2001,
             "cages": [{"value": "6", "cells": [0, 6]}],
-            "style": _authored_cage_style(),
+            "style": authored_cage_style(),
         },
     ]
-    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link(
+        jigsaw_document(_DOUBLER_REGIONS, 4, cells=cells, constraints=constraints)
+    )
 
 
 def _broken_row_with_cosmetic_cage(cage_name: str | None) -> str:
@@ -446,23 +433,19 @@ def _broken_row_with_cosmetic_cage(cage_name: str | None) -> str:
     named `cage_name` (`None` for an unnamed block) over unrelated cells. The
     cage still warn-drops either way, so the break comes from the row repeat
     alone — proving the drop reaches the broke side too, not just found."""
-    cells: list[dict[str, object]] = [{} for _ in range(16)]
+    cells = blank_cells(4)
     cells[0] = {"given": True, "value": 1}
     cells[1] = {"given": True, "value": 1}
     block: dict[str, object] = {
         "type": 2001,
         "cages": [{"cells": [4, 8]}],
-        "style": _authored_cage_style(),
+        "style": authored_cage_style(),
     }
     if cage_name is not None:
         block["name"] = cage_name
-    constraints: list[dict[str, object]] = [
-        {"type": 0},
-        {"type": 1, "regions": _DOUBLER_REGIONS},
-        block,
-    ]
-    puzzle = {"cells": cells, "size": 4, "constraints": constraints}
-    return document_to_link({"formatVersion": "1.5.0", "puzzle": puzzle})
+    return document_to_link(
+        jigsaw_document(_DOUBLER_REGIONS, 4, cells=cells, constraints=[block])
+    )
 
 
 def broke_cosmetic_cage_unnamed_4x4() -> str:
@@ -503,12 +486,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-cosmetic-cage-unnamed-4x4": broke_cosmetic_cage_unnamed_4x4,
     "broke-cosmetic-cage-unrecognized-4x4": broke_cosmetic_cage_unrecognized_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

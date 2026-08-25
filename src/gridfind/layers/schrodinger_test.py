@@ -36,9 +36,7 @@ def _s_value(engine: Engine) -> dict[str, cp_model.IntVar]:
 
 
 def test_default_combine_sums_an_s_cells_two_digits() -> None:
-    # With no `combine` declared, an S-cell's two digits add: {2, 3} is worth 5,
-    # not 23 (ADR-0010 decision 5). `concat` stays a choosable rule, exercised
-    # where a cage reads the value.
+    # An S-cell's two digits add: {2, 3} is worth 5 (ADR-0010 decision 5).
     engine = build_engine(
         [GridCells(), Schrodinger()], board=Board(size=4, values=range(5))
     )

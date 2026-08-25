@@ -1,6 +1,6 @@
 """Cell-group block decoders: killer cages (`type 301`), cosmetic cages
 (`type 2001` — killer-shaped but dispatched per its marker classification,
-`naming.classify`), and thermometers (`type 300`, the one
+`naming.classify_component`), and thermometers (`type 300`, the one
 ordered-path block, grouped here alongside the cages since it shares their
 raw-indices-to-addresses wire shape and no other module in the split claims
 it).
@@ -17,7 +17,7 @@ from gridfind.engine import MalformedPuzzleError
 from gridfind.puzzle import Constraint, ModifierDirective
 from gridfind.sudokumaker.addresses import addresses
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
-from gridfind.sudokumaker.naming import Role, classify, named_component
+from gridfind.sudokumaker.naming import Role, _NamedComponent, classify_component
 from gridfind.sudokumaker.wire_types import CAGE_TYPE, COSMETIC_CAGE_TYPE, THERMO_TYPE
 
 _ModifierKind = Literal["doubler", "constant"]
@@ -230,13 +230,18 @@ def _resolve_modifier_constraint(
 
 def _decode_cosmetic_block(
     kind: Role,
+    component: _NamedComponent | None,
     block: dict[str, Any],
     cages: list[dict[str, Any]],
     size: int,
 ) -> tuple[_CosmeticCageDecode, tuple[_ModifierKind, int | None] | None]:
-    """One `type 2001` block's contribution, decoded per `kind`
-    (`naming.classify`, ADR-0012, extended by ADR-0016 and ADR-0018), with
-    no outer state: the block in, `(decode, declaration)` out. A
+    """One `type 2001` block's contribution, decoded per `kind` and its
+    paired `component` (`naming.classify_component`, ADR-0012, extended by
+    ADR-0016 and ADR-0018), with no outer state: the block in, `(decode,
+    declaration)` out. `kind`/`component` are classified once by the caller
+    and threaded down together — the `Doubler`/`Constant` arm reads its `k`
+    straight off `component.value` rather than re-classifying the block's
+    name. A
     `Sum`/`Killer`-labelled block graduates to killer-cage `Constraint`s
     (ADR-0008) — cells and value nest under `cages`, the same wire shape as a
     `type 301` block, each cage's raw `cells` indices mapping row-major to
@@ -273,52 +278,53 @@ def _decode_cosmetic_block(
     only a recognized name selects one. A non-empty one is dropped with a loud
     stderr warning naming the block or its unrecognized name; an empty one
     adds nothing and warns nothing, the same as any other empty block."""
-    if kind in ("unnamed", "unrecognized", "numbered-rooms"):
-        # `numbered-rooms` is a `type 1000` escape-the-grid clue (`frame`),
-        # never a cosmetic-cage rule — a `type 2001` carrier naming it selects
-        # no cage, so it drops loud like an unrecognized name rather than
-        # falling through to the killer-cage default below.
-        if cages:
-            _warn_dropped_cosmetic_cage(block, kind)
-        return _CosmeticCageDecode(), None
-    if kind == "s-cell":
-        scell_values = {
-            cell_address: cage.get("value")
-            for cage in cages
-            for cell_address in addresses(cage["cells"], size)
-        }
-        return (
-            _CosmeticCageDecode(scell_values=scell_values, has_scell_block=True),
-            None,
-        )
-    if kind == "somedoku":
-        return _CosmeticCageDecode(has_somedoku_block=True), None
-    if kind in ("doubler", "constant"):
-        _refuse_marker_cage_value_field(cages, kind)
-        modifiers = tuple(
-            ModifierDirective(format_address, is_modifier=True)
-            for cage in cages
-            for format_address in addresses(cage["cells"], size)
-        )
-        declaration = None
-        if modifiers:
-            component = named_component(block.get("name"))
-            value = component.value if component is not None else None
-            declaration = (kind, value)
-        return _CosmeticCageDecode(modifier_directives=modifiers), declaration
-    if kind == "equality":
-        return _CosmeticCageDecode(
-            constraints=tuple(_equality_cages(cages, size))
-        ), None
-    if kind == "rellik":
-        constraints = _cages_with_optional_total(
-            cages, size, _cosmetic_cage_numeric_value, "rellik-cage"
-        )
-        return _CosmeticCageDecode(constraints=tuple(constraints)), None
-    constraints = _cages_with_optional_total(
-        cages, size, _cosmetic_cage_numeric_value, "group-sum"
-    )
-    return _CosmeticCageDecode(constraints=tuple(constraints)), None
+    match kind:
+        case "unnamed" | "unrecognized" | "numbered-rooms":
+            # `numbered-rooms` is a `type 1000` escape-the-grid clue (`frame`),
+            # never a cosmetic-cage rule — a `type 2001` carrier naming it
+            # selects no cage, so it drops loud like an unrecognized name
+            # rather than falling through to the killer-cage default below.
+            if cages:
+                _warn_dropped_cosmetic_cage(block, kind)
+            return _CosmeticCageDecode(), None
+        case "s-cell":
+            scell_values = {
+                cell_address: cage.get("value")
+                for cage in cages
+                for cell_address in addresses(cage["cells"], size)
+            }
+            return (
+                _CosmeticCageDecode(scell_values=scell_values, has_scell_block=True),
+                None,
+            )
+        case "somedoku":
+            return _CosmeticCageDecode(has_somedoku_block=True), None
+        case "doubler" | "constant":
+            _refuse_marker_cage_value_field(cages, kind)
+            modifiers = tuple(
+                ModifierDirective(format_address, is_modifier=True)
+                for cage in cages
+                for format_address in addresses(cage["cells"], size)
+            )
+            declaration = None
+            if modifiers:
+                value = component.value if component is not None else None
+                declaration = (kind, value)
+            return _CosmeticCageDecode(modifier_directives=modifiers), declaration
+        case "equality":
+            return _CosmeticCageDecode(
+                constraints=tuple(_equality_cages(cages, size))
+            ), None
+        case "rellik":
+            constraints = _cages_with_optional_total(
+                cages, size, _cosmetic_cage_numeric_value, "rellik-cage"
+            )
+            return _CosmeticCageDecode(constraints=tuple(constraints)), None
+        case _:
+            constraints = _cages_with_optional_total(
+                cages, size, _cosmetic_cage_numeric_value, "group-sum"
+            )
+            return _CosmeticCageDecode(constraints=tuple(constraints)), None
 
 
 def cosmetic_cage_constraints(
@@ -340,9 +346,11 @@ def cosmetic_cage_constraints(
     decoded: list[_CosmeticCageDecode] = []
     modifier_declarations: list[tuple[_ModifierKind, int | None]] = []
     for block in enabled_blocks(buckets, COSMETIC_CAGE_TYPE):
-        kind = classify(block.get("name"))
+        kind, component = classify_component(block.get("name"))
         cages = cast("list[dict[str, Any]]", block.get("cages", []))
-        decode, declaration = _decode_cosmetic_block(kind, block, cages, size)
+        decode, declaration = _decode_cosmetic_block(
+            kind, component, block, cages, size
+        )
         decoded.append(decode)
         if declaration is not None:
             modifier_declarations.append(declaration)

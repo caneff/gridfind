@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
-fixture exercises and regenerate the whole set with `main()`.
+fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 A clone block is `{type: 302, input: {groups: [{cells: [...]}]}}` — the nested
 `input.groups` wire shape (see `wire_types.CLONE_TYPE`). Every fixture clones a
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import authored_cage_style, boxed_document
 
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import CLONE_TYPE
@@ -36,12 +36,6 @@ _B = 10
 
 def _clone_block(*groups: list[int]) -> dict[str, object]:
     return {"type": CLONE_TYPE, "input": {"groups": [{"cells": g} for g in groups]}}
-
-
-def _authored_cage_style() -> dict[str, object]:
-    """The default black cosmetic-cage style SudokuMaker writes for a hand-drawn
-    named cage. Display-only — `link_to_puzzle` never reads `style`."""
-    return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
 
 
 def found_clone_4x4() -> str:
@@ -83,7 +77,7 @@ def broke_clone_scell_4x4() -> str:
                     "name": "S-cell",
                     "type": 2001,
                     "cages": scell_cages,
-                    "style": _authored_cage_style(),
+                    "style": authored_cage_style(),
                 },
                 _clone_block([_A, _B]),
             ],
@@ -99,12 +93,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-clone-4x4": broke_clone_4x4,
     "broke-clone-scell-4x4": broke_clone_scell_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every clone corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

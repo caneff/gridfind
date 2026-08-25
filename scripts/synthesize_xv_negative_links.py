@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
-fixture exercises and regenerate the whole set with `main()`.
+fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Unlike the white-/black-kropki-negative fixtures, this pair carries no marked
 XV clue: on a 4x4 board (digits 1-4), a valid classic-plus-2x2-box grid can
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import XV_TYPE
@@ -65,12 +65,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-xv-negative-4x4": found_xv_negative_4x4,
     "broke-xv-negative-4x4": broke_xv_negative_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every xv-negative corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

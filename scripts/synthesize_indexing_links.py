@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what
-each fixture exercises and regenerate the whole set with `main()`.
+each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 One `found-`/`broke-` pair per axis (`type 600` row-indexing, `type 601`
 column-indexing; gridfind owns this wire type, so the split
@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
@@ -181,12 +181,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-indexing-scell-col-4x4": found_indexing_scell_col_4x4,
     "broke-indexing-scell-col-4x4": broke_indexing_scell_col_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every indexing corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

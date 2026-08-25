@@ -21,8 +21,8 @@ class LineCountDistinct:
     toward the line's total, the same as `rows-distinct`'s is_S-gated house
     rule treats them. A non-S-cell's second slot sits on its own sentinel,
     always above every real digit, so it never matches a digit in
-    `board.values` and drops out of the count on its own — no `s_blind`
-    flag needed, this layer counts over whole content slots like
+    `board.values` and drops out of the count on its own — it is not
+    s-blind, this layer counts over whole content slots like
     `regions-distinct` does.
     """
 
