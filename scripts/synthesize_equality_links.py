@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what balance
-case a fixture exercises and regenerate the whole set with `main()`.
+case a fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Every fixture is a sparse 9x9 with row 1 holding the only givens. A broke
 fixture gives row 1's five non-cage columns their own digit (`1..9` is a legal
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
@@ -103,12 +103,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-equality-rank-9x9": broke_equality_rank_9x9,
     "broke-equality-middle-9x9": broke_equality_middle_9x9,
 }
-
-
-def main() -> None:
-    """Regenerate every equality-cage corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()
