@@ -8,9 +8,9 @@ reads as the already-modeled ruleset, not the decoder internals that build it.
 
 from __future__ import annotations
 
-import sys
 from typing import Any, cast
 
+from gridfind.sudokumaker.boundary import warn_dropped
 from gridfind.sudokumaker.naming import named_component, shape_needs_cells
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 
@@ -100,20 +100,15 @@ def warn_on_dropped_constraints(puzzle_data: dict[str, object]) -> None:
         if component is not None and not shape_needs_cells(component.shape):
             continue
         if component is not None and not _carrier_supplies_cage_cells(constraint):
-            msg = (
-                f"warning: ignoring {name!r} (type {kind!r}) — its "
+            warn_dropped(
+                f"ignoring {name!r} (type {kind!r}) — its "
                 f"{component.shape} name needs a cage's cells, which this "
-                "constraint does not carry — verdict computed without it"
+                "constraint does not carry"
             )
-            print(msg, file=sys.stderr)
             continue
         if has_live_data(constraint):
             named = f" {name!r}" if name is not None else ""
-            msg = (
-                f"warning: ignoring unmodeled constraint{named} (type {kind!r}) "
-                "— verdict computed without it"
-            )
-            print(msg, file=sys.stderr)
+            warn_dropped(f"ignoring unmodeled constraint{named} (type {kind!r})")
 
 
 def has_live_data(constraint: dict[str, Any]) -> bool:

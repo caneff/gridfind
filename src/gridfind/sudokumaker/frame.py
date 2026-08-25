@@ -57,7 +57,7 @@ from typing import Any, cast
 from gridfind.cell_geometry import format_address, parse_address
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.addresses import index_to_address
-from gridfind.sudokumaker.boundary import as_int
+from gridfind.sudokumaker.boundary import as_int, warn_dropped
 from gridfind.sudokumaker.dropped import constraint_name
 from gridfind.sudokumaker.edge_clues import KROPKI_PAIR_BUILDERS, edge_to_pair
 from gridfind.sudokumaker.naming import named_component
@@ -262,11 +262,10 @@ def _warn_dropped_numbered_rooms_remainder(
         if cells is None or not _touches_border(parse_address(cells[0]), inner):
             dropped += 1
     if dropped:
-        print(
-            f"warning: escape-the-grid frame: dropping {dropped} Numbered "
-            "Rooms group(s) whose shape gridfind cannot read as an "
-            "outside-cell relation — verdict computed without them",
-            file=sys.stderr,
+        warn_dropped(
+            f"escape-the-grid frame: dropping {dropped} Numbered Rooms "
+            "group(s) whose shape gridfind cannot read as an outside-cell "
+            "relation"
         )
 
 

@@ -3,8 +3,12 @@ to its JSON document (`link_to_document`) and compress one back
 (`document_to_link`), the size/domain fields every decode reads off that document
 (`board_size`, `digit_domain`, `schrodinger_domain`), the one-pass
 type bucketing (`bucket_constraints_by_type`) `link_to_puzzle` runs once per
-link, and the shared enabled-block walk (`enabled_blocks`) every per-type
-decoder in the package indexes into that bucket through.
+link, the shared enabled-block walk (`enabled_blocks`) every per-type
+decoder in the package indexes into that bucket through, and the one stderr
+emitter (`warn_dropped`) every module's own drop decision prints its local
+reason through. The lowest module in the package's own import graph (only
+`addresses` beneath it), so every other decoder module can reach
+`warn_dropped` here with no cycle.
 """
 
 from __future__ import annotations
@@ -159,6 +163,17 @@ def enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[str,
             yield block
 
 
+def warn_dropped(reason: str) -> None:
+    """The single stderr emitter for a dropped-constraint warning: `reason`
+    names what a caller is ignoring and why. Owns the "warning: ... —
+    verdict computed without it" wording and the stderr channel around it,
+    so neither can drift across the four modules (`boundary`, `cages`,
+    `dropped`, `frame`) that each drop something for their own local
+    reason — each drop decision stays local, only the message and channel
+    are shared."""
+    print(f"warning: {reason} — verdict computed without it", file=sys.stderr)
+
+
 def enabled_block_addresses(
     buckets: ConstraintBuckets, type_: int, size: int, name: str
 ) -> Iterator[list[str]]:
@@ -172,10 +187,6 @@ def enabled_block_addresses(
     for block in enabled_blocks(buckets, type_):
         cells = cast("list[int]", block.get("cells", []))
         if not cells:
-            print(
-                f"warning: ignoring {name} block with no cells "
-                "— verdict computed without it",
-                file=sys.stderr,
-            )
+            warn_dropped(f"ignoring {name} block with no cells")
             continue
         yield addresses(cells, size)

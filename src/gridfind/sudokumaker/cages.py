@@ -8,7 +8,6 @@ it).
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
@@ -16,7 +15,11 @@ from typing import Any, Literal, cast
 from gridfind.engine import MalformedPuzzleError
 from gridfind.puzzle import Constraint, ModifierDirective
 from gridfind.sudokumaker.addresses import addresses
-from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
+from gridfind.sudokumaker.boundary import (
+    ConstraintBuckets,
+    enabled_blocks,
+    warn_dropped,
+)
 from gridfind.sudokumaker.naming import Role, _NamedComponent, classify_component
 from gridfind.sudokumaker.wire_types import CAGE_TYPE, COSMETIC_CAGE_TYPE, THERMO_TYPE
 
@@ -168,13 +171,9 @@ def _warn_dropped_cosmetic_cage(block: dict[str, Any], kind: Role) -> None:
     unnamed case gets its own message; every other kind is named by its
     `name` so the message tells the setter which one they hit."""
     if kind == "unnamed":
-        msg = "warning: ignoring unnamed cosmetic cage — verdict computed without it"
+        warn_dropped("ignoring unnamed cosmetic cage")
     else:
-        msg = (
-            f"warning: ignoring unrecognized named cage {block.get('name')!r} "
-            "— verdict computed without it"
-        )
-    print(msg, file=sys.stderr)
+        warn_dropped(f"ignoring unrecognized named cage {block.get('name')!r}")
 
 
 def _refuse_marker_cage_value_field(
