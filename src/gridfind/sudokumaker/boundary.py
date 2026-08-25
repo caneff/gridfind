@@ -4,14 +4,12 @@ to its JSON document (`link_to_document`) and compress one back
 (`board_size`, `digit_domain`, `schrodinger_domain`), the one-pass
 type bucketing (`bucket_constraints_by_type`) `link_to_puzzle` runs once per
 link, the shared enabled-block walk (`enabled_blocks`) every per-type
-decoder in the package indexes into that bucket through, and the shared
-stderr emitter (`warn_dropped`) `boundary`, `cages`, and `dropped` route
-every drop decision through, and `frame` routes some of its own through
-(`frame` also still hand-rolls its own differently-worded stderr warnings
-for its border-ring drops — a deliberate, out-of-scope duplication left
-for a later pass). The lowest module in the package's own import graph
-(only `addresses` beneath it), so every other decoder module can reach
-`warn_dropped` here with no cycle.
+decoder in the package indexes into that bucket through, and the one
+stderr emitter (`warn_dropped`) every module's own drop decision prints its
+local reason through — `boundary`, `cages`, `dropped`, and `frame` all route
+here. `boundary` is the lowest decoder module in the package's import graph
+(only `addresses` beneath it), so every other one reaches `warn_dropped`
+here with no cycle.
 """
 
 from __future__ import annotations
@@ -170,12 +168,10 @@ def warn_dropped(reason: str) -> None:
     """The single stderr emitter for a dropped-constraint warning: `reason`
     names what a caller is ignoring and why. Owns the "warning: ... —
     verdict computed without it" wording and the stderr channel around it,
-    so neither can drift across `boundary`, `cages`, `dropped`, and part
-    of `frame` — each drop decision stays local, only the message and
-    channel are shared. `frame` also still hand-rolls its own
-    differently-worded stderr warnings (`_warn_dropped_border`,
-    `_warn_dropped_kropki_remainder`) that this call does not cover — a
-    deliberate, out-of-scope duplication left for a later pass."""
+    so neither can drift across the four modules (`boundary`, `cages`,
+    `dropped`, `frame`) that each drop something for their own local
+    reason — each drop decision stays local, only the message and channel
+    are shared."""
     print(f"warning: {reason} — verdict computed without it", file=sys.stderr)
 
 
