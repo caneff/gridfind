@@ -14,11 +14,13 @@ native `<` rather than a reified either-or or a hand-built truth table
 (ADR-0001 keeps the engine seam raw OR-Tools): a thermo edge is directed, so
 there is nothing a table would buy.
 
-The per-edge emission decomposes the path into consecutive pairs itself, then
-hands them to `emit_over_pairs` — no new generic path-walk primitive,
-matching the spec's "build nothing generic now." A second line type
-(whisper, renban) can still lift a shared walk out later if one actually
-needs it.
+The per-edge emission decomposes the path into consecutive pairs itself and
+applies the edge relation directly in that same loop — no walk primitive of
+its own, since the walk is two lines and had exactly one caller (issue #695:
+`emit_over_pairs` and its two one-line relation adapters were inlined back
+into `Thermo.emit`). `line`'s `whisper` relation (#674) separately reuses the
+`emit_over_pairs` walk in `_base.py` for its own pairwise gap check — that
+helper stays, just no longer for thermo's sake.
 
 The `slow` flag rides on every clue's params (decoded by `sudokumaker.py`)
 and picks the edge relation: `≤` when true, `<` otherwise.
@@ -33,17 +35,6 @@ from typing import cast
 from ortools.sat.python import cp_model
 
 from gridfind.engine import Engine
-from gridfind.layers._base import emit_over_pairs
-
-
-def _strictly_increasing(
-    engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar
-) -> None:
-    engine.model.add(a < b)
-
-
-def _non_decreasing(engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar) -> None:
-    engine.model.add(a <= b)
 
 
 @dataclass
@@ -67,12 +58,7 @@ class Thermo:
             # cell's content, a doubler's modifier_value, an S-cell's
             # s_value) rather than a compound expression, so it narrows back
             # to IntVar, same as engine.content.
-            pairs = [
-                (
-                    cast("cp_model.IntVar", engine.value_expr(a)),
-                    cast("cp_model.IntVar", engine.value_expr(b)),
-                )
-                for a, b in pairwise(path)
-            ]
-            rel = _non_decreasing if slow else _strictly_increasing
-            emit_over_pairs(engine, pairs, rel)
+            for a, b in pairwise(path):
+                lo = cast("cp_model.IntVar", engine.value_expr(a))
+                hi = cast("cp_model.IntVar", engine.value_expr(b))
+                engine.model.add(lo <= hi if slow else lo < hi)
