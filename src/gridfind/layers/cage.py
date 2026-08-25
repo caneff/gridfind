@@ -12,11 +12,12 @@ A `distinct-over: "digit" | "value"` param picks what a repeat means, `"digit"`
 the default:
 
 - A **digits-distinct** cage forbids two cells holding the same *digit* — the
-  classic killer rule, over the placed symbols. It reads every content slot
-  raw (both of an S-cell's, `d1`'s sentinel keeping a non-S cell's second slot
-  out of the way) into one `add_all_different`. With no `schrodinger` layer
-  every cell is width 1, so this is the identical plain `add_all_different`
-  `DistinctOverGroups` already emits.
+  classic killer rule, over the placed symbols. It reads every cell's real
+  digit slots through `Engine.real_digit_slots` (both of an S-cell's; a non-S
+  cell's `d1` sentinel is explained there, not here) into one
+  `add_all_different`. With no `schrodinger` layer every cell is width 1, so
+  this is the identical plain `add_all_different` `DistinctOverGroups`
+  already emits.
 - A **values-distinct** cage forbids two cells holding the same *value*. It
   reads each cell's value through `Engine.value_expr` (ADR-0009), blind to how
   that value was built: a plain cell's digit, a doubler's `modifier_value`, an
@@ -62,7 +63,9 @@ class Cage:
             distinct_over = cast("str", clue.params.get("distinct-over", "digit"))
             if distinct_over == "digit":
                 slots = [
-                    slot for address in addresses for slot in engine.contents(address)
+                    var
+                    for address in addresses
+                    for var, _guard in engine.real_digit_slots(address)
                 ]
                 engine.model.add_all_different(slots)
             elif distinct_over == "value":

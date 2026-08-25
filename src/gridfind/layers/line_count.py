@@ -19,11 +19,10 @@ class LineCountDistinct:
     Counts distinct digits, not cells: feeds each line's flattened content
     slots into the distinct-count rule, so an S-cell's two digits both count
     toward the line's total, the same as `rows-distinct`'s is_S-gated house
-    rule treats them. A non-S-cell's second slot sits on its own sentinel,
-    always above every real digit, so it never matches a digit in
-    `board.values` and drops out of the count on its own — it is not
-    s-blind, this layer counts over whole content slots like
-    `regions-distinct` does.
+    rule treats them. `grid_content` resolves each slot through
+    `Engine.real_digit_slots`, so a non-S-cell's second slot drops out of the
+    count on its own with no gate here — it is not s-blind, this layer counts
+    over whole content slots like `regions-distinct` does.
     """
 
     name: str = "line-count-distinct"

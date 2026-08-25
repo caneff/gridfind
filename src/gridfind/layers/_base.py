@@ -26,20 +26,24 @@ from gridfind.engine import Engine, sole
 
 
 def grid_content(engine: Engine) -> list[list[list[cp_model.IntVar]]]:
-    """The grid's cells as their raw content sequences, resolved at call time
-    in phase 2. Named for *content*, the decided word, rather
-    than for the CP-SAT variables it happens to return — "variable" is an
-    implementation word kept out of the spoken vocabulary (CONTEXT.md).
+    """The grid's cells as their real-digit-slot sequences, resolved at call
+    time in phase 2 through `Engine.real_digit_slots` — the guard each slot
+    carries is dropped here, since every caller (a counting rule or a plain
+    AllDifferent) already tolerates a non-S-cell's sentinel second slot on its
+    own (`real_digit_slots`'s docstring) and needs no `.only_enforce_if`.
 
     `board` stores the grid as cell *addresses*, not content, on purpose: a
     Schrödinger layer can widen a cell's content to length 2 in phase 1, so
     resolving an address to its content must wait until here. Hands back
-    each cell's raw sequence, never a folded scalar — a
+    each cell's slot sequence, never a folded scalar — a
     width-1 cell's sequence has length 1, so a caller that wants one
     variable per cell folds it itself.
     """
     grid = engine.cell_geometry.grid
-    return [[engine.contents(address) for address in row] for row in grid]
+    return [
+        [[var for var, _guard in engine.real_digit_slots(address)] for address in row]
+        for row in grid
+    ]
 
 
 def emit_distinct_count(
@@ -69,11 +73,11 @@ def flatten_slots(
     cells: Iterable[Iterable[cp_model.IntVar]],
 ) -> list[cp_model.IntVar]:
     """A house's per-cell content lists as one flat slot list — `d0` always,
-    `d1` too where a cell is an S-cell. A non-S-cell's `d1` sits on its own
-    sentinel, always above every real digit, so digit-presence reification
-    over the flat list drops it on its own with no is_S gate. The single home
-    for this walk: `emit_house` and `line-count-distinct` both read a house's
-    slots this way.
+    `d1` too where a cell is an S-cell. `cells` already comes from
+    `grid_content`, so no separate is_S gate is needed here: `real_digit_slots`
+    is the one place that explains why a non-S-cell's `d1` drops out of a
+    digit-presence reification on its own. The single home for this walk:
+    `emit_house` and `line-count-distinct` both read a house's slots this way.
     """
     return [slot for content in cells for slot in content]
 
@@ -83,9 +87,9 @@ def emit_house(
 ) -> None:
     """Rule: every digit in the board's domain occupies exactly one content
     slot across `cells` — `d0` always, `d1` too where it holds a real digit
-    (an S-cell's second digit). No separate is_S gate is needed: a
-    non-S-cell's `d1` sits on its own sentinel, always above every real
-    digit, so it can never equal one.
+    (an S-cell's second digit). No separate is_S gate is needed: `cells`
+    already came through `grid_content`'s `real_digit_slots` read, which is
+    the one place the sentinel invariant lives.
 
     No-repeats and cover collapse into this one rule: a house of `len(cells)`
     cells offers `sum(len(content) for content in cells)` real-or-sentinel

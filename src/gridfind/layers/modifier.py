@@ -8,8 +8,9 @@ one modifier per row, per column, and per box, and the modified cells'
 digits are all-different (a distinct-digit transversal over every real digit
 a cell contributes — `d0` for a plain cell, and an S-cell's `d1` too, since a
 doubled S-cell doubles both of its digits). Composing with `schrodinger`
-needs no guard against a cell being both modifier and S-cell: a non-S-cell's
-`d1` is a sentinel above every real digit, so it never enters the count.
+needs no guard against a cell being both modifier and S-cell: both slots come
+from `engine.real_digit_slots`, the one place a non-S-cell's `d1` sentinel is
+explained, so it never enters the count.
 "All-different" is capped at-most-once per digit, not a bijection with
 `board.values` — `schrodinger` always widens `values` past `board.size`, and
 the one-per-house rule fixes the modifier count at exactly `board.size`, so a
@@ -95,12 +96,11 @@ class ModifierPlacement:
         in some slot"; at most one cell may, so no two modifiers ever share a
         doubled digit — true all-different, not a bijection with `board.values`.
 
-        Reading both slots needs no `is_s` gate: `schrodinger` fills a
-        non-S-cell's `d1` with a per-cell sentinel above every real digit, and
-        the count ranges only over `board.values`, so a sentinel slot never
-        matches a real digit and contributes nothing. `d0 < d1` keeps an
-        S-cell's two slots distinct, so a single cell never collides with
-        itself.
+        Reading both slots needs no `is_s` gate: `engine.real_digit_slots` is
+        the one place the sentinel invariant lives, so its slots feed
+        `reify_holds` directly and a non-S-cell's second slot contributes
+        nothing on its own. `d0 < d1` keeps an S-cell's two slots distinct, so
+        a single cell never collides with itself.
 
         `<= 1`, not `== 1`: a bijection only holds when `len(values) ==
         board.size`, and `schrodinger` always widens `values` past `size`, so
@@ -110,8 +110,9 @@ class ModifierPlacement:
         for digit in engine.board.values:
             holds = []
             for address in engine.cells:
+                slots = [var for var, _guard in engine.real_digit_slots(address)]
                 slot_holds = engine.reify_holds(
-                    engine.contents(address), digit, label=f"{self.name}.{address}"
+                    slots, digit, label=f"{self.name}.{address}"
                 )
                 is_digit = engine.model.new_bool_var(f"{self.name}.{address}.is{digit}")
                 engine.model.add_max_equality(is_digit, slot_holds)
