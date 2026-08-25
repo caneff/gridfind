@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what
-each fixture exercises and regenerate the whole set with `main()`.
+each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Both fixtures clue a single two-cell whisper line, R1C1 -> R1C2, on a boxed
 4x4 board (digits 1..4) with `minDifference: 3` — the widest gap the domain
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
@@ -66,12 +66,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-whisper-4x4": found_whisper_4x4,
     "broke-whisper-4x4": broke_whisper_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every whisper corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

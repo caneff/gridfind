@@ -3,7 +3,7 @@
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what
-each fixture exercises and regenerate the whole set with `main()`.
+each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Both fixtures clue a single three-cell palindrome line, R1C1 -> R2C2 -> R3C3,
 on a boxed 4x4 board (digits 1..4). The mirror pair is the two ends — R1C1
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
@@ -65,12 +65,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-palindrome-4x4": found_palindrome_4x4,
     "broke-palindrome-4x4": broke_palindrome_4x4,
 }
-
-
-def main() -> None:
-    """Regenerate every palindrome corpus file from its synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()

@@ -4,7 +4,7 @@ code.
 The `links/` corpus is built programmatically, never hand-authored on
 SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
-fixture exercises and regenerate the whole set with `main()`.
+fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 `differs_by`'s negated mode reads each pair through `engine.value_expr`
 (ADR-0009), same as its positive mode — a doubler's `2·value`, never the raw
@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import boxed_document, regenerate
+from _corpus import boxed_document
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
@@ -90,13 +90,3 @@ CORPUS: dict[str, Callable[[], str]] = {
     "found-kropki-negative-doubler-6x6": found_kropki_negative_doubler_6x6,
     "broke-kropki-negative-doubler-6x6": broke_kropki_negative_doubler_6x6,
 }
-
-
-def main() -> None:
-    """Regenerate every kropki-negative-doubler corpus file from its
-    synthesizer."""
-    regenerate(CORPUS)
-
-
-if __name__ == "__main__":
-    main()
