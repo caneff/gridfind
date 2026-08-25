@@ -19,6 +19,7 @@ from gridfind.sudokumaker.naming import (
     _NAME_REGISTRY,
     _normalize_component_name,
     classify,
+    classify_component,
     named_component,
     shape_needs_cells,
 )
@@ -219,6 +220,28 @@ def test_classify_sorts_the_name(name: object, expected: str) -> None:
     # parseable integer stays unrecognized rather than silently becoming
     # `k = 0`.
     assert classify(name) == expected
+
+
+def test_classify_component_pairs_the_role_with_its_component() -> None:
+    # `classify_component` is `classify`'s role plus the `_NamedComponent`
+    # that produced it, in one pass — the cage decoder's `Doubler`/`Constant`
+    # arm reads `k` straight off this pair's component instead of calling
+    # `named_component` a second time.
+    role, component = classify_component("Constant 5")
+
+    assert role == "constant"
+    assert component is not None
+    assert component.value == 5
+
+
+@pytest.mark.parametrize("name", [None, "", "  ", "Unknown Label"])
+def test_classify_component_pairs_unnamed_and_unrecognized_with_no_component(
+    name: object,
+) -> None:
+    role, component = classify_component(name)
+
+    assert role == classify(name)
+    assert component is None
 
 
 def test_marker_labels_covers_every_role() -> None:
