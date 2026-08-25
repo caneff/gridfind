@@ -36,8 +36,6 @@ import itertools
 from dataclasses import dataclass
 from typing import cast
 
-from ortools.sat.python import cp_model
-
 from gridfind.engine import Engine
 
 
@@ -47,7 +45,7 @@ def _value_bounds(engine: Engine, address: str) -> tuple[int, int]:
     whether that range came from a plain digit, a doubler's folded value, or
     an S-cell's `s_value` (the domain already reflects whichever channel
     built it)."""
-    domain = cast("cp_model.IntVar", engine.value_expr(address)).proto.domain
+    domain = engine.value_expr(address).proto.domain
     return min(domain), max(domain)
 
 

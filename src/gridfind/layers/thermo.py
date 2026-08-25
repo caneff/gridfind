@@ -30,8 +30,6 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
-from ortools.sat.python import cp_model
-
 from gridfind.engine import Engine
 
 
@@ -52,11 +50,7 @@ class Thermo:
         for clue in engine.constraints_of(self.name):
             path = cast("list[str]", clue.params["path"])
             slow = cast("bool", clue.params["slow"])
-            # value_expr always reifies an actual solver variable (a plain
-            # cell's content, a doubler's modifier_value, an S-cell's
-            # s_value) rather than a compound expression, so it narrows back
-            # to IntVar, same as engine.content.
             for a, b in pairwise(path):
-                lo = cast("cp_model.IntVar", engine.value_expr(a))
-                hi = cast("cp_model.IntVar", engine.value_expr(b))
+                lo = engine.value_expr(a)
+                hi = engine.value_expr(b)
                 engine.model.add(lo <= hi if slow else lo < hi)
