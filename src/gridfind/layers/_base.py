@@ -151,8 +151,8 @@ def emit_over_pairs(
     rel: Callable[[Engine, cp_model.IntVar, cp_model.IntVar], None],
 ) -> None:
     """Rule: `rel(engine, a, b)` holds for every pair in `pairs` — the walk
-    behind a many-cell path decomposed into consecutive pairs, `thermo`'s
-    real user (decision 5). A binary pair relation (`pair-difference`,
+    behind a many-cell path decomposed into consecutive pairs, `line.py`'s
+    whisper relation's real user. A binary pair relation (`pair-difference`,
     `pair-ratio`, both via `PairRelation`) names exactly two cells and
     applies its `rel` to them directly, with no walk of its own.
 

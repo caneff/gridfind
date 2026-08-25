@@ -6,8 +6,8 @@ A pair-relation clue names two cells and holds them to some binary relation
 built with a **relation-emitter** closure, pulls every constraint of its own
 `name` via `constraints_of` and applies the relation directly to its own two
 cells — a pair is not a many-cell walk, so it costs no walk of its own
-(`thermo`'s consecutive-pair decomposition is the many-cell case; it keeps
-the shared `emit_over_pairs` walk in `_base.py`).
+(`line`'s `whisper` relation is the many-cell case; it keeps the shared
+`emit_over_pairs` walk in `_base.py`).
 
 The relation-emitter is the seam: given a clue's own `params`, it returns
 the `rel(engine, a, b)` callable this layer calls directly on the pair. Each
