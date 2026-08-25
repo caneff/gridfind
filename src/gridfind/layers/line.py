@@ -254,10 +254,7 @@ class Line:
             reading_mode, predicate = LINE_RELATIONS[relation]
             path = cast("list[str]", clue.params["path"])
             if reading_mode == "value":
-                value_sequence = [
-                    cast("cp_model.IntVar", engine.value_expr(address))
-                    for address in path
-                ]
+                value_sequence = [engine.value_expr(address) for address in path]
                 cast("ValuePredicate", predicate)(engine, value_sequence, clue.params)
             elif reading_mode == "digit":
                 digit_sequence = [engine.real_digit_slots(address) for address in path]

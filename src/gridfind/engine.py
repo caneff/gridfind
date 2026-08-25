@@ -262,7 +262,7 @@ class Engine:
             return s_value[address]
         return self.content(address)
 
-    def value_expr(self, address: str) -> cp_model.LinearExprT:
+    def value_expr(self, address: str) -> cp_model.IntVar:
         """A cell's value as a model-build-time expression, for a constraint
         that must put a cell's *value* (not its raw digit) into a CP rule, such
         as a values-distinct cage (ADR-0009). A modifier maps the value beneath
