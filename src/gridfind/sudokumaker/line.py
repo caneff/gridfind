@@ -3,7 +3,7 @@ the same `lines`-path walk (`_line_constraints`) since every relation decodes
 to the identical `Constraint("line", ...)` shape (spec #672) and differs only
 in its `relation` alias and whatever block-level knobs that alias reads
 (whisper's `minDifference`; grouped's `groups`; renban, palindrome, between,
-and lockout state none). `thermo_constraints`
+lockout, and double-arrow state none). `thermo_constraints`
 (`cages.py`) is the prior-art template for a `lines`-path block this shared
 walk itself follows.
 """
@@ -18,6 +18,7 @@ from gridfind.sudokumaker.addresses import addresses
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 from gridfind.sudokumaker.wire_types import (
     BETWEEN_TYPE,
+    DOUBLE_ARROW_TYPE,
     GROUPED_TYPE,
     LOCKOUT_TYPE,
     PALINDROME_TYPE,
@@ -85,6 +86,14 @@ def lockout_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     knob, like between: the endpoint-gap threshold is computed from the
     board size at the `Line` layer, never read off the wire."""
     return _line_constraints(buckets, size, LOCKOUT_TYPE, "lockout")
+
+
+def double_arrow_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+    """The `type 409` double-arrow lines as `line` `Constraint`s — no
+    block-level knob, like between and lockout: the two path ends are the
+    bulbs, and the interior-sums-to-bulb-sum rule needs nothing beyond the
+    path."""
+    return _line_constraints(buckets, size, DOUBLE_ARROW_TYPE, "double-arrow")
 
 
 def grouped_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:

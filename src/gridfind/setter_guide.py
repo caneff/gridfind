@@ -25,6 +25,7 @@ from gridfind.sudokumaker.wire_types import (
     CAGE_TYPE,
     CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
+    DOUBLE_ARROW_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
     GROUPED_TYPE,
@@ -265,6 +266,18 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    DOUBLE_ARROW_TYPE: SetterDoc(
+        display_name="Double-Arrow Line",
+        wire_block="type 409 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "double-arrow",'
+        " order preserved; no extra block param. The two path ends are the"
+        " bulbs (value_expr — 2·d over a doubler, combined s_value over an"
+        " S-cell); the interior cells' values must sum to the bulbs' own sum."
+        " Reversal-invariant; a 2-cell path (no interior) is naturally broke,"
+        " since an empty interior sums to 0.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
     GROUPED_TYPE: SetterDoc(
         display_name="Grouped Line (Entropic/Modular/Parity)",
         wire_block="type 406 {lines:[[cell indices, ordered], …],"
@@ -338,6 +351,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "palindrome": "found-palindrome-4x4",
     "between": "found-between-4x4",
     "lockout": "found-lockout-4x4",
+    "double-arrow": "found-double-arrow-4x4",
     "grouped": "found-grouped-entropic-9x9",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",

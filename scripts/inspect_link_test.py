@@ -234,6 +234,9 @@ _GOLDEN_REPORTS = {
     "broke-cosmetic-cage-unrecognized-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
+    "broke-double-arrow-4x4": (
+        "4x4 · 16 cells · 3 givens · types {0,1,409} · active: 409 · verdict: broke"
+    ),
     "broke-doubler-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001x2 · verdict: broke"
     ),
@@ -388,6 +391,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-cosmetic-cage-unrecognized-4x4": (
         "4x4 · 16 cells · 16 givens · types {0,1,2001} · active: 2001 · verdict: found"
+    ),
+    "found-double-arrow-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,409} · active: 409 · verdict: found"
     ),
     "found-doubled-scell-17cage-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001x2 ·"
