@@ -166,6 +166,16 @@ WHISPER_TYPE = 401
 # `Line` layer refuses loud rather than guess one.
 PALINDROME_TYPE = 402
 
+# type 403 is a between-line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "between"` and
+# the path's addresses — no extra block param; the two path ends are the
+# bulbs, read at the `Line` layer through `value_expr`, and every interior
+# cell must sit strictly between them. This is the second **value-mode**
+# relation of the nine-relation line-clue family (spec #672), after whisper:
+# a doubler or Schrödinger cell at either bulb or on an interior cell counts
+# as its folded value, the same seam whisper reads through.
+BETWEEN_TYPE = 403
+
 # type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
 # indices, ordered], …], groups: [bitmask, …]}`. Each path becomes its own
 # `line` Constraint carrying `relation: "grouped"` and the path's addresses;

@@ -2,10 +2,10 @@
 direct rule readback via `line_rules` (whisper) / `all_different_groups`
 (renban) — that a clue emitted its own rule shape, not that a solve happened
 to satisfy it — plus verdict-seam behaviour (found/broke) for every relation
-the family carries so far. Palindrome and grouped-line, like clone
+the family carries so far. Palindrome, grouped-line, and between, like clone
 (`clone_test.py`), have no structural readback helper of their own — their
-rules read digit equality/group-membership, not addresses, so their coverage
-stays at the verdict/direct-model seam.
+rules read digit equality/group-membership/interval bounds, not addresses,
+so their coverage stays at the verdict/direct-model seam.
 """
 
 from typing import cast
@@ -49,6 +49,10 @@ def _renban(path: tuple[str, ...]) -> Constraint:
 
 def _palindrome(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "palindrome", "path": list(path)})
+
+
+def _between(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "between", "path": list(path)})
 
 
 def _grouped(path: tuple[str, ...], groups: list[int]) -> Constraint:
@@ -485,6 +489,148 @@ def test_groups_that_do_not_partition_the_board_raise(groups: list[int]) -> None
 
     with pytest.raises(MalformedPuzzleError):
         verdict(puzzle)
+
+
+def test_a_satisfiable_between_resolves_found() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_between(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=8)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert min(a, b) < c < max(a, b)
+
+
+def test_an_interior_digit_not_between_the_bulbs_resolves_broke() -> None:
+    # Interior given 9, outside the (2, 8) bulb range — a direct
+    # contradiction since all three cells are given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_between(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=9),
+            Given(address="R1C3", digit=8),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_an_interior_digit_equal_to_a_bulb_resolves_broke() -> None:
+    # Between is strict — an interior digit equal to either bulb does not
+    # count as "between" it.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_between(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=8),
+            Given(address="R1C3", digit=8),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_between_line_bounds_regardless_of_which_end_is_larger() -> None:
+    # Same shape as the satisfiable case, ends reversed (b < a) — the
+    # relation reads min/max of the pair, not "first, then second".
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_between(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=8), Given(address="R1C3", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert min(a, b) < c < max(a, b)
+
+
+def test_a_two_cell_between_line_asserts_nothing() -> None:
+    # No interior cell — the two bulbs only bound; they are not themselves
+    # constrained beyond that. Equal ends, which would make any interior
+    # unsatisfiable, still resolve found since there is no interior to bound.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_between(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=5), Given(address="R1C2", digit=5)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_between_reads_the_doubled_value_of_a_bulb() -> None:
+    # R1C1 is the modifier bulb, raw digit 5 doubles to 10; R1C3 is the
+    # other, plain bulb at 1. Interior R1C2 pinned to 8 falls inside (1, 10)
+    # but outside (1, 5) — feasible only if between read R1C1's folded value.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _between(("R1C1", "R1C2", "R1C3"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 5)
+    engine.model.add(engine.d0("R1C2") == 8)
+    engine.model.add(engine.d0("R1C3") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_between_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # R1C1's digits combine to 2 (0+2), doubled to 4 (ADR-0010); R1C3 is the
+    # other bulb, plain 0. Interior R1C2 pinned to 3 sits inside (0, 4), but
+    # could not sit strictly between two equal bulbs both read raw at 0 —
+    # feasible only if between read R1C1's folded value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _between(("R1C1", "R1C2", "R1C3")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 0)
+    engine.model.add(content[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 3)
+    engine.model.add(is_s["R1C3"] == 0)
+    engine.model.add(engine.d0("R1C3") == 0)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 4
 
 
 def test_a_multi_slot_schrodinger_cell_on_the_grouped_line_raises() -> None:

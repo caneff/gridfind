@@ -208,6 +208,9 @@ _GOLDEN_REPORTS = {
     "broke-black-kropki-negative-4x4": (
         "4x4 · 16 cells · 4 givens · types {0,1,201} · active: 201 · verdict: broke"
     ),
+    "broke-between-4x4": (
+        "4x4 · 16 cells · 3 givens · types {0,1,403} · active: 403 · verdict: broke"
+    ),
     "broke-cage-4x4": (
         "4x4 · 16 cells · 3 givens · types {0,1,301} · active: 301 · verdict: broke"
     ),
@@ -356,6 +359,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-black-kropki-negative-4x4": (
         "4x4 · 16 cells · 4 givens · types {0,1,201} · active: 201 · verdict: found"
+    ),
+    "found-between-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,403} · active: 403 · verdict: found"
     ),
     "found-cage-4x4": (
         "4x4 · 16 cells · 4 givens · types {0,1,301} · active: 301 · verdict: found"
