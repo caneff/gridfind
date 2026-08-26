@@ -1740,6 +1740,49 @@ def test_verdict_found_for_a_clean_anti_knight_puzzle() -> None:
     assert result.kind == "found"
 
 
+ANTI_KNIGHT_S_CONSTRAINTS = (
+    Constraint(type="anti-knight"),
+    Constraint(type="schrodinger"),
+)
+
+
+def test_verdict_found_for_an_anti_knight_pair_with_disjoint_s_cell_digits() -> None:
+    # R1C1 is an S-cell holding {1, 2}; its knight's-hop partner R3C2 (down
+    # 2, right 1) holds a plain 3, disjoint from R1C1's pair -- anti-knight
+    # reads real_digit_values (ADR-0019 dec 6), so it composes with
+    # schrodinger instead of the pre-lift refusal, and finds no collision.
+    puzzle = Puzzle(board=S_BOARD, constraints=ANTI_KNIGHT_S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=(
+            SCellPin(address="R1C1", pair=frozenset({1, 2})),
+            SingletonPin(address="R3C2", digit=3),
+        )
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "found"
+
+
+def test_verdict_broke_for_an_anti_knight_pair_sharing_an_s_cells_second_digit() -> (
+    None
+):
+    # R3C2 holds 2 -- R1C1's *second* real digit slot, not its first -- so
+    # the break only shows up once both of R1C1's digits are read, proving
+    # anti-knight no longer stops at a cell's single content slot.
+    puzzle = Puzzle(board=S_BOARD, constraints=ANTI_KNIGHT_S_CONSTRAINTS)
+    state = WorkingState(
+        s_directives=(
+            SCellPin(address="R1C1", pair=frozenset({1, 2})),
+            SingletonPin(address="R3C2", digit=2),
+        )
+    )
+
+    result = verdict(puzzle, state)
+
+    assert result.kind == "broke"
+
+
 def test_verdict_broke_for_a_colliding_anti_king_pair() -> None:
     # Two givens a king's step apart (the R2C2 diagonal) hold the same digit.
     assert_layer_newly_breaks(
