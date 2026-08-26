@@ -18,10 +18,13 @@ channels: a registry row or a marker kind.
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, get_args
+
+from _corpus import LINKS_DIR as _LINKS_DIR
+from _corpus import SIDES as _SIDES
+from _corpus import iter_side_links
 
 # inspect_link owns the raw-payload decode and the disabled/known/active/inert
 # classification; reuse both instead of a second decode of the same link.
@@ -31,12 +34,6 @@ from gridfind.sudokumaker.dropped import constraint_name
 from gridfind.sudokumaker.naming import Role, classify, named_component
 from gridfind.sudokumaker.registry import DECODER_REGISTRY
 from gridfind.sudokumaker.wire_types import COSMETIC_CAGE_TYPE, CUSTOM_CONSTRAINT_TYPE
-
-_LINKS_DIR = Path(__file__).resolve().parents[1] / "src" / "gridfind" / "links"
-
-# The two verdict sides a corpus link declares through its filename prefix. A
-# feature covered on only one side (or neither) is a hole.
-_SIDES = ("found", "broke")
 
 
 def feature_universe() -> list[str]:
@@ -76,24 +73,14 @@ def link_features(payload: Mapping[str, object]) -> set[str]:
 
 def build_coverage(links_dir: Path) -> dict[str, dict[str, int]]:
     """Tally, per feature, how many `found-` and how many `broke-` links
-    exercise it. Only these two verdict sides count — a `malformed-` link is a
-    decode-error case, not verdict coverage. Any other prefix is an unexpected
-    corpus filename: warn to stderr (the repo's fail-loud norm) rather than let
-    it slip out of the tally unseen."""
+    exercise it. `iter_side_links` (`_corpus.py`) owns the walk over the
+    corpus directory, including the malformed-skip and unexpected-prefix
+    warning."""
     coverage: dict[str, dict[str, int]] = {
         feature: dict.fromkeys(_SIDES, 0) for feature in feature_universe()
     }
-    for link_file in sorted(links_dir.glob("*.txt")):
-        side = link_file.name.split("-", 1)[0]
-        if side == "malformed":
-            continue
-        if side not in _SIDES:
-            print(
-                f"skipping unexpected corpus filename: {link_file.name}",
-                file=sys.stderr,
-            )
-            continue
-        for feature in link_features(decode_payload(link_file.read_text().strip())):
+    for _stem, side, link in iter_side_links(links_dir):
+        for feature in link_features(decode_payload(link)):
             coverage.setdefault(feature, dict.fromkeys(_SIDES, 0))[side] += 1
     return coverage
 

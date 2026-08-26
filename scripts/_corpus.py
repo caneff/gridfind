@@ -7,11 +7,17 @@ rather than hand-rolling a second copy — a fix to the write loop or the
 document shape lands here once, not in every script. `synthesize()` is the
 one driver that walks every module's `CORPUS` and regenerates it — run
 `uv run python scripts/_corpus.py` to regenerate the whole corpus.
+
+`iter_side_links` is the read-side counterpart: the one walk over
+`links/*.txt` a corpus-wide audit script (`audit_link_coverage.py`,
+`audit_givens_on_clue.py`) reads the committed corpus back through, rather
+than each hand-rolling its own stem/side parse.
 """
 
 from __future__ import annotations
 
 import importlib
+import sys
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from types import ModuleType
@@ -21,6 +27,11 @@ from gridfind.layers.regions import box_regions
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 _SCRIPTS_DIR = Path(__file__).resolve().parent
+
+# The two verdict sides a corpus link declares through its filename prefix
+# (the third, `malformed`, is a decode-error case with no verdict side, so
+# it isn't one of these).
+SIDES = ("found", "broke")
 
 
 def blank_cells(size: int) -> list[dict[str, object]]:
@@ -115,6 +126,26 @@ def authored_cage_style() -> dict[str, object]:
     call, so no two blocks alias one object. Display-only — `link_to_puzzle`
     never reads `style`."""
     return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
+
+
+def iter_side_links(links_dir: Path = LINKS_DIR) -> Iterator[tuple[str, str, str]]:
+    """Every committed `found-`/`broke-` corpus link, in sorted filename
+    order, as `(stem, side, link_text)`. Skips a `malformed-` link — a
+    decode-error case, not verdict coverage — and warns to stderr on any
+    other prefix, an unexpected corpus filename rather than one silently
+    dropped from the walk (CODING_STANDARDS' fail-loud norm)."""
+    for link_file in sorted(links_dir.glob("*.txt")):
+        stem = link_file.stem
+        side = stem.split("-", 1)[0]
+        if side == "malformed":
+            continue
+        if side not in SIDES:
+            print(
+                f"skipping unexpected corpus filename: {link_file.name}",
+                file=sys.stderr,
+            )
+            continue
+        yield stem, side, link_file.read_text().strip()
 
 
 def regenerate(corpus: dict[str, Callable[[], str]]) -> None:
