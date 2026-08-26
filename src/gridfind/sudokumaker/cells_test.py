@@ -30,7 +30,7 @@ def test_write_cell_writes_a_singleton_as_a_placement_on_a_non_given_cell() -> N
     # write_cell is the one wire-write seam: a length-1 content on a cell that
     # was not a given in the source document is a solved placement, not a
     # given — the setter's givens and the rules' placements must stay tellable
-    # apart on the solution pane (#725).
+    # apart on the solution pane.
     cell: dict[str, object] = {}
     write_cell(cell, (5,))
     assert cell == {"value": 5}
