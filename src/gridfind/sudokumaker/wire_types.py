@@ -203,10 +203,10 @@ GROUPED_TYPE = 406
 # `(size - 1) // 2` (computed from `engine.board.size`, never read off the
 # wire — 9x9 = 4, 6x6 = 2, 4x4 = 1), and every interior cell's value must
 # sit strictly *outside* the closed bulb interval, never equal to either
-# end. The `(size - 1) // 2` threshold is settled convention (#667), not
-# ground-truthed against a captured real lockout link — the same posture
+# end. The `(size - 1) // 2` threshold is ratified from the spec derivation
+# and the synthesized found/broke corpus (ADR-0021), the same posture
 # grouped-line's `groups` bitmask shape takes — a one-constant swap in
-# `layers.line._lockout` if a real link corrects it.
+# `layers.line._lockout` if a real link ever corrects it.
 LOCKOUT_TYPE = 407
 
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
