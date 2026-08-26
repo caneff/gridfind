@@ -203,9 +203,8 @@ GROUPED_TYPE = 406
 # `size // 2` (computed from `engine.board.size`, never read off the
 # wire — 9x9 = 4, 6x6 = 3, 4x4 = 2), and every interior cell's value must
 # sit strictly *outside* the closed bulb interval, never equal to either
-# end. The threshold shipped ratified from the spec derivation and the
-# synthesized found/broke corpus, then was corrected to `size // 2` from a
-# real 4x4 SudokuMaker link (ADR-0021, amended).
+# end. Threshold ratified from spec and amended from a real 4x4 SudokuMaker
+# link, ADR-0021.
 LOCKOUT_TYPE = 407
 
 # type 409 is a double-arrow line: `{lines: [[cell indices, ordered], …]}`.
