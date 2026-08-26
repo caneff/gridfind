@@ -68,14 +68,17 @@ class CellDecode:
 def write_cell(cell: dict[str, Any], content: tuple[int, ...]) -> None:
     """Write a witness cell's content onto the SudokuMaker wire — the one
     wire-write seam, singleton and S-cell through one door, so a caller holding
-    a witness never touches the cell's field shape. A length-1 content is a
-    plain given (`given: True, value: d`). A length-2 content `(a, b)` is a
-    Schrödinger S-cell, written via `_write_s_cell` as its two center marks.
-    gridfind reads S-cells and doublers from named marker cages, never cell
-    colors, so the fill writes no color bits — a declared cell's marker cage
-    rides through untouched and marks it."""
+    a witness never touches the cell's field shape. A length-1 content sets
+    `value` alone, leaving `cell`'s own `given` flag untouched: a cell the
+    source document already marked given stays a given (the setter's digit),
+    while any other cell reads back as a placement (a rule-solved digit) —
+    the setter's givens and the rules' placements must stay tellable apart on
+    the solution pane (#725). A length-2 content `(a, b)` is a Schrödinger
+    S-cell, written via `_write_s_cell` as its two center marks. gridfind
+    reads S-cells and doublers from named marker cages, never cell colors, so
+    the fill writes no color bits — a declared cell's marker cage rides
+    through untouched and marks it."""
     if len(content) == 1:
-        cell["given"] = True
         cell["value"] = content[0]
     else:
         a, b = content
