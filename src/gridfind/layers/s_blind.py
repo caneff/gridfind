@@ -26,8 +26,7 @@ class SBlindLayerError(GridfindError):
 
 
 def refuse_s_blind_over_widening(layers: dict[str, Layer]) -> None:
-    """Refuse a stack that pairs `schrodinger` with an `OffsetAdjacency` or
-    `NumberedRooms` layer.
+    """Refuse a stack that pairs `schrodinger` with a `NumberedRooms` layer.
 
     Names the first offending layer found, in stack order: its own
     constraint type is what a setter needs to see to fix their puzzle."""

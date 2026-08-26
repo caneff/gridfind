@@ -8,8 +8,8 @@ each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 `offset_adjacency` (anti-knight, `type 13`) reads each cell's real digit
 slots through `Engine.real_digit_values` (ADR-0019 dec 6), so a widened
 S-cell contributes both of its digits to the disjointness check, not just its
-first slot — the read a bare `engine.content` (the pre-lift, `s_blind` read)
-could never perform, since `build_stack` refused the combination outright.
+first slot. This corpus exercises that read composed over a widening
+(Schrödinger) layer.
 
 Both fixtures pin R1C1 as an S-cell holding `{1, 2}` and give its knight's-hop
 partner R3C2 (down 2, right 1 — the same non-attacking pair
@@ -70,8 +70,8 @@ def found_anti_knight_scell_4x4() -> str:
 def broke_anti_knight_scell_4x4() -> str:
     """4x4 anti-knight over an S-cell, `broke` — R3C2 given 2, R1C1's
     *second* real digit slot, not its first: the break only shows up once
-    both of R1C1's digits are read, proving anti-knight no longer stops at a
-    cell's single content slot."""
+    both of R1C1's digits are read, proving anti-knight reads across both of a
+    cell's real digit slots, not its first slot alone."""
     return _link(r3c2=2)
 
 
