@@ -200,13 +200,11 @@ GROUPED_TYPE = 406
 # bulbs, read at the `Line` layer through `value_expr`, exactly like between.
 # The fourth **value-mode** relation of the nine-relation line-clue family
 # (spec #672), and between's inverse: the bulbs must differ by at least
-# `(size - 1) // 2` (computed from `engine.board.size`, never read off the
-# wire — 9x9 = 4, 6x6 = 2, 4x4 = 1), and every interior cell's value must
+# `size // 2` (computed from `engine.board.size`, never read off the
+# wire — 9x9 = 4, 6x6 = 3, 4x4 = 2), and every interior cell's value must
 # sit strictly *outside* the closed bulb interval, never equal to either
-# end. The `(size - 1) // 2` threshold is ratified from the spec derivation
-# and the synthesized found/broke corpus (ADR-0021), the same posture
-# grouped-line's `groups` bitmask shape takes — a one-constant swap in
-# `layers.line._lockout` if a real link ever corrects it.
+# end. Threshold ratified from spec and amended from a real 4x4 SudokuMaker
+# link, ADR-0021.
 LOCKOUT_TYPE = 407
 
 # type 409 is a double-arrow line: `{lines: [[cell indices, ordered], …]}`.
