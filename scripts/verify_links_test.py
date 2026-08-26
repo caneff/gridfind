@@ -72,7 +72,7 @@ def test_fill_witness_round_trips_singleton_digits(
 ) -> None:
     # None of `document`'s cells started as a given, so every solved singleton
     # is the rules' work, not the setter's — it must come back as a
-    # placement, never a given (#725).
+    # placement, never a given.
     digits = data.draw(
         st.lists(
             st.integers(min_value=1, max_value=size),
@@ -104,8 +104,8 @@ def test_fill_witness_keeps_source_givens_given_and_writes_the_rest_as_placement
 ):
     # A 2x2 Latin square with one setter given (R1C1); the solver fills in the
     # other three cells. The emitted solution must show the setter's given as
-    # a given and every rule-solved cell as a placement — the AC #725 exists
-    # to guarantee — and re-decode must reproduce the witness exactly.
+    # a given and every rule-solved cell as a placement, and re-decode must
+    # reproduce the witness exactly.
     size = 2
     cells: list[dict[str, object]] = [{"given": True, "value": 1}, {}, {}, {}]
     document = _document(size)

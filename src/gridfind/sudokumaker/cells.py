@@ -73,7 +73,7 @@ def write_cell(cell: dict[str, Any], content: tuple[int, ...]) -> None:
     source document already marked given stays a given (the setter's digit),
     while any other cell reads back as a placement (a rule-solved digit) —
     the setter's givens and the rules' placements must stay tellable apart on
-    the solution pane (#725). A length-2 content `(a, b)` is a Schrödinger
+    the solution pane. A length-2 content `(a, b)` is a Schrödinger
     S-cell, written via `_write_s_cell` as its two center marks. gridfind
     reads S-cells and doublers from named marker cages, never cell colors, so
     the fill writes no color bits — a declared cell's marker cage rides
