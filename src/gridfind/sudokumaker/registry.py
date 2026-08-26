@@ -30,6 +30,7 @@ from gridfind.sudokumaker.flat_cells import (
     row_indexing_constraints,
 )
 from gridfind.sudokumaker.line import (
+    between_constraints,
     grouped_constraints,
     palindrome_constraints,
     renban_constraints,
@@ -40,6 +41,7 @@ from gridfind.sudokumaker.regions import regions_constraints
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
+    BETWEEN_TYPE,
     CAGE_TYPE,
     CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
@@ -189,6 +191,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=palindrome_constraints,
         live_keys=("lines",),
         name="palindrome",
+    ),
+    BETWEEN_TYPE: DecodedType(
+        handler=between_constraints,
+        live_keys=("lines",),
+        name="between",
     ),
     GROUPED_TYPE: DecodedType(
         handler=grouped_constraints,

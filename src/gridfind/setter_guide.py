@@ -21,6 +21,7 @@ from gridfind.sudokumaker.registry import DECODER_REGISTRY, DecodedType
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
+    BETWEEN_TYPE,
     CAGE_TYPE,
     CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
@@ -239,6 +240,18 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    BETWEEN_TYPE: SetterDoc(
+        display_name="Between Line",
+        wire_block="type 403 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "between",'
+        " order preserved; no extra block param. The two path ends are the"
+        " bulbs (value_expr — 2·d over a doubler, combined s_value over an"
+        " S-cell); every interior cell's value must sit strictly between"
+        " them. The bulbs only bound each other; a 2-cell path (no interior"
+        " cell) asserts nothing.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
     GROUPED_TYPE: SetterDoc(
         display_name="Grouped Line (Entropic/Modular/Parity)",
         wire_block="type 406 {lines:[[cell indices, ordered], …],"
@@ -310,6 +323,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "renban": "found-renban-4x4",
     "whisper": "found-whisper-4x4",
     "palindrome": "found-palindrome-4x4",
+    "between": "found-between-4x4",
     "grouped": "found-grouped-entropic-9x9",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",

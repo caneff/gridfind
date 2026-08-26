@@ -47,6 +47,12 @@ path cells holds one digit from each group — the one rule entropic, modular,
 and parity all ride, keyed only by which groups they name. A partition with a
 gap or overlap raises `MalformedPuzzleError` at emit, where the board's own
 digit domain is in scope.
+
+Between is the second value-mode row: the two path ends are the bulbs, every
+interior cell strictly between them (`min(a, b) < value_expr(c) <
+max(a, b)`). The ends only bound each other — no rule pins them together
+beyond forming the interval — so a 2-cell path (no interior cell) asserts
+nothing.
 """
 
 from __future__ import annotations
@@ -86,6 +92,37 @@ def _whisper(
         engine.model.add(d >= minimum)
 
     emit_over_pairs(engine, list(pairwise(sequence)), rel)
+
+
+def _between(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """The two path ends are the bulbs `a, b`; every interior cell sits
+    strictly between them: `min(a, b) < value_expr(c) < max(a, b)`. The
+    bulbs only bound — no rule relates them to each other — so a 2-cell path
+    (no interior) asserts nothing.
+
+    `low`/`high` mint fresh min/max vars over `a, b` directly, spanned off
+    each bulb's own declared domain (`abs_diff_var`'s same reasoning,
+    `_base.py`) rather than the board's raw digit range: a bulb's
+    `value_expr` may be a doubler's `2*value` or an S-cell's `s_value`, both
+    wider than a bare digit."""
+    a, b = sequence[0], sequence[-1]
+    interior = sequence[1:-1]
+    if not interior:
+        return
+    a_domain, b_domain = list(a.proto.domain), list(b.proto.domain)
+    low = min(a_domain[0], b_domain[0])
+    high = max(a_domain[-1], b_domain[-1])
+    low_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.between_low")
+    high_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.between_high")
+    engine.model.add_min_equality(low_var, [a, b])
+    engine.model.add_max_equality(high_var, [a, b])
+    for cell in interior:
+        engine.model.add(cell > low_var)
+        engine.model.add(cell < high_var)
 
 
 def _renban(
@@ -232,6 +269,7 @@ LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "renban": ("digit", _renban),
     "palindrome": ("digit", _palindrome),
     "grouped": ("digit", _grouped),
+    "between": ("value", _between),
 }
 
 
