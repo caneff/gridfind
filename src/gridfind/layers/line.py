@@ -90,7 +90,6 @@ than silently pass every such puzzle.
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from itertools import pairwise
@@ -99,7 +98,13 @@ from typing import cast
 from ortools.sat.python import cp_model
 
 from gridfind.cell_geometry import format_address
-from gridfind.engine import Engine, GridfindError, MalformedPuzzleError, sole
+from gridfind.engine import (
+    Engine,
+    GridfindError,
+    MalformedPuzzleError,
+    sole,
+    warn_dropped,
+)
 from gridfind.layers._base import abs_diff_var, emit_over_pairs
 from gridfind.layers.regions import RegionMap, region_map_for_constraints
 from gridfind.puzzle import Constraint as PuzzleConstraint
@@ -267,11 +272,7 @@ def _region_sum(
         cast("Iterable[PuzzleConstraint]", engine.constraints), engine.board.size
     )
     if len(region_map) == 1:
-        print(
-            "warning: region-sum line on a board with no region partition "
-            "— verdict computed without it",
-            file=sys.stderr,
-        )
+        warn_dropped("region-sum line on a board with no region partition")
         return
 
     region_of = _region_index_by_address(region_map)

@@ -19,6 +19,7 @@ structure registry's late binding (ADR-0004 decisions 2-4).
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, cast
@@ -38,7 +39,23 @@ __all__ = [
     "MissingDependencyError",
     "build_engine",
     "sole",
+    "warn_dropped",
 ]
+
+
+def warn_dropped(reason: str) -> None:
+    """The single stderr emitter for a dropped-constraint-or-context
+    warning: `reason` names what a caller is ignoring and why. Owns the
+    "warning: ... — verdict computed without it" wording and the stderr
+    channel around it, so neither can drift across the modules that each
+    drop something for their own local reason — `sudokumaker.boundary`
+    (re-exporting this for `cages`, `dropped`, and `frame`) and
+    `layers.line` both route here. Lives on `engine` rather than in
+    `sudokumaker` because `layers` never imports from `sudokumaker` (the
+    dependency runs the other way), so the decode side and the engine side
+    both need a home they can reach without a cycle; each drop decision
+    stays local, only the message and channel are shared."""
+    print(f"warning: {reason} — verdict computed without it", file=sys.stderr)
 
 
 class GridfindError(Exception):

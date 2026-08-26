@@ -43,6 +43,7 @@ def test_public_api_surface_is_exactly_the_committed_names() -> None:
         "MissingDependencyError",
         "build_engine",
         "sole",
+        "warn_dropped",
     }
     # Every advertised name must actually resolve — a dangling `__all__` entry
     # breaks `from gridfind.engine import X` for py.typed consumers.
