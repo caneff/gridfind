@@ -36,16 +36,22 @@ from __future__ import annotations
 import argparse
 import contextlib
 import html
+import inspect
 import json
 import subprocess
 import threading
 import webbrowser
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import NamedTuple
 
+from _corpus import synthesizer_by_stem
 from verify_links import LINKS_DIR, emit_solution_link, oracle_witness
+
+# Shown for a stem no `CORPUS` map claims — a human-authored link predating
+# the synthesized corpus, which carries no synthesizer docstring to draw on.
+FALLBACK_PROOF = "Legacy hand-authored link — no synthesizer to say what it proves."
 
 # The durable approval log: link stems a person has eyeballed and accepted.
 # Gitignored — a personal verification record, not a repo fact.
@@ -127,12 +133,15 @@ def archive_flags(
 class LinkView(NamedTuple):
     """One case file's argv reduced to what a person needs to verify the
     verdict by eye. `witness_grid` and `solution_link` are set only for a
-    `found` case; a `broke`/`unknown` case carries the puzzle link alone."""
+    `found` case; a `broke`/`unknown` case carries the puzzle link alone.
+    `proof` is the "what this proves" line — its synthesizer's docstring, or
+    `FALLBACK_PROOF` for a legacy stem."""
 
     kind: str
     puzzle_link: str
     witness_grid: str | None
     solution_link: str | None
+    proof: str
     # `kind` is the verdict word (`found`/`broke`/`unknown`), or `malformed` for
     # a malformed link the front door refuses — carrying the puzzle link alone.
 
@@ -188,17 +197,31 @@ def changed_link_stems(base: str) -> set[str]:
     return _stems_from_git_paths(committed, working)
 
 
-def view_for(stem: str, argv: Sequence[str]) -> LinkView:
+def proof_for(stem: str, synthesizers: Mapping[str, Callable[[], str]]) -> str:
+    """The "what this proves" line for `stem`: its synthesizer's docstring,
+    reached by looking `stem` up in the `stem -> synthesizer` map
+    `_corpus.synthesizer_by_stem` builds from every module's `CORPUS`, or
+    `FALLBACK_PROOF` when no synthesizer built this stem (a legacy,
+    human-authored link) or its function carries no docstring."""
+    fn = synthesizers.get(stem)
+    if fn is None or fn.__doc__ is None:
+        return FALLBACK_PROOF
+    return inspect.cleandoc(fn.__doc__)
+
+
+def view_for(stem: str, argv: Sequence[str], proof: str) -> LinkView:
     """The view for one case file, keyed off its expected-outcome prefix. A
     `malformed-*` fixture is a malformed link the front door refuses (exit 2),
     so it carries no verdict to eyeball and is presented without decoding;
     everything else routes through `eval_link`."""
     if stem.partition("-")[0] == "malformed":
-        return LinkView("malformed", argv[-1], witness_grid=None, solution_link=None)
-    return eval_link(argv)
+        return LinkView(
+            "malformed", argv[-1], witness_grid=None, solution_link=None, proof=proof
+        )
+    return eval_link(argv, proof)
 
 
-def eval_link(argv: Sequence[str]) -> LinkView:
+def eval_link(argv: Sequence[str], proof: str) -> LinkView:
     """One case file's argv (flags then the link) reduced to a `LinkView`. A
     `found` case renders its witness grid and re-emits that same witness as a
     solution link (via `emit_solution_link`, the one source of the fill+encode
@@ -212,12 +235,13 @@ def eval_link(argv: Sequence[str]) -> LinkView:
     link = argv[-1]
     kind, witness, size = oracle_witness(link)
     if witness is None:
-        return LinkView(kind, link, witness_grid=None, solution_link=None)
+        return LinkView(kind, link, witness_grid=None, solution_link=None, proof=proof)
     return LinkView(
         kind,
         link,
         witness_grid=witness.render(),
         solution_link=emit_solution_link(link, witness, size),
+        proof=proof,
     )
 
 
@@ -235,6 +259,7 @@ _PAGE = """<!doctype html>
   .slide {{ display: none; }}
   .slide.active {{ display: block; }}
   .slide h2 {{ font-size: 1.05rem; margin: 0 0 .6rem; }}
+  .proof {{ color: #555; font-size: .9rem; margin: -.3rem 0 .8rem; }}
   .verdict {{ font-size: .8rem; padding: .1rem .5rem; border-radius: 999px;
              color: #fff; margin-left: .4rem; }}
   .found {{ background: #2e7d32; }}
@@ -344,10 +369,12 @@ def _slide(index: int, stem: str, view: LinkView) -> str:
     safe = html.escape(stem, quote=True)
     js_stem = html.escape(json.dumps(stem), quote=True)
     puzzle = html.escape(view.puzzle_link, quote=True)
+    proof = html.escape(view.proof, quote=True)
     active = " active" if index == 0 else ""
     return (
         f'<section class="slide{active}" data-slide="{index}">'
         f'<h2>{safe}<span class="verdict {view.kind}">{view.kind}</span></h2>'
+        f'<p class="proof">{proof}</p>'
         f'<div class="panes">'
         f'<iframe class="pane" allow="clipboard-write" data-src="{puzzle}"></iframe>'
         f"{_pane(view)}"
@@ -474,8 +501,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         shown = [stem for stem in by_stem if stem in edited]
     else:
         shown = pending_stems(list(by_stem), approved, show_all=args.all)
+    synthesizers = synthesizer_by_stem()
     cards = [
-        (stem, view_for(stem, by_stem[stem].read_text().split())) for stem in shown
+        (
+            stem,
+            view_for(
+                stem,
+                by_stem[stem].read_text().split(),
+                proof_for(stem, synthesizers),
+            ),
+        )
+        for stem in shown
     ]
 
     _ApprovalHandler.page = render_page(cards)

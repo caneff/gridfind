@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from eval_links import (
+    FALLBACK_PROOF,
     LinkView,
     _ApprovalHandler,
     _stems_from_git_paths,
@@ -27,6 +28,7 @@ from eval_links import (
     load_archive,
     load_flags,
     pending_stems,
+    proof_for,
     record_approval,
     record_flag,
     render_page,
@@ -54,10 +56,11 @@ def test_eval_link_shows_witness_and_solution_for_a_found_case() -> None:
     ]
     link = _encode({"cells": cells, "size": 2, "constraints": _WIRE_CONSTRAINTS})
 
-    view = eval_link([link])
+    view = eval_link([link], "proves a 2x2 Latin square")
 
     assert view.kind == "found"
     assert view.puzzle_link == link
+    assert view.proof == "proves a 2x2 Latin square"
     assert view.witness_grid is not None
     # The solved digits appear in the rendered grid — it is a real witness.
     assert "1" in view.witness_grid
@@ -92,7 +95,7 @@ def test_eval_link_shows_the_puzzle_link_verbatim_and_colors_only_the_solution()
         }
     )
 
-    view = eval_link([link])
+    view = eval_link([link], "proof text")
 
     assert view.puzzle_link == link
     assert view.solution_link is not None
@@ -108,11 +111,12 @@ def test_view_for_presents_a_malformed_case_without_decoding() -> None:
     # must render it off its prefix alone, never decoding — decoding a malformed
     # link raises, which is exactly the crash the prefix guard avoids.
     garbage = "https://sudokumaker.app/?puzzle=not-a-real-payload"
-    view = view_for("malformed-scell-out-of-domain-4x4", [garbage])
+    view = view_for("malformed-scell-out-of-domain-4x4", [garbage], "proof text")
     assert view.kind == "malformed"
     assert view.puzzle_link == garbage
     assert view.witness_grid is None
     assert view.solution_link is None
+    assert view.proof == "proof text"
 
 
 def test_eval_link_shows_only_the_puzzle_for_a_broke_case() -> None:
@@ -125,7 +129,7 @@ def test_eval_link_shows_only_the_puzzle_for_a_broke_case() -> None:
     ]
     link = _encode({"cells": cells, "size": 2, "constraints": _WIRE_CONSTRAINTS})
 
-    view = eval_link([link])
+    view = eval_link([link], "proof text")
 
     assert view.kind == "broke"
     assert view.puzzle_link == link
@@ -224,6 +228,42 @@ def test_archive_flags_with_no_stems_moves_nothing(tmp_path: Path) -> None:
     assert load_flags(flagged) == [{"stem": "a", "comment": "stay"}]
 
 
+def test_proof_for_returns_the_synthesizers_docstring() -> None:
+    def found_thing() -> str:
+        """What this link proves."""
+        return "link"
+
+    assert (
+        proof_for("found-thing-4x4", {"found-thing-4x4": found_thing})
+        == "What this link proves."
+    )
+
+
+def test_proof_for_dedents_a_multiline_docstring() -> None:
+    def found_thing() -> str:
+        """First line.
+        Second line, indented like every real synthesizer docstring."""
+        return "link"
+
+    assert proof_for("found-thing-4x4", {"found-thing-4x4": found_thing}) == (
+        "First line.\nSecond line, indented like every real synthesizer docstring."
+    )
+
+
+def test_proof_for_falls_back_when_no_synthesizer_built_the_stem() -> None:
+    # A legacy, human-authored stem carries no CORPUS entry anywhere.
+    assert proof_for("found-classic-4x4", {}) == FALLBACK_PROOF
+
+
+def test_proof_for_falls_back_when_the_synthesizer_has_no_docstring() -> None:
+    def found_thing() -> str:
+        return "link"
+
+    assert (
+        proof_for("found-thing-4x4", {"found-thing-4x4": found_thing}) == FALLBACK_PROOF
+    )
+
+
 def test_pending_stems_hides_approved_by_default() -> None:
     stems = ["a", "b", "c"]
 
@@ -280,12 +320,14 @@ _FOUND = LinkView(
     puzzle_link="https://sudokumaker.app/?puzzle=PUZZLE",
     witness_grid="grid",
     solution_link="https://sudokumaker.app/?puzzle=SOLUTION",
+    proof="proves the found case",
 )
 _BROKE = LinkView(
     kind="broke",
     puzzle_link="https://sudokumaker.app/?puzzle=BROKE",
     witness_grid=None,
     solution_link=None,
+    proof="proves the broke case",
 )
 
 
@@ -387,6 +429,30 @@ def test_flag_endpoint_records_a_valid_flag_and_rejects_bad_ones(
 
     assert (good, unknown, empty) == (200, 400, 400)
     assert load_flags(flags) == [{"stem": "found-cage-4x4", "comment": "off"}]
+
+
+def test_render_page_shows_the_what_this_proves_line() -> None:
+    html = render_page([("found-cage-4x4", _FOUND)])
+
+    assert "proves the found case" in html
+
+
+def test_render_page_escapes_the_proof_line() -> None:
+    view = _FOUND._replace(proof="proves <script>alert(1)</script>")
+
+    html = render_page([("found-cage-4x4", view)])
+
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+
+
+def test_render_page_shows_the_fallback_line_for_a_legacy_stem_never_blank() -> None:
+    view = _FOUND._replace(proof=FALLBACK_PROOF)
+
+    html = render_page([("found-classic-4x4", view)])
+
+    assert FALLBACK_PROOF in html
+    assert '<p class="proof"></p>' not in html
 
 
 def test_render_page_offers_an_end_state_with_a_close_control() -> None:
