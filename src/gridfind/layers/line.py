@@ -60,6 +60,15 @@ from `engine.board.size`, never the wire), and every interior cell strictly
 *outside* the closed bulb interval (`value_expr(c) < min(a, b)` or `>
 max(a, b)`). `_bulb_bounds` mints the shared `min`/`max` aux-var pair both
 between and lockout bound their interior cells against.
+
+Double-arrow is the fourth value-mode row: the two path ends are the bulbs,
+and the interior cells' values must sum to the two bulbs' own sum —
+`sum(value_expr(interior)) == a + b` (ADR-0022, ratifying #670's research).
+Reversal-invariant, since swapping the ends leaves both sides of the equation
+unchanged. Unlike between and lockout, a 2-cell path (no interior) is not a
+vacuous no-op: an empty interior sums to 0, which can never equal two
+positive bulb values, so it reads broke as a plain consequence of the same
+equality, needing no special case.
 """
 
 from __future__ import annotations
@@ -179,6 +188,22 @@ def _lockout(
         engine.model.add(cell > high_var).only_enforce_if(above)
         engine.model.add(cell <= high_var).only_enforce_if(above.negated())
         engine.model.add_bool_or([below, above])
+
+
+def _double_arrow(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """The two path ends are the bulbs `a, b`; the interior cells' values must
+    sum to the bulbs' own sum: `sum(value_expr(interior)) == a + b`
+    (ADR-0022). Reversal-invariant — swapping the ends leaves both sides of
+    the equation unchanged. A 2-cell path (no interior) sums its empty
+    interior to 0, which can never equal two positive bulb values, so it
+    reads broke without a separate check for the no-interior case."""
+    a, b = sequence[0], sequence[-1]
+    interior = sequence[1:-1]
+    engine.model.add(sum(interior) == a + b)
 
 
 def _renban(
@@ -327,6 +352,7 @@ LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "grouped": ("digit", _grouped),
     "between": ("value", _between),
     "lockout": ("value", _lockout),
+    "double-arrow": ("value", _double_arrow),
 }
 
 

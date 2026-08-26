@@ -59,6 +59,10 @@ def _lockout(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "lockout", "path": list(path)})
 
 
+def _double_arrow(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "double-arrow", "path": list(path)})
+
+
 def _grouped(path: tuple[str, ...], groups: list[int]) -> Constraint:
     return Constraint(
         "line", params={"relation": "grouped", "path": list(path), "groups": groups}
@@ -833,3 +837,149 @@ def test_a_multi_slot_schrodinger_cell_on_the_grouped_line_raises() -> None:
 
     with pytest.raises(GridfindError):
         verdict(puzzle)
+
+
+def test_a_satisfiable_double_arrow_resolves_found() -> None:
+    # Bulbs 2 and 3 sum to 5; the interior is left to the solver, satisfied
+    # only by 5.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=3)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert c == a + b
+
+
+def test_an_interior_sum_unequal_to_the_bulb_sum_resolves_broke() -> None:
+    # Interior given 6, unequal to the (2, 3) bulb sum of 5 — a direct
+    # contradiction since all three cells are given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=6),
+            Given(address="R1C3", digit=3),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_double_arrow_sums_every_interior_cell() -> None:
+    # A four-cell path: the two interior cells (R1C2, R1C3) must together sum
+    # to the bulb sum (2 + 6 = 8), not just one of them — pinning both
+    # interior cells' digits and leaving no freedom proves the sum runs over
+    # the whole interior.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3", "R1C4")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=5),
+            Given(address="R1C4", digit=6),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_a_double_arrow_line_is_reversal_invariant() -> None:
+    # Same shape as the satisfiable case, ends reversed — swapping the bulbs
+    # leaves both sides of the sum equality unchanged.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=3), Given(address="R1C3", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert c == a + b
+
+
+def test_a_two_cell_double_arrow_line_always_resolves_broke() -> None:
+    # No interior cell — the empty interior sums to 0, which can never equal
+    # two positive bulb values, whatever the rest of the board holds.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2")),),
+    )
+
+    assert verdict(puzzle).kind == "broke"
+
+
+def test_double_arrow_reads_the_doubled_value_of_a_bulb() -> None:
+    # R1C1 is the modifier bulb, raw digit 3 doubles to 6; R1C3 is the other,
+    # plain bulb at 2. The interior R1C2 pinned to 8 equals the folded sum
+    # (6 + 2) but not the raw sum (3 + 2) — feasible only if double-arrow read
+    # R1C1's folded value.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="doubler"),
+            _double_arrow(("R1C1", "R1C2", "R1C3")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 3)
+    engine.model.add(engine.d0("R1C2") == 8)
+    engine.model.add(engine.d0("R1C3") == 2)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_double_arrow_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # R1C1's digits combine to 1 (0+1), doubled to 2 (ADR-0010); R1C3 is a
+    # plain bulb at 1. Interior R1C2 pinned to 3 equals the folded sum
+    # (2 + 1) but not the raw sum (0 + 1) — feasible only if double-arrow read
+    # R1C1's folded value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _double_arrow(("R1C1", "R1C2", "R1C3")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 0)
+    engine.model.add(content[1] == 1)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 3)
+    engine.model.add(is_s["R1C3"] == 0)
+    engine.model.add(engine.d0("R1C3") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 2

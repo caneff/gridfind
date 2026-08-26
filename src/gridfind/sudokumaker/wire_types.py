@@ -209,6 +209,21 @@ GROUPED_TYPE = 406
 # `layers.line._lockout` if a real link ever corrects it.
 LOCKOUT_TYPE = 407
 
+# type 409 is a double-arrow line: `{lines: [[cell indices, ordered], …]}`.
+# Each path becomes its own `line` Constraint carrying `relation:
+# "double-arrow"` and the path's addresses — no extra block param; the two
+# path ends are the bulbs, read at the `Line` layer through `value_expr`,
+# exactly like between and lockout. The fifth **value-mode** relation of the
+# nine-relation line-clue family (spec #672): the interior cells' values must
+# sum to the two bulbs' own sum, reversal-invariant, a 2-cell path (no
+# interior) naturally broke rather than a special-cased pass. A double-arrow
+# is visually near-identical to a between-line (403) — both draw circles at
+# both ends — but the decoder tells them apart by wire type alone, never a
+# glyph. That 409 is the double-arrow (not, say, another between variant) is
+# ratified from #670's research and the synthesized corpus, not a captured
+# real link (ADR-0022) — a one-constant swap here if a real link corrects it.
+DOUBLE_ARROW_TYPE = 409
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's
