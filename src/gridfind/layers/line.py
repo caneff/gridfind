@@ -55,8 +55,8 @@ beyond forming the interval — so a 2-cell path (no interior cell) asserts
 nothing.
 
 Lockout is the third value-mode row, and between's inverse: the two path
-ends are the bulbs, which must differ by at least `(size - 1) // 2` (`size`
-from `engine.board.size`, never the wire), and every interior cell strictly
+ends are the bulbs, which must differ by at least `size // 2` (`size` from
+`engine.board.size`, never the wire), and every interior cell strictly
 *outside* the closed bulb interval (`value_expr(c) < min(a, b)` or `>
 max(a, b)`). `_bulb_bounds` mints the shared `min`/`max` aux-var pair both
 between and lockout bound their interior cells against.
@@ -155,9 +155,9 @@ def _lockout(
     params: Mapping[str, JsonValue],
 ) -> None:
     """Between's inverse: the two path ends are the bulbs `a, b`, which must
-    differ by at least `(size - 1) // 2` — `size` read from
-    `engine.board.size`, never the wire (9x9 = 4, 6x6 = 2, 4x4 = 1;
-    threshold ratified from spec, ADR-0021).
+    differ by at least `size // 2` — `size` read from `engine.board.size`,
+    never the wire (9x9 = 4, 6x6 = 3, 4x4 = 2; threshold ratified from spec
+    and amended from a real 4x4 SudokuMaker link, ADR-0021).
     Every interior cell's value must sit strictly *outside* the closed
     bulb interval: `value_expr(c) < min(a, b)` or `> max(a, b)`, never
     equal to either end. Both halves read `min(a, b)`/`max(a, b)` of the
@@ -174,7 +174,7 @@ def _lockout(
     between's bulbs-only-bound posture."""
     a, b = sequence[0], sequence[-1]
     interior = sequence[1:-1]
-    threshold = (engine.board.size - 1) // 2
+    threshold = engine.board.size // 2
     gap = abs_diff_var(engine, a, b, suffix="lockout_gap")
     engine.model.add(gap >= threshold)
     if not interior:

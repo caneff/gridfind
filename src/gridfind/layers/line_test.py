@@ -642,7 +642,7 @@ def test_between_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
 
 
 def test_a_satisfiable_lockout_resolves_found() -> None:
-    # Bulbs 2 and 7 clear the 9x9 threshold ((9-1)//2 = 4); the interior is
+    # Bulbs 2 and 7 clear the 9x9 threshold (9 // 2 = 4); the interior is
     # left to the solver, satisfied by anything outside (2, 7).
     puzzle = Puzzle(
         board=BOARD,
@@ -733,7 +733,7 @@ def test_a_two_cell_lockout_line_only_checks_the_threshold() -> None:
 
 @pytest.mark.parametrize(
     ("size", "threshold"),
-    [(4, 1), (6, 2), (9, 4)],
+    [(4, 2), (6, 3), (9, 4)],
     ids=["4x4", "6x6", "9x9"],
 )
 def test_the_threshold_is_derived_from_board_size_not_the_wire(
@@ -791,7 +791,7 @@ def test_lockout_reads_the_doubled_value_of_a_bulb() -> None:
 def test_lockout_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
     # R1C1's digits combine to 2 (0+2), doubled to 4 (ADR-0010); R1C2 is a
     # plain 0. The raw digit (0) ties R1C2 (gap 0, short of the 4x4
-    # threshold of 1); only the folded s_value (4) clears it — feasible only
+    # threshold of 2); only the folded s_value (4) clears it — feasible only
     # if lockout read R1C1's folded value.
     board = Board(size=4, values=range(5))
     puzzle = Puzzle(

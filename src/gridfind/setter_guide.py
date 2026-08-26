@@ -260,7 +260,7 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         decode_result='One line Constraint per path, relation "lockout",'
         " order preserved; no extra block param. The two path ends are the"
         " bulbs (value_expr — 2·d over a doubler, combined s_value over an"
-        " S-cell); they must differ by at least (size-1)//2 (from the"
+        " S-cell); they must differ by at least size//2 (from the"
         " board's own size, never the wire); every interior cell's value"
         " must sit strictly outside the closed bulb interval.",
         verdict="Accept. disabled blocks are skipped; an empty lines list"
