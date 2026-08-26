@@ -6,9 +6,8 @@ calls `refuse_s_blind_over_widening` to reject the pair up front and name
 the offending layer, rather than let the s-blind layer read past a widened
 cell's first slot alone deep in the solve. Issue #523 tracks retiring the
 `s_blind` flag itself once a widening-aware read exists for this last
-holdout too (`offset_adjacency` was lifted onto digit mode in #712); this
-direct check names the one remaining concrete layer rather than scanning
-the stack for the property.
+holdout too (ADR-0019 dec 5); this direct check names the one remaining
+concrete layer rather than scanning the stack for the property.
 """
 
 from __future__ import annotations
