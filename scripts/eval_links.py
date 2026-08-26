@@ -62,9 +62,10 @@ APPROVED_PATH = Path(__file__).parent / ".eval-approved.json"
 # link returns next run, unlike an approved one).
 FLAGGED_PATH = Path(__file__).parent / ".eval-flagged.json"
 
-# Where flags land once a wayfinder map is made from them, stamped with the map's
-# issue number so they aren't re-proposed. `/gridfind-flags-to-map` passes this to
-# `archive_flags` after filing a map; gitignored alongside the flag log.
+# Where flags land once an issue is made from them — a map, a spec, or a
+# ticket — stamped with that issue's number so they aren't re-proposed.
+# `/gridfind-flags-to-tickets` passes this to `archive_flags` after filing;
+# gitignored alongside the flag log.
 FLAGGED_ARCHIVE_PATH = Path(__file__).parent / ".eval-flagged-archive.json"
 
 
@@ -109,16 +110,16 @@ def load_archive(path: Path) -> list[dict[str, str | int]]:
     return json.loads(path.read_text())["archived"]
 
 
-# Called by the `gridfind-flags-to-map` skill via `python -c`, not from any
+# Called by the `gridfind-flags-to-tickets` skill via `python -c`, not from any
 # Python import — static analysis (and a grep for callers) will not find that
 # call site. Do not delete this as dead code.
 def archive_flags(
     flagged_path: Path, archive_path: Path, stems: set[str], issue_number: int
 ) -> None:
     """Move every flag whose stem is in `stems` out of the flag store and into
-    the archive, stamping each moved entry with `issue_number` (the
-    `wayfinder:map` it fed). Flags whose stem is not in `stems` stay in the
-    store; the archive accumulates across calls."""
+    the archive, stamping each moved entry with `issue_number` (the issue —
+    map, spec, or ticket — it fed). Flags whose stem is not in `stems` stay in
+    the store; the archive accumulates across calls."""
     flags = load_flags(flagged_path)
     moved = [{**flag, "issue": issue_number} for flag in flags if flag["stem"] in stems]
     if not moved:
