@@ -3,9 +3,11 @@
 A dev tool, on demand only (`just verify-links`) — the human oracle
 ADR-0007 asks for: over every case file under `links/`, decode and
 verdict the link exactly as `links_test.py` does. A `found` link's witness
-digits are written into the link's own decoded document as givens and
-re-encoded via `document_to_link`, so the printed link opens in the app with the
-answer already filled in — reusing the original document keeps the fields
+digits are written into the link's own decoded document — a setter's given
+stays a given, and every other solved cell comes back as a placement — and
+re-encoded via `document_to_link`, so the printed link opens in the app with
+the answer already filled in, showing which digits the setter placed and
+which the rules decided; reusing the original document keeps the fields
 (`size`, `type`) the app needs to render the real puzzle. A `broke` link
 prints `broke` and no URL, since there is no witness to show.
 
@@ -41,11 +43,13 @@ def fill_witness(
     """`document` with every cell overwritten by its witness content,
     addressed by the same row-major `i // size`, `i % size` scheme
     `link_to_puzzle` reads cells with. Each cell is written through `write_cell`,
-    the decoder's one wire-write seam — a singleton digit becomes a given, a
-    Schrödinger pair its two center marks — so this holds no knowledge of the
-    cell's field shape. Every other field of `document` rides through
-    untouched, so `size`/`type` survive and the emitted link opens as the same
-    puzzle.
+    the decoder's one wire-write seam — a singleton digit stays a given where
+    the source cell already was one (the setter's digit) and otherwise comes
+    back as a placement (the rules' digit), while a Schrödinger pair writes as
+    its two center marks — so this holds no knowledge of the cell's field
+    shape and the solution pane can tell setter givens from solved cells.
+    Every other field of `document` rides through untouched, so `size`/`type`
+    survive and the emitted link opens as the same puzzle.
 
     The solver discovers S-cells and modifiers (doublers or constants) the
     source link never declared, and gridfind reads them only from named marker

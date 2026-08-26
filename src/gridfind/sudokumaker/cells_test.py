@@ -26,10 +26,20 @@ from gridfind.sudokumaker.conftest import (
 )
 
 
-def test_write_cell_writes_a_singleton_as_a_given() -> None:
-    # write_cell is the one wire-write seam: a length-1 content is a plain given
-    # the classic decode reads straight back.
+def test_write_cell_writes_a_singleton_as_a_placement_on_a_non_given_cell() -> None:
+    # write_cell is the one wire-write seam: a length-1 content on a cell that
+    # was not a given in the source document is a solved placement, not a
+    # given — the setter's givens and the rules' placements must stay tellable
+    # apart on the solution pane (#725).
     cell: dict[str, object] = {}
+    write_cell(cell, (5,))
+    assert cell == {"value": 5}
+
+
+def test_write_cell_keeps_a_given_cell_a_given() -> None:
+    # A cell the source document already marked as a given stays a given after
+    # the witness fill, even though the digit is rewritten.
+    cell: dict[str, object] = {"given": True, "value": 1}
     write_cell(cell, (5,))
     assert cell == {"given": True, "value": 5}
 
