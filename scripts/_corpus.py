@@ -172,5 +172,16 @@ def synthesize() -> None:
         regenerate(module.CORPUS)
 
 
+def synthesizer_by_stem() -> dict[str, Callable[[], str]]:
+    """Every `CORPUS` entry across every `synthesize_*_links.py` module,
+    merged into one `stem -> synthesizer` dict — the same discovery walk
+    `synthesize`/`corpus_drift_test.py` build on, reused so a stem's
+    synthesizer (and its docstring) can be looked up without a second module
+    scan. A stem absent here is a legacy link no synthesizer built."""
+    return {
+        name: fn for module in discover_modules() for name, fn in module.CORPUS.items()
+    }
+
+
 if __name__ == "__main__":
     synthesize()

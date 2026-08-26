@@ -74,3 +74,12 @@ def test_regenerate_writes_each_corpus_entry(
     monkeypatch.setattr(_corpus, "LINKS_DIR", tmp_path)
     _corpus.regenerate({"sample": lambda: "a link"})
     assert (tmp_path / "sample.txt").read_text() == "a link\n"
+
+
+def test_synthesizer_by_stem_merges_every_modules_corpus() -> None:
+    merged = _corpus.synthesizer_by_stem()
+    modules = list(_corpus.discover_modules())
+    assert len(merged) == sum(len(module.CORPUS) for module in modules)
+    for module in modules:
+        for name, fn in module.CORPUS.items():
+            assert merged[name] is fn
