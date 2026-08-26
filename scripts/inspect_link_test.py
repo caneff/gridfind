@@ -282,6 +282,9 @@ _GOLDEN_REPORTS = {
     "broke-kropki-non-default-value-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: broke"
     ),
+    "broke-lockout-4x4": (
+        "4x4 · 16 cells · 3 givens · types {0,1,407} · active: 407 · verdict: broke"
+    ),
     "broke-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: broke"
     ),
@@ -434,6 +437,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-kropki-non-default-value-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: found"
+    ),
+    "found-lockout-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,407} · active: 407 · verdict: found"
     ),
     "found-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: found"

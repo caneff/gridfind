@@ -194,6 +194,21 @@ BETWEEN_TYPE = 403
 # link corrects it.
 GROUPED_TYPE = 406
 
+# type 407 is a lockout line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "lockout"` and
+# the path's addresses — no extra block param; the two path ends are the
+# bulbs, read at the `Line` layer through `value_expr`, exactly like between.
+# The fourth **value-mode** relation of the nine-relation line-clue family
+# (spec #672), and between's inverse: the bulbs must differ by at least
+# `(size - 1) // 2` (computed from `engine.board.size`, never read off the
+# wire — 9x9 = 4, 6x6 = 2, 4x4 = 1), and every interior cell's value must
+# sit strictly *outside* the closed bulb interval, never equal to either
+# end. The `(size - 1) // 2` threshold is settled convention (#667), not
+# ground-truthed against a captured real lockout link — the same posture
+# grouped-line's `groups` bitmask shape takes — a one-constant swap in
+# `layers.line._lockout` if a real link corrects it.
+LOCKOUT_TYPE = 407
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's

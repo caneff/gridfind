@@ -2,10 +2,10 @@
 direct rule readback via `line_rules` (whisper) / `all_different_groups`
 (renban) — that a clue emitted its own rule shape, not that a solve happened
 to satisfy it — plus verdict-seam behaviour (found/broke) for every relation
-the family carries so far. Palindrome, grouped-line, and between, like clone
-(`clone_test.py`), have no structural readback helper of their own — their
-rules read digit equality/group-membership/interval bounds, not addresses,
-so their coverage stays at the verdict/direct-model seam.
+the family carries so far. Palindrome, grouped-line, between, and lockout,
+like clone (`clone_test.py`), have no structural readback helper of their
+own — their rules read digit equality/group-membership/interval bounds, not
+addresses, so their coverage stays at the verdict/direct-model seam.
 """
 
 from typing import cast
@@ -53,6 +53,10 @@ def _palindrome(path: tuple[str, ...]) -> Constraint:
 
 def _between(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "between", "path": list(path)})
+
+
+def _lockout(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "lockout", "path": list(path)})
 
 
 def _grouped(path: tuple[str, ...], groups: list[int]) -> Constraint:
@@ -625,6 +629,186 @@ def test_between_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
     engine.model.add(engine.d0("R1C2") == 3)
     engine.model.add(is_s["R1C3"] == 0)
     engine.model.add(engine.d0("R1C3") == 0)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 4
+
+
+def test_a_satisfiable_lockout_resolves_found() -> None:
+    # Bulbs 2 and 7 clear the 9x9 threshold ((9-1)//2 = 4); the interior is
+    # left to the solver, satisfied by anything outside (2, 7).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=7)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert abs(a - b) >= 4
+    assert c < min(a, b) or c > max(a, b)
+
+
+def test_an_interior_digit_inside_the_bulb_range_resolves_broke() -> None:
+    # Bulbs 2 and 7 clear the threshold, but the interior given 5 sits
+    # inside (2, 7) — a direct contradiction since all three cells are given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=5),
+            Given(address="R1C3", digit=7),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_bulbs_too_close_together_resolve_broke() -> None:
+    # Bulbs 4 and 5 (gap 1) fall short of the 9x9 threshold of 4, regardless
+    # of what the free interior cell could hold.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=4), Given(address="R1C3", digit=5)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_lockout_line_bounds_regardless_of_which_end_is_larger() -> None:
+    # Same shape as the satisfiable case, ends reversed (b < a) — the
+    # relation reads min/max of the pair, not "first, then second".
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=7), Given(address="R1C3", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert abs(a - b) >= 4
+    assert c < min(a, b) or c > max(a, b)
+
+
+def test_a_two_cell_lockout_line_only_checks_the_threshold() -> None:
+    # No interior cell to bound — but unlike between, the endpoint gap is
+    # still enforced with only two cells.
+    close = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=5), Given(address="R1C2", digit=5)),
+    )
+
+    assert verdict(close).kind == "broke"
+
+    far = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=9)),
+    )
+
+    assert verdict(far).kind == "found"
+
+
+@pytest.mark.parametrize(
+    ("size", "threshold"),
+    [(4, 1), (6, 2), (9, 4)],
+    ids=["4x4", "6x6", "9x9"],
+)
+def test_the_threshold_is_derived_from_board_size_not_the_wire(
+    size: int, threshold: int
+) -> None:
+    board = Board(size=size)
+    too_close = Puzzle(
+        board=board,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C2", digit=threshold),
+        ),
+    )
+
+    assert verdict(too_close).kind == "broke"
+
+    wide_enough = Puzzle(
+        board=board,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C2", digit=threshold + 1),
+        ),
+    )
+
+    assert verdict(wide_enough).kind == "found"
+
+
+def test_lockout_reads_the_doubled_value_of_a_bulb() -> None:
+    # R1C1 is the modifier bulb, raw digit 3 doubles to 6; R1C2 is the
+    # other, plain bulb at 1. The raw gap (2) falls short of the 9x9
+    # threshold (4); only the folded gap (5) clears it — feasible only if
+    # lockout read R1C1's folded value.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _lockout(("R1C1", "R1C2"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 3)
+    engine.model.add(engine.d0("R1C2") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert (
+        abs(2 * solver.value(engine.d0("R1C1")) - solver.value(engine.d0("R1C2"))) >= 4
+    )
+
+
+def test_lockout_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # R1C1's digits combine to 2 (0+2), doubled to 4 (ADR-0010); R1C2 is a
+    # plain 0. The raw digit (0) ties R1C2 (gap 0, short of the 4x4
+    # threshold of 1); only the folded s_value (4) clears it — feasible only
+    # if lockout read R1C1's folded value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _lockout(("R1C2", "R1C1")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 0)
+    engine.model.add(content[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 0)
 
     solver = cp_model.CpSolver()
     status = solver.solve(engine.model)

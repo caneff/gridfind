@@ -32,6 +32,7 @@ from gridfind.sudokumaker.wire_types import (
     INDEXING_ROW_TYPE,
     KROPKI_BLACK_TYPE,
     KROPKI_WHITE_TYPE,
+    LOCKOUT_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
     ODD_TYPE,
     PALINDROME_TYPE,
@@ -252,6 +253,18 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    LOCKOUT_TYPE: SetterDoc(
+        display_name="Lockout Line",
+        wire_block="type 407 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "lockout",'
+        " order preserved; no extra block param. The two path ends are the"
+        " bulbs (value_expr — 2·d over a doubler, combined s_value over an"
+        " S-cell); they must differ by at least (size-1)//2 (from the"
+        " board's own size, never the wire); every interior cell's value"
+        " must sit strictly outside the closed bulb interval.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
     GROUPED_TYPE: SetterDoc(
         display_name="Grouped Line (Entropic/Modular/Parity)",
         wire_block="type 406 {lines:[[cell indices, ordered], …],"
@@ -324,6 +337,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "whisper": "found-whisper-4x4",
     "palindrome": "found-palindrome-4x4",
     "between": "found-between-4x4",
+    "lockout": "found-lockout-4x4",
     "grouped": "found-grouped-entropic-9x9",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
