@@ -2,10 +2,10 @@
 the same `lines`-path walk (`_line_constraints`) since every relation decodes
 to the identical `Constraint("line", ...)` shape (spec #672) and differs only
 in its `relation` alias and whatever block-level knobs that alias reads
-(whisper's `minDifference`; grouped's `groups`; renban, palindrome, between,
-lockout, and double-arrow state none). `thermo_constraints`
-(`cages.py`) is the prior-art template for a `lines`-path block this shared
-walk itself follows.
+(whisper's `minDifference`; grouped's `groups`; region-sum's
+`singleRegionTotals`; renban, palindrome, between, lockout, and double-arrow
+state none). `thermo_constraints` (`cages.py`) is the prior-art template for
+a `lines`-path block this shared walk itself follows.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from gridfind.sudokumaker.wire_types import (
     GROUPED_TYPE,
     LOCKOUT_TYPE,
     PALINDROME_TYPE,
+    REGION_SUM_TYPE,
     RENBAN_TYPE,
     WHISPER_TYPE,
 )
@@ -86,6 +87,23 @@ def lockout_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     knob, like between: the endpoint-gap threshold is computed from the
     board size at the `Line` layer, never read off the wire."""
     return _line_constraints(buckets, size, LOCKOUT_TYPE, "lockout")
+
+
+def region_sum_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+    """The `type 404` region-sum lines as `line` `Constraint`s, each carrying
+    the block's own `singleRegionTotals`, defaulted to `False` (per-visit
+    segmentation, ADR-0023) when the wire omits it — unlike `minDifference`
+    or `groups`, the spec names `False` the flag's own absent-knob meaning,
+    not a malformed clue."""
+    return _line_constraints(
+        buckets,
+        size,
+        REGION_SUM_TYPE,
+        "region-sum",
+        block_params=lambda block: {
+            "singleRegionTotals": block.get("singleRegionTotals", False)
+        },
+    )
 
 
 def double_arrow_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:

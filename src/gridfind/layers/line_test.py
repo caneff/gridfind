@@ -2,10 +2,11 @@
 direct rule readback via `line_rules` (whisper) / `all_different_groups`
 (renban) — that a clue emitted its own rule shape, not that a solve happened
 to satisfy it — plus verdict-seam behaviour (found/broke) for every relation
-the family carries so far. Palindrome, grouped-line, between, and lockout,
-like clone (`clone_test.py`), have no structural readback helper of their
-own — their rules read digit equality/group-membership/interval bounds, not
-addresses, so their coverage stays at the verdict/direct-model seam.
+the family carries so far. Palindrome, grouped-line, between, lockout, and
+region-sum, like clone (`clone_test.py`), have no structural readback helper
+of their own — their rules read digit equality/group-membership/interval
+bounds or region-segment sums, not addresses, so their coverage stays at the
+verdict/direct-model seam.
 """
 
 from typing import cast
@@ -13,6 +14,7 @@ from typing import cast
 import pytest
 from ortools.sat.python import cp_model
 
+from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.engine import GridfindError, MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.conftest import all_different_groups, line_rules
@@ -61,6 +63,19 @@ def _lockout(path: tuple[str, ...]) -> Constraint:
 
 def _double_arrow(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "double-arrow", "path": list(path)})
+
+
+def _region_sum(
+    path: tuple[str, ...], *, single_region_totals: bool = False
+) -> Constraint:
+    return Constraint(
+        "line",
+        params={
+            "relation": "region-sum",
+            "path": list(path),
+            "singleRegionTotals": single_region_totals,
+        },
+    )
 
 
 def _grouped(path: tuple[str, ...], groups: list[int]) -> Constraint:
@@ -983,3 +998,169 @@ def test_double_arrow_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
 
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
     assert solver.value(engine.value_expr("R1C1")) == 2
+
+
+def test_region_sum_with_equal_box_segments_resolves_found() -> None:
+    # Classic box tiling: R1C1-R1C3 sit in box 0, R1C4 in box 1 — the path
+    # cuts into a three-cell and a one-cell segment at that boundary. Both
+    # segments sum to 9.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            _region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),
+        ),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=4),
+            Given(address="R1C4", digit=9),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_unequal_box_segments_resolve_broke() -> None:
+    # Same shape as the satisfiable case, but the one-cell segment (5) does
+    # not match the three-cell segment's sum (9) — a direct contradiction
+    # since every path cell is given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            _region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),
+        ),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=4),
+            Given(address="R1C4", digit=5),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_region_sum_reads_a_jigsaw_partition_not_the_box_default() -> None:
+    # JIGSAW_TETROMINOES groups row 2 as R2C1 alone with row 1's own region,
+    # not with R2C2 the way a 2x2 box would — R2C1 | R2C2, R2C3, R2C4. Equal
+    # jigsaw segment sums (6, 6) would read broke under the box split's own
+    # cut (R2C1+R2C2=7 vs R2C3+R2C4=5), so `found` here proves the jigsaw map
+    # drove segmentation, not a box-tiling fallback.
+    board = Board(size=4, values=range(1, 10))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="regions-distinct", params={"regions": JIGSAW_TETROMINOES}),
+            _region_sum(("R2C1", "R2C2", "R2C3", "R2C4")),
+        ),
+        givens=(
+            Given(address="R2C1", digit=6),
+            Given(address="R2C2", digit=1),
+            Given(address="R2C3", digit=2),
+            Given(address="R2C4", digit=3),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_a_region_re_entered_later_in_the_path_gets_its_own_segment() -> None:
+    # R1C1 and R1C2 are both jigsaw region 0 (JIGSAW_TETROMINOES); R2C2 sits
+    # between them in the path, in region 1 — a re-entry into region 0.
+    # Region-pooled totals would agree (2 + 3 == 5), but per-visit
+    # segmentation cuts three one-cell segments (2, 5, 3) that do not all
+    # match, so `broke` here proves the path was cut afresh on re-entry
+    # rather than pooled into region 0's earlier visit.
+    board = Board(size=4, values=range(1, 10))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="regions-distinct", params={"regions": JIGSAW_TETROMINOES}),
+            _region_sum(("R1C1", "R2C2", "R1C2")),
+        ),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R2C2", digit=5),
+            Given(address="R1C2", digit=3),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+
+
+def test_region_sum_with_no_partition_warns_and_asserts_nothing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # No regions-distinct constraint at all: the whole board resolves to one
+    # region, so the path never crosses a boundary. The given digits' box
+    # split (9 vs 5) would read broke if any equal-sum rule still ran, so
+    # `found` here proves the relation asserted nothing.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=4),
+            Given(address="R1C4", digit=5),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    err = capsys.readouterr().err
+    assert "no region partition" in err
+    assert "verdict computed without it" in err
+
+
+def test_single_region_totals_true_raises() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            _region_sum(("R1C1", "R1C2"), single_region_totals=True),
+        ),
+    )
+
+    with pytest.raises(GridfindError):
+        verdict(puzzle)
+
+
+def test_region_sum_reads_the_doubled_value_of_a_path_cell() -> None:
+    # R1C1 is the modifier cell in box 0, raw digit 2 doubling to 4. The
+    # boxed 9x9 board cuts the path at the box-0/box-1 boundary (R1C1-R1C3
+    # vs R1C4). Segment sums 4+1+3=8 and 8 match only if region-sum read
+    # R1C1's folded value, not its raw digit (which would give 2+1+3=6).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            Constraint(type="doubler"),
+            _region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 2)
+    engine.model.add(engine.d0("R1C2") == 1)
+    engine.model.add(engine.d0("R1C3") == 3)
+    engine.model.add(engine.d0("R1C4") == 8)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)

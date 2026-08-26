@@ -35,6 +35,7 @@ from gridfind.sudokumaker.line import (
     grouped_constraints,
     lockout_constraints,
     palindrome_constraints,
+    region_sum_constraints,
     renban_constraints,
     whisper_constraints,
 )
@@ -62,6 +63,7 @@ from gridfind.sudokumaker.wire_types import (
     PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
+    REGION_SUM_TYPE,
     REGIONS_TYPE,
     RENBAN_TYPE,
     THERMO_TYPE,
@@ -210,6 +212,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=lockout_constraints,
         live_keys=("lines",),
         name="lockout",
+    ),
+    REGION_SUM_TYPE: DecodedType(
+        handler=region_sum_constraints,
+        live_keys=("lines",),
+        name="region-sum",
     ),
     DOUBLE_ARROW_TYPE: DecodedType(
         handler=double_arrow_constraints,
