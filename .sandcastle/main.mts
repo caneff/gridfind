@@ -156,11 +156,11 @@ mkdirSync(".sandcastle/logs", { recursive: true });
 // A log with no run inside the window is emptied (all its runs are stale).
 // ponytail: parse the header we already emit; no run-index/db needed.
 const LOG_RETENTION_DAYS = 14;
-// Fix-up passes a review-fail gets before it escalates to a human (#389). One
-// clears every fixable fail observed so far; bump to 2 only if a second pass is
-// shown to rescue work. Read by classifyRetryOutcome.
+// Fix-up passes a review-fail gets before it escalates to a human (#389). Each
+// pass clears every fixable fail observed so far; a second pass gives a fail the
+// first pass could not resolve one more attempt. Read by classifyRetryOutcome.
 // ponytail: a single constant, not a config knob — no env override until wanted.
-const FIXUP_CAP = 1;
+const FIXUP_CAP = 2;
 // Thin file-IO caller; the keep/empty/keep-from decision lives in the pure,
 // tested planRetention.
 function pruneOldRuns(dir: string, cutoffMs: number) {
