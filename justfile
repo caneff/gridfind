@@ -64,8 +64,14 @@ verify-links:
 # link, the puzzle link, an openable solution-link (found), and an Approve
 # button. Approvals persist in a gitignored log so re-runs show only what's
 # left; `--all` shows every link. CP-SAT-slow, kept out of `just check`.
+# Detaches: the server outlives this recipe and your prompt returns at once.
+# It opens the browser itself; the URL and progress go to /tmp/eval-links.log.
 eval-links *ARGS:
-    uv run python scripts/eval_links.py {{ARGS}}
+    setsid uv run python scripts/eval_links.py {{ARGS}} > /tmp/eval-links.log 2>&1 < /dev/null &
+    @echo "eval-links detached (log: /tmp/eval-links.log). Stop with: just eval-links-stop"
+
+eval-links-stop:
+    pkill -f "[s]cripts/eval_links.py" && echo stopped || echo "no eval server running"
 
 # Regenerate docs/accepted-link-setter-guide.html from code (ADR-0013). Run
 # this after touching DECODER_REGISTRY, a cage-name frozenset, BOX_SHAPE, or

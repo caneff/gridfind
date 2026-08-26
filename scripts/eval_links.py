@@ -136,6 +136,13 @@ class LinkView(NamedTuple):
     # a malformed link the front door refuses — carrying the puzzle link alone.
 
 
+def feature_then_kind(stem: str) -> tuple[str, str]:
+    """Sort key pairing a feature's cards: `broke-thermo-4x4` and
+    `found-thermo-4x4` sort adjacent, broke first."""
+    kind, _, feature = stem.partition("-")
+    return feature, kind
+
+
 def pending_stems(
     stems: Sequence[str], approved: set[str], *, show_all: bool
 ) -> list[str]:
@@ -448,7 +455,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     approved = load_approved(APPROVED_PATH)
-    by_stem = {path.stem: path for path in sorted(LINKS_DIR.rglob("*.txt"))}
+    # Feature first, verdict second: each feature's broke/found pair sits
+    # together instead of every broke card before every found card.
+    paths = sorted(LINKS_DIR.rglob("*.txt"), key=lambda p: feature_then_kind(p.stem))
+    by_stem = {path.stem: path for path in paths}
     if args.changed:
         # An explicit edit set overrides the approval log: you asked for your
         # own changes, so show them whether or not they were approved before.

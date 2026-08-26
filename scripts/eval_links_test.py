@@ -424,3 +424,15 @@ def test_finish_endpoint_stops_the_server() -> None:
 
     assert status == 200
     assert not serve.is_alive()
+
+
+def test_feature_then_kind_pairs_broke_and_found() -> None:
+    from eval_links import feature_then_kind
+
+    stems = ["broke-thermo-4x4", "broke-cage-4x4", "found-thermo-4x4", "found-cage-4x4"]
+    assert sorted(stems, key=feature_then_kind) == [
+        "broke-cage-4x4",
+        "found-cage-4x4",
+        "broke-thermo-4x4",
+        "found-thermo-4x4",
+    ]
