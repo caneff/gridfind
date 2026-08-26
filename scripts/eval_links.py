@@ -117,9 +117,9 @@ def archive_flags(
     flagged_path: Path, archive_path: Path, stems: set[str], issue_number: int
 ) -> None:
     """Move every flag whose stem is in `stems` out of the flag store and into
-    the archive, stamping each moved entry with `issue_number` (the issue —
-    map, spec, or ticket — it fed). Flags whose stem is not in `stems` stay in
-    the store; the archive accumulates across calls."""
+    the archive, stamping each moved entry with `issue_number` (the issue it
+    fed). Flags whose stem is not in `stems` stay in the store; the archive
+    accumulates across calls."""
     flags = load_flags(flagged_path)
     moved = [{**flag, "issue": issue_number} for flag in flags if flag["stem"] in stems]
     if not moved:
