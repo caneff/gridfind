@@ -74,10 +74,19 @@ name).
 
 **4. Digit-mode semantics over two digits: the clue owns its quantifier; the
 engine owns one gating invariant.** In digit mode a constraint faces up to two
-digits, and no single quantifier fits every clue — even/odd applies to **each**
-digit (∀), quadruple-presence to **any** (∃), clone to the whole **set**,
-digits-distinct to **set membership**. So the quantifier is the clue's, not a
-global rule. The engine's one uniform contribution is **real-digits-only
+digits, and no single quantifier fits every clue. The menu of readings is
+**each** digit (∀), **any** digit (∃), the whole **set** (set-equality), and
+**set membership**. So the quantifier is the clue's, not a global rule.
+
+*(Amended 2026-08-26, issue #609.)* The examples first cited here for the ∀ and
+∃ corners — even/odd (∀) and quadruple-presence (∃) — are **not** digit-mode
+clues. The [#608](https://github.com/caneff/gridfind/issues/608) grill made both
+**value**-mode: they read `value_expr`. The live digit-mode illustrations are
+**clone** (set-equality over the two digits) and **digits-distinct** (set
+membership). The ∀ and ∃ corners stand as framework positions, ready for a clue
+that needs them, but no shipped clue illustrates them today.
+
+The engine's one uniform contribution is **real-digits-only
 gating**: a digit-mode read ranges over `d0` always and `d1` only when the cell
 is a real S-cell (`is_s`), so the sentinel that fills a singleton's second slot
 is never a live term. A width-1 cell is simply the one-real-digit case. Because
@@ -127,10 +136,11 @@ sentinel.
   is no capability left to advertise, and no constraint genuinely resists both
   modes.
 
-- **A single uniform digit-mode quantifier.** Rejected: even/odd (∀),
-  presence (∃), clone (set-equality), and distinct (set-membership) do not
-  reduce to one rule, and a fixed quantifier menu in the engine would miss the
-  set-shaped clues, which would bypass it anyway.
+- **A single uniform digit-mode quantifier.** Rejected: the digit-mode
+  readings — set-equality (clone), set-membership (digits-distinct), and the ∀
+  and ∃ corners the framework reserves — do not reduce to one rule, and a fixed
+  quantifier menu in the engine would miss the set-shaped clues, which would
+  bypass it anyway.
 
 - **Combine mode as a gridfind default** (ADR-0009 decision 4). Rejected here:
   the value of an S-cell is the setter's per-puzzle choice, so the mode rides
