@@ -1,15 +1,15 @@
 """Decode behaviour of the line-clue family's wire blocks: `type 400`
 (renban), `type 401` (whisper), `type 402` (palindrome), `type 403`
-(between), `type 406` (grouped), and `type 407` (lockout) — six rows of the
-nine-relation family (spec #672), sharing `_line_constraints`' walk
-(`sudokumaker/line.py`).
+(between), `type 404` (region-sum), `type 406` (grouped), and `type 407`
+(lockout) — seven rows of the nine-relation family (spec #672), sharing
+`_line_constraints`' walk (`sudokumaker/line.py`).
 
 Mirrors `cages_test.py`'s thermo decode coverage: a path's raw indices decode
 to an addressed `line` `Constraint` carrying `relation` (plus `minDifference`
-for whisper and `groups` for grouped — renban, palindrome, between, and
-lockout state no extra param), a `disabled` block decodes to nothing
-quietly, an empty `lines` list adds nothing, and several paths in one block
-each decode independently.
+for whisper, `groups` for grouped, and `singleRegionTotals` for region-sum —
+renban, palindrome, between, and lockout state no extra param), a `disabled`
+block decodes to nothing quietly, an empty `lines` list adds nothing, and
+several paths in one block each decode independently.
 """
 
 from __future__ import annotations
@@ -515,3 +515,107 @@ def test_a_grouped_block_missing_groups_raises() -> None:
 
     with pytest.raises(KeyError):
         link_to_puzzle(payload)
+
+
+def test_region_sum_block_decodes_to_an_ordered_path_constraint() -> None:
+    payload = constraint_link({"type": 404, "lines": [[0, 1, 2]]})
+
+    puzzle, _ = link_to_puzzle(payload)
+
+    assert (
+        Constraint(
+            "line",
+            params={
+                "relation": "region-sum",
+                "path": ["R1C1", "R1C2", "R1C3"],
+                "singleRegionTotals": False,
+            },
+        )
+        in puzzle.constraints
+    )
+
+
+def test_region_sum_block_carries_its_own_single_region_totals_flag() -> None:
+    payload = constraint_link(
+        {"type": 404, "lines": [[0, 1]], "singleRegionTotals": True}
+    )
+
+    puzzle, _ = link_to_puzzle(payload)
+
+    assert (
+        Constraint(
+            "line",
+            params={
+                "relation": "region-sum",
+                "path": ["R1C1", "R1C2"],
+                "singleRegionTotals": True,
+            },
+        )
+        in puzzle.constraints
+    )
+
+
+def test_multiple_region_sum_paths_each_decode_to_their_own_constraint() -> None:
+    payload = constraint_link({"type": 404, "lines": [[0, 1, 2], [9, 18, 27]]})
+
+    puzzle, _ = link_to_puzzle(payload)
+
+    assert (
+        Constraint(
+            "line",
+            params={
+                "relation": "region-sum",
+                "path": ["R1C1", "R1C2", "R1C3"],
+                "singleRegionTotals": False,
+            },
+        )
+        in puzzle.constraints
+    )
+    assert (
+        Constraint(
+            "line",
+            params={
+                "relation": "region-sum",
+                "path": ["R2C1", "R3C1", "R4C1"],
+                "singleRegionTotals": False,
+            },
+        )
+        in puzzle.constraints
+    )
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        pytest.param({"type": 404, "lines": [[0, 1]], "disabled": True}, id="disabled"),
+        pytest.param({"type": 404, "lines": []}, id="empty-lines"),
+    ],
+)
+def test_disabled_or_empty_region_sum_block_decodes_to_nothing_quietly(
+    block: dict[str, object],
+) -> None:
+    payload = constraint_link(block)
+
+    puzzle, _ = link_to_puzzle(payload)
+
+    assert all(c.type != "line" for c in puzzle.constraints)
+
+
+def test_region_sum_style_is_ignored() -> None:
+    payload = constraint_link(
+        {"type": 404, "lines": [[0, 1]], "style": {"color": "#000000"}}
+    )
+
+    puzzle, _ = link_to_puzzle(payload)
+
+    assert (
+        Constraint(
+            "line",
+            params={
+                "relation": "region-sum",
+                "path": ["R1C1", "R1C2"],
+                "singleRegionTotals": False,
+            },
+        )
+        in puzzle.constraints
+    )

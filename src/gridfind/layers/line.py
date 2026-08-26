@@ -69,19 +69,40 @@ unchanged. Unlike between and lockout, a 2-cell path (no interior) is not a
 vacuous no-op: an empty interior sums to 0, which can never equal two
 positive bulb values, so it reads broke as a plain consequence of the same
 equality, needing no special case.
+
+Region-sum is the fifth value-mode row, and the family's one **cross-relation**
+seam: every other relation is closed over its own path, its knobs, and the
+value/digit seam, but region-sum reaches past that to cross the existing
+`region_map_for_constraints` door (`layers/regions.py`) and resolve the
+board's own partition — a setter's jigsaw map, the classic box tiling, or
+(with no `regions-distinct` constraint at all) one region covering the whole
+board. It segments the ordered path against that partition **per visit**: a
+fresh segment opens each time the path's region changes, so a line that
+re-enters a region already visited is cut again rather than pooled into that
+region's earlier segment, and every segment's `value_expr` sum must be equal.
+Keyed by `singleRegionTotals` (ADR-0023): `False`, the default, is this
+per-visit rule; `True` names per-region pooling, which is unmodeled, so it
+raises rather than guess a rule the spec named out of scope. A one-region
+board collapses the path to one segment regardless of its cells — vacuously
+nothing to compare — so that case warns to stderr and asserts nothing rather
+than silently pass every such puzzle.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+import sys
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, MalformedPuzzleError, sole
+from gridfind.cell_geometry import format_address
+from gridfind.engine import Engine, GridfindError, MalformedPuzzleError, sole
 from gridfind.layers._base import abs_diff_var, emit_over_pairs
+from gridfind.layers.regions import RegionMap, region_map_for_constraints
+from gridfind.puzzle import Constraint as PuzzleConstraint
 from gridfind.puzzle import JsonValue
 
 ReadingMode = str  # "value" or "digit"
@@ -204,6 +225,72 @@ def _double_arrow(
     a, b = sequence[0], sequence[-1]
     interior = sequence[1:-1]
     engine.model.add(sum(interior) == a + b)
+
+
+def _region_index_by_address(region_map: RegionMap) -> dict[str, int]:
+    """Every cell address the region map covers, mapped to its own region's
+    index — the lookup `_region_sum` segments the ordered path against,
+    built fresh off whatever partition `region_map_for_constraints` resolved
+    (a setter's jigsaw map, the classic box tiling, or the one-whole-board
+    fallback)."""
+    return {
+        format_address(row, col): index
+        for index, region in enumerate(region_map)
+        for row, col in region
+    }
+
+
+def _region_sum(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Segment the ordered path at region boundaries, per visit — a fresh
+    segment opens each time the path's `RegionMap` region changes, so a
+    region already visited earlier in the path is cut again on re-entry,
+    never pooled into its first segment — then assert every segment's
+    `value_expr` sum equal (ADR-0023). `singleRegionTotals = True` names
+    per-region pooling, unmodeled, so it raises rather than guess a rule the
+    spec named out of scope. A one-whole-board region (no `regions-distinct`
+    constraint on the puzzle at all) collapses the path to a single segment
+    regardless of its cells — vacuously nothing to compare — so that case
+    warns to stderr and asserts nothing instead of silently passing every
+    such puzzle."""
+    if cast("bool", params.get("singleRegionTotals", False)):
+        msg = (
+            "region-sum line with singleRegionTotals=true (per-region "
+            "pooling) is not modeled"
+        )
+        raise GridfindError(msg)
+
+    region_map = region_map_for_constraints(
+        cast("Iterable[PuzzleConstraint]", engine.constraints), engine.board.size
+    )
+    if len(region_map) == 1:
+        print(
+            "warning: region-sum line on a board with no region partition "
+            "— verdict computed without it",
+            file=sys.stderr,
+        )
+        return
+
+    region_of = _region_index_by_address(region_map)
+    path = cast("list[str]", params["path"])
+    segments: list[list[cp_model.IntVar]] = []
+    previous_region: int | None = None
+    for address, value in zip(path, sequence, strict=True):
+        region = region_of[address]
+        if region != previous_region:
+            segments.append([])
+            previous_region = region
+        segments[-1].append(value)
+
+    if len(segments) < 2:
+        return
+
+    totals = [sum(segment) for segment in segments]
+    for total in totals[1:]:
+        engine.model.add(total == totals[0])
 
 
 def _renban(
@@ -353,6 +440,7 @@ LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "between": ("value", _between),
     "lockout": ("value", _lockout),
     "double-arrow": ("value", _double_arrow),
+    "region-sum": ("value", _region_sum),
 }
 
 

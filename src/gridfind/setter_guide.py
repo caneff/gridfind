@@ -39,6 +39,7 @@ from gridfind.sudokumaker.wire_types import (
     PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
+    REGION_SUM_TYPE,
     RENBAN_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
@@ -278,6 +279,26 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    REGION_SUM_TYPE: SetterDoc(
+        display_name="Region Sum Line",
+        wire_block="type 404 {lines:[[cell indices, ordered], …],"
+        " singleRegionTotals:bool}.",
+        decode_result='One line Constraint per path, relation "region-sum",'
+        " order preserved; singleRegionTotals rides onto every path in the"
+        " block, defaulting to false when the wire omits it. The path is cut"
+        " into segments at the board's own region partition (a setter's"
+        " jigsaw map, the classic box tiling, or one whole-board region with"
+        " no regions-distinct constraint), a fresh segment opening each time"
+        " the region changes — a re-entered region is cut again, never"
+        " pooled with its earlier visit. Every segment's value_expr sum"
+        " (2·d over a doubler, combined s_value over an S-cell) must be"
+        " equal.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing. singleRegionTotals=true names per-region pooling,"
+        " which is unmodeled, and raises loud rather than guess a rule. A"
+        " one-whole-board region warns to stderr and asserts nothing,"
+        " rather than silently pass or fail on a vacuous split.",
+    ),
     GROUPED_TYPE: SetterDoc(
         display_name="Grouped Line (Entropic/Modular/Parity)",
         wire_block="type 406 {lines:[[cell indices, ordered], …],"
@@ -352,6 +373,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "between": "found-between-4x4",
     "lockout": "found-lockout-4x4",
     "double-arrow": "found-double-arrow-4x4",
+    "region-sum": "found-region-sum-4x4",
     "grouped": "found-grouped-entropic-9x9",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",
