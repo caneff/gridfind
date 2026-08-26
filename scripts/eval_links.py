@@ -6,7 +6,8 @@ material out for a person to check the verdict by eye.
 It serves a small localhost page as a slideshow — one link at a time, the
 puzzle and its solution side by side in iframes (a `broke` case has no solution,
 so that pane says so). Approve or Flag records the verdict and advances to the
-next slide; a note field feeds the flag. Approving records the stem in a
+next slide; Back steps to the previous one (its verdict stays logged); a note
+field feeds the flag. Approving records the stem in a
 gitignored log (`.eval-approved.json`), so later runs show only the links not
 yet approved (`--all` shows every one). The board is solved once per shown link,
 so re-runs get cheaper as the log grows.
@@ -257,6 +258,7 @@ _PAGE = """<!doctype html>
 <body>
 <h1>gridfind link eval &mdash;
   <span id="pos">1</span> of <span id="total">{count}</span>
+  <button onclick="back()">Back</button>
   <button onclick="finish()">Finish</button></h1>
 {body}
 <section id="done" hidden>
@@ -280,16 +282,22 @@ function unmount(i) {{
   s.querySelectorAll("iframe.pane").forEach(f => {{ f.removeAttribute("src"); }});
 }}
 
-function advance() {{
+function go(i) {{
   const shown = slide(current);
   if (shown) shown.classList.remove("active");
   unmount(current);
-  current++;
-  if (current >= total) {{ document.getElementById("done").hidden = false; return; }}
+  current = i;
+  document.getElementById("done").hidden = current < total;
+  if (current >= total) return;
   document.getElementById("pos").textContent = current + 1;
-  slide(current).classList.add("active");
+  const next = slide(current);
+  next.classList.add("active");
+  // Revisited via Back: its verdict is already logged, let it be re-recorded.
+  next.querySelectorAll("button").forEach(b => {{ b.disabled = false; }});
   mount(current);
 }}
+function advance() {{ go(current + 1); }}
+function back() {{ if (current > 0) go(current - 1); }}
 
 async function finish() {{
   await fetch("/finish", {{ method: "POST" }});

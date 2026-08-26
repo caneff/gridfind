@@ -436,3 +436,9 @@ def test_feature_then_kind_pairs_broke_and_found() -> None:
         "broke-thermo-4x4",
         "found-thermo-4x4",
     ]
+
+
+def test_render_page_has_a_back_button() -> None:
+    html = render_page([("a", _BROKE), ("b", _FOUND)])
+    assert '<button onclick="back()">Back</button>' in html
+    assert "function back()" in html
