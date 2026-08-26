@@ -6,12 +6,12 @@ from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.door import UnknownLayerError
+from gridfind.layers.numbered_rooms import NumberedRooms
 from gridfind.layers.offset_adjacency import KNIGHT_OFFSETS, OffsetAdjacency
 from gridfind.layers.outside_cells import OutsideCells
 from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
-from gridfind.layers.s_blind import SBlindLayerError
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.layers.thermo import Thermo
 from gridfind.puzzle import Board, Constraint
@@ -130,22 +130,13 @@ def test_unknown_constraint_type_is_rejected() -> None:
         build_stack((Constraint(type="not-a-real-rule"),), size=9)
 
 
-def test_offset_adjacency_stacked_with_schrodinger_is_refused() -> None:
-    # offset_adjacency reads a cell's single content slot, which has no
-    # defined meaning once schrodinger widens every cell to two.
-    constraints = (Constraint(type="anti-knight"), Constraint(type="schrodinger"))
-
-    with pytest.raises(SBlindLayerError, match="anti-knight"):
-        build_stack(constraints, size=9)
-
-
 @pytest.mark.parametrize("pair_relation_type", ["pair-difference", "pair-ratio"])
 def test_a_pair_relation_layer_composes_with_a_widening_layer(
     pair_relation_type: str,
 ) -> None:
     # Both kropki pair layers read `engine.value_expr`, not a cell's single
     # content slot, so they are not s-blind and stack freely with
-    # schrodinger — unlike anti-knight above.
+    # schrodinger — unlike numbered-rooms, the one remaining s-blind holdout.
     constraints = (Constraint(type=pair_relation_type), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -168,16 +159,28 @@ def test_thermo_composes_with_a_widening_layer() -> None:
     assert layers == [BOARD, OUTSIDE_CELLS, Thermo(), Schrodinger()]
 
 
-def test_an_s_blind_layer_alone_is_unaffected() -> None:
-    # No widening layer in the stack: an s-blind layer is perfectly fine on
-    # its own.
-    _, layers = build_stack((Constraint(type="anti-knight"),), size=9)
+def test_offset_adjacency_composes_with_a_widening_layer() -> None:
+    # offset_adjacency reads engine.real_digit_values (ADR-0019 dec 6), not a
+    # cell's single content slot, so it is not s-blind and stacks freely with
+    # schrodinger — unlike numbered-rooms, the one remaining s-blind holdout.
+    constraints = (Constraint(type="anti-knight"), Constraint(type="schrodinger"))
+
+    _, layers = build_stack(constraints, size=9)
 
     assert layers == [
         BOARD,
         OUTSIDE_CELLS,
         OffsetAdjacency("anti-knight", KNIGHT_OFFSETS),
+        Schrodinger(),
     ]
+
+
+def test_an_s_blind_layer_alone_is_unaffected() -> None:
+    # No widening layer in the stack: an s-blind layer is perfectly fine on
+    # its own.
+    _, layers = build_stack((Constraint(type="numbered-rooms"),), size=9)
+
+    assert layers == [BOARD, OUTSIDE_CELLS, NumberedRooms()]
 
 
 def test_a_widening_layer_alone_is_unaffected() -> None:

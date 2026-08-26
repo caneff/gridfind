@@ -28,8 +28,9 @@ the outside cell) takes only a cell's first content slot, with no `is_s()`
 branch to widen the index or the target to a second slot. A widened outside
 or line cell would leave its `d1` unconstrained by this rule — silently, not
 loudly. Until an S-aware branch is built, `layers.s_blind` names this class
-directly (alongside `offset_adjacency`) so `build_stack` refuses the
-combination with `schrodinger` up front instead.
+directly — the last holdout since `offset_adjacency` was lifted onto digit
+mode in #712 — so `build_stack` refuses the combination with `schrodinger`
+up front instead.
 """
 
 from __future__ import annotations
