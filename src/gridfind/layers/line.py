@@ -147,7 +147,8 @@ def _lockout(
 ) -> None:
     """Between's inverse: the two path ends are the bulbs `a, b`, which must
     differ by at least `(size - 1) // 2` — `size` read from
-    `engine.board.size`, never the wire (9x9 = 4, 6x6 = 2, 4x4 = 1, #667).
+    `engine.board.size`, never the wire (9x9 = 4, 6x6 = 2, 4x4 = 1;
+    threshold ratified from spec, ADR-0021).
     Every interior cell's value must sit strictly *outside* the closed
     bulb interval: `value_expr(c) < min(a, b)` or `> max(a, b)`, never
     equal to either end. Both halves read `min(a, b)`/`max(a, b)` of the
