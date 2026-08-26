@@ -182,15 +182,17 @@ BETWEEN_TYPE = 403
 # rule needs nothing beyond the path. This is the third **value-mode**
 # relation of the nine-relation line-clue family (spec #672): every
 # successive `value_expr` difference along the path must be equal, any
-# integer including 0 (a flat line is valid — GM Puzzles' published "5-5-5,
-# difference of 0" example, #669's resolution), so a doubler or Schrödinger
-# cell counts as its folded value, the same seam whisper and between read
-# through. No real `type 405` link was available to ground-truth the wire
-# shape (the same gap clone's `type 302` and grouped's `type 406` document,
-# #669's own resolution note); the bare `lines`-path shape is taken from
-# #668's decode of the type's wire shape, which named 405 without deriving
-# its rule — a one-function swap in `sequence_constraints` if a real link
-# corrects it.
+# integer including 0, so a doubler or Schrödinger cell counts as its folded
+# value, the same seam whisper and between read through. The bare
+# `lines`-path wire shape is confirmed live: #668's captured real 9x9 link
+# decodes a `{"type": 405, "lines": [[17, 26, 35, 44]], ...}` block in
+# exactly this shape. The flat-line-legal fact (#669's build-time verify
+# flag) is confirmed past the GM Puzzles citation, against SudokuMaker's own
+# encoding: the production client bundle served from sudokumaker.app (its
+# `main-*.js`) carries the constraint's own rule text under the `Sequence`
+# (405) definition — "Digits along {cells} must increase or decrease by the
+# same amount (or stay the same)" — so a flat line is legal by the setter's
+# own tool, not only by convention.
 SEQUENCE_TYPE = 405
 
 # type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
