@@ -2,8 +2,8 @@
 the same `lines`-path walk (`_line_constraints`) since every relation decodes
 to the identical `Constraint("line", ...)` shape (spec #672) and differs only
 in its `relation` alias and whatever block-level knobs that alias reads
-(whisper's `minDifference`; grouped's `groups`; renban, palindrome, and
-between state none). `thermo_constraints`
+(whisper's `minDifference`; grouped's `groups`; renban, palindrome, between,
+and sequence state none). `thermo_constraints`
 (`cages.py`) is the prior-art template for a `lines`-path block this shared
 walk itself follows.
 """
@@ -21,6 +21,7 @@ from gridfind.sudokumaker.wire_types import (
     GROUPED_TYPE,
     PALINDROME_TYPE,
     RENBAN_TYPE,
+    SEQUENCE_TYPE,
     WHISPER_TYPE,
 )
 
@@ -77,6 +78,13 @@ def between_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     """The `type 403` between-lines as `line` `Constraint`s — no block-level
     knob, between's own bulb-bounding rule needs nothing beyond the path."""
     return _line_constraints(buckets, size, BETWEEN_TYPE, "between")
+
+
+def sequence_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:
+    """The `type 405` sequence lines as `line` `Constraint`s — no block-level
+    knob, sequence's own arithmetic-progression rule needs nothing beyond the
+    path."""
+    return _line_constraints(buckets, size, SEQUENCE_TYPE, "sequence")
 
 
 def grouped_constraints(buckets: ConstraintBuckets, size: int) -> list[Constraint]:

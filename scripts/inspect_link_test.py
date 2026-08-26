@@ -324,6 +324,9 @@ _GOLDEN_REPORTS = {
     "broke-schrodinger-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
+    "broke-sequence-4x4": (
+        "4x4 · 16 cells · 3 givens · types {0,1,405} · active: 405 · verdict: broke"
+    ),
     "broke-somedoku-9x9": (
         "9x9 · 81 cells · 2 givens · types {1000} ·"
         " inert: 1000(Somedoku) · verdict: broke"
@@ -470,6 +473,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-schrodinger-6x6": (
         "6x6 · 36 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: found"
+    ),
+    "found-sequence-4x4": (
+        "4x4 · 16 cells · 2 givens · types {0,1,405} · active: 405 · verdict: found"
     ),
     "found-somedoku-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,2001} · inert: 2001 · verdict: found"

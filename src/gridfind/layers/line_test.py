@@ -2,10 +2,11 @@
 direct rule readback via `line_rules` (whisper) / `all_different_groups`
 (renban) — that a clue emitted its own rule shape, not that a solve happened
 to satisfy it — plus verdict-seam behaviour (found/broke) for every relation
-the family carries so far. Palindrome, grouped-line, and between, like clone
-(`clone_test.py`), have no structural readback helper of their own — their
-rules read digit equality/group-membership/interval bounds, not addresses,
-so their coverage stays at the verdict/direct-model seam.
+the family carries so far. Palindrome, grouped-line, between, and sequence,
+like clone (`clone_test.py`), have no structural readback helper of their
+own — their rules read digit equality/group-membership/interval bounds/
+successive differences, not addresses, so their coverage stays at the
+verdict/direct-model seam.
 """
 
 from typing import cast
@@ -53,6 +54,10 @@ def _palindrome(path: tuple[str, ...]) -> Constraint:
 
 def _between(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "between", "path": list(path)})
+
+
+def _sequence(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "sequence", "path": list(path)})
 
 
 def _grouped(path: tuple[str, ...], groups: list[int]) -> Constraint:
@@ -623,6 +628,149 @@ def test_between_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
     engine.model.add(content[1] == 2)
     engine.model.add(is_s["R1C2"] == 0)
     engine.model.add(engine.d0("R1C2") == 3)
+    engine.model.add(is_s["R1C3"] == 0)
+    engine.model.add(engine.d0("R1C3") == 0)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 4
+
+
+def test_a_satisfiable_sequence_resolves_found() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_sequence(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=8)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, b, c = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert b - a == c - b
+
+
+def test_an_unequal_step_sequence_resolves_broke() -> None:
+    # Successive differences 3 and 4 — unequal, a direct contradiction since
+    # all three cells are given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_sequence(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=5),
+            Given(address="R1C3", digit=9),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_flat_sequence_line_is_valid() -> None:
+    # Common difference 0 — a flat line (repeated values) is a legal
+    # sequence, the fact #669 confirmed against GM Puzzles' published
+    # "5-5-5, difference of 0" example. No distinctness is asserted.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_sequence(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=5),
+            Given(address="R1C2", digit=5),
+            Given(address="R1C3", digit=5),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_a_sequence_line_is_reversal_invariant() -> None:
+    # Same shape as the satisfiable case, ends reversed (decreasing rather
+    # than increasing) — negating every difference leaves them equal to
+    # each other, so direction does not matter.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_sequence(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=8), Given(address="R1C3", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, b, c = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert b - a == c - b
+
+
+def test_a_two_cell_sequence_line_asserts_nothing() -> None:
+    # A single difference is trivially constant on its own — no triple to
+    # pin, so any two values are satisfiable.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_sequence(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=9)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_sequence_reads_the_doubled_value_of_a_cell() -> None:
+    # R1C1 is the modifier cell, raw digit 5 doubles to 10. The triple
+    # 10, 7, 4 has equal successive differences (-3, -3); reading R1C1 raw
+    # (5, 7, 4: differences 2, -3) would not — feasible only if sequence
+    # read R1C1's folded value.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _sequence(("R1C1", "R1C2", "R1C3"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 5)
+    engine.model.add(engine.d0("R1C2") == 7)
+    engine.model.add(engine.d0("R1C3") == 4)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_sequence_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # R1C1's digits combine to 2 (0+2), doubled to 4 (ADR-0010). The triple
+    # 4, 2, 0 has equal successive differences (-2, -2); reading R1C1 raw
+    # (0, 2, 0: differences 2, -2) would not — feasible only if sequence
+    # read R1C1's folded value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _sequence(("R1C1", "R1C2", "R1C3")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 0)
+    engine.model.add(content[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 2)
     engine.model.add(is_s["R1C3"] == 0)
     engine.model.add(engine.d0("R1C3") == 0)
 

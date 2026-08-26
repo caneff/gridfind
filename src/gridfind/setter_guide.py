@@ -38,6 +38,7 @@ from gridfind.sudokumaker.wire_types import (
     POSITIVE_DIAGONAL_TYPE,
     QUADRUPLE_TYPE,
     RENBAN_TYPE,
+    SEQUENCE_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
     XV_TYPE,
@@ -252,6 +253,18 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    SEQUENCE_TYPE: SetterDoc(
+        display_name="Sequence Line",
+        wire_block="type 405 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "sequence",'
+        " order preserved; no extra block param. Every successive value_expr"
+        " difference along the path must be equal (2·d over a doubler,"
+        " combined s_value over an S-cell) — an arithmetic progression, any"
+        " common difference including 0 (a flat line is valid). A 1- or"
+        " 2-cell path asserts nothing.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
     GROUPED_TYPE: SetterDoc(
         display_name="Grouped Line (Entropic/Modular/Parity)",
         wire_block="type 406 {lines:[[cell indices, ordered], …],"
@@ -324,6 +337,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "whisper": "found-whisper-4x4",
     "palindrome": "found-palindrome-4x4",
     "between": "found-between-4x4",
+    "sequence": "found-sequence-4x4",
     "grouped": "found-grouped-entropic-9x9",
     "anti-knight": "found-anti-knight-4x4",
     "anti-king": "found-anti-king-6x6",

@@ -34,6 +34,7 @@ from gridfind.sudokumaker.line import (
     grouped_constraints,
     palindrome_constraints,
     renban_constraints,
+    sequence_constraints,
     whisper_constraints,
 )
 from gridfind.sudokumaker.quadruple import quadruple_constraints
@@ -60,6 +61,7 @@ from gridfind.sudokumaker.wire_types import (
     QUADRUPLE_TYPE,
     REGIONS_TYPE,
     RENBAN_TYPE,
+    SEQUENCE_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
     XV_TYPE,
@@ -196,6 +198,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=between_constraints,
         live_keys=("lines",),
         name="between",
+    ),
+    SEQUENCE_TYPE: DecodedType(
+        handler=sequence_constraints,
+        live_keys=("lines",),
+        name="sequence",
     ),
     GROUPED_TYPE: DecodedType(
         handler=grouped_constraints,

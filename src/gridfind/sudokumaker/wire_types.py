@@ -176,6 +176,23 @@ PALINDROME_TYPE = 402
 # as its folded value, the same seam whisper reads through.
 BETWEEN_TYPE = 403
 
+# type 405 is a sequence line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "sequence"` and
+# the path's addresses — no extra block param; the arithmetic-progression
+# rule needs nothing beyond the path. This is the third **value-mode**
+# relation of the nine-relation line-clue family (spec #672): every
+# successive `value_expr` difference along the path must be equal, any
+# integer including 0 (a flat line is valid — GM Puzzles' published "5-5-5,
+# difference of 0" example, #669's resolution), so a doubler or Schrödinger
+# cell counts as its folded value, the same seam whisper and between read
+# through. No real `type 405` link was available to ground-truth the wire
+# shape (the same gap clone's `type 302` and grouped's `type 406` document,
+# #669's own resolution note); the bare `lines`-path shape is taken from
+# #668's decode of the type's wire shape, which named 405 without deriving
+# its rule — a one-function swap in `sequence_constraints` if a real link
+# corrects it.
+SEQUENCE_TYPE = 405
+
 # type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
 # indices, ordered], …], groups: [bitmask, …]}`. Each path becomes its own
 # `line` Constraint carrying `relation: "grouped"` and the path's addresses;
