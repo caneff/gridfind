@@ -31,6 +31,13 @@ content-width-check:
 link-coverage-check:
     uv run python scripts/audit_link_coverage.py
 
+# Givens-on-the-clue audit (issue #727, spec #723): reports every found/broke
+# corpus link where a given sits on a cell the link's own constraint exists
+# to test. Report mode only — not a dependency of `check` yet, since the real
+# corpus still carries unexempted hits awaiting a human ruling.
+givens-on-clue-check:
+    uv run python scripts/audit_givens_on_clue.py
+
 # Auto-fix + format in place.
 fmt:
     uv run ruff check --fix .
