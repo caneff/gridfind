@@ -61,7 +61,7 @@ def test_puzzle_hits_passes_a_given_off_the_constraint_cells() -> None:
 
 
 def test_puzzle_hits_ignores_givens_off_any_tested_constraint() -> None:
-    # A given is fine anywhere row/col/box/region touches — only the six
+    # A given is fine anywhere row/col/box/region touches — only the ten
     # clue-carrying types in `_TESTED_TYPES` gate a hit.
     puzzle = Puzzle(
         board=Board(size=4),
