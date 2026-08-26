@@ -53,6 +53,13 @@ interior cell strictly between them (`min(a, b) < value_expr(c) <
 max(a, b)`). The ends only bound each other — no rule pins them together
 beyond forming the interval — so a 2-cell path (no interior cell) asserts
 nothing.
+
+Lockout is the third value-mode row, and between's inverse: the two path
+ends are the bulbs, which must differ by at least `(size - 1) // 2` (`size`
+from `engine.board.size`, never the wire), and every interior cell strictly
+*outside* the closed bulb interval (`value_expr(c) < min(a, b)` or `>
+max(a, b)`). `_bulb_bounds` mints the shared `min`/`max` aux-var pair both
+between and lockout bound their interior cells against.
 """
 
 from __future__ import annotations
@@ -94,6 +101,26 @@ def _whisper(
     emit_over_pairs(engine, list(pairwise(sequence)), rel)
 
 
+def _bulb_bounds(
+    engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar, *, suffix: str
+) -> tuple[cp_model.IntVar, cp_model.IntVar]:
+    """Mint fresh `low_var == min(a, b)`, `high_var == max(a, b)` aux vars,
+    spanned off each bulb's own declared domain (`abs_diff_var`'s same
+    reasoning, `_base.py`) rather than the board's raw digit range: a
+    bulb's `value_expr` may be a doubler's `2*value` or an S-cell's
+    `s_value`, both wider than a bare digit. Between and lockout both bound
+    their interior cells against the same pair of bulbs this way — the one
+    home for the mint, `suffix` keeping each relation's aux vars apart."""
+    a_domain, b_domain = list(a.proto.domain), list(b.proto.domain)
+    low = min(a_domain[0], b_domain[0])
+    high = max(a_domain[-1], b_domain[-1])
+    low_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.{suffix}_low")
+    high_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.{suffix}_high")
+    engine.model.add_min_equality(low_var, [a, b])
+    engine.model.add_max_equality(high_var, [a, b])
+    return low_var, high_var
+
+
 def _between(
     engine: Engine,
     sequence: ValueSequence,
@@ -102,27 +129,55 @@ def _between(
     """The two path ends are the bulbs `a, b`; every interior cell sits
     strictly between them: `min(a, b) < value_expr(c) < max(a, b)`. The
     bulbs only bound — no rule relates them to each other — so a 2-cell path
-    (no interior) asserts nothing.
-
-    `low`/`high` mint fresh min/max vars over `a, b` directly, spanned off
-    each bulb's own declared domain (`abs_diff_var`'s same reasoning,
-    `_base.py`) rather than the board's raw digit range: a bulb's
-    `value_expr` may be a doubler's `2*value` or an S-cell's `s_value`, both
-    wider than a bare digit."""
+    (no interior) asserts nothing."""
     a, b = sequence[0], sequence[-1]
     interior = sequence[1:-1]
     if not interior:
         return
-    a_domain, b_domain = list(a.proto.domain), list(b.proto.domain)
-    low = min(a_domain[0], b_domain[0])
-    high = max(a_domain[-1], b_domain[-1])
-    low_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.between_low")
-    high_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.between_high")
-    engine.model.add_min_equality(low_var, [a, b])
-    engine.model.add_max_equality(high_var, [a, b])
+    low_var, high_var = _bulb_bounds(engine, a, b, suffix="between")
     for cell in interior:
         engine.model.add(cell > low_var)
         engine.model.add(cell < high_var)
+
+
+def _lockout(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Between's inverse: the two path ends are the bulbs `a, b`, which must
+    differ by at least `(size - 1) // 2` — `size` read from
+    `engine.board.size`, never the wire (9x9 = 4, 6x6 = 2, 4x4 = 1, #667).
+    Every interior cell's value must sit strictly *outside* the closed
+    bulb interval: `value_expr(c) < min(a, b)` or `> max(a, b)`, never
+    equal to either end. Both halves read `min(a, b)`/`max(a, b)` of the
+    pair rather than "first end, then second", so redrawing the line the
+    other way gives the same verdict.
+
+    The threshold reuses `abs_diff_var` (whisper's own mint); the interval
+    reuses `_bulb_bounds` (between's own mint). "Outside the closed
+    interval" is an either-or a bare conjunction can't express, so each
+    interior cell reifies `below`/`above` booleans against the shared
+    `low_var`/`high_var` and OR's them — the house
+    `only_enforce_if`-pair-plus-`add_bool_or` idiom (`equality_cage.py`).
+    A 2-cell path (no interior) only checks the threshold, same as
+    between's bulbs-only-bound posture."""
+    a, b = sequence[0], sequence[-1]
+    interior = sequence[1:-1]
+    threshold = (engine.board.size - 1) // 2
+    gap = abs_diff_var(engine, a, b, suffix="lockout_gap")
+    engine.model.add(gap >= threshold)
+    if not interior:
+        return
+    low_var, high_var = _bulb_bounds(engine, a, b, suffix="lockout")
+    for cell in interior:
+        below = engine.model.new_bool_var(f"{cell.name}.lockout_below")
+        engine.model.add(cell < low_var).only_enforce_if(below)
+        engine.model.add(cell >= low_var).only_enforce_if(below.negated())
+        above = engine.model.new_bool_var(f"{cell.name}.lockout_above")
+        engine.model.add(cell > high_var).only_enforce_if(above)
+        engine.model.add(cell <= high_var).only_enforce_if(above.negated())
+        engine.model.add_bool_or([below, above])
 
 
 def _renban(
@@ -270,6 +325,7 @@ LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "palindrome": ("digit", _palindrome),
     "grouped": ("digit", _grouped),
     "between": ("value", _between),
+    "lockout": ("value", _lockout),
 }
 
 
