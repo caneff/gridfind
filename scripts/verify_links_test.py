@@ -339,3 +339,23 @@ def test_emit_solution_link_colors_the_doubler_marker_cage() -> None:
 
     assert doubler_block["style"]["cage"]["color"] == _MARKER_COLOR_PALETTE[0]
     assert "style" not in killer_block
+
+
+def test_fill_witness_strides_a_frame_document_by_its_own_width() -> None:
+    """An escape-the-grid document is `(size+2)` wide; the witness keys the
+    inner board 1-based and outside cells by padded address, so the fill must
+    stride by the document width, not the board size (the KeyError that broke
+    `just eval-links` on the numbered-rooms link)."""
+    size, width = 2, 4
+    document = _document(width)
+    assignment: dict[str, tuple[int, ...]] = {
+        format_address(r, c): (1,) for r in (1, 2) for c in (1, 2)
+    }
+    assignment["R0C1"] = (2,)
+    witness = Witness(grid=_grid(size), assignment=assignment, region_map=RegionMap({}))
+    filled = fill_witness(document, witness, size)
+    puzzle = cast("dict[str, Any]", filled["puzzle"])
+    cells = cast("list[dict[str, object]]", puzzle["cells"])
+    assert cells[1]["value"] == 2  # R0C1 -> row 0, col 1 of the 4-wide frame
+    assert cells[5]["value"] == 1  # R1C1 -> row 1, col 1
+    assert cells[0] == {}  # R0C0: never solved, left untouched

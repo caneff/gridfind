@@ -15,6 +15,7 @@ prints `broke` and no URL, since there is no witness to show.
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
@@ -57,9 +58,16 @@ def fill_witness(
     filled: dict[str, object] = json.loads(json.dumps(document))
     puzzle_data = cast("dict[str, object]", filled["puzzle"])
     cells = cast("list[dict[str, Any]]", puzzle_data["cells"])
+    # An escape-the-grid frame document is (size+2) wide; its cells map to the
+    # witness's padded outside-cell addresses (R0Cx, R{size+1}Cx), and border
+    # cells the solver never created stay as the setter left them.
+    width = math.isqrt(len(cells))
+    offset = (width - size) // 2
     for i, cell in enumerate(cells):
-        address = format_address(*index_to_row_col(i, size))
-        write_cell(cell, witness[address])
+        row, col = index_to_row_col(i, width)
+        address = format_address(row - offset, col - offset)
+        if address in witness.assignment:
+            write_cell(cell, witness[address])
     _mark_witness_variants(puzzle_data, witness, size)
     return filled
 
