@@ -13,10 +13,9 @@ default rule over every *other* adjacent pair rather than a drawn clue.
 
     uv run python scripts/audit_givens_on_clue.py
 
-Report mode only (spec #723 dec 3): not wired into `just check` yet — a
-future ticket adds that once every real hit below is triaged. `EXEMPTIONS` is
-the by-stem record of that triage, one line each; the human decides every
-entry from this report, never the agent.
+Part of `just check` (#729): exits 1 on any hit whose stem is not in
+`EXEMPTIONS`, the by-stem record of the human ruling (#728), one reason each;
+the human decides every entry, never the agent.
 """
 
 from __future__ import annotations

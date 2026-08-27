@@ -10,6 +10,7 @@ from audit_givens_on_clue import (
     constraint_cells,
     format_report,
     link_hits,
+    main,
     puzzle_hits,
 )
 
@@ -89,19 +90,34 @@ def test_format_report_clean_bill_when_nothing_flagged() -> None:
 
 
 def test_link_hits_decodes_through_link_to_puzzle() -> None:
-    link = (_LINKS_DIR / "broke-sequence-4x4.txt").read_text().strip()
-    assert any(hit.startswith("line@") for hit in link_hits(link))
+    link = (_LINKS_DIR / "found-kropki-negative-4x4.txt").read_text().strip()
+    assert any(hit.startswith("pair-difference@") for hit in link_hits(link))
 
 
 def test_build_report_wires_the_real_corpus() -> None:
-    # Sanity that the decode wiring works end to end: a known offender hits,
-    # keyed by its own constraint type. Sequence (#676) is outside spec
-    # #723's rebuild list, so this stem stays a stable offender — unlike the
-    # indexing, line-relation, and cage/group-family batches, whose links
-    # were rebuilt so no given sits on the clue, so they never trip this
-    # audit.
+    # Sanity that the decode wiring works end to end: a known (exempted)
+    # offender hits, keyed by its own constraint type. Every unexempted link
+    # was rebuilt under spec #723 so no given sits on the clue.
     report = build_report(_LINKS_DIR)
-    assert any(hit.startswith("line@") for hit in report["broke-sequence-4x4"])
+    assert report["found-kropki-negative-4x4"] == [
+        "pair-difference@R1C1",
+        "pair-difference@R1C2",
+    ]
+
+
+def test_main_passes_on_the_real_corpus(capsys) -> None:  # noqa: ANN001
+    # The gate (#729): the committed corpus carries no unexempted hit.
+    assert main(_LINKS_DIR) == 0
+    assert "No unexempted hits." in capsys.readouterr().out
+
+
+def test_main_fails_on_an_unexempted_hit(tmp_path: Path, capsys) -> None:  # noqa: ANN001
+    # A link with a given on its own clue, under a stem no exemption names,
+    # fails the gate with exit 1 and shows up in the flagged list.
+    link = (_LINKS_DIR / "found-kropki-negative-4x4.txt").read_text()
+    (tmp_path / "found-unruled-4x4.txt").write_text(link)
+    assert main(tmp_path) == 1
+    assert "found-unruled-4x4" in capsys.readouterr().out
 
 
 def test_exemptions_name_real_corpus_links_with_a_reason() -> None:
