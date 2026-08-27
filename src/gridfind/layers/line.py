@@ -54,7 +54,17 @@ max(a, b)`). The ends only bound each other — no rule pins them together
 beyond forming the interval — so a 2-cell path (no interior cell) asserts
 nothing.
 
-Lockout is the third value-mode row, and between's inverse: the two path
+Sequence is a value-mode row: an arithmetic progression, every
+successive `value_expr` difference equal (`value(c[i+1]) - value(c[i])`
+constant across the path, any integer including 0 — a flat line is valid, no
+distinctness). Chained directly off consecutive triples rather than through
+one aux var per pair (`whisper`'s `abs_diff_var` mint): equal consecutive
+differences is already a linear relation CP-SAT takes natively, so pinning
+each triple's outer difference equal to its neighbour's needs no minted var.
+Reversal-invariant — negating every difference leaves them equal to each
+other — and a 1- or 2-cell path (fewer than two differences to compare)
+asserts nothing.
+Lockout is a value-mode row, and between's inverse: the two path
 ends are the bulbs, which must differ by at least `size // 2` (`size` from
 `engine.board.size`, never the wire), and every interior cell strictly
 *outside* the closed bulb interval (`value_expr(c) < min(a, b)` or `>
@@ -173,6 +183,22 @@ def _between(
     for cell in interior:
         engine.model.add(cell > low_var)
         engine.model.add(cell < high_var)
+
+
+def _sequence(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Every successive `value_expr` difference along the path is equal — an
+    arithmetic progression, common difference any integer including 0 (a
+    flat line is valid, no distinctness). Pinned directly over each
+    consecutive triple, `c - b == b - a`: with fewer than three cells there
+    is no triple to pin, so a 1- or 2-cell path asserts nothing, and chaining
+    every triple's equality transitively forces one constant difference
+    across the whole path without minting an aux var per pair."""
+    for a, b, c in zip(sequence, sequence[1:], sequence[2:], strict=False):
+        engine.model.add(c - b == b - a)
 
 
 def _lockout(
@@ -439,6 +465,7 @@ LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "palindrome": ("digit", _palindrome),
     "grouped": ("digit", _grouped),
     "between": ("value", _between),
+    "sequence": ("value", _sequence),
     "lockout": ("value", _lockout),
     "double-arrow": ("value", _double_arrow),
     "region-sum": ("value", _region_sum),

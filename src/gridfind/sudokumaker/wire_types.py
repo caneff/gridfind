@@ -176,6 +176,17 @@ PALINDROME_TYPE = 402
 # as its folded value, the same seam whisper reads through.
 BETWEEN_TYPE = 403
 
+# type 405 is a sequence line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "sequence"` and
+# the path's addresses — no extra block param. Value-mode: every successive
+# `value_expr` difference along the path must be equal, any integer
+# including 0, so a doubler or Schrödinger cell counts as its folded value.
+# `links/found-sequence-flat-9x9.txt` is a real captured 405 link whose
+# line holds 5-5-5 as entered digits: SudokuMaker builds and shares a flat
+# line, so the predicate asserts no distinctness. The solver-side witness
+# for that reading is `layers/line_test.py::test_a_flat_sequence_line_is_valid`.
+SEQUENCE_TYPE = 405
+
 # type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
 # indices, ordered], …], groups: [bitmask, …]}`. Each path becomes its own
 # `line` Constraint carrying `relation: "grouped"` and the path's addresses;

@@ -41,6 +41,7 @@ from gridfind.sudokumaker.wire_types import (
     QUADRUPLE_TYPE,
     REGION_SUM_TYPE,
     RENBAN_TYPE,
+    SEQUENCE_TYPE,
     THERMO_TYPE,
     WHISPER_TYPE,
     XV_TYPE,
@@ -255,6 +256,18 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    SEQUENCE_TYPE: SetterDoc(
+        display_name="Sequence Line",
+        wire_block="type 405 {lines:[[cell indices, ordered], …]}.",
+        decode_result='One line Constraint per path, relation "sequence",'
+        " order preserved; no extra block param. Every successive value_expr"
+        " difference along the path must be equal (2·d over a doubler,"
+        " combined s_value over an S-cell) — an arithmetic progression, any"
+        " common difference including 0 (a flat line is valid). A 1- or"
+        " 2-cell path asserts nothing.",
+        verdict="Accept. disabled blocks are skipped; an empty lines list"
+        " adds nothing.",
+    ),
     LOCKOUT_TYPE: SetterDoc(
         display_name="Lockout Line",
         wire_block="type 407 {lines:[[cell indices, ordered], …]}.",
@@ -371,6 +384,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "whisper": "found-whisper-4x4",
     "palindrome": "found-palindrome-4x4",
     "between": "found-between-4x4",
+    "sequence": "found-sequence-4x4",
     "lockout": "found-lockout-4x4",
     "double-arrow": "found-double-arrow-4x4",
     "region-sum": "found-region-sum-4x4",
