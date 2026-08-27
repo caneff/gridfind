@@ -49,11 +49,16 @@ _TESTED_TYPES: dict[str, str] = {
 }
 
 # By-stem exemptions, each carrying the human's one-line reason (spec #723
-# dec 3). Both initial entries are the drop-test cosmetic-cage pair
-# (synthesize_scell_links.py): their full grid of givens, including the two
-# cells the dropped cage would have named, is the point — proving an
-# unnamed/unrecognized-named cosmetic cage contributes no rule at all
-# (ADR-0012), not a given happening to dodge one.
+# dec 3). The cosmetic-cage pair (synthesize_scell_links.py): their full grid
+# of givens, including the two cells the dropped cage would have named, is
+# the point — proving an unnamed/unrecognized-named cosmetic cage contributes
+# no rule at all (ADR-0012), not a given happening to dodge one. The
+# kropki-negative six (issue #728): each fixture's verdict turns on the
+# unmarked negative pair, not the marked dot the audit flags.
+_KROPKI_NEGATIVE_REASON = (
+    "verdict rests on the negative rule over the unmarked R3C3/R3C4 pair; "
+    "the marked dot's givens pin the positive clue only"
+)
 EXEMPTIONS: dict[str, str] = {
     "found-cosmetic-cage-unnamed-4x4": (
         "full-grid-of-givens proves an unnamed cosmetic cage drops (ADR-0012)"
@@ -62,6 +67,12 @@ EXEMPTIONS: dict[str, str] = {
         "full-grid-of-givens proves an unrecognized-named cosmetic cage "
         "drops (ADR-0012)"
     ),
+    "found-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
+    "broke-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
+    "found-kropki-negative-doubler-6x6": _KROPKI_NEGATIVE_REASON,
+    "broke-kropki-negative-doubler-6x6": _KROPKI_NEGATIVE_REASON,
+    "found-black-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
+    "broke-black-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
 }
 
 

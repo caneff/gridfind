@@ -107,3 +107,22 @@ def test_exemptions_name_real_corpus_links_with_a_reason() -> None:
     for stem, reason in EXEMPTIONS.items():
         assert (_LINKS_DIR / f"{stem}.txt").is_file()
         assert reason.strip()
+
+
+def test_kropki_negative_six_are_exempted_not_flagged() -> None:
+    # Ruling on #728: each fixture's verdict turns on the unmarked negative
+    # pair, not the marked dot the audit flags, so all six are exempt.
+    stems = {
+        "found-kropki-negative-4x4",
+        "broke-kropki-negative-4x4",
+        "found-kropki-negative-doubler-6x6",
+        "broke-kropki-negative-doubler-6x6",
+        "found-black-kropki-negative-4x4",
+        "broke-black-kropki-negative-4x4",
+    }
+    report = build_report(_LINKS_DIR)
+    text = format_report(report)
+    flagged = {stem: hits for stem, hits in report.items() if stem not in EXEMPTIONS}
+    assert not (stems & flagged.keys())
+    for stem in stems:
+        assert stem in text
