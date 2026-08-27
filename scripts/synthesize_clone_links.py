@@ -5,11 +5,14 @@ SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
 fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
-A clone block is `{type: 302, input: {groups: [{cells: [...]}]}}` — the nested
-`input.groups` wire shape (see `wire_types.CLONE_TYPE`). Every fixture clones a
-pair of **non-attacking** cells (different row, column, and box), so the only
-rule relating them is the clone: a divergent pair is `broke` because of the
-clone, never because a house forbids the repeat.
+A clone block is `{type: 302, groups: [[cell indices], ...], style: {...}}` —
+a flat, top-level `groups` list, each entry its own independent group whose
+cells hold equal digit sets, no relationship to any other group in the
+block (see `wire_types.CLONE_TYPE`, grounded on issue #732's real captured
+link). Every fixture clones a pair of **non-attacking** cells (different
+row, column, and box), so the only rule relating them is the clone: a
+divergent pair is `broke` because of the clone, never because a house
+forbids the repeat.
 
 The plain pair (`found`/`broke`) proves the digit copy; the S-cell pair proves
 the digit-**set** read (ADR-0019 dec 4). Two distinct S-cells can never hold
@@ -35,7 +38,15 @@ _B = 10
 
 
 def _clone_block(*groups: list[int]) -> dict[str, object]:
-    return {"type": CLONE_TYPE, "input": {"groups": [{"cells": g} for g in groups]}}
+    """A `type 302` block over `groups`, each its own independent cell-index
+    list — issue #732's real captured wire shape, `style` carried through
+    verbatim so the emitted link is authentic (`_corpus.authored_cage_style`'s
+    reasoning, applied to clone's own real cosmetic value)."""
+    return {
+        "type": CLONE_TYPE,
+        "groups": [list(group) for group in groups],
+        "style": {"color": "#00000033"},
+    }
 
 
 def found_clone_4x4() -> str:

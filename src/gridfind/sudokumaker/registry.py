@@ -182,7 +182,7 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
     ),
     CLONE_TYPE: DecodedType(
         handler=clone_constraints,
-        live_keys=(),
+        live_keys=("groups",),
         name="clone",
     ),
     RENBAN_TYPE: DecodedType(

@@ -473,6 +473,9 @@ _GOLDEN_REPORTS = {
     "found-clone-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,302} · active: 302 · verdict: found"
     ),
+    "found-clone-4x4-human": (
+        "4x4 · 16 cells · 0 givens · types {0,1,302} · active: 302 · verdict: found"
+    ),
     "found-quadruple-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,303} · active: 303 · verdict: found"
     ),

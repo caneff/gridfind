@@ -29,6 +29,10 @@ HUMAN_AUTHORED: dict[str, str] = {
         "issue #730: real SudokuMaker quadruple (303) link that grounded "
         "corner_to_quad's lattice (issue #731)"
     ),
+    "found-clone-4x4-human": (
+        "issue #732: real SudokuMaker clone (302) link that grounded the "
+        "flat top-level `groups` wire shape (issue #733)"
+    ),
 }
 
 
