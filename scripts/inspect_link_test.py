@@ -473,6 +473,9 @@ _GOLDEN_REPORTS = {
     "found-quadruple-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,303} · active: 303 · verdict: found"
     ),
+    "found-quadruple-4x4-human": (
+        "4x4 · 16 cells · 0 givens · types {0,1,303} · active: 303 · verdict: found"
+    ),
     "found-region-sum-4x4": (
         "4x4 · 16 cells · 4 givens · types {0,1,404} · active: 404 · verdict: found"
     ),
