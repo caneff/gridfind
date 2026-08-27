@@ -89,18 +89,18 @@ def test_format_report_clean_bill_when_nothing_flagged() -> None:
 
 
 def test_link_hits_decodes_through_link_to_puzzle() -> None:
-    link = (_LINKS_DIR / "broke-indexing-row-4x4.txt").read_text().strip()
-    assert any(hit.startswith("indexing@") for hit in link_hits(link))
+    link = (_LINKS_DIR / "broke-doubler-4x4.txt").read_text().strip()
+    assert any(hit.startswith("cage@") for hit in link_hits(link))
 
 
 def test_build_report_wires_the_real_corpus() -> None:
     # Sanity that the decode wiring works end to end: a known offender hits,
-    # keyed by its own constraint type. The indexing flags are explicitly
-    # left unactioned (spec #723's "Further Notes"), so this stem stays a
-    # stable offender — unlike the line-relation batch, whose givens never
-    # sit on the clued line, so it never trips this audit.
+    # keyed by its own constraint type. The doubler cage is outside spec
+    # #723's rebuild list, so this stem stays a stable offender — unlike the
+    # indexing and line-relation batches, whose links were rebuilt so no
+    # given sits on the clue, so they never trip this audit.
     report = build_report(_LINKS_DIR)
-    assert any(hit.startswith("indexing@") for hit in report["broke-indexing-row-4x4"])
+    assert any(hit.startswith("cage@") for hit in report["broke-doubler-4x4"])
 
 
 def test_exemptions_name_real_corpus_links_with_a_reason() -> None:
