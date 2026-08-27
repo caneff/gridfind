@@ -13,9 +13,9 @@ default rule over every *other* adjacent pair rather than a drawn clue.
 
     uv run python scripts/audit_givens_on_clue.py
 
-Part of `just check` (#729): exits 1 on any hit whose stem is not in
-`EXEMPTIONS`, the by-stem record of the human ruling (#728), one reason each;
-the human decides every entry, never the agent.
+Part of `just check`: exits 1 on any hit whose stem is not in `EXEMPTIONS`,
+the by-stem record of the human ruling, one reason each; the human decides
+every entry, never the agent.
 """
 
 from __future__ import annotations

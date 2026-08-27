@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from audit_givens_on_clue import (
     EXEMPTIONS,
     build_report,
     constraint_cells,
     format_report,
-    link_hits,
     main,
     puzzle_hits,
 )
@@ -89,15 +89,10 @@ def test_format_report_clean_bill_when_nothing_flagged() -> None:
     assert "No unexempted hits." in text
 
 
-def test_link_hits_decodes_through_link_to_puzzle() -> None:
-    link = (_LINKS_DIR / "found-kropki-negative-4x4.txt").read_text().strip()
-    assert any(hit.startswith("pair-difference@") for hit in link_hits(link))
-
-
 def test_build_report_wires_the_real_corpus() -> None:
     # Sanity that the decode wiring works end to end: a known (exempted)
-    # offender hits, keyed by its own constraint type. Every unexempted link
-    # was rebuilt under spec #723 so no given sits on the clue.
+    # offender hits, keyed by its own constraint type. No unexempted corpus
+    # link puts a given on its own clue.
     report = build_report(_LINKS_DIR)
     assert report["found-kropki-negative-4x4"] == [
         "pair-difference@R1C1",
@@ -105,13 +100,15 @@ def test_build_report_wires_the_real_corpus() -> None:
     ]
 
 
-def test_main_passes_on_the_real_corpus(capsys) -> None:  # noqa: ANN001
-    # The gate (#729): the committed corpus carries no unexempted hit.
+def test_main_passes_on_the_real_corpus(capsys: pytest.CaptureFixture[str]) -> None:
+    # The gate: the committed corpus carries no unexempted hit.
     assert main(_LINKS_DIR) == 0
     assert "No unexempted hits." in capsys.readouterr().out
 
 
-def test_main_fails_on_an_unexempted_hit(tmp_path: Path, capsys) -> None:  # noqa: ANN001
+def test_main_fails_on_an_unexempted_hit(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     # A link with a given on its own clue, under a stem no exemption names,
     # fails the gate with exit 1 and shows up in the flagged list.
     link = (_LINKS_DIR / "found-kropki-negative-4x4.txt").read_text()

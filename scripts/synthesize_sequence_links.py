@@ -6,11 +6,11 @@ through `sudokumaker.document_to_link`, so a reviewer can read exactly what
 each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Both fixtures clue a single three-cell sequence line, R1C1 -> R2C2 -> R3C3, on
-a boxed 4x4 board (digits 1..4). No given sits on the line itself (spec #723,
-ruling #728): each fixture instead gives every *other* cell of a real, valid
-4x4 completion, so ordinary row/column/box elimination alone forces the three
-path cells to that completion's own values — the sequence rule is the only
-thing left to decide whether the forced triple is an arithmetic progression.
+a boxed 4x4 board (digits 1..4). No given sits on the line itself: each
+fixture instead gives every *other* cell of a real, valid 4x4 completion, so
+ordinary row/column/box elimination alone forces the three path cells to that
+completion's own values — the sequence rule is the only thing left to decide
+whether the forced triple is an arithmetic progression.
 `found-sequence-4x4`'s completion forces `1, 2, 3` (a common difference of
 1); `broke-sequence-4x4`'s forces `1, 2, 4` (differences 1 and 2, unequal) —
 unsatisfiable once the sequence rule is added, since the triple is already

@@ -34,7 +34,7 @@ link-coverage-check:
 # Givens-on-the-clue audit (issue #727, spec #723): reports every found/broke
 # corpus link where a given sits on a cell the link's own constraint exists
 # to test. Exits non-zero on any hit not carried in the script's `EXEMPTIONS`
-# (the human ruling, #728), gating the same way link-coverage-check does.
+# (the human ruling), gating the same way link-coverage-check does.
 givens-on-clue-check:
     uv run python scripts/audit_givens_on_clue.py
 
