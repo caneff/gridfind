@@ -11,7 +11,7 @@ is a build-time choice rather than read off a real link). Each pair marks
 R1C1, whose placed value names a position on the indexed line — down its
 column for row-indexing, across its row for column-indexing. The line's cell
 at that position must hold R1C1's own coordinate on the other axis (1).
-Neither fixture ever gives R1C1 itself (spec #723 dec 3, issue #739): the
+Neither fixture ever gives R1C1 itself: the
 `found-*` fixture gives only the target cell the matching 1, so indexing
 *forces* R1C1=2 and the completion shows the 2 emerging from the rule rather
 than being handed it. The `broke-*` fixture instead forces R1C1=2 by classic

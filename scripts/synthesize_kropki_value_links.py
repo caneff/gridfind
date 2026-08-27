@@ -10,14 +10,14 @@ difference (1), so a decoder that silently coerced `value` to that default
 would still pass green — `edge_clues.kropki_constraints` honors a labelled
 `value` verbatim (`pair-difference`'s `diff`), never assuming 1. The
 `*-kropki-non-default-value-*` pair proves that at the link level: neither
-fixture gives the dot's own two cells (R1C1/R1C2) directly (spec #723 dec 3,
-issue #739) — each column is filled elsewhere so classic column
-distinctness alone forces R1C1 and R1C2 to specific values, off the kropki
-rule entirely. The `found-*` fixture's forced pair actually differs by 3,
-matching the labelled value, so the link reads `found`; the `broke-*`
-fixture's forced pair differs by 1 instead, satisfying only the *default*
-difference, so the labelled-value dot reads `broke`. A decoder that coerced
-the label to the default would invert both verdicts.
+fixture gives the dot's own two cells (R1C1/R1C2) directly — each column is
+filled elsewhere so classic column distinctness alone forces R1C1 and R1C2
+to specific values, off the kropki rule entirely. The `found-*` fixture's
+forced pair actually differs by 3, matching the labelled value, so the link
+reads `found`; the `broke-*` fixture's forced pair differs by 1 instead,
+satisfying only the *default* difference, so the labelled-value dot reads
+`broke`. A decoder that coerced the label to the default would invert both
+verdicts.
 """
 
 from __future__ import annotations
