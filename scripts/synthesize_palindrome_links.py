@@ -9,7 +9,7 @@ Both fixtures clue a single three-cell palindrome line, R1C1 -> R2C2 -> R3C3,
 on a boxed 4x4 board (digits 1..4). The mirror pair is the two ends — R1C1
 and R3C3, non-attacking (different row, column, and box) so the mirror is the
 only rule relating them, mirroring `synthesize_renban_links.py`'s shape. No
-given sits on the line itself (spec #737): each fixture instead gives every
+given sits on the line itself: each fixture instead gives every
 *other* cell of a real, valid 4x4 completion, so ordinary row/column/box
 elimination alone forces all three path cells to that completion's own
 values — the palindrome rule is the only thing left to decide whether the

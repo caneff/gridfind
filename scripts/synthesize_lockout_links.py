@@ -8,7 +8,7 @@ each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 Both fixtures clue a single three-cell lockout line, R1C1 -> R2C2 -> R3C3, on
 a boxed 4x4 board (digits 1..4), where the endpoint threshold is
 `4 // 2 = 2` (ADR-0021, amended from a real 4x4 SudokuMaker link). No given
-sits on the line itself (spec #737): each fixture instead gives every *other*
+sits on the line itself: each fixture instead gives every *other*
 cell of a real, valid 4x4 completion, so ordinary row/column/box elimination
 alone forces R1C1, R2C2, and R3C3 to that completion's own values — the
 lockout rule is the only thing left to decide whether the forced interior

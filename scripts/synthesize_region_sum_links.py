@@ -9,7 +9,7 @@ Both fixtures clue a single four-cell region-sum line along the first row,
 R1C1 -> R1C2 -> R1C3 -> R1C4, on a boxed 4x4 board (digits 1..4) tiled 2x2:
 R1C1/R1C2 share the top-left box, R1C3/R1C4 the top-right, so the path
 crosses exactly one region boundary and cuts into two two-cell segments. No
-given sits on the line itself (spec #737): since the path is the whole of
+given sits on the line itself: since the path is the whole of
 row 1, each fixture instead gives every cell of rows 2-4 from a real, valid
 4x4 completion, so ordinary column/box elimination alone forces row 1 to
 that completion's own values — the region-sum rule is the only thing left to

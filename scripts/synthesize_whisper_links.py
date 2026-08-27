@@ -8,7 +8,7 @@ each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 Both fixtures clue a single two-cell whisper line, R1C1 -> R1C2, on a boxed
 4x4 board (digits 1..4) with `minDifference: 3` — the widest gap the domain
 allows, so only the two ends of the range (1 and 4) can satisfy it. No given
-sits on the line itself (spec #737): each fixture instead gives every
+sits on the line itself: each fixture instead gives every
 *other* cell of a real, valid 4x4 completion, so ordinary row/column/box
 elimination alone forces R1C1 and R1C2 to that completion's own values — the
 whisper rule is the only thing left to decide whether the forced pair clears

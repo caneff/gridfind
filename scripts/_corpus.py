@@ -54,7 +54,7 @@ def place_givens(
 def grid_from_rows(rows: Sequence[Sequence[int]]) -> dict[tuple[int, int], int]:
     """A literal `rows[row-1][col-1]` completion — one row per source line —
     as the `(row, col) -> value` shape `off_path_givens` and `boxed_document`
-    both take, so a line-family fixture (spec #737) spells its full-grid
+    both take, so a line-family fixture spells its full-grid
     completion as short row tuples instead of one wide `(row, col): value`
     dict literal that would blow past the line-length limit at 9x9."""
     return {
