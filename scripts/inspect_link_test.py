@@ -477,6 +477,9 @@ _GOLDEN_REPORTS = {
     "found-sequence-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,405} · active: 405 · verdict: found"
     ),
+    "found-sequence-flat-9x9": (
+        "9x9 · 81 cells · 0 givens · types {0,1,405} · active: 405 · verdict: found"
+    ),
     "found-somedoku-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,2001} · inert: 2001 · verdict: found"
     ),

@@ -186,9 +186,9 @@ BETWEEN_TYPE = 403
 # value, the same seam whisper and between read through. The bare
 # `lines`-path wire shape (no extra param) matches the captured real 9x9
 # link that ground-truthed the line family. The flat-line-legal reading
-# (common difference 0) follows the GM Puzzles convention; SudokuMaker's own
-# rule text for type 405 has not been checked against a captured flat-line
-# link — a one-function swap in `sequence_constraints` if one corrects it.
+# (common difference 0) is confirmed by a captured real link,
+# `links/found-sequence-flat-9x9.txt`: SudokuMaker builds and shares a
+# 5-5-5 line, so no distinctness is asserted.
 SEQUENCE_TYPE = 405
 
 # type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
