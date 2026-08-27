@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import authored_cage_style, boxed_document
+from _corpus import authored_cage_style, boxed_document, grid_from_rows, off_path_givens
 
 from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import CLONE_TYPE
@@ -34,6 +34,31 @@ from gridfind.sudokumaker.wire_types import CLONE_TYPE
 # box, so nothing but a clone can relate them.
 _A = 0
 _B = 10
+_A_RC = (1, 1)
+_B_RC = (3, 3)
+
+# Full, valid 4x4-box completions (spec #723 dec 3, ADR-style: verified via a
+# throwaway backtracking solver, then confirmed against the actual verdict
+# engine) with every cell but R1C1/R3C3 given, so those two cells are forced
+# by ordinary row/column/box elimination alone rather than by a given sitting
+# on the clone's own cells. `_FOUND_GRID` pins both to the same digit (1);
+# `_BROKE_GRID` pins them to different digits (1 and 4).
+_FOUND_GRID = grid_from_rows(
+    [
+        [1, 2, 3, 4],
+        [4, 3, 2, 1],
+        [2, 4, 1, 3],
+        [3, 1, 4, 2],
+    ]
+)
+_BROKE_GRID = grid_from_rows(
+    [
+        [1, 2, 3, 4],
+        [3, 4, 1, 2],
+        [2, 1, 4, 3],
+        [4, 3, 2, 1],
+    ]
+)
 
 
 def _clone_block(*groups: list[int]) -> dict[str, object]:
@@ -49,20 +74,32 @@ def _clone_block(*groups: list[int]) -> dict[str, object]:
 
 
 def found_clone_4x4() -> str:
-    """4x4, `found` — R1C1 given 1 and cloned to the free R3C3: the clone copies
-    the digit onto its partner and the board completes."""
+    """4x4, `found` — every cell but R1C1/R3C3 given from a real completion
+    that forces both to 1 by ordinary row/column/box elimination alone; the
+    clone's equal-digit requirement already holds between the two forced
+    values, so the board completes."""
     return document_to_link(
-        boxed_document(2, 2, givens={(1, 1): 1}, constraints=[_clone_block([_A, _B])])
+        boxed_document(
+            2,
+            2,
+            givens=off_path_givens(_FOUND_GRID, [_A_RC, _B_RC]),
+            constraints=[_clone_block([_A, _B])],
+        )
     )
 
 
 def broke_clone_4x4() -> str:
-    """4x4, `broke` — R1C1 given 1 and R3C3 given 2, cloned: the clone requires
-    equal digits, so no assignment satisfies it. Drop the clone and the two
-    non-attacking givens read found, so the clone is the sole cause."""
+    """4x4, `broke` — every cell but R1C1/R3C3 given from a real completion
+    that forces R1C1 to 1 and R3C3 to 4 by ordinary row/column/box
+    elimination alone: the clone requires equal digits, so no assignment
+    satisfies it. Drop the clone and the forced pair reads found, so the
+    clone is the sole cause."""
     return document_to_link(
         boxed_document(
-            2, 2, givens={(1, 1): 1, (3, 3): 2}, constraints=[_clone_block([_A, _B])]
+            2,
+            2,
+            givens=off_path_givens(_BROKE_GRID, [_A_RC, _B_RC]),
+            constraints=[_clone_block([_A, _B])],
         )
     )
 

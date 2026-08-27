@@ -7,17 +7,20 @@ fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 A `type 2001` cosmetic cage named `Rellik` graduates to a no-repeats `cage`
 plus a `rellik-cage` over the same cells, its numeric `value` read as the
-forbidden total (ADR-0018). Both
-fixtures share the forbidden total 3 and a two-cell cage: `found` leaves the
-cage's cells otherwise free, so a completion avoiding sum 3 exists (e.g.
-`1, 4`); `broke` gives the same two cells `1, 2`, forcing the forbidden sum.
+forbidden total (ADR-0018). Both fixtures share the forbidden total 3 and a
+two-cell cage: `found` leaves the cage's cells otherwise free, so a
+completion avoiding sum 3 exists (e.g. `1, 4`). `broke` (spec #723 dec 3)
+gives every cell *but* the cage's own two, from a real, valid completion
+(verified via a throwaway backtracking solver, then confirmed against the
+actual verdict engine) that forces the pair to `1, 2` by ordinary row/box
+elimination alone — the forbidden sum, so no completion exists.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 
-from _corpus import authored_cage_style, boxed_document
+from _corpus import authored_cage_style, boxed_document, grid_from_rows, off_path_givens
 
 from gridfind.cell_geometry import row_col_to_index
 from gridfind.sudokumaker import document_to_link
@@ -30,6 +33,19 @@ _SIZE = _BOX_H * _BOX_W
 # cage over the 1..4 domain has exactly one digit pair that hits it ({1, 2}),
 # leaving every other pair (e.g. {1, 4}) free.
 _FORBIDDEN_TOTAL = 3
+
+# A full, valid 4x4-box completion with every cell but R1C1/R1C2 given, so
+# the pair is forced to 1, 2 — the forbidden total — by ordinary row/box
+# elimination alone rather than by a given sitting on the rellik cage's own
+# cells.
+_BROKE_GRID = grid_from_rows(
+    [
+        [1, 2, 3, 4],
+        [3, 4, 1, 2],
+        [2, 3, 4, 1],
+        [4, 1, 2, 3],
+    ]
+)
 
 
 def _document(
@@ -72,12 +88,13 @@ def found_rellik_4x4() -> str:
 
 
 def broke_rellik_4x4() -> str:
-    """4x4, `broke` — R1C1=1, R1C2=2 are settled givens under a Rellik cage
-    over the same two cells forbidding total 3. The pair's sum is forced to
-    exactly the forbidden total, so no completion exists."""
+    """4x4, `broke` — every cell but R1C1/R1C2 given from a real completion
+    that forces the pair to 1, 2 by ordinary row/box elimination alone, under
+    a Rellik cage over the same two cells forbidding total 3. The pair's
+    forced sum is exactly the forbidden total, so no completion exists."""
     return document_to_link(
         _document(
-            givens={(1, 1): 1, (1, 2): 2},
+            givens=off_path_givens(_BROKE_GRID, [(1, 1), (1, 2)]),
             cage_cells=[(1, 1), (1, 2)],
             target=_FORBIDDEN_TOTAL,
         )

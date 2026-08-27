@@ -289,7 +289,11 @@ def _doubler_document(
 
 
 def found_doubler_4x4() -> str:
-    """4x4 doubler, `found` — cage `{8, 12}` sums to 9 only because cell 12's
+    """4x4 doubler, `found` — cells 9-11 (the rest of cell 8's row) given from
+    a real completion, forcing cell 8 to 1 by ordinary row elimination alone,
+    with no given on the cage cell (spec #723 dec 3); cell 12 stays
+    undeclared but for its `Doubler` marker (never a `given`, so it never
+    tripped the audit). Cage `{8, 12}` sums to 9 only because cell 12's
     digit counts double (`1 + 2·4`); without the doubler the cage is unsat."""
     return document_to_link(
         _doubler_document(
@@ -297,7 +301,7 @@ def found_doubler_4x4() -> str:
                 {"value": "9", "cells": [8, 12]},
                 {"value": "11", "cells": [1, 2, 3]},
             ],
-            givens={8: 1},
+            givens={9: 3, 10: 2, 11: 4},
             doubler_cells=[12],
         )
     )
@@ -321,12 +325,17 @@ def found_doubled_scell_17cage_4x4() -> str:
 
 
 def broke_doubler_4x4() -> str:
-    """4x4 doubler, `broke` — the doubled cells over-constrain the sum cages past
-    any completion."""
+    """4x4 doubler, `broke` — cells 9-10 (two of cell 8's row partners) given
+    from a real completion, narrowing cell 8 to the row's one remaining
+    digit alongside cell 11's own sum-forced value, with no given on either
+    cage cell (spec #723 dec 3; cell 11's value is still forced by its own
+    singleton `group-sum`, never a given). The doubled cells over-constrain
+    the sum cages past any completion, no matter which digit cell 8 lands
+    on."""
     return document_to_link(
         _doubler_document(
             sum_cages=[{"value": "9", "cells": [8, 12]}, {"value": "2", "cells": [11]}],
-            givens={8: 1},
+            givens={9: 3, 10: 4},
             doubler_cells=[1, 12],
         )
     )

@@ -238,7 +238,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 13 givens · types {0,1,409} · active: 409 · verdict: broke"
     ),
     "broke-doubler-4x4": (
-        "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001x2 · verdict: broke"
+        "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001x2 · verdict: broke"
     ),
     "broke-equality-middle-9x9": (
         "9x9 · 81 cells · 5 givens · types {0,1,2001} · active: 2001 · verdict: broke"
@@ -307,7 +307,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: broke"
     ),
     "broke-clone-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,302} · active: 302 · verdict: broke"
+        "4x4 · 16 cells · 14 givens · types {0,1,302} · active: 302 · verdict: broke"
     ),
     "broke-clone-scell-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,302,2001} · active: 2001, 302 ·"
@@ -317,13 +317,13 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 13 givens · types {0,1,402} · active: 402 · verdict: broke"
     ),
     "broke-quadruple-4x4": (
-        "4x4 · 16 cells · 4 givens · types {0,1,303} · active: 303 · verdict: broke"
+        "4x4 · 16 cells · 12 givens · types {0,1,303} · active: 303 · verdict: broke"
     ),
     "broke-region-sum-4x4": (
         "4x4 · 16 cells · 12 givens · types {0,1,404} · active: 404 · verdict: broke"
     ),
     "broke-rellik-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
+        "4x4 · 16 cells · 14 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
     "broke-renban-4x4": (
         "4x4 · 16 cells · 14 givens · types {0,1,400} · active: 400 · verdict: broke"
@@ -409,10 +409,10 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001x2 · verdict: found"
     ),
     "found-doubler-4x4": (
-        "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001x2 · verdict: found"
+        "4x4 · 16 cells · 3 givens · types {0,1,2001} · active: 2001x2 · verdict: found"
     ),
     "found-equality-9x9": (
-        "9x9 · 81 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: found"
+        "9x9 · 81 cells · 5 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
     "found-even-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,100} · active: 100 · verdict: found"
@@ -471,13 +471,13 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"
     ),
     "found-clone-4x4": (
-        "4x4 · 16 cells · 1 given · types {0,1,302} · active: 302 · verdict: found"
+        "4x4 · 16 cells · 14 givens · types {0,1,302} · active: 302 · verdict: found"
     ),
     "found-clone-4x4-human": (
         "4x4 · 16 cells · 0 givens · types {0,1,302} · active: 302 · verdict: found"
     ),
     "found-quadruple-4x4": (
-        "4x4 · 16 cells · 1 given · types {0,1,303} · active: 303 · verdict: found"
+        "4x4 · 16 cells · 12 givens · types {0,1,303} · active: 303 · verdict: found"
     ),
     "found-quadruple-4x4-human": (
         "4x4 · 16 cells · 0 givens · types {0,1,303} · active: 303 · verdict: found"
