@@ -198,7 +198,7 @@ SETTER_DOCS: dict[int, SetterDoc] = {
     ),
     CLONE_TYPE: SetterDoc(
         display_name="Clone",
-        wire_block="type 302 {input:{groups:[{cells}]}}.",
+        wire_block="type 302 {groups:[[cell indices], …]}.",
         decode_result="One clone Constraint per group of two or more cells:"
         " the cells of a group must hold equal digit sets — digits only, never"
         " the modifier marking (a cloned cell does not inherit its source's"

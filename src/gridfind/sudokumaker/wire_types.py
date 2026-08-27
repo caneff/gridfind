@@ -115,16 +115,20 @@ CUSTOM_CONSTRAINT_TYPE = 1000
 # 305` blocks, folded together at `layers.door`).
 EXTRA_REGION_TYPE = 305
 
-# type 302 is a clone block: `{input: {groups: [{cells: [...]}]}}` — the
-# nested `input.groups` wire shape SudokuMaker's custom-constraint tool writes,
-# the same shape `dropped.has_live_data` already reads to tell a populated clone
-# block from an inert one. Each group's cells must hold equal digit *sets* —
-# digits only, never the modifier marking (a cloned cell does not inherit its
-# source's doubler/constant) — read digit mode through `Engine.real_digit_slots`
-# (ADR-0019 dec 4/6) so the sentinel filling a singleton's second slot is never
-# compared. No real `type 302` link was committed to ground-truth the wire shape;
-# it is taken from the in-repo `has_live_data` reader, a one-function swap if a
-# real link corrects it — the same posture 303's `corner_to_quad` records.
+# type 302 is a clone block: `{groups: [[cell indices], …], style: {...}}` —
+# a flat, top-level `groups` list, no `input` wrapper and no nested `{cells:
+# [...]}` object. Issue #732's real captured link
+# (`links/found-clone-4x4-human.txt`, wire payload
+# `{groups: [[0, 14], [1, 15]]}`) disproves the build-time `input.groups`
+# guess and confirms the flat shape spec #608/#614 originally called for:
+# each group stands alone, its own cells held to an equal digit *set* —
+# digits only, never the modifier marking (a cloned cell does not inherit
+# its source's doubler/constant) — read digit mode through
+# `Engine.real_digit_slots` (ADR-0019 dec 4/6) so the sentinel filling a
+# singleton's second slot is never compared. A block's several groups carry
+# no relationship to one another; "two or more groups... hold identical
+# [digits]" (#608) means within each group, not across them. Grounded on
+# the real link, issue #733.
 CLONE_TYPE = 302
 
 # type 303 is a quadruple-clue block: `{clues: [{corner, digits}]}`. Each
