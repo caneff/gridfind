@@ -24,11 +24,8 @@ def corner_to_quad(corner: int, size: int) -> list[str]:
     (size+1)` point lattice — every grid intersection including the border
     — `corner = (size+1)*r0 + c0` for 0-indexed `r0`, `c0` each in
     `0..size`, with `(r0, c0)` itself naming the block's 1-based top-left
-    cell. Ground-truthed against issue #730/#731's real SudokuMaker link: a
-    4x4 board's `corner: 7` decodes to `R1C2/R1C3/R2C2/R2C3`, which only the
-    full-lattice numbering produces (`divmod(7, 5) == (1, 2)`) — the
-    previously-guessed `(size-1) x (size-1)` interior-only numbering placed
-    the same integer one row lower.
+    cell. A 4x4 board's `corner: 7` decodes to `R1C2/R1C3/R2C2/R2C3`
+    (`divmod(7, 5) == (1, 2)`).
 
     Only a point strictly inside the border (`1 <= r0 <= size-1` and
     `1 <= c0 <= size-1`) has cells on all four sides; a border point
@@ -39,7 +36,7 @@ def corner_to_quad(corner: int, size: int) -> list[str]:
     on a `size`x`size` board (including a board too small to hold one)."""
     span = size + 1
     in_range = 0 <= corner < span * span
-    r0, c0 = divmod(corner, span) if in_range else (0, 0)
+    r0, c0 = divmod(corner, span)
     if not in_range or not (1 <= r0 <= size - 1 and 1 <= c0 <= size - 1):
         msg = (
             f"non-classic link: corner {corner!r} does not name a valid "

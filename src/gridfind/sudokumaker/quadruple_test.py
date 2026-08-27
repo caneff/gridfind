@@ -32,11 +32,10 @@ def test_corner_to_quad_resolves_the_2x2_block(
 
 
 def test_corner_to_quad_matches_the_real_sudokumaker_link() -> None:
-    """Issue #730's captured 4x4 link: `corner: 7`, confirmed by the human
-    against the app's own render to sit on R1C2/R1C3/R2C2/R2C3 — the proof
-    that corners are numbered over the full `(size+1)x(size+1)` point
-    lattice (including the border), not the `(size-1)x(size-1)` interior-only
-    lattice the pre-#731 guess used."""
+    """A captured 4x4 link's `corner: 7`, confirmed by the human against the
+    app's own render to sit on R1C2/R1C3/R2C2/R2C3 — the proof that corners
+    are numbered over the full `(size+1)x(size+1)` point lattice, including
+    the border."""
     assert corner_to_quad(7, 4) == ["R1C2", "R1C3", "R2C2", "R2C3"]
 
 
