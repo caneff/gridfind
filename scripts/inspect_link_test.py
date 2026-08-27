@@ -262,10 +262,10 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,406} · active: 406 · verdict: broke"
     ),
     "broke-indexing-col-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,601} · active: 601 · verdict: broke"
+        "4x4 · 16 cells · 3 givens · types {0,1,601} · active: 601 · verdict: broke"
     ),
     "broke-indexing-row-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,600} · active: 600 · verdict: broke"
+        "4x4 · 16 cells · 3 givens · types {0,1,600} · active: 600 · verdict: broke"
     ),
     "broke-indexing-scell-col-4x4": (
         "4x4 · 16 cells · 3 givens · types {0,1,601,2001} ·"
@@ -283,7 +283,7 @@ _GOLDEN_REPORTS = {
         " active: 200, 2001 · verdict: broke"
     ),
     "broke-kropki-non-default-value-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: broke"
+        "4x4 · 16 cells · 6 givens · types {0,1,200} · active: 200 · verdict: broke"
     ),
     "broke-lockout-4x4": (
         "4x4 · 16 cells · 3 givens · types {0,1,407} · active: 407 · verdict: broke"
@@ -445,7 +445,7 @@ _GOLDEN_REPORTS = {
         " active: 200, 2001 · verdict: found"
     ),
     "found-kropki-non-default-value-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: found"
+        "4x4 · 16 cells · 6 givens · types {0,1,200} · active: 200 · verdict: found"
     ),
     "found-lockout-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,407} · active: 407 · verdict: found"
