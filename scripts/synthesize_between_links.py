@@ -6,8 +6,8 @@ through `sudokumaker.document_to_link`, so a reviewer can read exactly what
 each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Both fixtures clue a single three-cell between line, R1C1 -> R2C2 -> R3C3, on
-a boxed 4x4 board (digits 1..4). No given sits on the line itself (spec
-#737): each fixture instead gives every *other* cell of a real, valid 4x4
+a boxed 4x4 board (digits 1..4). No given sits on the line itself: each
+fixture instead gives every *other* cell of a real, valid 4x4
 completion, so ordinary row/column/box elimination alone forces R1C1, R2C2,
 and R3C3 to that completion's own values — the between rule is the only
 thing left to decide whether the forced values pass or fail it.

@@ -69,8 +69,8 @@ def off_path_givens(
     path_cells: Sequence[tuple[int, int]],
 ) -> dict[tuple[int, int], int]:
     """`grid` (a full, valid row/col/box-consistent completion) with
-    `path_cells` withheld — the one shape every line-family fixture (spec
-    #737) hands `boxed_document`'s `givens`. Every cell surrounding a tested
+    `path_cells` withheld — the one shape every line-family fixture hands
+    `boxed_document`'s `givens`. Every cell surrounding a tested
     line is given its `grid` value; the line's own cells are left for the
     solver to fill, forced to `grid`'s values by ordinary row/column/box
     elimination alone, so the line rule — not a given sitting on the line —
