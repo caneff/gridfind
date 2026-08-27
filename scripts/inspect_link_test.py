@@ -213,7 +213,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 4 givens · types {0,1,201} · active: 201 · verdict: broke"
     ),
     "broke-between-4x4": (
-        "4x4 · 16 cells · 3 givens · types {0,1,403} · active: 403 · verdict: broke"
+        "4x4 · 16 cells · 13 givens · types {0,1,403} · active: 403 · verdict: broke"
     ),
     "broke-cage-4x4": (
         "4x4 · 16 cells · 3 givens · types {0,1,301} · active: 301 · verdict: broke"
@@ -235,7 +235,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
     "broke-double-arrow-4x4": (
-        "4x4 · 16 cells · 3 givens · types {0,1,409} · active: 409 · verdict: broke"
+        "4x4 · 16 cells · 13 givens · types {0,1,409} · active: 409 · verdict: broke"
     ),
     "broke-doubler-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001x2 · verdict: broke"
@@ -256,10 +256,10 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: broke"
     ),
     "broke-grouped-entropic-9x9": (
-        "9x9 · 81 cells · 3 givens · types {0,1,406} · active: 406 · verdict: broke"
+        "9x9 · 81 cells · 78 givens · types {0,1,406} · active: 406 · verdict: broke"
     ),
     "broke-grouped-parity-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,406} · active: 406 · verdict: broke"
+        "4x4 · 16 cells · 14 givens · types {0,1,406} · active: 406 · verdict: broke"
     ),
     "broke-indexing-col-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,601} · active: 601 · verdict: broke"
@@ -286,7 +286,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: broke"
     ),
     "broke-lockout-4x4": (
-        "4x4 · 16 cells · 3 givens · types {0,1,407} · active: 407 · verdict: broke"
+        "4x4 · 16 cells · 13 givens · types {0,1,407} · active: 407 · verdict: broke"
     ),
     "broke-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: broke"
@@ -314,19 +314,19 @@ _GOLDEN_REPORTS = {
         " verdict: broke"
     ),
     "broke-palindrome-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,402} · active: 402 · verdict: broke"
+        "4x4 · 16 cells · 13 givens · types {0,1,402} · active: 402 · verdict: broke"
     ),
     "broke-quadruple-4x4": (
         "4x4 · 16 cells · 4 givens · types {0,1,303} · active: 303 · verdict: broke"
     ),
     "broke-region-sum-4x4": (
-        "4x4 · 16 cells · 4 givens · types {0,1,404} · active: 404 · verdict: broke"
+        "4x4 · 16 cells · 12 givens · types {0,1,404} · active: 404 · verdict: broke"
     ),
     "broke-rellik-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,2001} · active: 2001 · verdict: broke"
     ),
     "broke-renban-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,400} · active: 400 · verdict: broke"
+        "4x4 · 16 cells · 14 givens · types {0,1,400} · active: 400 · verdict: broke"
     ),
     "broke-scell-caged-value-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,2001} · active: 2001 · verdict: broke"
@@ -349,7 +349,7 @@ _GOLDEN_REPORTS = {
         " active: 300, 2001 · verdict: broke"
     ),
     "broke-whisper-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,401} · active: 401 · verdict: broke"
+        "4x4 · 16 cells · 14 givens · types {0,1,401} · active: 401 · verdict: broke"
     ),
     "broke-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"
@@ -378,7 +378,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 4 givens · types {0,1,201} · active: 201 · verdict: found"
     ),
     "found-between-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,403} · active: 403 · verdict: found"
+        "4x4 · 16 cells · 13 givens · types {0,1,403} · active: 403 · verdict: found"
     ),
     "found-cage-4x4": (
         "4x4 · 16 cells · 4 givens · types {0,1,301} · active: 301 · verdict: found"
@@ -396,7 +396,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 16 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
     "found-double-arrow-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,409} · active: 409 · verdict: found"
+        "4x4 · 16 cells · 13 givens · types {0,1,409} · active: 409 · verdict: found"
     ),
     "found-doubled-scell-17cage-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001x2 ·"
@@ -418,10 +418,10 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,305} · active: 305 · verdict: found"
     ),
     "found-grouped-entropic-9x9": (
-        "9x9 · 81 cells · 3 givens · types {0,1,406} · active: 406 · verdict: found"
+        "9x9 · 81 cells · 78 givens · types {0,1,406} · active: 406 · verdict: found"
     ),
     "found-grouped-parity-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,406} · active: 406 · verdict: found"
+        "4x4 · 16 cells · 14 givens · types {0,1,406} · active: 406 · verdict: found"
     ),
     "found-indexing-col-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,601} · active: 601 · verdict: found"
@@ -448,7 +448,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 2 givens · types {0,1,200} · active: 200 · verdict: found"
     ),
     "found-lockout-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,407} · active: 407 · verdict: found"
+        "4x4 · 16 cells · 13 givens · types {0,1,407} · active: 407 · verdict: found"
     ),
     "found-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: found"
@@ -462,7 +462,7 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 1 given · types {0,1,101} · active: 101 · verdict: found"
     ),
     "found-palindrome-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,402} · active: 402 · verdict: found"
+        "4x4 · 16 cells · 13 givens · types {0,1,402} · active: 402 · verdict: found"
     ),
     "found-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"
@@ -474,13 +474,13 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 1 given · types {0,1,303} · active: 303 · verdict: found"
     ),
     "found-region-sum-4x4": (
-        "4x4 · 16 cells · 4 givens · types {0,1,404} · active: 404 · verdict: found"
+        "4x4 · 16 cells · 12 givens · types {0,1,404} · active: 404 · verdict: found"
     ),
     "found-rellik-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
     ),
     "found-renban-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,400} · active: 400 · verdict: found"
+        "4x4 · 16 cells · 14 givens · types {0,1,400} · active: 400 · verdict: found"
     ),
     "found-scell-bare-4x4": (
         "4x4 · 16 cells · 0 givens · types {0,1,2001} · active: 2001 · verdict: found"
@@ -512,7 +512,7 @@ _GOLDEN_REPORTS = {
         " active: 300, 2001 · verdict: found"
     ),
     "found-whisper-4x4": (
-        "4x4 · 16 cells · 2 givens · types {0,1,401} · active: 401 · verdict: found"
+        "4x4 · 16 cells · 14 givens · types {0,1,401} · active: 401 · verdict: found"
     ),
     "found-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"
