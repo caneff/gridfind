@@ -53,10 +53,17 @@ _TESTED_TYPES: dict[str, str] = {
 # of givens, including the two cells the dropped cage would have named, is
 # the point — proving an unnamed/unrecognized-named cosmetic cage contributes
 # no rule at all (ADR-0012), not a given happening to dodge one. The
-# kropki-negative six (issue #728): each fixture's verdict turns on the
-# unmarked negative pair, not the marked dot the audit flags.
-_KROPKI_NEGATIVE_REASON = (
+# kropki-negative six: each fixture's verdict turns on an unmarked negative
+# pair, not the marked dot the audit flags — the marked dot's givens pin only
+# the positive clue. The unmarked pair sits at R3C3/R3C4 on the 4x4 boards and
+# at R4C4/R4C5 on the 6x6 doubler board, so the reason names the right pair
+# for each grid size.
+_KROPKI_NEGATIVE_REASON_4X4 = (
     "verdict rests on the negative rule over the unmarked R3C3/R3C4 pair; "
+    "the marked dot's givens pin the positive clue only"
+)
+_KROPKI_NEGATIVE_REASON_6X6 = (
+    "verdict rests on the negative rule over the unmarked R4C4/R4C5 pair; "
     "the marked dot's givens pin the positive clue only"
 )
 EXEMPTIONS: dict[str, str] = {
@@ -67,12 +74,12 @@ EXEMPTIONS: dict[str, str] = {
         "full-grid-of-givens proves an unrecognized-named cosmetic cage "
         "drops (ADR-0012)"
     ),
-    "found-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
-    "broke-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
-    "found-kropki-negative-doubler-6x6": _KROPKI_NEGATIVE_REASON,
-    "broke-kropki-negative-doubler-6x6": _KROPKI_NEGATIVE_REASON,
-    "found-black-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
-    "broke-black-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON,
+    "found-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON_4X4,
+    "broke-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON_4X4,
+    "found-kropki-negative-doubler-6x6": _KROPKI_NEGATIVE_REASON_6X6,
+    "broke-kropki-negative-doubler-6x6": _KROPKI_NEGATIVE_REASON_6X6,
+    "found-black-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON_4X4,
+    "broke-black-kropki-negative-4x4": _KROPKI_NEGATIVE_REASON_4X4,
 }
 
 

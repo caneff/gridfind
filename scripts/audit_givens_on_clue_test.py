@@ -110,8 +110,13 @@ def test_exemptions_name_real_corpus_links_with_a_reason() -> None:
 
 
 def test_kropki_negative_six_are_exempted_not_flagged() -> None:
-    # Ruling on #728: each fixture's verdict turns on the unmarked negative
-    # pair, not the marked dot the audit flags, so all six are exempt.
+    # Each fixture's verdict turns on an unmarked negative pair, not the
+    # marked dot the audit flags, so all six carry a ruling: a real corpus
+    # link, with a real hit (the marked dot the audit would otherwise flag),
+    # exempted with its own reason. `format_report`'s flagged/exempted split
+    # on `EXEMPTIONS` membership is covered by
+    # test_format_report_honors_an_exemption; this test only proves these six
+    # stems are wired into that split, not the split's logic itself.
     stems = {
         "found-kropki-negative-4x4",
         "broke-kropki-negative-4x4",
@@ -121,8 +126,6 @@ def test_kropki_negative_six_are_exempted_not_flagged() -> None:
         "broke-black-kropki-negative-4x4",
     }
     report = build_report(_LINKS_DIR)
-    text = format_report(report)
-    flagged = {stem: hits for stem, hits in report.items() if stem not in EXEMPTIONS}
-    assert not (stems & flagged.keys())
     for stem in stems:
-        assert stem in text
+        assert report[stem]
+        assert stem in EXEMPTIONS
