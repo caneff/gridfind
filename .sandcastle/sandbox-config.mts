@@ -49,7 +49,14 @@ export function onSandboxReadyCommands(): Array<{ command: string }> {
 export function sandboxConfig(dockerFn: typeof docker = docker) {
   return {
     sandbox: dockerFn({
-      env: { UV_PROJECT_ENVIRONMENT: "/home/agent/.venv" },
+      env: {
+        UV_PROJECT_ENVIRONMENT: "/home/agent/.venv",
+        // Share the host uv cache so `uv sync` never pulls OR-Tools cold; the
+        // 60s hook timeout was dying on that download. Hardlinks can't cross
+        // the bind mount, so copy.
+        UV_CACHE_DIR: "/home/agent/.cache/uv",
+        UV_LINK_MODE: "copy",
+      },
       // Mount the host's global Claude skills read-only so the in-sandbox
       // `claude` agent has the same skills you do (e.g. /tdd, referenced by
       // implement-prompt.md). Not vendored into the repo — always live/current.
@@ -59,6 +66,7 @@ export function sandboxConfig(dockerFn: typeof docker = docker) {
           sandboxPath: "~/.claude/skills",
           readonly: true,
         },
+        { hostPath: "~/.cache/uv", sandboxPath: "/home/agent/.cache/uv" },
       ],
     }),
     hooks: {
