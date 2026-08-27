@@ -7,7 +7,7 @@ each fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Both fixtures clue a single two-cell renban line, R1C1 -> R1C2, on a boxed
 4x4 board (digits 1..4), mirroring `synthesize_whisper_links.py`'s shape. No
-given sits on the line itself (spec #737): each fixture instead gives every
+given sits on the line itself: each fixture instead gives every
 *other* cell of a real, valid 4x4 completion, so ordinary row/column/box
 elimination alone forces R1C1 and R1C2 to that completion's own values — the
 renban rule is the only thing left to decide whether the forced pair runs

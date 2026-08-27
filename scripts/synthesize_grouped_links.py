@@ -9,7 +9,7 @@ Two groupings prove the one relation covers entropic, modular, and parity
 alike (spec #672's acceptance criterion): an entropic (low/mid/high band)
 line on a boxed 9x9 board, and a parity (odd/even) line on a boxed 4x4 board
 — mirroring `synthesize_palindrome_links.py`'s shape otherwise. No given
-sits on either line itself (spec #737): each fixture instead gives every
+sits on either line itself: each fixture instead gives every
 *other* cell of a real, valid completion, so ordinary row/column/box
 elimination alone forces the window's cells to that completion's own values
 — the grouped rule is the only thing left to decide whether the forced
