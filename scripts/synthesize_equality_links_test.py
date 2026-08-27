@@ -19,7 +19,7 @@ from gridfind.sudokumaker import link_to_puzzle
 @pytest.mark.parametrize(
     ("name", "cells"),
     [
-        ("found-equality-9x9", ["R1C1", "R1C4", "R1C6", "R1C7"]),
+        ("found-equality-9x9", ["R1C2", "R1C4", "R1C7", "R1C9"]),
         ("broke-equality-parity-9x9", ["R1C2", "R1C4", "R1C6", "R1C7"]),
         ("broke-equality-rank-9x9", ["R1C1", "R1C2", "R1C3", "R1C4"]),
         ("broke-equality-middle-9x9", ["R1C2", "R1C4", "R1C5", "R1C7"]),

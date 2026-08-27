@@ -54,9 +54,9 @@ def place_givens(
 def grid_from_rows(rows: Sequence[Sequence[int]]) -> dict[tuple[int, int], int]:
     """A literal `rows[row-1][col-1]` completion — one row per source line —
     as the `(row, col) -> value` shape `off_path_givens` and `boxed_document`
-    both take, so a line-family fixture spells its full-grid
-    completion as short row tuples instead of one wide `(row, col): value`
-    dict literal that would blow past the line-length limit at 9x9."""
+    both take, so a fixture spells its full-grid completion as short row
+    tuples instead of one wide `(row, col): value` dict literal that would
+    blow past the line-length limit at 9x9."""
     return {
         (row, col): value
         for row, cols in enumerate(rows, start=1)
@@ -69,12 +69,15 @@ def off_path_givens(
     path_cells: Sequence[tuple[int, int]],
 ) -> dict[tuple[int, int], int]:
     """`grid` (a full, valid row/col/box-consistent completion) with
-    `path_cells` withheld — the one shape every line-family fixture hands
-    `boxed_document`'s `givens`. Every cell surrounding a tested
-    line is given its `grid` value; the line's own cells are left for the
-    solver to fill, forced to `grid`'s values by ordinary row/column/box
-    elimination alone, so the line rule — not a given sitting on the line —
-    is what decides the fixture's found/broke verdict."""
+    `path_cells` withheld — the one shape every line-family fixture, and
+    every cage/group-family fixture rebuilt under spec #723's givens-on-
+    the-clue rule, hands `boxed_document`'s `givens`. Every cell outside the
+    tested constraint's own cells (a line's path, a cage's cells, a clone
+    group, a quad's four cells) is given its `grid` value; the constraint's
+    own cells are left for the solver to fill, forced to `grid`'s values by
+    ordinary row/column/box elimination alone, so the constraint under
+    test — not a given sitting directly on it — is what decides the
+    fixture's found/broke verdict."""
     path_set = set(path_cells)
     return {rc: value for rc, value in grid.items() if rc not in path_set}
 
