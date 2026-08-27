@@ -379,17 +379,17 @@ def broke_cosmetic_cage_sumless_4x4() -> str:
 
 
 def found_cosmetic_cage_unrecognized_4x4() -> str:
-    """4x4, `found` — a fully-given classic solution (the same 2x2-box Latin
-    grid `cli_test.py`'s `_classic_named_cage_link` uses) carrying a `type
-    2001` cosmetic cage named `"Foobar"`, a name `naming._NAME_REGISTRY`
-    doesn't answer for. The cage sits over cells `{0, 6}` (different boxes,
-    rows, and columns), both holding solution digit 3: a `Sum`/`Killer`-named
-    cage over the same cells would break immediately, since a killer cage
-    forbids a repeated digit among its own cells (ADR-0012). Because
-    `naming.classify` reports `"unrecognized"`, the cage is warn-dropped
-    instead, so the verdict is computed from the given solution alone and
-    reads found — proving the drop, not a coincidence, is what keeps it
-    found."""
+    """4x4, `found` — proves nothing about the cage: the full grid of givens
+    is the test. A fully-given classic solution (the same 2x2-box Latin grid
+    `cli_test.py`'s `_classic_named_cage_link` uses) carries a `type 2001`
+    cosmetic cage named `"Foobar"`, a name `naming._NAME_REGISTRY` doesn't
+    answer for. The cage sits over cells `{0, 6}` (different boxes, rows, and
+    columns), both holding solution digit 3: a `Sum`/`Killer`-named cage over
+    the same cells would break immediately, since a killer cage forbids a
+    repeated digit among its own cells (ADR-0012). Because `naming.classify`
+    reports `"unrecognized"`, the cage is warn-dropped instead, so the
+    verdict is computed from the given solution alone and reads found —
+    proving the drop, not a coincidence, is what keeps it found."""
     solution = [3, 2, 4, 1, 4, 1, 3, 2, 2, 3, 1, 4, 1, 4, 2, 3]
     cells: list[dict[str, object]] = [{"given": True, "value": d} for d in solution]
     constraints: list[dict[str, object]] = [
@@ -406,10 +406,11 @@ def found_cosmetic_cage_unrecognized_4x4() -> str:
 
 
 def found_cosmetic_cage_unnamed_4x4() -> str:
-    """4x4, `found` — the same fully-given solution as
-    `found_cosmetic_cage_unrecognized_4x4`, carrying a nameless `type 2001`
-    cosmetic cage instead of a named one. `naming.classify` reports
-    `"unnamed"` for an absent name, the other input the warn-drop
+    """4x4, `found` — proves nothing about the cage: the full grid of givens
+    is the test, same as `found_cosmetic_cage_unrecognized_4x4`. Carries the
+    same fully-given solution, but a nameless `type 2001` cosmetic cage
+    instead of a named one. `naming.classify` reports `"unnamed"` for an
+    absent name, the other input the warn-drop
     (`cages.cosmetic_cage_constraints`) treats the same way as an
     unrecognized name: the block carries no rule, so the verdict is computed
     from the given solution alone."""

@@ -393,7 +393,7 @@ def test_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
         c.type == "pair-difference" and c.params.get("negate")
         for c in puzzle.constraints
     )
-    result = verdict(puzzle, state)
+    result = verdict(puzzle, state, time_limit_s=60.0)
     assert result.kind in ("found", "broke")
 
 

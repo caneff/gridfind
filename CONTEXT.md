@@ -189,6 +189,11 @@ handled by one **layer**.
   10. A preset makes many constraints out of one; an alias makes one out of
   one. Both expand at load, before any layer sees them.
 
+- **region map** — the partition of the grid's cells into regions: the 3×3
+  boxes of classic sudoku, or a variant's irregular regions. It is the parameter
+  that turns the distinct-over-groups **layer kind** into `regions-distinct`.
+  Carried as the `RegionMap` type, which owns the ways one is built.
+
 ---
 
 ## Working state
@@ -513,6 +518,34 @@ modifier-ness also gets its own **working-state directive channel**,
 `modifier_directives`, mirroring `s_directives` rather than folding into
 given/candidate/placement — a modifier's position is discovered, not a digit
 fact those channels state (spec #232 decision #218).
+
+---
+
+## Reading model
+
+How a layer reads a cell for its rule, once a cell can hold two digits (an
+**S-cell**) or be worth more than its face value (a **modifier**). Settled in
+[ADR-0019](docs/adr/0019-declared-reading-mode-digit-or-value.md), which builds
+on [ADR-0009](docs/adr/0009-cage-distinctness-mode-digit-or-value.md).
+
+- **reading mode** — whether a layer reads a cell's **digit(s)** (**digit
+  mode**) or its **value** (**value mode**). Both are S-aware. The mode is fixed
+  by the constraint's meaning and lives in code, not a knob — the one exception
+  is the cage's `distinct-over: digit | value`, which is genuinely two-valued. A
+  puzzle-wide mode is rejected: one grid can hold a digit-mode cage and a
+  value-mode thermo at once.
+
+- **value channel** — one value-modifying contribution the engine folds in to
+  compute a cell's **value** in value mode. Two exist today: the doubler's
+  mapped value and the S-cell's combined value, composed in a precedence the
+  engine fixes (ADR-0009, ADR-0010). A third channel — a negator — is the
+  deferred trigger to replace that hard-coded precedence with a registry (#293).
+
+- **s_blind** — a transitional flag for a layer that declares **no** reading
+  mode and reads a bare single slot. Such a layer cannot compose over a widening
+  (S-cell) or modifier layer, so the stack is refused. It is being retired as
+  each holdout declares a mode; the flag and its refusal become dead once none
+  remain (#523). _Avoid_ treating it as a permanent capability — it is not one.
 
 ---
 

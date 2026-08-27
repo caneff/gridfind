@@ -2,11 +2,12 @@
 direct rule readback via `line_rules` (whisper) / `all_different_groups`
 (renban) — that a clue emitted its own rule shape, not that a solve happened
 to satisfy it — plus verdict-seam behaviour (found/broke) for every relation
-the family carries so far. Palindrome, grouped-line, between, and sequence,
-like clone (`clone_test.py`), have no structural readback helper of their
-own — their rules read digit equality/group-membership/interval bounds/
-successive differences, not addresses, so their coverage stays at the
-verdict/direct-model seam.
+the family carries so far. Palindrome, grouped-line, between, sequence,
+lockout, and region-sum, like clone (`clone_test.py`), have no structural
+readback helper of their own — their rules read digit equality/
+group-membership/interval bounds/successive differences or region-segment
+sums, not addresses, so their coverage stays at the verdict/direct-model
+seam.
 """
 
 from typing import cast
@@ -14,6 +15,7 @@ from typing import cast
 import pytest
 from ortools.sat.python import cp_model
 
+from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.engine import GridfindError, MalformedPuzzleError, build_engine
 from gridfind.layers import build_stack
 from gridfind.layers.conftest import all_different_groups, line_rules
@@ -52,12 +54,33 @@ def _palindrome(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "palindrome", "path": list(path)})
 
 
+def _sequence(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "sequence", "path": list(path)})
+
+
 def _between(path: tuple[str, ...]) -> Constraint:
     return Constraint("line", params={"relation": "between", "path": list(path)})
 
 
-def _sequence(path: tuple[str, ...]) -> Constraint:
-    return Constraint("line", params={"relation": "sequence", "path": list(path)})
+def _lockout(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "lockout", "path": list(path)})
+
+
+def _double_arrow(path: tuple[str, ...]) -> Constraint:
+    return Constraint("line", params={"relation": "double-arrow", "path": list(path)})
+
+
+def _region_sum(
+    path: tuple[str, ...], *, single_region_totals: bool = False
+) -> Constraint:
+    return Constraint(
+        "line",
+        params={
+            "relation": "region-sum",
+            "path": list(path),
+            "singleRegionTotals": single_region_totals,
+        },
+    )
 
 
 def _grouped(path: tuple[str, ...], groups: list[int]) -> Constraint:
@@ -638,6 +661,186 @@ def test_between_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
     assert solver.value(engine.value_expr("R1C1")) == 4
 
 
+def test_a_satisfiable_lockout_resolves_found() -> None:
+    # Bulbs 2 and 7 clear the 9x9 threshold (9 // 2 = 4); the interior is
+    # left to the solver, satisfied by anything outside (2, 7).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=7)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert abs(a - b) >= 4
+    assert c < min(a, b) or c > max(a, b)
+
+
+def test_an_interior_digit_inside_the_bulb_range_resolves_broke() -> None:
+    # Bulbs 2 and 7 clear the threshold, but the interior given 5 sits
+    # inside (2, 7) — a direct contradiction since all three cells are given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=5),
+            Given(address="R1C3", digit=7),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_bulbs_too_close_together_resolve_broke() -> None:
+    # Bulbs 4 and 5 (gap 1) fall short of the 9x9 threshold of 4, regardless
+    # of what the free interior cell could hold.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=4), Given(address="R1C3", digit=5)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_lockout_line_bounds_regardless_of_which_end_is_larger() -> None:
+    # Same shape as the satisfiable case, ends reversed (b < a) — the
+    # relation reads min/max of the pair, not "first, then second".
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=7), Given(address="R1C3", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert abs(a - b) >= 4
+    assert c < min(a, b) or c > max(a, b)
+
+
+def test_a_two_cell_lockout_line_only_checks_the_threshold() -> None:
+    # No interior cell to bound — but unlike between, the endpoint gap is
+    # still enforced with only two cells.
+    close = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=5), Given(address="R1C2", digit=5)),
+    )
+
+    assert verdict(close).kind == "broke"
+
+    far = Puzzle(
+        board=BOARD,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(Given(address="R1C1", digit=1), Given(address="R1C2", digit=9)),
+    )
+
+    assert verdict(far).kind == "found"
+
+
+@pytest.mark.parametrize(
+    ("size", "threshold"),
+    [(4, 2), (6, 3), (9, 4)],
+    ids=["4x4", "6x6", "9x9"],
+)
+def test_the_threshold_is_derived_from_board_size_not_the_wire(
+    size: int, threshold: int
+) -> None:
+    board = Board(size=size)
+    too_close = Puzzle(
+        board=board,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C2", digit=threshold),
+        ),
+    )
+
+    assert verdict(too_close).kind == "broke"
+
+    wide_enough = Puzzle(
+        board=board,
+        constraints=(_lockout(("R1C1", "R1C2")),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C2", digit=threshold + 1),
+        ),
+    )
+
+    assert verdict(wide_enough).kind == "found"
+
+
+def test_lockout_reads_the_doubled_value_of_a_bulb() -> None:
+    # R1C1 is the modifier bulb, raw digit 3 doubles to 6; R1C2 is the
+    # other, plain bulb at 1. The raw gap (2) falls short of the 9x9
+    # threshold (4); only the folded gap (5) clears it — feasible only if
+    # lockout read R1C1's folded value.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(Constraint(type="doubler"), _lockout(("R1C1", "R1C2"))),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 3)
+    engine.model.add(engine.d0("R1C2") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert (
+        abs(2 * solver.value(engine.d0("R1C1")) - solver.value(engine.d0("R1C2"))) >= 4
+    )
+
+
+def test_lockout_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # R1C1's digits combine to 2 (0+2), doubled to 4 (ADR-0010); R1C2 is a
+    # plain 0. The raw digit (0) ties R1C2 (gap 0, short of the 4x4
+    # threshold of 2); only the folded s_value (4) clears it — feasible only
+    # if lockout read R1C1's folded value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _lockout(("R1C2", "R1C1")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 0)
+    engine.model.add(content[1] == 2)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 0)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 4
+
+
 def test_a_satisfiable_sequence_resolves_found() -> None:
     puzzle = Puzzle(
         board=BOARD,
@@ -798,3 +1001,315 @@ def test_a_multi_slot_schrodinger_cell_on_the_grouped_line_raises() -> None:
 
     with pytest.raises(GridfindError):
         verdict(puzzle)
+
+
+def test_a_satisfiable_double_arrow_resolves_found() -> None:
+    # Bulbs 2 and 3 sum to 5; the interior is left to the solver, satisfied
+    # only by 5.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=2), Given(address="R1C3", digit=3)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert c == a + b
+
+
+def test_an_interior_sum_unequal_to_the_bulb_sum_resolves_broke() -> None:
+    # Interior given 6, unequal to the (2, 3) bulb sum of 5 — a direct
+    # contradiction since all three cells are given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=6),
+            Given(address="R1C3", digit=3),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_a_double_arrow_sums_every_interior_cell() -> None:
+    # A four-cell path: the two interior cells (R1C2, R1C3) must together sum
+    # to the bulb sum (2 + 6 = 8), not just one of them — pinning both
+    # interior cells' digits and leaving no freedom proves the sum runs over
+    # the whole interior.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3", "R1C4")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=5),
+            Given(address="R1C4", digit=6),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_a_double_arrow_line_is_reversal_invariant() -> None:
+    # Same shape as the satisfiable case, ends reversed — swapping the bulbs
+    # leaves both sides of the sum equality unchanged.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2", "R1C3")),),
+        givens=(Given(address="R1C1", digit=3), Given(address="R1C3", digit=2)),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    a, c, b = (result.witness[address][0] for address in ("R1C1", "R1C2", "R1C3"))
+    assert c == a + b
+
+
+def test_a_two_cell_double_arrow_line_always_resolves_broke() -> None:
+    # No interior cell — the empty interior sums to 0, which can never equal
+    # two positive bulb values, whatever the rest of the board holds.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_double_arrow(("R1C1", "R1C2")),),
+    )
+
+    assert verdict(puzzle).kind == "broke"
+
+
+def test_double_arrow_reads_the_doubled_value_of_a_bulb() -> None:
+    # R1C1 is the modifier bulb, raw digit 3 doubles to 6; R1C3 is the other,
+    # plain bulb at 2. The interior R1C2 pinned to 8 equals the folded sum
+    # (6 + 2) but not the raw sum (3 + 2) — feasible only if double-arrow read
+    # R1C1's folded value.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="doubler"),
+            _double_arrow(("R1C1", "R1C2", "R1C3")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 3)
+    engine.model.add(engine.d0("R1C2") == 8)
+    engine.model.add(engine.d0("R1C3") == 2)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
+def test_double_arrow_reads_the_combined_s_value_of_a_doubled_s_cell() -> None:
+    # R1C1's digits combine to 1 (0+1), doubled to 2 (ADR-0010); R1C3 is a
+    # plain bulb at 1. Interior R1C2 pinned to 3 equals the folded sum
+    # (2 + 1) but not the raw sum (0 + 1) — feasible only if double-arrow read
+    # R1C1's folded value.
+    board = Board(size=4, values=range(5))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="schrodinger"),
+            Constraint(type="doubler"),
+            _double_arrow(("R1C1", "R1C2", "R1C3")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=board.size)
+    engine = build_engine(layers, tuple(canonical), board=board)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    is_s = cast("dict[str, cp_model.IntVar]", engine.structures["is_s"])
+    content = engine.contents("R1C1")
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(is_s["R1C1"] == 1)
+    engine.model.add(content[0] == 0)
+    engine.model.add(content[1] == 1)
+    engine.model.add(is_s["R1C2"] == 0)
+    engine.model.add(engine.d0("R1C2") == 3)
+    engine.model.add(is_s["R1C3"] == 0)
+    engine.model.add(engine.d0("R1C3") == 1)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+    assert solver.value(engine.value_expr("R1C1")) == 2
+
+
+def test_region_sum_with_equal_box_segments_resolves_found() -> None:
+    # Classic box tiling: R1C1-R1C3 sit in box 0, R1C4 in box 1 — the path
+    # cuts into a three-cell and a one-cell segment at that boundary. Both
+    # segments sum to 9.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            _region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),
+        ),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=4),
+            Given(address="R1C4", digit=9),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_unequal_box_segments_resolve_broke() -> None:
+    # Same shape as the satisfiable case, but the one-cell segment (5) does
+    # not match the three-cell segment's sum (9) — a direct contradiction
+    # since every path cell is given.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            _region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),
+        ),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=4),
+            Given(address="R1C4", digit=5),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
+
+
+def test_region_sum_reads_a_jigsaw_partition_not_the_box_default() -> None:
+    # JIGSAW_TETROMINOES groups row 2 as R2C1 alone with row 1's own region,
+    # not with R2C2 the way a 2x2 box would — R2C1 | R2C2, R2C3, R2C4. Equal
+    # jigsaw segment sums (6, 6) would read broke under the box split's own
+    # cut (R2C1+R2C2=7 vs R2C3+R2C4=5), so `found` here proves the jigsaw map
+    # drove segmentation, not a box-tiling fallback.
+    board = Board(size=4, values=range(1, 10))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="regions-distinct", params={"regions": JIGSAW_TETROMINOES}),
+            _region_sum(("R2C1", "R2C2", "R2C3", "R2C4")),
+        ),
+        givens=(
+            Given(address="R2C1", digit=6),
+            Given(address="R2C2", digit=1),
+            Given(address="R2C3", digit=2),
+            Given(address="R2C4", digit=3),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+
+
+def test_a_region_re_entered_later_in_the_path_gets_its_own_segment() -> None:
+    # R1C1 and R1C2 are both jigsaw region 0 (JIGSAW_TETROMINOES); R2C2 sits
+    # between them in the path, in region 1 — a re-entry into region 0.
+    # Region-pooled totals would agree (2 + 3 == 5), but per-visit
+    # segmentation cuts three one-cell segments (2, 5, 3) that do not all
+    # match, so `broke` here proves the path was cut afresh on re-entry
+    # rather than pooled into region 0's earlier visit.
+    board = Board(size=4, values=range(1, 10))
+    puzzle = Puzzle(
+        board=board,
+        constraints=(
+            Constraint(type="regions-distinct", params={"regions": JIGSAW_TETROMINOES}),
+            _region_sum(("R1C1", "R2C2", "R1C2")),
+        ),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R2C2", digit=5),
+            Given(address="R1C2", digit=3),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+
+
+def test_region_sum_with_no_partition_warns_and_asserts_nothing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # No regions-distinct constraint at all: the whole board resolves to one
+    # region, so the path never crosses a boundary. The given digits' box
+    # split (9 vs 5) would read broke if any equal-sum rule still ran, so
+    # `found` here proves the relation asserted nothing.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),),
+        givens=(
+            Given(address="R1C1", digit=2),
+            Given(address="R1C2", digit=3),
+            Given(address="R1C3", digit=4),
+            Given(address="R1C4", digit=5),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    err = capsys.readouterr().err
+    assert "no region partition" in err
+    assert "verdict computed without it" in err
+
+
+def test_single_region_totals_true_raises() -> None:
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            _region_sum(("R1C1", "R1C2"), single_region_totals=True),
+        ),
+    )
+
+    with pytest.raises(GridfindError):
+        verdict(puzzle)
+
+
+def test_region_sum_reads_the_doubled_value_of_a_path_cell() -> None:
+    # R1C1 is the modifier cell in box 0, raw digit 2 doubling to 4. The
+    # boxed 9x9 board cuts the path at the box-0/box-1 boundary (R1C1-R1C3
+    # vs R1C4). Segment sums 4+1+3=8 and 8 match only if region-sum read
+    # R1C1's folded value, not its raw digit (which would give 2+1+3=6).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="regions-distinct"),
+            Constraint(type="doubler"),
+            _region_sum(("R1C1", "R1C2", "R1C3", "R1C4")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C1"] == 1)
+    engine.model.add(engine.d0("R1C1") == 2)
+    engine.model.add(engine.d0("R1C2") == 1)
+    engine.model.add(engine.d0("R1C3") == 3)
+    engine.model.add(engine.d0("R1C4") == 8)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)

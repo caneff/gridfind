@@ -7,11 +7,17 @@ rather than hand-rolling a second copy — a fix to the write loop or the
 document shape lands here once, not in every script. `synthesize()` is the
 one driver that walks every module's `CORPUS` and regenerates it — run
 `uv run python scripts/_corpus.py` to regenerate the whole corpus.
+
+`iter_side_links` is the read-side counterpart: the one walk over
+`links/*.txt` a corpus-wide audit script (`audit_link_coverage.py`,
+`audit_givens_on_clue.py`) reads the committed corpus back through, rather
+than each hand-rolling its own stem/side parse.
 """
 
 from __future__ import annotations
 
 import importlib
+import sys
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from types import ModuleType
@@ -21,6 +27,11 @@ from gridfind.layers.regions import box_regions
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 _SCRIPTS_DIR = Path(__file__).resolve().parent
+
+# The two verdict sides a corpus link declares through its filename prefix
+# (the third, `malformed`, is a decode-error case with no verdict side, so
+# it isn't one of these).
+SIDES = ("found", "broke")
 
 
 def blank_cells(size: int) -> list[dict[str, object]]:
@@ -38,6 +49,34 @@ def place_givens(
     given as `{"given": True, "value": value}` at its row-major index."""
     for (row, col), value in givens.items():
         cells[row_col_to_index(row, col, size)] = {"given": True, "value": value}
+
+
+def grid_from_rows(rows: Sequence[Sequence[int]]) -> dict[tuple[int, int], int]:
+    """A literal `rows[row-1][col-1]` completion — one row per source line —
+    as the `(row, col) -> value` shape `off_path_givens` and `boxed_document`
+    both take, so a line-family fixture spells its full-grid
+    completion as short row tuples instead of one wide `(row, col): value`
+    dict literal that would blow past the line-length limit at 9x9."""
+    return {
+        (row, col): value
+        for row, cols in enumerate(rows, start=1)
+        for col, value in enumerate(cols, start=1)
+    }
+
+
+def off_path_givens(
+    grid: dict[tuple[int, int], int],
+    path_cells: Sequence[tuple[int, int]],
+) -> dict[tuple[int, int], int]:
+    """`grid` (a full, valid row/col/box-consistent completion) with
+    `path_cells` withheld — the one shape every line-family fixture hands
+    `boxed_document`'s `givens`. Every cell surrounding a tested
+    line is given its `grid` value; the line's own cells are left for the
+    solver to fill, forced to `grid`'s values by ordinary row/column/box
+    elimination alone, so the line rule — not a given sitting on the line —
+    is what decides the fixture's found/broke verdict."""
+    path_set = set(path_cells)
+    return {rc: value for rc, value in grid.items() if rc not in path_set}
 
 
 def wrap_document(
@@ -117,6 +156,26 @@ def authored_cage_style() -> dict[str, object]:
     return {"text": {"color": "#000000"}, "cage": {"color": "#000000"}}
 
 
+def iter_side_links(links_dir: Path = LINKS_DIR) -> Iterator[tuple[str, str, str]]:
+    """Every committed `found-`/`broke-` corpus link, in sorted filename
+    order, as `(stem, side, link_text)`. Skips a `malformed-` link — a
+    decode-error case, not verdict coverage — and warns to stderr on any
+    other prefix, an unexpected corpus filename rather than one silently
+    dropped from the walk (CODING_STANDARDS' fail-loud norm)."""
+    for link_file in sorted(links_dir.glob("*.txt")):
+        stem = link_file.stem
+        side = stem.split("-", 1)[0]
+        if side == "malformed":
+            continue
+        if side not in SIDES:
+            print(
+                f"skipping unexpected corpus filename: {link_file.name}",
+                file=sys.stderr,
+            )
+            continue
+        yield stem, side, link_file.read_text().strip()
+
+
 def regenerate(corpus: dict[str, Callable[[], str]]) -> None:
     """Write every `name -> fn` pair in `corpus` to `links/<name>.txt` — the
     one write loop `synthesize` calls for each module's corpus."""
@@ -139,6 +198,17 @@ def synthesize() -> None:
     every script's own repeated `main`/docstring plumbing."""
     for module in discover_modules():
         regenerate(module.CORPUS)
+
+
+def synthesizer_by_stem() -> dict[str, Callable[[], str]]:
+    """Every `CORPUS` entry across every `synthesize_*_links.py` module,
+    merged into one `stem -> synthesizer` dict — the same discovery walk
+    `synthesize`/`corpus_drift_test.py` build on, reused so a stem's
+    synthesizer (and its docstring) can be looked up without a second module
+    scan. A stem absent here is a legacy link no synthesizer built."""
+    return {
+        name: fn for module in discover_modules() for name, fn in module.CORPUS.items()
+    }
 
 
 if __name__ == "__main__":

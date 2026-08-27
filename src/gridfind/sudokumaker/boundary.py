@@ -15,13 +15,13 @@ here with no cycle.
 from __future__ import annotations
 
 import json
-import sys
 import urllib.parse
 from collections.abc import Iterator
 from typing import Any, cast
 
 from lzstring import LZString
 
+from gridfind.engine import warn_dropped as warn_dropped_
 from gridfind.sudokumaker.addresses import addresses
 
 # The default board a link describes when it states no `size`/`width`:
@@ -165,14 +165,14 @@ def enabled_blocks(buckets: ConstraintBuckets, type_: int) -> Iterator[dict[str,
 
 
 def warn_dropped(reason: str) -> None:
-    """The single stderr emitter for a dropped-constraint warning: `reason`
-    names what a caller is ignoring and why. Owns the "warning: ... —
-    verdict computed without it" wording and the stderr channel around it,
-    so neither can drift across the four modules (`boundary`, `cages`,
-    `dropped`, `frame`) that each drop something for their own local
-    reason — each drop decision stays local, only the message and channel
-    are shared."""
-    print(f"warning: {reason} — verdict computed without it", file=sys.stderr)
+    """The decoder package's re-export of `engine.warn_dropped` — `reason`
+    names what a caller is ignoring and why. `cages`, `dropped`, and `frame`
+    each drop something for their own local reason and reach the shared
+    stderr emitter through here, `boundary` being the lowest decoder module
+    in the package's import graph; the emitter itself lives on `engine` so
+    that `layers.line` (which `sudokumaker` cannot be imported from) can
+    reach the same wording and channel with no cycle."""
+    warn_dropped_(reason)
 
 
 def enabled_block_addresses(

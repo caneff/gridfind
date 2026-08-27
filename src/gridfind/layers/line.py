@@ -54,7 +54,7 @@ max(a, b)`). The ends only bound each other — no rule pins them together
 beyond forming the interval — so a 2-cell path (no interior cell) asserts
 nothing.
 
-Sequence is the third value-mode row: an arithmetic progression, every
+Sequence is a value-mode row: an arithmetic progression, every
 successive `value_expr` difference equal (`value(c[i+1]) - value(c[i])`
 constant across the path, any integer including 0 — a flat line is valid, no
 distinctness). Chained directly off consecutive triples rather than through
@@ -64,19 +64,60 @@ each triple's outer difference equal to its neighbour's needs no minted var.
 Reversal-invariant — negating every difference leaves them equal to each
 other — and a 1- or 2-cell path (fewer than two differences to compare)
 asserts nothing.
+Lockout is a value-mode row, and between's inverse: the two path
+ends are the bulbs, which must differ by at least `size // 2` (`size` from
+`engine.board.size`, never the wire), and every interior cell strictly
+*outside* the closed bulb interval (`value_expr(c) < min(a, b)` or `>
+max(a, b)`). `_bulb_bounds` mints the shared `min`/`max` aux-var pair both
+between and lockout bound their interior cells against.
+
+Double-arrow is the fourth value-mode row: the two path ends are the bulbs,
+and the interior cells' values must sum to the two bulbs' own sum —
+`sum(value_expr(interior)) == a + b` (ADR-0022, ratifying #670's research).
+Reversal-invariant, since swapping the ends leaves both sides of the equation
+unchanged. Unlike between and lockout, a 2-cell path (no interior) is not a
+vacuous no-op: an empty interior sums to 0, which can never equal two
+positive bulb values, so it reads broke as a plain consequence of the same
+equality, needing no special case.
+
+Region-sum is the fifth value-mode row, and the family's one **cross-relation**
+seam: every other relation is closed over its own path, its knobs, and the
+value/digit seam, but region-sum reaches past that to cross the existing
+`region_map_for_constraints` door (`layers/regions.py`) and resolve the
+board's own partition — a setter's jigsaw map, the classic box tiling, or
+(with no `regions-distinct` constraint at all) one region covering the whole
+board. It segments the ordered path against that partition **per visit**: a
+fresh segment opens each time the path's region changes, so a line that
+re-enters a region already visited is cut again rather than pooled into that
+region's earlier segment, and every segment's `value_expr` sum must be equal.
+Keyed by `singleRegionTotals` (ADR-0023): `False`, the default, is this
+per-visit rule; `True` names per-region pooling, which is unmodeled, so it
+raises rather than guess a rule the spec named out of scope. A one-region
+board collapses the path to one segment regardless of its cells — vacuously
+nothing to compare — so that case warns to stderr and asserts nothing rather
+than silently pass every such puzzle.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
 from ortools.sat.python import cp_model
 
-from gridfind.engine import Engine, MalformedPuzzleError, sole
+from gridfind.cell_geometry import format_address
+from gridfind.engine import (
+    Engine,
+    GridfindError,
+    MalformedPuzzleError,
+    sole,
+    warn_dropped,
+)
 from gridfind.layers._base import abs_diff_var, emit_over_pairs
+from gridfind.layers.regions import RegionMap, region_map_for_constraints
+from gridfind.puzzle import Constraint as PuzzleConstraint
 from gridfind.puzzle import JsonValue
 
 ReadingMode = str  # "value" or "digit"
@@ -105,6 +146,26 @@ def _whisper(
     emit_over_pairs(engine, list(pairwise(sequence)), rel)
 
 
+def _bulb_bounds(
+    engine: Engine, a: cp_model.IntVar, b: cp_model.IntVar, *, suffix: str
+) -> tuple[cp_model.IntVar, cp_model.IntVar]:
+    """Mint fresh `low_var == min(a, b)`, `high_var == max(a, b)` aux vars,
+    spanned off each bulb's own declared domain (`abs_diff_var`'s same
+    reasoning, `_base.py`) rather than the board's raw digit range: a
+    bulb's `value_expr` may be a doubler's `2*value` or an S-cell's
+    `s_value`, both wider than a bare digit. Between and lockout both bound
+    their interior cells against the same pair of bulbs this way — the one
+    home for the mint, `suffix` keeping each relation's aux vars apart."""
+    a_domain, b_domain = list(a.proto.domain), list(b.proto.domain)
+    low = min(a_domain[0], b_domain[0])
+    high = max(a_domain[-1], b_domain[-1])
+    low_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.{suffix}_low")
+    high_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.{suffix}_high")
+    engine.model.add_min_equality(low_var, [a, b])
+    engine.model.add_max_equality(high_var, [a, b])
+    return low_var, high_var
+
+
 def _between(
     engine: Engine,
     sequence: ValueSequence,
@@ -113,24 +174,12 @@ def _between(
     """The two path ends are the bulbs `a, b`; every interior cell sits
     strictly between them: `min(a, b) < value_expr(c) < max(a, b)`. The
     bulbs only bound — no rule relates them to each other — so a 2-cell path
-    (no interior) asserts nothing.
-
-    `low`/`high` mint fresh min/max vars over `a, b` directly, spanned off
-    each bulb's own declared domain (`abs_diff_var`'s same reasoning,
-    `_base.py`) rather than the board's raw digit range: a bulb's
-    `value_expr` may be a doubler's `2*value` or an S-cell's `s_value`, both
-    wider than a bare digit."""
+    (no interior) asserts nothing."""
     a, b = sequence[0], sequence[-1]
     interior = sequence[1:-1]
     if not interior:
         return
-    a_domain, b_domain = list(a.proto.domain), list(b.proto.domain)
-    low = min(a_domain[0], b_domain[0])
-    high = max(a_domain[-1], b_domain[-1])
-    low_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.between_low")
-    high_var = engine.model.new_int_var(low, high, f"{a.name}-{b.name}.between_high")
-    engine.model.add_min_equality(low_var, [a, b])
-    engine.model.add_max_equality(high_var, [a, b])
+    low_var, high_var = _bulb_bounds(engine, a, b, suffix="between")
     for cell in interior:
         engine.model.add(cell > low_var)
         engine.model.add(cell < high_var)
@@ -150,6 +199,125 @@ def _sequence(
     across the whole path without minting an aux var per pair."""
     for a, b, c in zip(sequence, sequence[1:], sequence[2:], strict=False):
         engine.model.add(c - b == b - a)
+
+
+def _lockout(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Between's inverse: the two path ends are the bulbs `a, b`, which must
+    differ by at least `size // 2` — `size` read from `engine.board.size`,
+    never the wire (9x9 = 4, 6x6 = 3, 4x4 = 2; threshold ratified from spec
+    and amended from a real 4x4 SudokuMaker link, ADR-0021).
+    Every interior cell's value must sit strictly *outside* the closed
+    bulb interval: `value_expr(c) < min(a, b)` or `> max(a, b)`, never
+    equal to either end. Both halves read `min(a, b)`/`max(a, b)` of the
+    pair rather than "first end, then second", so redrawing the line the
+    other way gives the same verdict.
+
+    The threshold reuses `abs_diff_var` (whisper's own mint); the interval
+    reuses `_bulb_bounds` (between's own mint). "Outside the closed
+    interval" is an either-or a bare conjunction can't express, so each
+    interior cell reifies `below`/`above` booleans against the shared
+    `low_var`/`high_var` and OR's them — the house
+    `only_enforce_if`-pair-plus-`add_bool_or` idiom (`equality_cage.py`).
+    A 2-cell path (no interior) only checks the threshold, same as
+    between's bulbs-only-bound posture."""
+    a, b = sequence[0], sequence[-1]
+    interior = sequence[1:-1]
+    threshold = engine.board.size // 2
+    gap = abs_diff_var(engine, a, b, suffix="lockout_gap")
+    engine.model.add(gap >= threshold)
+    if not interior:
+        return
+    low_var, high_var = _bulb_bounds(engine, a, b, suffix="lockout")
+    for cell in interior:
+        below = engine.model.new_bool_var(f"{cell.name}.lockout_below")
+        engine.model.add(cell < low_var).only_enforce_if(below)
+        engine.model.add(cell >= low_var).only_enforce_if(below.negated())
+        above = engine.model.new_bool_var(f"{cell.name}.lockout_above")
+        engine.model.add(cell > high_var).only_enforce_if(above)
+        engine.model.add(cell <= high_var).only_enforce_if(above.negated())
+        engine.model.add_bool_or([below, above])
+
+
+def _double_arrow(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """The two path ends are the bulbs `a, b`; the interior cells' values must
+    sum to the bulbs' own sum: `sum(value_expr(interior)) == a + b`
+    (ADR-0022). Reversal-invariant — swapping the ends leaves both sides of
+    the equation unchanged. A 2-cell path (no interior) sums its empty
+    interior to 0, which can never equal two positive bulb values, so it
+    reads broke without a separate check for the no-interior case."""
+    a, b = sequence[0], sequence[-1]
+    interior = sequence[1:-1]
+    engine.model.add(sum(interior) == a + b)
+
+
+def _region_index_by_address(region_map: RegionMap) -> dict[str, int]:
+    """Every cell address the region map covers, mapped to its own region's
+    index — the lookup `_region_sum` segments the ordered path against,
+    built fresh off whatever partition `region_map_for_constraints` resolved
+    (a setter's jigsaw map, the classic box tiling, or the one-whole-board
+    fallback)."""
+    return {
+        format_address(row, col): index
+        for index, region in enumerate(region_map)
+        for row, col in region
+    }
+
+
+def _region_sum(
+    engine: Engine,
+    sequence: ValueSequence,
+    params: Mapping[str, JsonValue],
+) -> None:
+    """Segment the ordered path at region boundaries, per visit — a fresh
+    segment opens each time the path's `RegionMap` region changes, so a
+    region already visited earlier in the path is cut again on re-entry,
+    never pooled into its first segment — then assert every segment's
+    `value_expr` sum equal (ADR-0023). `singleRegionTotals = True` names
+    per-region pooling, unmodeled, so it raises rather than guess a rule the
+    spec named out of scope. A one-whole-board region (no `regions-distinct`
+    constraint on the puzzle at all) collapses the path to a single segment
+    regardless of its cells — vacuously nothing to compare — so that case
+    warns to stderr and asserts nothing instead of silently passing every
+    such puzzle."""
+    if cast("bool", params.get("singleRegionTotals", False)):
+        msg = (
+            "region-sum line with singleRegionTotals=true (per-region "
+            "pooling) is not modeled"
+        )
+        raise GridfindError(msg)
+
+    region_map = region_map_for_constraints(
+        cast("Iterable[PuzzleConstraint]", engine.constraints), engine.board.size
+    )
+    if len(region_map) == 1:
+        warn_dropped("region-sum line on a board with no region partition")
+        return
+
+    region_of = _region_index_by_address(region_map)
+    path = cast("list[str]", params["path"])
+    segments: list[list[cp_model.IntVar]] = []
+    previous_region: int | None = None
+    for address, value in zip(path, sequence, strict=True):
+        region = region_of[address]
+        if region != previous_region:
+            segments.append([])
+            previous_region = region
+        segments[-1].append(value)
+
+    if len(segments) < 2:
+        return
+
+    totals = [sum(segment) for segment in segments]
+    for total in totals[1:]:
+        engine.model.add(total == totals[0])
 
 
 def _renban(
@@ -298,6 +466,9 @@ LINE_RELATIONS: dict[str, tuple[ReadingMode, LinePredicate]] = {
     "grouped": ("digit", _grouped),
     "between": ("value", _between),
     "sequence": ("value", _sequence),
+    "lockout": ("value", _lockout),
+    "double-arrow": ("value", _double_arrow),
+    "region-sum": ("value", _region_sum),
 }
 
 

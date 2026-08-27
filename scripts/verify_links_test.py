@@ -4,8 +4,10 @@ back out.
 `fill_witness` is asserted by round-trip only (never by the intermediate
 document shape): feed a synthesised
 decoded document and a `Witness` through it, re-encode, then `link_to_puzzle`
-the result and confirm the witness digits come back — singletons as givens,
-Schrödinger S-cells as their 2-tuple. `verify_link` is covered end to end on
+the result and confirm the witness digits come back — a singleton stays a
+given where the source cell already was one and otherwise comes back as a
+placement, Schrödinger S-cells as their 2-tuple. `verify_link` is covered end
+to end on
 two tiny synthetic links, one already-solved (found) and one
 already-contradictory (broke), so the glue with `link_to_puzzle`/`verdict`
 is checked without touching the real `links/` corpus.
@@ -21,7 +23,7 @@ from verify_links import emit_solution_link, fill_witness, verify_link
 
 from gridfind.cell_geometry import format_address
 from gridfind.layers.regions import RegionMap
-from gridfind.puzzle import Given, ModifierDirective, WorkingState
+from gridfind.puzzle import Given, ModifierDirective, Placement, WorkingState
 from gridfind.s_directives import SCellPin, SingletonPin
 from gridfind.sudokumaker import (
     document_to_link,
@@ -68,6 +70,9 @@ def _grid(size: int) -> list[list[str]]:
 def test_fill_witness_round_trips_singleton_digits(
     size: int, data: st.DataObject
 ) -> None:
+    # None of `document`'s cells started as a given, so every solved singleton
+    # is the rules' work, not the setter's — it must come back as a
+    # placement, never a given.
     digits = data.draw(
         st.lists(
             st.integers(min_value=1, max_value=size),
@@ -88,9 +93,38 @@ def test_fill_witness_round_trips_singleton_digits(
     url = document_to_link(filled)
     puzzle, state = link_to_puzzle(url)
 
-    assert state == WorkingState()
-    assert set(puzzle.givens) == {
-        Given(address, digit[0]) for address, digit in assignment.items()
+    assert puzzle.givens == ()
+    assert set(state.places) == {
+        Placement(address, digit[0]) for address, digit in assignment.items()
+    }
+
+
+def test_fill_witness_keeps_source_givens_given_and_writes_the_rest_as_placements() -> (
+    None
+):
+    # A 2x2 Latin square with one setter given (R1C1); the solver fills in the
+    # other three cells. The emitted solution must show the setter's given as
+    # a given and every rule-solved cell as a placement, and re-decode must
+    # reproduce the witness exactly.
+    size = 2
+    cells: list[dict[str, object]] = [{"given": True, "value": 1}, {}, {}, {}]
+    document = _document(size)
+    cast("dict[str, Any]", document["puzzle"])["cells"] = cells
+    grid = _grid(size)
+    witness = Witness(
+        grid=grid,
+        assignment={"R1C1": (1,), "R1C2": (2,), "R2C1": (2,), "R2C2": (1,)},
+        region_map=RegionMap([]),
+    )
+
+    filled = fill_witness(document, witness, size)
+
+    puzzle, state = link_to_puzzle(document_to_link(filled))
+    assert set(puzzle.givens) == {Given("R1C1", 1)}
+    assert set(state.places) == {
+        Placement("R1C2", 2),
+        Placement("R2C1", 2),
+        Placement("R2C2", 1),
     }
 
 
@@ -339,3 +373,23 @@ def test_emit_solution_link_colors_the_doubler_marker_cage() -> None:
 
     assert doubler_block["style"]["cage"]["color"] == _MARKER_COLOR_PALETTE[0]
     assert "style" not in killer_block
+
+
+def test_fill_witness_strides_a_frame_document_by_its_own_width() -> None:
+    """An escape-the-grid document is `(size+2)` wide; the witness keys the
+    inner board 1-based and outside cells by padded address, so the fill must
+    stride by the document width, not the board size (the KeyError that broke
+    `just eval-links` on the numbered-rooms link)."""
+    size, width = 2, 4
+    document = _document(width)
+    assignment: dict[str, tuple[int, ...]] = {
+        format_address(r, c): (1,) for r in (1, 2) for c in (1, 2)
+    }
+    assignment["R0C1"] = (2,)
+    witness = Witness(grid=_grid(size), assignment=assignment, region_map=RegionMap({}))
+    filled = fill_witness(document, witness, size)
+    puzzle = cast("dict[str, Any]", filled["puzzle"])
+    cells = cast("list[dict[str, object]]", puzzle["cells"])
+    assert cells[1]["value"] == 2  # R0C1 -> row 0, col 1 of the 4-wide frame
+    assert cells[5]["value"] == 1  # R1C1 -> row 1, col 1
+    assert cells[0] == {}  # R0C0: never solved, left untouched

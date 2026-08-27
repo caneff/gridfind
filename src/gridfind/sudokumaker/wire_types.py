@@ -205,6 +205,51 @@ SEQUENCE_TYPE = 405
 # link corrects it.
 GROUPED_TYPE = 406
 
+# type 407 is a lockout line: `{lines: [[cell indices, ordered], …]}`. Each
+# path becomes its own `line` Constraint carrying `relation: "lockout"` and
+# the path's addresses — no extra block param; the two path ends are the
+# bulbs, read at the `Line` layer through `value_expr`, exactly like between.
+# The fourth **value-mode** relation of the nine-relation line-clue family
+# (spec #672), and between's inverse: the bulbs must differ by at least
+# `size // 2` (computed from `engine.board.size`, never read off the
+# wire — 9x9 = 4, 6x6 = 3, 4x4 = 2), and every interior cell's value must
+# sit strictly *outside* the closed bulb interval, never equal to either
+# end. Threshold ratified from spec and amended from a real 4x4 SudokuMaker
+# link, ADR-0021.
+LOCKOUT_TYPE = 407
+
+# type 404 is a region-sum line: `{lines: [[cell indices, ordered], …],
+# singleRegionTotals: bool}`. Each path becomes its own `line` Constraint
+# carrying `relation: "region-sum"`, the path's addresses, and the block's
+# own `singleRegionTotals` — defaulted to `False` when the wire omits it,
+# unlike whisper's `minDifference` or grouped's `groups`, since the spec
+# itself names `False` the default meaning, not an absent-knob gap. The
+# sixth **value-mode** relation of the nine-relation line-clue family (spec
+# #672), and the family's one **cross-relation** seam: at the `Line` layer it
+# reaches past its own params into the region door
+# (`region_map_for_constraints`, `layers/regions.py`) to resolve the board's
+# partition, segments the path per-visit against it, and asserts equal
+# segment sums. `singleRegionTotals = True` names per-region pooling, which
+# gridfind does not model, so the `Line` layer raises rather than guess a
+# rule; `False` is per-visit segmentation, ratified from spec without a
+# captured real link (ADR-0023).
+REGION_SUM_TYPE = 404
+
+# type 409 is a double-arrow line: `{lines: [[cell indices, ordered], …]}`.
+# Each path becomes its own `line` Constraint carrying `relation:
+# "double-arrow"` and the path's addresses — no extra block param; the two
+# path ends are the bulbs, read at the `Line` layer through `value_expr`,
+# exactly like between and lockout. The fifth **value-mode** relation of the
+# nine-relation line-clue family (spec #672): the interior cells' values must
+# sum to the two bulbs' own sum, reversal-invariant, a 2-cell path (no
+# interior) naturally broke rather than a special-cased pass. A double-arrow
+# is visually near-identical to a between-line (403) — both draw circles at
+# both ends — but the decoder tells them apart by wire type alone, never a
+# glyph. That 409 is the double-arrow (not, say, another between variant) is
+# ratified from #670's research and the synthesized corpus, not a captured
+# real link (ADR-0022) — a one-constant swap here if a real link corrects it.
+DOUBLE_ARROW_TYPE = 409
+
 # type 600 / 601 are the 159 indexing clue's two axes: `{cells: [...],
 # style: {...}}`, the same flat raw-indices wire shape a marker cage carries.
 # The type number is the row-vs-column discriminator, exactly like 200/201's

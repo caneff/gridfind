@@ -6,7 +6,8 @@ material out for a person to check the verdict by eye.
 It serves a small localhost page as a slideshow — one link at a time, the
 puzzle and its solution side by side in iframes (a `broke` case has no solution,
 so that pane says so). Approve or Flag records the verdict and advances to the
-next slide; a note field feeds the flag. Approving records the stem in a
+next slide; Back steps to the previous one (its verdict stays logged); a note
+field feeds the flag. Approving records the stem in a
 gitignored log (`.eval-approved.json`), so later runs show only the links not
 yet approved (`--all` shows every one). The board is solved once per shown link,
 so re-runs get cheaper as the log grows.
@@ -35,16 +36,22 @@ from __future__ import annotations
 import argparse
 import contextlib
 import html
+import inspect
 import json
 import subprocess
 import threading
 import webbrowser
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import NamedTuple
 
+from _corpus import synthesizer_by_stem
 from verify_links import LINKS_DIR, emit_solution_link, oracle_witness
+
+# Shown for a stem no `CORPUS` map claims — a human-authored link predating
+# the synthesized corpus, which carries no synthesizer docstring to draw on.
+FALLBACK_PROOF = "Legacy hand-authored link — no synthesizer to say what it proves."
 
 # The durable approval log: link stems a person has eyeballed and accepted.
 # Gitignored — a personal verification record, not a repo fact.
@@ -55,9 +62,10 @@ APPROVED_PATH = Path(__file__).parent / ".eval-approved.json"
 # link returns next run, unlike an approved one).
 FLAGGED_PATH = Path(__file__).parent / ".eval-flagged.json"
 
-# Where flags land once a wayfinder map is made from them, stamped with the map's
-# issue number so they aren't re-proposed. `/gridfind-flags-to-map` passes this to
-# `archive_flags` after filing a map; gitignored alongside the flag log.
+# Where flags land once an issue is made from them — a map, a spec, or a
+# ticket — stamped with that issue's number so they aren't re-proposed.
+# `/gridfind-flags-to-tickets` passes this to `archive_flags` after filing;
+# gitignored alongside the flag log.
 FLAGGED_ARCHIVE_PATH = Path(__file__).parent / ".eval-flagged-archive.json"
 
 
@@ -102,16 +110,16 @@ def load_archive(path: Path) -> list[dict[str, str | int]]:
     return json.loads(path.read_text())["archived"]
 
 
-# Called by the `gridfind-flags-to-map` skill via `python -c`, not from any
+# Called by the `gridfind-flags-to-tickets` skill via `python -c`, not from any
 # Python import — static analysis (and a grep for callers) will not find that
 # call site. Do not delete this as dead code.
 def archive_flags(
     flagged_path: Path, archive_path: Path, stems: set[str], issue_number: int
 ) -> None:
     """Move every flag whose stem is in `stems` out of the flag store and into
-    the archive, stamping each moved entry with `issue_number` (the
-    `wayfinder:map` it fed). Flags whose stem is not in `stems` stay in the
-    store; the archive accumulates across calls."""
+    the archive, stamping each moved entry with `issue_number` (the issue it
+    fed). Flags whose stem is not in `stems` stay in the store; the archive
+    accumulates across calls."""
     flags = load_flags(flagged_path)
     moved = [{**flag, "issue": issue_number} for flag in flags if flag["stem"] in stems]
     if not moved:
@@ -126,14 +134,24 @@ def archive_flags(
 class LinkView(NamedTuple):
     """One case file's argv reduced to what a person needs to verify the
     verdict by eye. `witness_grid` and `solution_link` are set only for a
-    `found` case; a `broke`/`unknown` case carries the puzzle link alone."""
+    `found` case; a `broke`/`unknown` case carries the puzzle link alone.
+    `proof` is the "what this proves" line — its synthesizer's docstring, or
+    `FALLBACK_PROOF` for a legacy stem."""
 
     kind: str
     puzzle_link: str
     witness_grid: str | None
     solution_link: str | None
+    proof: str
     # `kind` is the verdict word (`found`/`broke`/`unknown`), or `malformed` for
     # a malformed link the front door refuses — carrying the puzzle link alone.
+
+
+def feature_then_kind(stem: str) -> tuple[str, str]:
+    """Sort key pairing a feature's cards: `broke-thermo-4x4` and
+    `found-thermo-4x4` sort adjacent, broke first."""
+    kind, _, feature = stem.partition("-")
+    return feature, kind
 
 
 def pending_stems(
@@ -180,17 +198,31 @@ def changed_link_stems(base: str) -> set[str]:
     return _stems_from_git_paths(committed, working)
 
 
-def view_for(stem: str, argv: Sequence[str]) -> LinkView:
+def proof_for(stem: str, synthesizers: Mapping[str, Callable[[], str]]) -> str:
+    """The "what this proves" line for `stem`: its synthesizer's docstring,
+    reached by looking `stem` up in the `stem -> synthesizer` map
+    `_corpus.synthesizer_by_stem` builds from every module's `CORPUS`, or
+    `FALLBACK_PROOF` when no synthesizer built this stem (a legacy,
+    human-authored link) or its function carries no docstring."""
+    fn = synthesizers.get(stem)
+    if fn is None or fn.__doc__ is None:
+        return FALLBACK_PROOF
+    return inspect.cleandoc(fn.__doc__)
+
+
+def view_for(stem: str, argv: Sequence[str], proof: str) -> LinkView:
     """The view for one case file, keyed off its expected-outcome prefix. A
     `malformed-*` fixture is a malformed link the front door refuses (exit 2),
     so it carries no verdict to eyeball and is presented without decoding;
     everything else routes through `eval_link`."""
     if stem.partition("-")[0] == "malformed":
-        return LinkView("malformed", argv[-1], witness_grid=None, solution_link=None)
-    return eval_link(argv)
+        return LinkView(
+            "malformed", argv[-1], witness_grid=None, solution_link=None, proof=proof
+        )
+    return eval_link(argv, proof)
 
 
-def eval_link(argv: Sequence[str]) -> LinkView:
+def eval_link(argv: Sequence[str], proof: str) -> LinkView:
     """One case file's argv (flags then the link) reduced to a `LinkView`. A
     `found` case renders its witness grid and re-emits that same witness as a
     solution link (via `emit_solution_link`, the one source of the fill+encode
@@ -204,12 +236,13 @@ def eval_link(argv: Sequence[str]) -> LinkView:
     link = argv[-1]
     kind, witness, size = oracle_witness(link)
     if witness is None:
-        return LinkView(kind, link, witness_grid=None, solution_link=None)
+        return LinkView(kind, link, witness_grid=None, solution_link=None, proof=proof)
     return LinkView(
         kind,
         link,
         witness_grid=witness.render(),
         solution_link=emit_solution_link(link, witness, size),
+        proof=proof,
     )
 
 
@@ -227,6 +260,7 @@ _PAGE = """<!doctype html>
   .slide {{ display: none; }}
   .slide.active {{ display: block; }}
   .slide h2 {{ font-size: 1.05rem; margin: 0 0 .6rem; }}
+  .proof {{ color: #555; font-size: .9rem; margin: -.3rem 0 .8rem; }}
   .verdict {{ font-size: .8rem; padding: .1rem .5rem; border-radius: 999px;
              color: #fff; margin-left: .4rem; }}
   .found {{ background: #2e7d32; }}
@@ -250,6 +284,7 @@ _PAGE = """<!doctype html>
 <body>
 <h1>gridfind link eval &mdash;
   <span id="pos">1</span> of <span id="total">{count}</span>
+  <button onclick="back()">Back</button>
   <button onclick="finish()">Finish</button></h1>
 {body}
 <section id="done" hidden>
@@ -273,16 +308,22 @@ function unmount(i) {{
   s.querySelectorAll("iframe.pane").forEach(f => {{ f.removeAttribute("src"); }});
 }}
 
-function advance() {{
+function go(i) {{
   const shown = slide(current);
   if (shown) shown.classList.remove("active");
   unmount(current);
-  current++;
-  if (current >= total) {{ document.getElementById("done").hidden = false; return; }}
+  current = i;
+  document.getElementById("done").hidden = current < total;
+  if (current >= total) return;
   document.getElementById("pos").textContent = current + 1;
-  slide(current).classList.add("active");
+  const next = slide(current);
+  next.classList.add("active");
+  // Revisited via Back: its verdict is already logged, let it be re-recorded.
+  next.querySelectorAll("button").forEach(b => {{ b.disabled = false; }});
   mount(current);
 }}
+function advance() {{ go(current + 1); }}
+function back() {{ if (current > 0) go(current - 1); }}
 
 async function finish() {{
   await fetch("/finish", {{ method: "POST" }});
@@ -329,10 +370,12 @@ def _slide(index: int, stem: str, view: LinkView) -> str:
     safe = html.escape(stem, quote=True)
     js_stem = html.escape(json.dumps(stem), quote=True)
     puzzle = html.escape(view.puzzle_link, quote=True)
+    proof = html.escape(view.proof, quote=True)
     active = " active" if index == 0 else ""
     return (
         f'<section class="slide{active}" data-slide="{index}">'
         f'<h2>{safe}<span class="verdict {view.kind}">{view.kind}</span></h2>'
+        f'<p class="proof">{proof}</p>'
         f'<div class="panes">'
         f'<iframe class="pane" allow="clipboard-write" data-src="{puzzle}"></iframe>'
         f"{_pane(view)}"
@@ -448,7 +491,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     approved = load_approved(APPROVED_PATH)
-    by_stem = {path.stem: path for path in sorted(LINKS_DIR.rglob("*.txt"))}
+    # Feature first, verdict second: each feature's broke/found pair sits
+    # together instead of every broke card before every found card.
+    paths = sorted(LINKS_DIR.rglob("*.txt"), key=lambda p: feature_then_kind(p.stem))
+    by_stem = {path.stem: path for path in paths}
     if args.changed:
         # An explicit edit set overrides the approval log: you asked for your
         # own changes, so show them whether or not they were approved before.
@@ -456,8 +502,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         shown = [stem for stem in by_stem if stem in edited]
     else:
         shown = pending_stems(list(by_stem), approved, show_all=args.all)
+    synthesizers = synthesizer_by_stem()
     cards = [
-        (stem, view_for(stem, by_stem[stem].read_text().split())) for stem in shown
+        (
+            stem,
+            view_for(
+                stem,
+                by_stem[stem].read_text().split(),
+                proof_for(stem, synthesizers),
+            ),
+        )
+        for stem in shown
     ]
 
     _ApprovalHandler.page = render_page(cards)

@@ -5,9 +5,9 @@ Anti-knight ("no two cells a chess-knight's hop apart share a digit") and
 anti-king (the same for a king's step) are one rule over two offset lists.
 Each is an `OffsetAdjacency` instance built with its own offsets; the layer
 reads the directional stepper off `engine.cell_geometry` (ADR-0004) and, for
-each cell and each of its offsets, emits an inequality against the in-space
-target. `CellGeometry` never learns the words "knight" or "king" — the offsets
-live here, owned by the layer.
+each cell and each of its offsets, emits a digit-disjointness rule against the
+in-space target. `CellGeometry` never learns the words "knight" or "king" —
+the offsets live here, owned by the layer.
 
 The stepper resolves an offset against the declared cell-address set, so an
 offset that leaves the space yields no target and no rule — the cell-space
@@ -54,9 +54,14 @@ class OffsetAdjacency:
     Reads the grid and stepper off `board`'s geometry; registers nothing,
     emits in phase 2.
 
-    Reads a cell through `engine.content`, its single slot — undefined once a
-    widening layer gives a cell a second slot, so `layers.s_blind` names this
-    class directly and `build_stack` refuses the combination up front."""
+    Reads each cell's real digit slots through `Engine.real_digit_values`
+    (ADR-0019 dec 6, the guard-dropping unwrap of `real_digit_slots`) into one
+    `add_all_different` per pair — the same digit-mode read `cage.py`'s
+    digits-distinct mode folds a whole group through, here over just the two
+    cells an offset relates. A non-S-cell's sentinel second slot never
+    collides (`real_digit_slots`'s docstring), so no `is_s` branch is needed;
+    no `s_blind` flag, so this composes with a widening (Schrödinger) layer
+    instead of `build_stack` refusing the combination."""
 
     name: str
     offsets: tuple[tuple[int, int], ...]
@@ -72,4 +77,7 @@ class OffsetAdjacency:
                 for delta_row, delta_col in self.offsets:
                     target = geometry.step(cell, delta_row, delta_col)
                     if target is not None:
-                        engine.model.add(engine.content(cell) != engine.content(target))
+                        engine.model.add_all_different(
+                            engine.real_digit_values(cell)
+                            + engine.real_digit_values(target)
+                        )
