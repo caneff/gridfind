@@ -178,17 +178,13 @@ BETWEEN_TYPE = 403
 
 # type 405 is a sequence line: `{lines: [[cell indices, ordered], …]}`. Each
 # path becomes its own `line` Constraint carrying `relation: "sequence"` and
-# the path's addresses — no extra block param; the arithmetic-progression
-# rule needs nothing beyond the path. This is the third **value-mode**
-# relation of the nine-relation line-clue family (spec #672): every
-# successive `value_expr` difference along the path must be equal, any
-# integer including 0, so a doubler or Schrödinger cell counts as its folded
-# value, the same seam whisper and between read through. The bare
-# `lines`-path wire shape (no extra param) matches the captured real 9x9
-# link that ground-truthed the line family. The flat-line-legal reading
-# (common difference 0) is confirmed by a captured real link,
-# `links/found-sequence-flat-9x9.txt`: SudokuMaker builds and shares a
-# 5-5-5 line, so no distinctness is asserted.
+# the path's addresses — no extra block param. Value-mode: every successive
+# `value_expr` difference along the path must be equal, any integer
+# including 0, so a doubler or Schrödinger cell counts as its folded value.
+# `links/found-sequence-flat-9x9.txt` is a real captured 405 link whose
+# line holds 5-5-5 as entered digits: SudokuMaker builds and shares a flat
+# line, so the predicate asserts no distinctness. The solver-side witness
+# for that reading is `layers/line_test.py::test_a_flat_sequence_line_is_valid`.
 SEQUENCE_TYPE = 405
 
 # type 406 is a grouped line (entropic / modular / parity): `{lines: [[cell
