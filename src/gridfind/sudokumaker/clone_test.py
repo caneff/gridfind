@@ -18,17 +18,33 @@ def _clone(*groups: list[int]) -> dict[str, object]:
     return {"type": 302, "groups": [list(g) for g in groups]}
 
 
+@pytest.mark.parametrize(
+    ("groups", "expected_cells"),
+    [
+        pytest.param(
+            ([0, 1], [2, 3]),
+            [["R1C1", "R1C2"], ["R1C3", "R1C4"]],
+            id="same-row-groups",
+        ),
+        pytest.param(
+            ([0, 9], [1, 10]),
+            [["R1C1", "R2C1"], ["R1C2", "R2C2"]],
+            id="column-spanning-groups",
+        ),
+    ],
+)
 def test_clone_block_decodes_to_a_constraint_per_group(
+    groups: tuple[list[int], list[int]],
+    expected_cells: list[list[str]],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    payload = constraint_link(_clone([0, 1], [2, 3]))
+    payload = constraint_link(_clone(*groups))
 
     puzzle, _ = link_to_puzzle(payload)
 
     clones = [c for c in puzzle.constraints if c.type == "clone"]
     assert clones == [
-        Constraint("clone", params={"cells": ["R1C1", "R1C2"]}),
-        Constraint("clone", params={"cells": ["R1C3", "R1C4"]}),
+        Constraint("clone", params={"cells": cells}) for cells in expected_cells
     ]
     assert capsys.readouterr().err == ""
 
@@ -71,21 +87,4 @@ def test_a_group_without_a_pair_decodes_to_nothing_quietly(
     puzzle, _ = link_to_puzzle(payload)
 
     assert all(c.type != "clone" for c in puzzle.constraints)
-    assert capsys.readouterr().err == ""
-
-
-def test_groups_in_one_block_are_independent(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    # Mirrors issue #732's real captured link: two 2-cell groups in the same
-    # block, each its own clone pair with no relationship to the other.
-    payload = constraint_link(_clone([0, 9], [1, 10]))
-
-    puzzle, _ = link_to_puzzle(payload)
-
-    clones = [c for c in puzzle.constraints if c.type == "clone"]
-    assert clones == [
-        Constraint("clone", params={"cells": ["R1C1", "R2C1"]}),
-        Constraint("clone", params={"cells": ["R1C2", "R2C2"]}),
-    ]
     assert capsys.readouterr().err == ""
