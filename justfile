@@ -1,7 +1,7 @@
 # One obvious entrypoint for the gate — agents and CI run `just check`.
 
 # Full gate (what CI runs). Run before calling any task done.
-check: lint typecheck test content-width-check link-coverage-check
+check: lint typecheck test content-width-check link-coverage-check givens-on-clue-check
 
 lint:
     uv run ruff check .
@@ -33,8 +33,8 @@ link-coverage-check:
 
 # Givens-on-the-clue audit (issue #727, spec #723): reports every found/broke
 # corpus link where a given sits on a cell the link's own constraint exists
-# to test. Report mode only — not a dependency of `check` yet, since the real
-# corpus still carries unexempted hits awaiting a human ruling.
+# to test. Exits non-zero on any hit not carried in the script's `EXEMPTIONS`
+# (the human ruling, #728), gating the same way link-coverage-check does.
 givens-on-clue-check:
     uv run python scripts/audit_givens_on_clue.py
 
