@@ -45,7 +45,7 @@ _PARITY_PATH_RC = [(1, 1), (1, 2)]
 
 # A real, valid 9x9 completion forcing R1C1=1 (low), R2C2=4 (mid), R3C3=7
 # (high) — one digit per band.
-_ENTROPIC_GRID_FOUND = grid_from_rows([
+_ENTROPIC_GRID_FOUND: dict[tuple[int, int], int] = grid_from_rows([
     [1, 2, 3, 4, 5, 6, 7, 8, 9],
     [5, 4, 6, 7, 8, 9, 1, 2, 3],
     [8, 9, 7, 1, 2, 3, 4, 5, 6],
@@ -59,7 +59,7 @@ _ENTROPIC_GRID_FOUND = grid_from_rows([
 
 # A second 9x9 completion forcing R1C1=1, R2C2=2 (both low) with R3C3=7 —
 # the window repeats the low band.
-_ENTROPIC_GRID_BROKE = grid_from_rows([
+_ENTROPIC_GRID_BROKE: dict[tuple[int, int], int] = grid_from_rows([
     [1, 3, 4, 2, 5, 6, 7, 8, 9],
     [5, 2, 6, 7, 8, 9, 1, 3, 4],
     [8, 9, 7, 1, 3, 4, 2, 5, 6],
@@ -73,7 +73,7 @@ _ENTROPIC_GRID_BROKE = grid_from_rows([
 
 # A real, valid 4x4 completion forcing R1C1=1 (odd), R1C2=2 (even) — one
 # digit per parity.
-_PARITY_GRID_FOUND = grid_from_rows([
+_PARITY_GRID_FOUND: dict[tuple[int, int], int] = grid_from_rows([
     [1, 2, 3, 4],
     [3, 4, 1, 2],
     [2, 1, 4, 3],
@@ -82,7 +82,7 @@ _PARITY_GRID_FOUND = grid_from_rows([
 
 # A second 4x4 completion forcing R1C1=1, R1C2=3 — both odd, the window
 # repeats a parity.
-_PARITY_GRID_BROKE = grid_from_rows([
+_PARITY_GRID_BROKE: dict[tuple[int, int], int] = grid_from_rows([
     [1, 3, 2, 4],
     [2, 4, 1, 3],
     [3, 1, 4, 2],
