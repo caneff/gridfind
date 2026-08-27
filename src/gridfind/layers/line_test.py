@@ -674,8 +674,8 @@ def test_an_unequal_step_sequence_resolves_broke() -> None:
 
 def test_a_flat_sequence_line_is_valid() -> None:
     # Common difference 0 — a flat line (repeated values) is a legal
-    # sequence, the fact #669 confirmed against GM Puzzles' published
-    # "5-5-5, difference of 0" example. No distinctness is asserted.
+    # sequence per the GM Puzzles convention ("5-5-5, difference of 0").
+    # No distinctness is asserted.
     puzzle = Puzzle(
         board=BOARD,
         constraints=(_sequence(("R1C1", "R1C2", "R1C3")),),
