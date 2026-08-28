@@ -14,6 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from gridfind.puzzle import Constraint
+from gridfind.sudokumaker.arrow import arrow_constraints
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 from gridfind.sudokumaker.cages import cage_constraints, thermo_constraints
 from gridfind.sudokumaker.clone import clone_constraints
@@ -45,6 +46,7 @@ from gridfind.sudokumaker.regions import regions_constraints
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
+    ARROW_TYPE,
     BETWEEN_TYPE,
     CAGE_TYPE,
     CLONE_TYPE,
@@ -229,6 +231,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=double_arrow_constraints,
         live_keys=("lines",),
         name="double-arrow",
+    ),
+    ARROW_TYPE: DecodedType(
+        handler=arrow_constraints,
+        live_keys=("bulbsWithArrows",),
+        name="arrow",
     ),
     NEGATIVE_DIAGONAL_TYPE: DecodedType(
         handler=_global_toggle_handler(NEGATIVE_DIAGONAL_TYPE, "negative-diagonal"),

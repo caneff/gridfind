@@ -235,6 +235,21 @@ LOCKOUT_TYPE = 407
 # captured real link (ADR-0023).
 REGION_SUM_TYPE = 404
 
+# type 408 is an arrow: `{bulbsWithArrows: [{bulbCells: [ids], arrows:
+# [[ids], ...]}, ...]}` — not a line-clue-family type, and not a toggle: a
+# top-level list of bulb entries, each naming its own bulb cell(s) and one or
+# more independent shaft paths. Wire shape ratified from #760's charting
+# session against SudokuMaker's live bundle (formatVersion 1.6.0,
+# 2026-08-27), the same source #748's research doc used. Each entry decodes
+# to one `arrow` Constraint carrying `bulb` and `arrows` (addresses, wire
+# order preserved) for the `Arrow` layer: every shaft's cells must sum
+# (value_expr) to the bulb's own value, each shaft independently, digits free
+# to repeat along a shaft. A single-cell bulb reads its value directly; a
+# multi-cell bulb (a pill, read as a place-value number) is #761's declared
+# out-of-scope follow-up (#762) — the `Arrow` layer refuses one loud rather
+# than read it wrong.
+ARROW_TYPE = 408
+
 # type 409 is a double-arrow line: `{lines: [[cell indices, ordered], …]}`.
 # Each path becomes its own `line` Constraint carrying `relation:
 # "double-arrow"` and the path's addresses — no extra block param; the two

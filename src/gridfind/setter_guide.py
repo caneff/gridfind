@@ -21,6 +21,7 @@ from gridfind.sudokumaker.registry import DECODER_REGISTRY, DecodedType
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
+    ARROW_TYPE,
     BETWEEN_TYPE,
     CAGE_TYPE,
     CLONE_TYPE,
@@ -280,6 +281,20 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         verdict="Accept. disabled blocks are skipped; an empty lines list"
         " adds nothing.",
     ),
+    ARROW_TYPE: SetterDoc(
+        display_name="Arrow",
+        wire_block="type 408 {bulbsWithArrows:[{bulbCells:[cell indices],"
+        " arrows:[[cell indices, ordered], …]}, …]}.",
+        decode_result="One arrow Constraint per bulbsWithArrows entry,"
+        " carrying its bulb and shaft addresses. Each shaft's cells' values"
+        " (2·d over a doubler, combined s_value over an S-cell) must sum to"
+        " the bulb's own value, each shaft checked independently — digits"
+        " may repeat along a shaft.",
+        verdict="Accept a single-cell bulb. disabled blocks are skipped. An"
+        " empty bulb, no shafts, or a zero-cell shaft raises"
+        " MalformedPuzzleError; a multi-cell bulb (a pill) is not yet"
+        " modeled and also raises.",
+    ),
     DOUBLE_ARROW_TYPE: SetterDoc(
         display_name="Double-Arrow Line",
         wire_block="type 409 {lines:[[cell indices, ordered], …]}.",
@@ -386,6 +401,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "between": "found-between-4x4",
     "sequence": "found-sequence-4x4",
     "lockout": "found-lockout-4x4",
+    "arrow": "found-arrow-4x4",
     "double-arrow": "found-double-arrow-4x4",
     "region-sum": "found-region-sum-4x4",
     "grouped": "found-grouped-entropic-9x9",
