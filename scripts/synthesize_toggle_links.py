@@ -5,11 +5,11 @@ SudokuMaker.com: each function here assembles a puzzle document and runs it
 through `sudokumaker.document_to_link`, so a reviewer can read exactly what each
 fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
-These fixtures cover the three global toggles gridfind reads off real
-SudokuMaker links: anti-knight (`type 13`), anti-king (`type 12`), and the two
-independent diagonals — negative `\\` (`type 10`) and positive `/` (`type 11`),
-which together make X-sudoku. The wire types were read from setter-supplied
-links, not guessed.
+These fixtures cover the global toggles gridfind reads off real SudokuMaker
+links: anti-knight (`type 13`), anti-king (`type 12`), the two independent
+diagonals — negative `\\` (`type 10`) and positive `/` (`type 11`), which
+together make X-sudoku — and disjoint groups (`type 14`). The wire types were
+read from setter-supplied links, not guessed.
 
 Each `broke-*` fixture holds two plain givens that are legal under classic
 sudoku but collide under the toggle — a knight's hop, a king's step, or a
@@ -23,6 +23,11 @@ both at once — a decoder that swapped or dropped one diagonal would still
 pass green. The `*-negative-diagonal-only-*`/`*-positive-diagonal-only-*`
 fixtures each set exactly one diagonal toggle, so a collision on that
 diagonal alone can only turn `broke` if the switch decoded to the right one.
+
+`broke-disjoint-groups-4x4` forces R1C1 and R3C3 to the same digit — the same
+box-relative position (top-left of their own 2x2 box) in two different boxes,
+so rows/cols/boxes all stay valid and only the disjoint-groups partition
+(#756) rejects it.
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ from gridfind.sudokumaker import document_to_link
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
+    DISJOINT_GROUPS_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
     POSITIVE_DIAGONAL_TYPE,
 )
@@ -174,6 +180,29 @@ def broke_positive_diagonal_only_4x4() -> str:
     )
 
 
+def found_disjoint_groups_4x4() -> str:
+    """4x4 disjoint groups, `found` — two clues in different box-relative
+    positions the rule leaves solvable."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (1, 2): 2},
+        toggles=[DISJOINT_GROUPS_TYPE],
+    )
+
+
+def broke_disjoint_groups_4x4() -> str:
+    """4x4 disjoint groups, `broke` — R1C1 and R3C3 are both the top-left
+    cell of their own 2x2 box and hold the same digit: legal under classic
+    (different row, column, and box), forbidden under disjoint groups."""
+    return _link(
+        box_h=2,
+        box_w=2,
+        givens={(1, 1): 1, (3, 3): 1},
+        toggles=[DISJOINT_GROUPS_TYPE],
+    )
+
+
 # The committed corpus: each `links/<name>.txt` is exactly `fn()` newline. The
 # filename stem's first token is the e2e verdict (`found`/`broke`); the
 # drift-guard test re-runs each `fn` and refuses a hand-edited file.
@@ -188,4 +217,6 @@ CORPUS: dict[str, Callable[[], str]] = {
     "broke-negative-diagonal-only-4x4": broke_negative_diagonal_only_4x4,
     "found-positive-diagonal-only-4x4": found_positive_diagonal_only_4x4,
     "broke-positive-diagonal-only-4x4": broke_positive_diagonal_only_4x4,
+    "found-disjoint-groups-4x4": found_disjoint_groups_4x4,
+    "broke-disjoint-groups-4x4": broke_disjoint_groups_4x4,
 }

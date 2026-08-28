@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 from gridfind.cell_geometry import main_diagonals, parse_address
-from gridfind.engine import Engine
+from gridfind.engine import Engine, MalformedPuzzleError
 from gridfind.layers._base import emit_distinct_group, grid_content
 from gridfind.layers.regions import RegionMap, region_map_for
 
@@ -91,6 +91,32 @@ def regions_from(region_map: RegionMap) -> Partition:
     never aware of where its groups came from.
     """
     return lambda grid: _cells_for(grid, region_map)
+
+
+def disjoint_groups_from(region_map: RegionMap) -> Partition:
+    """A partition function closed over a setter's own region map, transposed:
+    group *k* is the *k*-th cell of every region — position within the
+    region, not the region itself — SudokuMaker's disjoint-groups rule
+    (`type 14`). Every region must be the same size, since a ragged region
+    has no *k*-th cell to pull for the groups a longer region still owes;
+    refuses eagerly, naming the sizes, rather than truncating or padding.
+    """
+    sizes = [len(region) for region in region_map]
+    if len(set(sizes)) > 1:
+        msg = f"disjoint-groups needs every region the same size, got sizes {sizes!r}"
+        raise MalformedPuzzleError(msg)
+    region_size = sizes[0] if sizes else 0
+
+    def _cut(grid: Grid) -> list[list[Cell]]:
+        return [
+            [
+                grid[row - 1][col - 1]
+                for row, col in (region[k] for region in region_map)
+            ]
+            for k in range(region_size)
+        ]
+
+    return _cut
 
 
 def extra_regions_from(blocks: Iterable[Iterable[str]]) -> Partition:

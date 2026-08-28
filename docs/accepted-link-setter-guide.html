@@ -292,6 +292,7 @@ link (see <a href="#troubleshooting">Troubleshooting</a>).</p>
 <tr><td>Positive Diagonal (/)</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDaoAOaYAbijxEEUZigYhpcDsp4kAvg0ky5PRctXrN3IgCY9vW8HuP9Tu87euPD9w4C6qrKyWhAAsqny46IpwmDgIIkTiIAgAnoxB1PZJqUEkqlAoUhFi1AwlhLnlpVWVNVYMdYQAzAzNhA0NrY0+mSlp2mUgkclcPPwQHNA8IADEjcEARvMoAGxgYPTECAAWmHwA1jgo6PGE1DQ2PdnaFYMpI0RjE1BTswtLq+uq27sHRydn1Au3R0QA">found-x-sudoku-4x4</a></td></tr>
 <tr><td>Anti-King</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDaoAOaYAbijxEEUZigYhpcDsp4kAvg2B7ehg-uNnTFo5ZNXbN++buOH1529cenpgLqqsrbiIANlU+XHRFOEwcBBEicRAEAE9GQMJqY0SUtJJVKBQpcLFqBhL0hlzCSsqy2or6qoYAJmbWwgBmBk6OtpbCPu7BhgAWEbHCCgZJifHRwjnpxe9M5NTtJp1lnSA">found-anti-king-6x6</a></td></tr>
 <tr><td>Anti-Knight</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDaoAOaYAbijxEEUZigYhpcDsp4kAvg0ky5PRctXrN3IgCY9vW8HuP9Tu87euPD9w4C6qrKyWhAAsqny46IpwmDgIIkTiIAgAnoxB1PZJqUEkqlAoUhFi1AwlhLnlpVWVNVYMdYQAzAzNhA0NrY0+mSlp2o063TpAA">found-anti-knight-4x4</a></td></tr>
+<tr><td>Disjoint Groups</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDaoAOaYAbijxEEUZigYhpcDsp4kAvg0ky5PRctXrN3IgCY9vW8HuP9Tu87euPD9w4C6qrKyWhAAsqny46IpwmDgIIkTiIAgAnoxB1PZJqUEkqlAoUhFi1AwlhLnlpVWVNVYMdYQAzAzNhA0NrY0+mSlp2sE63TpAA">found-disjoint-groups-4x4</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -353,6 +354,7 @@ wire block, decode result, and accept/ignore/reject verdict for each are in the
 <p class="draw-action" data-constraint="anti-king"><strong>Anti-King</strong> — Enable the anti-king global constraint, so no two cells a king's move apart share a digit. <span class="provisional" data-provisional="anti-king-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
 <p class="draw-action" data-constraint="negative-diagonal"><strong>Negative Diagonal (\)</strong> — Enable the negative-diagonal (<code>\</code>) global constraint. Enable it together with the positive diagonal for X-sudoku. <span class="provisional" data-provisional="negative-diagonal-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
 <p class="draw-action" data-constraint="positive-diagonal"><strong>Positive Diagonal (/)</strong> — Enable the positive-diagonal (<code>/</code>) global constraint. Enable it together with the negative diagonal for X-sudoku. <span class="provisional" data-provisional="positive-diagonal-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
+<p class="draw-action" data-constraint="disjoint-groups"><strong>Disjoint Groups</strong> — Enable the disjoint-groups global constraint, so cells at the same position within their region hold all-different digits; the link must also carry regions-distinct with equal-size regions. <span class="provisional" data-provisional="disjoint-groups-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
 </section>
 
 <section id="per-constraint">
@@ -563,6 +565,14 @@ wire block, decode result, and accept/ignore/reject verdict for each are in the
 <dt>Wire block</dt><dd>type 13 — a bare toggle, no payload.</dd>
 <dt>Decodes to</dt><dd>One anti-knight Constraint: no two cells a knight&#x27;s hop apart share a digit.</dd>
 <dt>Verdict</dt><dd>Accept an enabled block. A disabled block is skipped.</dd>
+</dl>
+</section>
+<section class="constraint">
+<h3>Disjoint Groups</h3>
+<dl>
+<dt>Wire block</dt><dd>type 14 — a bare toggle, no payload.</dd>
+<dt>Decodes to</dt><dd>One disjoint-groups Constraint: cells at the same position within their region (box-relative position, transposed off the puzzle&#x27;s own region map) hold all-different digits.</dd>
+<dt>Verdict</dt><dd>Accept an enabled block when the link also carries regions-distinct with equal-size regions. A disabled block is skipped; no regions-distinct, or regions of unequal size, is rejected as malformed.</dd>
 </dl>
 </section>
 </section>

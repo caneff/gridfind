@@ -125,6 +125,50 @@ def test_two_extra_region_constraints_fold_into_one_distinct_partition() -> None
     assert groups == [["R1C1", "R1C2"], ["R3C3", "R3C4"]]
 
 
+def test_disjoint_groups_dispatches_to_a_second_distinct_over_groups() -> None:
+    # A `disjoint-groups` constraint needs a sibling `regions-distinct` to
+    # transpose, so it builds a second `DistinctOverGroups`, seeded before
+    # the dispatch loop like `extra-region` — box-relative position R1C1,
+    # R1C3, R3C1, R3C3 is one group under a 2x2-boxed 4x4's disjoint groups.
+    constraints = (
+        Constraint(type="regions-distinct"),
+        Constraint(type="disjoint-groups"),
+    )
+
+    canonical, layers = build_stack(constraints, size=4)
+
+    assert [type(layer) for layer in layers] == [
+        GridCells,
+        OutsideCells,
+        DistinctOverGroups,
+        DistinctOverGroups,
+    ]
+    names = {layer.name for layer in layers if isinstance(layer, DistinctOverGroups)}
+    assert names == {"disjoint-groups", "regions-distinct"}
+    engine = build_engine(layers, tuple(canonical), board=Board(size=4))
+    groups = [sorted(g) for g in all_different_groups(engine)]
+    assert ["R1C1", "R1C3", "R3C1", "R3C3"] in groups
+
+
+def test_disjoint_groups_raises_without_a_regions_distinct_sibling() -> None:
+    # A whole-board fallback region would make the rule a silent no-op, so a
+    # `disjoint-groups` constraint with no `regions-distinct` sibling refuses.
+    with pytest.raises(MalformedPuzzleError):
+        build_stack((Constraint(type="disjoint-groups"),), size=4)
+
+
+def test_disjoint_groups_raises_when_the_jigsaw_regions_are_unequal_size() -> None:
+    constraints = (
+        Constraint(
+            type="regions-distinct", params={"regions": [0, 0, 0, 1, 1, 2, 2, 2, 2]}
+        ),
+        Constraint(type="disjoint-groups"),
+    )
+
+    with pytest.raises(MalformedPuzzleError):
+        build_stack(constraints, size=3)
+
+
 def test_unknown_constraint_type_is_rejected() -> None:
     with pytest.raises(UnknownLayerError):
         build_stack((Constraint(type="not-a-real-rule"),), size=9)

@@ -1,11 +1,17 @@
 import pytest
 
-from gridfind.engine import GridfindError, MissingDependencyError, build_engine
+from gridfind.engine import (
+    GridfindError,
+    MalformedPuzzleError,
+    MissingDependencyError,
+    build_engine,
+)
 from gridfind.layers.board import GridCells
 from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import (
     DistinctOverGroups,
     cols,
+    disjoint_groups_from,
     regions,
     regions_from,
     rows,
@@ -80,6 +86,24 @@ def test_regions_from_cuts_the_grid_by_the_supplied_map() -> None:
     groups = [sorted(g) for g in regions_from(supplied)(grid)]
 
     assert sorted(groups) == [["r0c0", "r1c1"], ["r0c1", "r1c0"]]
+
+
+def test_disjoint_groups_from_transposes_the_region_map() -> None:
+    # Group k is the k-th cell of every region — position within region, not
+    # the region itself.
+    grid = _grid(2)
+    supplied = RegionMap([[(1, 1), (1, 2)], [(2, 1), (2, 2)]])
+
+    groups = [sorted(g) for g in disjoint_groups_from(supplied)(grid)]
+
+    assert sorted(groups) == [["r0c0", "r1c0"], ["r0c1", "r1c1"]]
+
+
+def test_disjoint_groups_from_raises_when_region_sizes_differ() -> None:
+    supplied = RegionMap([[(1, 1), (1, 2)], [(2, 1)]])
+
+    with pytest.raises(MalformedPuzzleError, match=r"\[2, 1\]"):
+        disjoint_groups_from(supplied)
 
 
 @pytest.mark.parametrize("name", ["rows-distinct", "cols-distinct", "regions-distinct"])

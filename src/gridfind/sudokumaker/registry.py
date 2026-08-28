@@ -49,6 +49,7 @@ from gridfind.sudokumaker.wire_types import (
     CAGE_TYPE,
     CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
+    DISJOINT_GROUPS_TYPE,
     DOUBLE_ARROW_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
@@ -252,6 +253,12 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=_global_toggle_handler(ANTI_KNIGHT_TYPE, "anti-knight"),
         live_keys=(),
         name="anti-knight",
+        is_toggle=True,
+    ),
+    DISJOINT_GROUPS_TYPE: DecodedType(
+        handler=_global_toggle_handler(DISJOINT_GROUPS_TYPE, "disjoint-groups"),
+        live_keys=(),
+        name="disjoint-groups",
         is_toggle=True,
     ),
 }
