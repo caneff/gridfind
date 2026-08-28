@@ -46,7 +46,8 @@ groups partitioning the board, and every window of `len(groups)` consecutive
 path cells holds one digit from each group — the one rule entropic, modular,
 and parity all ride, keyed only by which groups they name. A partition with a
 gap or overlap raises `MalformedPuzzleError` at emit, where the board's own
-digit domain is in scope.
+digit domain is in scope. The partition check and the digit-to-group-index
+table live in `layers/bitmask_group.py`, shared with window-groups (#758).
 
 Between is the second value-mode row: the two path ends are the bulbs, every
 interior cell strictly between them (`min(a, b) < value_expr(c) <
@@ -111,11 +112,11 @@ from gridfind.cell_geometry import format_address
 from gridfind.engine import (
     Engine,
     GridfindError,
-    MalformedPuzzleError,
     sole,
     warn_dropped,
 )
 from gridfind.layers._base import abs_diff_var, emit_over_pairs
+from gridfind.layers.bitmask_group import group_index_table, validate_partition
 from gridfind.layers.regions import RegionMap, region_map_for_constraints
 from gridfind.puzzle import Constraint as PuzzleConstraint
 from gridfind.puzzle import JsonValue
@@ -393,36 +394,13 @@ def _palindrome(
         engine.model.add(digits[i] == digits[-1 - i])
 
 
-def _validate_partition(groups: list[int], board_values: range) -> None:
-    """`groups` (each a digit bitmask, bit `d` set meaning digit `d` is a
-    member) must partition the board's own digits — no digit left uncovered
-    (a gap) and no digit claimed by two groups (an overlap). Checked here,
-    against `engine.board`, rather than at decode: the board's digit domain
-    is not in scope at decode time, and a malformed partition is a puzzle-wide
-    fact, not a per-wire-block one."""
-    domain_mask = 0
-    for value in board_values:
-        domain_mask |= 1 << value
-    union = 0
-    overlap = 0
-    for mask in groups:
-        overlap |= union & mask
-        union |= mask
-    if union != domain_mask or overlap:
-        msg = (
-            f"grouped-line groups {groups!r} do not partition the board's "
-            f"digits {list(board_values)!r} — check for a gap or overlap"
-        )
-        raise MalformedPuzzleError(msg)
-
-
 def _grouped(
     engine: Engine,
     sequence: DigitSequence,
     params: Mapping[str, JsonValue],
 ) -> None:
     """Entropic / modular / parity, one rule: `params["groups"]` names `G`
-    digit-bitmask groups partitioning the board (`_validate_partition`), and
+    digit-bitmask groups partitioning the board (`validate_partition`), and
     every window of `G` consecutive path cells holds one digit from each
     group — the line cycles the partition.
 
@@ -431,24 +409,18 @@ def _grouped(
     digit via `_single_real_digits` before windowing, refusing loud on a
     multi-slot cell rather than guess which slot the window would mean.
 
-    Each digit is mapped to its group index through a table constraint (the
-    `(digit, group_index)` pairs the partition names), then each window's `G`
-    group-index vars are pinned all-different — with exactly `G` slots over a
-    `0..G-1` domain, all-different already forces a bijection, i.e. every
-    group hit exactly once, with no separate "exactly one" bookkeeping
-    needed.
+    Each digit is mapped to its group index through a table constraint
+    (`group_index_table`), then each window's `G` group-index vars are
+    pinned all-different — with exactly `G` slots over a `0..G-1` domain,
+    all-different already forces a bijection, i.e. every group hit exactly
+    once, with no separate "exactly one" bookkeeping needed.
     """
     groups = cast("list[int]", params["groups"])
-    _validate_partition(groups, engine.board.values)
+    validate_partition(groups, engine.board.values)
 
     digits = _single_real_digits(sequence)
     group_count = len(groups)
-    table = [
-        (value, group_index)
-        for group_index, mask in enumerate(groups)
-        for value in engine.board.values
-        if mask & (1 << value)
-    ]
+    table = group_index_table(groups, engine.board.values)
     group_of = [
         engine.model.new_int_var(0, group_count - 1, f"{digit.name}.group")
         for digit in digits
