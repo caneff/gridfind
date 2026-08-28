@@ -42,6 +42,7 @@ from gridfind.sudokumaker.line import (
 )
 from gridfind.sudokumaker.quadruple import quadruple_constraints
 from gridfind.sudokumaker.regions import regions_constraints
+from gridfind.sudokumaker.window_groups import window_groups_constraints
 from gridfind.sudokumaker.wire_types import (
     ANTI_KING_TYPE,
     ANTI_KNIGHT_TYPE,
@@ -53,6 +54,7 @@ from gridfind.sudokumaker.wire_types import (
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
     GIVENS_TYPE,
+    GLOBAL_ENTROPY_TYPE,
     GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
@@ -184,6 +186,11 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=clone_constraints,
         live_keys=("groups",),
         name="clone",
+    ),
+    GLOBAL_ENTROPY_TYPE: DecodedType(
+        handler=window_groups_constraints,
+        live_keys=("groups",),
+        name="window-groups",
     ),
     RENBAN_TYPE: DecodedType(
         handler=renban_constraints,

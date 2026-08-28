@@ -98,6 +98,20 @@ POSITIVE_DIAGONAL_TYPE = 11
 ANTI_KING_TYPE = 12
 ANTI_KNIGHT_TYPE = 13
 
+# type 16 is a global-entropy block: `{groups: [bitmask, …]}`. SudokuMaker
+# does not model "global mod" as its own type — both entropy and mod ride
+# this one wire block, distinguished only by which digit-bitmask groups
+# populate `groups` (docs/research/sudokumaker-global-geometry-wire-format.md
+# #4/#5): three bands of three consecutive digits is entropy on a classic
+# 9x9, three mod-3 residue classes is mod, a two-group low/high split is
+# either preset's shape on a 4x4/6x6/8x8. `groups` rides through onto its own
+# `window-groups` Constraint verbatim, never defaulted — a block missing it
+# surfaces the gap here as `KeyError`, the same bare-subscript posture
+# `grouped_constraints` takes for its own `groups` (`GROUPED_TYPE`). A link
+# enabling two blocks (entropy plus mod together) decodes to two
+# `window-groups` Constraints, both enforced (`layers/window_groups.py`).
+GLOBAL_ENTROPY_TYPE = 16
+
 # type 1000 is a custom constraint: `{definition: {name, ...}, input: {...}}`,
 # SudokuMaker's programmable-logic block. gridfind never interprets the
 # programmed logic itself — it recognizes a `type 1000` block only by its
