@@ -1,14 +1,17 @@
 """`arrow` behaviour: one bulb, one or more shafts, each independently
-summing (by cell value) to the bulb.
+summing (by cell value) to the bulb; a multi-cell bulb (a pill) reads as a
+place-value number, first cell most significant.
 
 Most of it is tested at the `verdict` seam — a satisfiable shaft resolves
-found, an unsatisfiable one broke, and two shafts on one bulb must each hold
-on their own. The doubler pair reads the shaft cell's folded `value_expr`
-directly at the engine seam, the same channel `group-sum`/`double-arrow`
-already prove (`value_expr`'s modifier composition is not this layer's own
-code to get wrong a second way). The raise cases (empty bulb, a pill bulb,
-no shafts, a zero-cell shaft) are proven through `verdict` on an in-memory
-puzzle, mirroring `equality-cage`'s own odd-cell-count raise test.
+found, an unsatisfiable one broke, two shafts on one bulb must each hold on
+their own, and a two-cell pill's place-value sum resolves found or broke the
+same way a single-cell bulb does. The doubler pairs read a shaft or pill
+cell's folded `value_expr` directly at the engine seam, the same channel
+`group-sum`/`double-arrow` already prove (`value_expr`'s modifier
+composition is not this layer's own code to get wrong a second way). The
+raise cases (empty bulb, no shafts, a zero-cell shaft) are proven through
+`verdict` on an in-memory puzzle, mirroring `equality-cage`'s own
+odd-cell-count raise test.
 """
 
 from __future__ import annotations
@@ -30,6 +33,16 @@ def _arrow(bulb: str, *shafts: tuple[str, ...]) -> Constraint:
     return Constraint(
         type="arrow",
         params={"bulb": [bulb], "arrows": [list(shaft) for shaft in shafts]},
+    )
+
+
+def _pill_arrow(bulb: tuple[str, ...], *shafts: tuple[str, ...]) -> Constraint:
+    return Constraint(
+        type="arrow",
+        params={
+            "bulb": list(bulb),
+            "arrows": [list(shaft) for shaft in shafts],
+        },
     )
 
 
@@ -163,6 +176,34 @@ def test_arrow_falls_back_to_the_digit_when_the_shaft_cell_is_not_the_modifier()
     assert status == cp_model.INFEASIBLE
 
 
+def test_arrow_reads_the_doubled_value_of_a_pill_cell() -> None:
+    # R1C2, the pill's second (least-significant) cell, is the modifier: raw
+    # digit 3 doubles to 6, so the pill R1C1=1, R1C2 reads as 10*1 + 6 = 16,
+    # matching a shaft pinned to 9 + 7 = 16. Feasible only if the pill's
+    # place-value sum read R1C2's folded value, not its raw digit (3, which
+    # would read 13, unequal to 16).
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(
+            Constraint(type="doubler"),
+            _pill_arrow(("R1C1", "R1C2"), ("R2C1", "R2C2")),
+        ),
+    )
+    canonical, layers = build_stack(puzzle.constraints, size=BOARD.size)
+    engine = build_engine(layers, tuple(canonical), board=BOARD)
+    is_modifier = cast("dict[str, cp_model.IntVar]", engine.structures["is_modifier"])
+    engine.model.add(is_modifier["R1C2"] == 1)
+    engine.model.add(engine.d0("R1C1") == 1)
+    engine.model.add(engine.d0("R1C2") == 3)
+    engine.model.add(engine.d0("R2C1") == 9)
+    engine.model.add(engine.d0("R2C2") == 7)
+
+    solver = cp_model.CpSolver()
+    status = solver.solve(engine.model)
+
+    assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+
+
 def test_an_empty_bulb_raises_malformed() -> None:
     puzzle = Puzzle(
         board=BOARD,
@@ -175,21 +216,44 @@ def test_an_empty_bulb_raises_malformed() -> None:
         verdict(puzzle)
 
 
-def test_a_pill_bulb_of_more_than_one_cell_raises_malformed() -> None:
-    # Multi-cell bulbs (pills) are #762's follow-up — refused loud here
-    # rather than read as though the bulb's first cell were the whole bulb.
+def test_a_two_cell_pill_reads_as_a_two_digit_number_resolves_found() -> None:
+    # Pill R1C1, R1C2 given 1 then 2 reads as 12 (first cell most
+    # significant); the shaft's second cell is left to the solver, satisfied
+    # only by 7 (5 + 7 = 12).
     puzzle = Puzzle(
         board=BOARD,
-        constraints=(
-            Constraint(
-                type="arrow",
-                params={"bulb": ["R1C1", "R1C2"], "arrows": [["R1C3"]]},
-            ),
+        constraints=(_pill_arrow(("R1C1", "R1C2"), ("R1C3", "R1C4")),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C2", digit=2),
+            Given(address="R1C3", digit=5),
         ),
     )
 
-    with pytest.raises(MalformedPuzzleError, match="pill"):
-        verdict(puzzle)
+    result = verdict(puzzle)
+
+    assert result.kind == "found"
+    assert result.witness is not None
+    assert result.witness["R1C4"][0] == 7
+
+
+def test_a_two_cell_pill_summed_wrong_by_its_shaft_resolves_broke() -> None:
+    # Pill reads 12 (1 then 2); the shaft is pinned to 5 + 6 = 11, unequal.
+    puzzle = Puzzle(
+        board=BOARD,
+        constraints=(_pill_arrow(("R1C1", "R1C2"), ("R1C3", "R1C4")),),
+        givens=(
+            Given(address="R1C1", digit=1),
+            Given(address="R1C2", digit=2),
+            Given(address="R1C3", digit=5),
+            Given(address="R1C4", digit=6),
+        ),
+    )
+
+    result = verdict(puzzle)
+
+    assert result.kind == "broke"
+    assert result.witness is None
 
 
 def test_no_shafts_raises_malformed() -> None:

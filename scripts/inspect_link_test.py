@@ -306,6 +306,9 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 0 givens · types {0,1,101,2001} ·"
         " active: 101, 2001 · verdict: broke"
     ),
+    "broke-pill-arrow-6x6": (
+        "6x6 · 36 cells · 31 givens · types {0,1,408} · active: 408 · verdict: broke"
+    ),
     "broke-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: broke"
     ),
@@ -475,6 +478,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-palindrome-4x4": (
         "4x4 · 16 cells · 13 givens · types {0,1,402} · active: 402 · verdict: found"
+    ),
+    "found-pill-arrow-6x6": (
+        "6x6 · 36 cells · 31 givens · types {0,1,408} · active: 408 · verdict: found"
     ),
     "found-positive-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,11} · active: 11 · verdict: found"

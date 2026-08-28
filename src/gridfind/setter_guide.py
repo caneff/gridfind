@@ -289,11 +289,13 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         " carrying its bulb and shaft addresses. Each shaft's cells' values"
         " (2·d over a doubler, combined s_value over an S-cell) must sum to"
         " the bulb's own value, each shaft checked independently — digits"
-        " may repeat along a shaft.",
-        verdict="Accept a single-cell bulb. disabled blocks are skipped. An"
-        " empty bulb, no shafts, or a zero-cell shaft raises"
-        " MalformedPuzzleError; a multi-cell bulb (a pill) is not yet"
-        " modeled and also raises.",
+        " may repeat along a shaft. A multi-cell bulb (a pill) reads as a"
+        " place-value number over its cells in wire order, first cell most"
+        " significant, each cell's value (2·d over a doubler, combined"
+        " s_value over an S-cell) weighted by its power of ten.",
+        verdict="Accept a single-cell or multi-cell (pill) bulb. disabled"
+        " blocks are skipped. An empty bulb, no shafts, or a zero-cell"
+        " shaft raises MalformedPuzzleError.",
     ),
     DOUBLE_ARROW_TYPE: SetterDoc(
         display_name="Double-Arrow Line",

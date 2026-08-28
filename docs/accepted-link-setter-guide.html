@@ -539,8 +539,8 @@ wire block, decode result, and accept/ignore/reject verdict for each are in the
 <h3>Arrow</h3>
 <dl>
 <dt>Wire block</dt><dd>type 408 {bulbsWithArrows:[{bulbCells:[cell indices], arrows:[[cell indices, ordered], …]}, …]}.</dd>
-<dt>Decodes to</dt><dd>One arrow Constraint per bulbsWithArrows entry, carrying its bulb and shaft addresses. Each shaft&#x27;s cells&#x27; values (2·d over a doubler, combined s_value over an S-cell) must sum to the bulb&#x27;s own value, each shaft checked independently — digits may repeat along a shaft.</dd>
-<dt>Verdict</dt><dd>Accept a single-cell bulb. disabled blocks are skipped. An empty bulb, no shafts, or a zero-cell shaft raises MalformedPuzzleError; a multi-cell bulb (a pill) is not yet modeled and also raises.</dd>
+<dt>Decodes to</dt><dd>One arrow Constraint per bulbsWithArrows entry, carrying its bulb and shaft addresses. Each shaft&#x27;s cells&#x27; values (2·d over a doubler, combined s_value over an S-cell) must sum to the bulb&#x27;s own value, each shaft checked independently — digits may repeat along a shaft. A multi-cell bulb (a pill) reads as a place-value number over its cells in wire order, first cell most significant, each cell&#x27;s value (2·d over a doubler, combined s_value over an S-cell) weighted by its power of ten.</dd>
+<dt>Verdict</dt><dd>Accept a single-cell or multi-cell (pill) bulb. disabled blocks are skipped. An empty bulb, no shafts, or a zero-cell shaft raises MalformedPuzzleError.</dd>
 </dl>
 </section>
 <section class="constraint">
