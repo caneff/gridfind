@@ -35,19 +35,21 @@ one: every mirror pair `(i, n-1-i)` of the path holds the same real digit, its
 odd-length middle cell (read by no pair) left free. Position structure means
 each cell must fold to one real digit before the mirror pairing runs, so
 unlike renban's set-structured pooling a Schrödinger-widened cell has no
-defined fold — `_single_real_digits` raises through `sole` (`engine.py`)
+defined fold — `single_real_digits` raises through `sole` (`engine.py`)
 rather than guess one. This is the shared position-structured Schrödinger
 raise grouped-line reuses.
 
 Grouped-line is the third digit-mode row, and the second position/window-
-structured one (reusing `_single_real_digits`, hence palindrome's same raise
+structured one (reusing `single_real_digits`, hence palindrome's same raise
 on a Schrödinger-widened path cell): `params["groups"]` names digit-bitmask
 groups partitioning the board, and every window of `len(groups)` consecutive
 path cells holds one digit from each group — the one rule entropic, modular,
 and parity all ride, keyed only by which groups they name. A partition with a
 gap or overlap raises `MalformedPuzzleError` at emit, where the board's own
 digit domain is in scope. The partition check and the digit-to-group-index
-table live in `layers/bitmask_group.py`, shared with window-groups (#758).
+table live in `layers/bitmask_group.py` — the shared home window-groups also
+imports from, for its own laxer, gap/overlap-tolerant validation and table
+shape (`layers/window_groups.py`).
 
 Between is the second value-mode row: the two path ends are the bulbs, every
 interior cell strictly between them (`min(a, b) < value_expr(c) <
@@ -370,7 +372,7 @@ def _renban(
     engine.model.add(maximum - minimum == slot_count - 1)
 
 
-def _single_real_digits(sequence: DigitSequence) -> list[cp_model.IntVar]:
+def single_real_digits(sequence: DigitSequence) -> list[cp_model.IntVar]:
     """The position-structured Schrödinger raise: fold each path cell's real
     digit slots to its one real digit via `sole` (`engine.py`) before a
     position- or window-structured relation pairs or windows them. Renban's
@@ -378,7 +380,9 @@ def _single_real_digits(sequence: DigitSequence) -> list[cp_model.IntVar]:
     calls this. A cell Schrödinger-widened to two real slots has no defined
     fold — which slot the relation's rule would mean is not stated anywhere
     — so `sole` raises `GridfindError` loud rather than guess one. Palindrome
-    is the first caller; grouped-line (#682) reuses this same fold."""
+    is the first caller; grouped-line reuses this same fold, and
+    `layers/window_groups.py`'s per-grid-cell fold is the third, public so
+    that module can import it rather than hand-roll a second copy."""
     return [sole(cell)[0] for cell in sequence]
 
 
@@ -389,7 +393,7 @@ def _palindrome(
 ) -> None:
     """Every mirror pair `(i, n-1-i)` holds the same real digit; an
     odd-length path's middle cell is read by neither pair and so stays free."""
-    digits = _single_real_digits(sequence)
+    digits = single_real_digits(sequence)
     for i in range(len(digits) // 2):
         engine.model.add(digits[i] == digits[-1 - i])
 
@@ -406,7 +410,7 @@ def _grouped(
 
     Window-structured like palindrome's mirror pairing, so it shares
     palindrome's Schrödinger raise: each path cell folds to its one real
-    digit via `_single_real_digits` before windowing, refusing loud on a
+    digit via `single_real_digits` before windowing, refusing loud on a
     multi-slot cell rather than guess which slot the window would mean.
 
     Each digit is mapped to its group index through a table constraint
@@ -418,7 +422,7 @@ def _grouped(
     groups = cast("list[int]", params["groups"])
     validate_partition(groups, engine.board.values)
 
-    digits = _single_real_digits(sequence)
+    digits = single_real_digits(sequence)
     group_count = len(groups)
     table = group_index_table(groups, engine.board.values)
     group_of = [

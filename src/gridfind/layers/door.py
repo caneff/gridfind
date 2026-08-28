@@ -58,6 +58,7 @@ from gridfind.layers.rellik_cage import RellikCage
 from gridfind.layers.s_blind import refuse_s_blind_over_widening
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.layers.thermo import Thermo
+from gridfind.layers.window_groups import WindowGroups
 from gridfind.puzzle import Constraint, JsonValue
 
 
@@ -94,6 +95,7 @@ LAYER_REGISTRY = {
     "quadruple": Quadruple(),
     "clone": Clone(),
     "arrow": Arrow(),
+    "window-groups": WindowGroups(),
 }
 
 # Two mechanisms expand a constraint at load, and they

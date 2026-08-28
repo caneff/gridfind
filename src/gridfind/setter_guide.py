@@ -30,6 +30,7 @@ from gridfind.sudokumaker.wire_types import (
     DOUBLE_ARROW_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
+    GLOBAL_ENTROPY_TYPE,
     GROUPED_TYPE,
     INDEXING_COL_TYPE,
     INDEXING_ROW_TYPE,
@@ -398,6 +399,23 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         " raw digit.",
         verdict="Accept an enabled block. A disabled block is skipped.",
     ),
+    GLOBAL_ENTROPY_TYPE: SetterDoc(
+        display_name="Global Entropy / Global Mod",
+        wire_block="type 16 {groups:[bitmask, …]} — global mod is this same"
+        " block with a mod-3 residue grouping, not a separate type.",
+        decode_result="One window-groups Constraint per enabled block,"
+        " groups carried verbatim; two blocks (entropy plus mod together)"
+        " decode to two constraints, both enforced. Every 2x2 window of the"
+        " grid (real_digit_slots, folded like the grouped line) must hold at"
+        " least one digit from each named group — unlike the grouped line's"
+        " strict partition, a gap or an overlap between groups is honored,"
+        " not refused.",
+        verdict="Accept an enabled block. A disabled block is skipped. A"
+        " block missing groups raises KeyError — no invented default. An"
+        " empty groups list, or a group naming a digit outside the board,"
+        " raises MalformedPuzzleError. A Schrödinger-widened cell has no"
+        " defined single-window fold and raises loud rather than guess one.",
+    ),
 }
 
 # One representative "found" corpus link per setter-facing constraint, keyed by
@@ -435,6 +453,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "positive-diagonal": "found-x-sudoku-4x4",
     "disjoint-groups": "found-disjoint-groups-4x4",
     "nonconsecutive": "found-nonconsecutive-6x6",
+    "window-groups": "found-window-groups-mod-9x9",
 }
 
 # One canonical display label per cage-name role, paired with `MARKER_LABELS`'s

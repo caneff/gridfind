@@ -366,6 +366,12 @@ _GOLDEN_REPORTS = {
     "broke-whisper-4x4": (
         "4x4 · 16 cells · 14 givens · types {0,1,401} · active: 401 · verdict: broke"
     ),
+    "broke-window-groups-4x4": (
+        "4x4 · 16 cells · 12 givens · types {0,1,16} · active: 16 · verdict: broke"
+    ),
+    "broke-window-groups-mod-9x9": (
+        "9x9 · 81 cells · 77 givens · types {0,1,16} · active: 16 · verdict: broke"
+    ),
     "broke-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"
         " active: 10, 11 · verdict: broke"
@@ -555,6 +561,12 @@ _GOLDEN_REPORTS = {
     ),
     "found-whisper-4x4": (
         "4x4 · 16 cells · 14 givens · types {0,1,401} · active: 401 · verdict: found"
+    ),
+    "found-window-groups-4x4": (
+        "4x4 · 16 cells · 12 givens · types {0,1,16} · active: 16 · verdict: found"
+    ),
+    "found-window-groups-mod-9x9": (
+        "9x9 · 81 cells · 77 givens · types {0,1,16} · active: 16 · verdict: found"
     ),
     "found-x-sudoku-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10,11} ·"
