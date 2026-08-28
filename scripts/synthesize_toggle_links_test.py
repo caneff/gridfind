@@ -26,6 +26,8 @@ _EXPECTED_CONSTRAINT: dict[str, str] = {
     "broke-negative-diagonal-only-4x4": "negative-diagonal",
     "found-positive-diagonal-only-4x4": "positive-diagonal",
     "broke-positive-diagonal-only-4x4": "positive-diagonal",
+    "found-disjoint-groups-4x4": "disjoint-groups",
+    "broke-disjoint-groups-4x4": "disjoint-groups",
 }
 
 # The isolation fixtures each set exactly one diagonal toggle; this maps each

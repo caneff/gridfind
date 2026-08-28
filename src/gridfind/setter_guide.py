@@ -26,6 +26,7 @@ from gridfind.sudokumaker.wire_types import (
     CAGE_TYPE,
     CLONE_TYPE,
     COSMETIC_CAGE_TYPE,
+    DISJOINT_GROUPS_TYPE,
     DOUBLE_ARROW_TYPE,
     EVEN_TYPE,
     EXTRA_REGION_TYPE,
@@ -376,6 +377,17 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         " hop apart share a digit.",
         verdict="Accept an enabled block. A disabled block is skipped.",
     ),
+    DISJOINT_GROUPS_TYPE: SetterDoc(
+        display_name="Disjoint Groups",
+        wire_block="type 14 — a bare toggle, no payload.",
+        decode_result="One disjoint-groups Constraint: cells at the same"
+        " position within their region (box-relative position, transposed"
+        " off the puzzle's own region map) hold all-different digits.",
+        verdict="Accept an enabled block when the link also carries"
+        " regions-distinct with equal-size regions. A disabled block is"
+        " skipped; no regions-distinct, or regions of unequal size, is"
+        " rejected as malformed.",
+    ),
 }
 
 # One representative "found" corpus link per setter-facing constraint, keyed by
@@ -411,6 +423,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "anti-king": "found-anti-king-6x6",
     "negative-diagonal": "found-x-sudoku-4x4",
     "positive-diagonal": "found-x-sudoku-4x4",
+    "disjoint-groups": "found-disjoint-groups-4x4",
 }
 
 # One canonical display label per cage-name role, paired with `MARKER_LABELS`'s

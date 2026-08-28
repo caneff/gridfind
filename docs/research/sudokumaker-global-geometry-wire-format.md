@@ -140,8 +140,53 @@ Source: `https://sudokumaker.app/assets/main-D44ZZMA9.js` (fetched
   §3.9 — disjoint groups (14) and nonconsecutive (15) belong in that same
   family, just not yet in `wire_types.py`.
 
+**Jigsaw position order (#750/#756 follow-up, verified 2026-08-28).** #750
+resolved the rule's home as a second `DistinctOverGroups` whose partition
+transposes `region_map_for_constraints`'s `RegionMap` — group *k* is the
+*k*-th cell of every region, row-major-within-region — but flagged that
+order as an assumption to verify against SudokuMaker for a jigsaw. No real
+jigsaw-plus-disjoint-groups link was available to capture, so this was
+verified straight off the same production bundle instead, which is stronger
+evidence than one example link: SudokuMaker's own SudokuPad-export
+translator re-derives the rule from the `regions` label array and is quoted
+here verbatim.
+
+- The translator (`ut(T.DisjointGroups, {sudokuPad: n => {...}})`):
+  `const e=n.projectData.constraints.find(i=>i.config.type===T.Regions);
+  if(!e)return;const t=J6(e.config.regions);const s=t[0].length;
+  if(t.every(i=>i.length===s))for(let i=0;i<s;i++)
+  n.addGlobalUniqueDigitsGroup(t.map(r=>r[i]))` — no `Regions` block, no
+  group is added at all (a bare `disjoint-groups` toggle with no regions is
+  a silent no-op on SudokuMaker's own side); `s = t[0].length` then
+  `t.every(...)` gates on every region being the same size before adding
+  any group, else nothing is added — SudokuMaker itself treats both "no
+  regions" and "unequal regions" as silent no-ops for this export path.
+  gridfind's `MalformedPuzzleError` on both (#750's resolution) is
+  deliberately stricter than this, matching the fail-loud coding invariant
+  rather than mirroring SudokuMaker's silent skip.
+  `n.addGlobalUniqueDigitsGroup(t.map(r=>r[i]))` for `i` in
+  `0..s-1` is exactly "group *k* = the *k*-th cell of every region."
+- `J6`, the region-label-to-cell-list splitter the translator calls:
+  `function J6(n){const e=[];for(let t=0;t<n.length;t++)n[t]!==-1&&
+  (e[n[t]]||(e[n[t]]=[]),e[n[t]].push(t));for(let t=0;t<e.length;t++)
+  e[t]||(e[t]=[]);return e}` — walks the flat, row-major `regions` label
+  array by increasing flat index `t` and appends `t` to `e[label]` in that
+  same encounter order. That is byte-for-byte the same walk
+  `RegionMap.from_labels` already does (`for index, label in
+  enumerate(labels): ... groups.setdefault(label, []).append(...)`), so
+  each region's internal cell order — including for an irregular jigsaw
+  region — is confirmed to be row-major board-scan order, exactly what
+  gridfind's transpose already assumes. No code change needed.
+- One documented divergence, out of this ticket's scope: `J6` treats a `-1`
+  label as "no region" and skips it entirely, so a cell SudokuMaker leaves
+  unassigned never joins any region's list; `RegionMap.from_labels` has no
+  such sentinel and would fold a `-1` label into an ordinary region keyed
+  `-1`. Not exercised by any real link captured so far — worth a note for
+  whoever next touches `RegionMap.from_labels`, not a fix owed by #756.
+
 Source: `https://sudokumaker.app/assets/main-D44ZZMA9.js` (fetched
-2026-08-27).
+2026-08-27, re-read 2026-08-28 for the DisjointGroups/`J6` translator
+functions).
 
 ## 4. Global entropy
 

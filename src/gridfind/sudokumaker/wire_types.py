@@ -98,6 +98,13 @@ POSITIVE_DIAGONAL_TYPE = 11
 ANTI_KING_TYPE = 12
 ANTI_KNIGHT_TYPE = 13
 
+# type 14 is disjoint groups: a bare `{type: 14}` toggle, same shape family as
+# the four toggles above, but its rule is a distinct-over-groups partition
+# (cells at the same position within their region), not a geometric offset —
+# `layers.door` builds its own partition from the puzzle's own regions rather
+# than dispatching to a fixed one the way `anti-king`/`anti-knight` do.
+DISJOINT_GROUPS_TYPE = 14
+
 # type 1000 is a custom constraint: `{definition: {name, ...}, input: {...}}`,
 # SudokuMaker's programmable-logic block. gridfind never interprets the
 # programmed logic itself — it recognizes a `type 1000` block only by its

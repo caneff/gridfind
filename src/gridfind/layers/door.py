@@ -25,6 +25,7 @@ from gridfind.layers.constant_modifier import ConstantModifier
 from gridfind.layers.distinct import (
     DistinctOverGroups,
     cols,
+    disjoint_groups_from,
     extra_regions_from,
     negative_diagonal,
     positive_diagonal,
@@ -193,6 +194,29 @@ def _extra_region_layer(constraints: list[Constraint]) -> DistinctOverGroups | N
     return DistinctOverGroups("extra-region", extra_regions_from(blocks))
 
 
+def _disjoint_groups_layer(
+    constraints: list[Constraint], size: int
+) -> DistinctOverGroups | None:
+    """`disjoint-groups`'s partition needs the puzzle's own region map, not
+    just its own bare presence, so — like `extra-region` — it is aggregated
+    here rather than routed through the per-constraint `_type_directed_layer`.
+    `None` when the puzzle draws no `disjoint-groups` constraint at all.
+
+    A `disjoint-groups` constraint with no sibling `regions-distinct` would
+    otherwise fall through `region_map_for_constraints`'s own whole-board
+    fallback — one region covering everything, which transposes into
+    `size*size` groups of one cell each, a silent no-op — so that absence is
+    refused here instead of quietly accepted.
+    """
+    if not any(constraint.type == "disjoint-groups" for constraint in constraints):
+        return None
+    if not any(constraint.type == "regions-distinct" for constraint in constraints):
+        msg = "disjoint-groups needs a regions-distinct constraint; none is present"
+        raise MalformedPuzzleError(msg)
+    region_map = region_map_for_constraints(constraints, size)
+    return DistinctOverGroups("disjoint-groups", disjoint_groups_from(region_map))
+
+
 def build_stack(
     constraints: tuple[Constraint, ...],
     *,
@@ -225,7 +249,10 @@ def build_stack(
     helper: it must keep returning the registry's one shared instance (tests
     key off that identity for `regions-distinct`; `constant`'s shared
     instance is already the `k = 0` default the helper would otherwise
-    rebuild).
+    rebuild). `extra-region` and `disjoint-groups` are directed too but each
+    aggregate across the whole constraint list rather than dispatching per
+    constraint, so they carry their own builders
+    (`_extra_region_layer`/`_disjoint_groups_layer`) seeded before the loop.
     """
     canonical = expand_constraints(constraints)
     layers: dict[str, Layer] = {
@@ -235,9 +262,12 @@ def build_stack(
     extra_region = _extra_region_layer(canonical)
     if extra_region is not None:
         layers["extra-region"] = extra_region
+    disjoint_groups = _disjoint_groups_layer(canonical, size)
+    if disjoint_groups is not None:
+        layers["disjoint-groups"] = disjoint_groups
     for constraint in canonical:
-        if constraint.type == "extra-region":
-            continue  # already folded into one layer by `_extra_region_layer`
+        if constraint.type in ("extra-region", "disjoint-groups"):
+            continue  # already folded into one layer by their own builder above
         if constraint.type not in LAYER_REGISTRY:
             msg = f"unknown constraint type {constraint.type!r}"
             raise UnknownLayerError(msg)
