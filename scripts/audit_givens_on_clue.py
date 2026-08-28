@@ -6,10 +6,11 @@ synthesized found/broke link exists to test — a line's path, a cage's cells
 (and its equality-/rellik-cage and group-sum siblings, the same cells under a
 second constraint type), a quad's four cells, a clone group, a pair's two
 cells (`pair-difference`/`pair-ratio`, including their kropki-dot decodes),
-an indexer cell. Row/column/box uniqueness and the region map are not the
-constraint under test, so a given anywhere relative to those is never a hit —
-nor is a kropki/XV negative-space pair (`params["negate"]`), the implicit
-default rule over every *other* adjacent pair rather than a drawn clue.
+an indexer cell, an arrow's bulb and every shaft cell. Row/column/box
+uniqueness and the region map are not the constraint under test, so a given
+anywhere relative to those is never a hit — nor is a kropki/XV negative-space
+pair (`params["negate"]`), the implicit default rule over every *other*
+adjacent pair rather than a drawn clue.
 
     uv run python scripts/audit_givens_on_clue.py
 
@@ -33,7 +34,11 @@ from gridfind.sudokumaker import link_to_puzzle
 # under. Every other type (rows-distinct, cols-distinct, regions-distinct,
 # the diagonals, line-count-distinct, doubler/constant, schrodinger,
 # offset-adjacency, outside-cells, …) carries no clue cells of its own and is
-# never "the constraint under test" (spec #723).
+# never "the constraint under test" (spec #723). `arrow` is the one type
+# whose cells don't fit this single-flat-key shape (a `bulb` list plus an
+# `arrows` list of shaft lists) — `constraint_cells` special-cases it below
+# rather than stretching this table to a per-type extractor no other type
+# yet needs.
 _TESTED_TYPES: dict[str, str] = {
     "line": "path",
     "cage": "cells",
@@ -85,9 +90,17 @@ EXEMPTIONS: dict[str, str] = {
 def constraint_cells(constraint: Constraint) -> list[str] | None:
     """The cells `constraint` names as its own clue, or `None` when its type
     carries no clue cells (outside `_TESTED_TYPES`) or its cells come from a
-    negative-space default rather than a drawn clue (`params["negate"]`)."""
+    negative-space default rather than a drawn clue (`params["negate"]`).
+
+    `arrow` names its clue cells under two params keys, one of them a list of
+    shaft lists rather than a flat address list — its bulb and every shaft
+    cell together, not just `_TESTED_TYPES`' single flat key."""
     if constraint.params.get("negate"):
         return None
+    if constraint.type == "arrow":
+        bulb = cast("list[str]", constraint.params["bulb"])
+        shafts = cast("list[list[str]]", constraint.params["arrows"])
+        return [*bulb, *(cell for shaft in shafts for cell in shaft)]
     key = _TESTED_TYPES.get(constraint.type)
     if key is None:
         return None

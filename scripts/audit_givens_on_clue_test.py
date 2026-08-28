@@ -27,6 +27,16 @@ def test_constraint_cells_reads_the_tested_types_own_key() -> None:
     ]
 
 
+def test_constraint_cells_flattens_an_arrows_bulb_and_every_shaft_cell() -> None:
+    # arrow's cells don't fit `_TESTED_TYPES`' single-flat-key shape: bulb
+    # and every shaft cell across every shaft together name its clue.
+    arrow = Constraint(
+        "arrow",
+        {"bulb": ["R1C1"], "arrows": [["R1C2", "R1C3"], ["R2C1"]]},
+    )
+    assert constraint_cells(arrow) == ["R1C1", "R1C2", "R1C3", "R2C1"]
+
+
 def test_constraint_cells_ignores_types_outside_the_rule() -> None:
     # Row/column/box/region uniqueness is explicitly not "the constraint
     # under test" (spec #723) and carries no cells param anyway.

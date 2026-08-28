@@ -206,6 +206,9 @@ _GOLDEN_REPORTS = {
         "4x4 · 16 cells · 1 given · types {0,1,13,2001} ·"
         " active: 2001, 13 · verdict: broke"
     ),
+    "broke-arrow-4x4": (
+        "4x4 · 16 cells · 13 givens · types {0,1,408} · active: 408 · verdict: broke"
+    ),
     "broke-black-kropki-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,201} · active: 201 · verdict: broke"
     ),
@@ -373,6 +376,12 @@ _GOLDEN_REPORTS = {
     "found-anti-knight-scell-4x4": (
         "4x4 · 16 cells · 1 given · types {0,1,13,2001} ·"
         " active: 2001, 13 · verdict: found"
+    ),
+    "found-arrow-4x4": (
+        "4x4 · 16 cells · 13 givens · types {0,1,408} · active: 408 · verdict: found"
+    ),
+    "found-arrow-two-shafts-4x4": (
+        "4x4 · 16 cells · 12 givens · types {0,1,408} · active: 408 · verdict: found"
     ),
     "found-black-kropki-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,201} · active: 201 · verdict: found"

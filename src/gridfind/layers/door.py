@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import cast
 
 from gridfind.engine import GridfindError, Layer, MalformedPuzzleError
+from gridfind.layers.arrow import Arrow
 from gridfind.layers.board import GridCells
 from gridfind.layers.cage import Cage
 from gridfind.layers.clone import Clone
@@ -88,6 +89,7 @@ LAYER_REGISTRY = {
     "numbered-rooms": NumberedRooms(),
     "quadruple": Quadruple(),
     "clone": Clone(),
+    "arrow": Arrow(),
 }
 
 # Two mechanisms expand a constraint at load, and they
