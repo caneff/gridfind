@@ -12,13 +12,15 @@ a vendor (CONTEXT.md, map #1 decision 13).
 `grid_content` and `emit_distinct_count` are package-internal APIs imported by
 `rows`, `cols`, `regions`, and `line_count`. `emit_distinct_group` is imported
 by `distinct.DistinctOverGroups` (which every distinct rule — rows, cols,
-regions, the diagonals, and windoku's extra regions — rides). They live
-here, not in any one layer file, because more than one layer needs them.
+regions, the diagonals, and windoku's extra regions — rides).
+`emit_indexed_position_match` is imported by `indexing` and `numbered_rooms`,
+the two clues whose control cell's own digit names a position on a line. They
+live here, not in any one layer file, because more than one layer needs them.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 
 from ortools.sat.python import cp_model
 
@@ -168,3 +170,45 @@ def emit_over_pairs(
     """
     for a, b in pairs:
         rel(engine, a, b)
+
+
+def emit_indexed_position_match(
+    engine: Engine,
+    control: str,
+    line: Sequence[str],
+    match_terms: Callable[[str], list[cp_model.IntVar]],
+) -> None:
+    """Rule: for every position `p` on `line`, if `control` holds the digit
+    `p` then `match_terms(line[p - 1])` holds — at least one of the bools that
+    callback mints is true.
+
+    The widening-aware shape of "a control cell's own digit names a position
+    on a line, and that line's cell at the position must match something"
+    (ADR-0019 decision 4): the control **indexes from every real digit it
+    holds**, so a widened control holding `{a, b}` makes its demand at
+    position `a` and at position `b` alike. Realized as one implication per
+    position per control slot — `reify_holds` plus
+    `add_bool_or(...).only_enforce_if(...)`, the house-rule idiom.
+
+    The control's slots come through `engine.real_digit_values`, whose
+    `real_digit_slots` base explains why a non-S-cell's sentinel second slot
+    drops out of every term on its own, with no `is_s` gate here.
+
+    What "match" means is the clue's, not this walk's, so it arrives as
+    `match_terms` — `indexing` asks the line cell to hold the control's own
+    coordinate, `numbered_rooms` asks it to share a digit with an outside
+    cell. The two clues share the walk and nothing else; the callback is the
+    seam between them, as `rel` is for `emit_over_pairs`.
+
+    A control digit that names no position on `line` is the caller's to
+    refuse: this walk fires no implication for it, so a clue that wants such
+    a digit rejected states that bound itself.
+    """
+    control_slots = engine.real_digit_values(control)
+    for position, address in enumerate(line, start=1):
+        control_holds = engine.reify_holds(
+            control_slots, position, f"{control}.holds{position}"
+        )
+        terms = match_terms(address)
+        for indicator in control_holds:
+            engine.model.add_bool_or(terms).only_enforce_if(indicator)

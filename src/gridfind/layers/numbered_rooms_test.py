@@ -16,6 +16,17 @@ defined meaning once a widening layer is in the stack. Each broke fixture
 is paired with a strip-and-recheck twin that flips it to found once the
 `numbered-rooms` constraint is removed, so the clue is the sole cause of
 the break.
+
+These fixtures stand in for the `links/` corpus pair every other clue's
+S-cell coverage rides, because no SudokuMaker link can express the
+combination today. `numbered-rooms` reaches gridfind only through the
+escape-the-grid frame (`sudokumaker.frame`), and the frame peel forbids a
+widened board twice over: it recognises a frame only when the digit domain
+is exactly two short of the width, which pins the domain to the inner
+board's own size — while `schrodinger` needs more digits than the board is
+wide — and the inner document it hands back carries only givens and
+regions, dropping the `type 2001` S-cell marker cage that is the sole
+decode-time S-cell channel.
 """
 
 from __future__ import annotations
@@ -153,16 +164,6 @@ def test_numbered_rooms_reads_the_raw_digit_under_a_discovered_doubler() -> None
     assert solver.value(engine.d0("R0C2")) == 4
 
 
-def test_numbered_rooms_stacks_over_schrodinger_without_s_blind_refusal() -> None:
-    # numbered-rooms declares digit mode, so the compose-time refusal
-    # `build_stack` runs must leave numbered-rooms + schrodinger standing,
-    # all the way through a built engine.
-    constraints = (_numbered_rooms(), Constraint(type="schrodinger"))
-
-    canonical, layers = build_stack(constraints, size=S_BOARD.size)
-    build_engine(layers, tuple(canonical), board=S_BOARD)
-
-
 def _s_verdict(
     constraints: tuple[Constraint, ...],
     s_directives: tuple[SDirective, ...],
@@ -293,3 +294,30 @@ def test_s_cell_near_cell_holding_no_position_flips_found_when_stripped() -> Non
     kind = _s_verdict((_SCHRODINGER,), _NEAR_HOLDS_0)
 
     assert kind == "found"
+
+
+# A widening layer needs more digits than the board is wide, and nothing
+# fixes where the extra digit sits. This board puts it above the line rather
+# than below: 5 digits (1-5) over a 4-cell line, so 5 names no position.
+_HIGH_DIGIT_BOARD = Board(size=4, values=range(1, 6))
+_NEAR_HOLDS_5 = (SingletonPin(address="R1C2", digit=5),)
+
+
+def test_s_cell_near_cell_holding_a_digit_past_the_line_resolves_broke() -> None:
+    puzzle = Puzzle(
+        board=_HIGH_DIGIT_BOARD, constraints=(_SCHRODINGER, _numbered_rooms())
+    )
+
+    result = verdict(puzzle, WorkingState(s_directives=_NEAR_HOLDS_5))
+
+    assert result.kind == "broke"
+
+
+def test_s_cell_near_cell_holding_a_digit_past_the_line_flips_found_when_stripped() -> (
+    None
+):
+    puzzle = Puzzle(board=_HIGH_DIGIT_BOARD, constraints=(_SCHRODINGER,))
+
+    result = verdict(puzzle, WorkingState(s_directives=_NEAR_HOLDS_5))
+
+    assert result.kind == "found"
