@@ -105,6 +105,13 @@ ANTI_KNIGHT_TYPE = 13
 # than dispatching to a fixed one the way `anti-king`/`anti-knight` do.
 DISJOINT_GROUPS_TYPE = 14
 
+# type 15 is nonconsecutive: a bare `{type: 15}` toggle, same shape family as
+# anti-king/anti-knight — a geometric offset rule, not a partition — so it
+# joins them through the same `_global_toggle_handler`. No `difference`
+# param on the wire: SudokuMaker fixes the forbidden gap at 1 and does not
+# expose it as a setter-configurable value.
+NONCONSECUTIVE_TYPE = 15
+
 # type 1000 is a custom constraint: `{definition: {name, ...}, input: {...}}`,
 # SudokuMaker's programmable-logic block. gridfind never interprets the
 # programmed logic itself — it recognizes a `type 1000` block only by its

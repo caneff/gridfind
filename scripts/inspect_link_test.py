@@ -297,6 +297,9 @@ _GOLDEN_REPORTS = {
     "broke-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: broke"
     ),
+    "broke-nonconsecutive-6x6": (
+        "6x6 · 36 cells · 34 givens · types {0,1,15} · active: 15 · verdict: broke"
+    ),
     "broke-numbered-rooms-6x6": (
         "8x8 · 64 cells · 9 givens · types {0,1,201,301,1000,2000} · active: "
         "301x2, 1000(Numbered Rooms), 201 · inert: 1000(JSON Postproc), 2000x3 "
@@ -473,6 +476,9 @@ _GOLDEN_REPORTS = {
     ),
     "found-negative-diagonal-only-4x4": (
         "4x4 · 16 cells · 2 givens · types {0,1,10} · active: 10 · verdict: found"
+    ),
+    "found-nonconsecutive-6x6": (
+        "6x6 · 36 cells · 34 givens · types {0,1,15} · active: 15 · verdict: found"
     ),
     "found-numbered-rooms-6x6": (
         "8x8 · 64 cells · 9 givens · types {0,1,201,301,1000,2000} · active: "

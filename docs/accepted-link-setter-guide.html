@@ -294,6 +294,7 @@ link (see <a href="#troubleshooting">Troubleshooting</a>).</p>
 <tr><td>Anti-King</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDaoAOaYAbijxEEUZigYhpcDsp4kAvg2B7ehg-uNnTFo5ZNXbN++buOH1529cenpgLqqsrbiIANlU+XHRFOEwcBBEicRAEAE9GQMJqY0SUtJJVKBQpcLFqBhL0hlzCSsqy2or6qoYAJmbWwgBmBk6OtpbCPu7BhgAWEbHCCgZJifHRwjnpxe9M5NTtJp1lnSA">found-anti-king-6x6</a></td></tr>
 <tr><td>Anti-Knight</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDaoAOaYAbijxEEUZigYhpcDsp4kAvg0ky5PRctXrN3IgCY9vW8HuP9Tu87euPD9w4C6qrKyWhAAsqny46IpwmDgIIkTiIAgAnoxB1PZJqUEkqlAoUhFi1AwlhLnlpVWVNVYMdYQAzAzNhA0NrY0+mSlp2o063TpAA">found-anti-knight-4x4</a></td></tr>
 <tr><td>Disjoint Groups</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDaoAOaYAbijxEEUZigYhpcDsp4kAvg0ky5PRctXrN3IgCY9vW8HuP9Tu87euPD9w4C6qrKyWhAAsqny46IpwmDgIIkTiIAgAnoxB1PZJqUEkqlAoUhFi1AwlhLnlpVWVNVYMdYQAzAzNhA0NrY0+mSlp2sE63TpAA">found-disjoint-groups-4x4</a></td></tr>
+<tr><td>Nonconsecutive</td><td><a href="https://sudokumaker.app/?puzzle=N4IgZg9gTgtghgFwGoFMoGcCWEB2IBcABCAIwB0ArGQAwgA0xADgK4BerANigYaAMYoOHdDwDawAL4NJ0kAHNMANxR4iCKMxQMQiuB008AzFN7ylKnus3bd+7kQBsJ0AuWrCVrcVsGiAFmczN0sNLx09X0IAJkDXCzVQmwj7QgDZOPdPJLseGPTzTMTvZJ4nfOCE62KcomNy+I8i8JrCEliCkKrmyIp2isaunxS80wzOsKHSvoas6si00Y7KiZKiNvrCwdXCXo3x7Mi6xf7Z7pTd45mmydrpzZWW9cv7g5SFlyWBh8iRj5Pr7ZlZ77OYpI5-K5bR53EFnHgXCEvUG5GHLV5TPZo5H+VFfdGOXGnG6pQkAlq-IKQ77nUlQw606k8NoAXW0WFYKQc2j4uHQ6jgmBwCBERHEIAQAE9GClqIFJdKmdooCgFLyxNQGBrCFqSAxda1NYbtXqTQbogwohaGIZrbbzfbLYQbU67X4GG7UgwKF6fZ6-R7vTsvcy5VKUiReiGJEA">found-nonconsecutive-6x6</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -357,6 +358,7 @@ wire block, decode result, and accept/ignore/reject verdict for each are in the
 <p class="draw-action" data-constraint="negative-diagonal"><strong>Negative Diagonal (\)</strong> — Enable the negative-diagonal (<code>\</code>) global constraint. Enable it together with the positive diagonal for X-sudoku. <span class="provisional" data-provisional="negative-diagonal-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
 <p class="draw-action" data-constraint="positive-diagonal"><strong>Positive Diagonal (/)</strong> — Enable the positive-diagonal (<code>/</code>) global constraint. Enable it together with the negative diagonal for X-sudoku. <span class="provisional" data-provisional="positive-diagonal-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
 <p class="draw-action" data-constraint="disjoint-groups"><strong>Disjoint Groups</strong> — Enable the disjoint-groups global constraint, so cells at the same position within their region hold all-different digits; the link must also carry regions-distinct with equal-size regions. <span class="provisional" data-provisional="disjoint-groups-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
+<p class="draw-action" data-constraint="nonconsecutive"><strong>Nonconsecutive</strong> — Enable the nonconsecutive global constraint, so no two orthogonally adjacent cells hold values exactly 1 apart. <span class="provisional" data-provisional="nonconsecutive-toggle">Toggle location needs confirmation against live SudokuMaker</span></p>
 </section>
 
 <section id="per-constraint">
@@ -583,6 +585,14 @@ wire block, decode result, and accept/ignore/reject verdict for each are in the
 <dt>Wire block</dt><dd>type 14 — a bare toggle, no payload.</dd>
 <dt>Decodes to</dt><dd>One disjoint-groups Constraint: cells at the same position within their region (box-relative position, transposed off the puzzle&#x27;s own region map) hold all-different digits.</dd>
 <dt>Verdict</dt><dd>Accept an enabled block when the link also carries regions-distinct with equal-size regions. A disabled block is skipped; no regions-distinct, or regions of unequal size, is rejected as malformed.</dd>
+</dl>
+</section>
+<section class="constraint">
+<h3>Nonconsecutive</h3>
+<dl>
+<dt>Wire block</dt><dd>type 15 — a bare toggle, no payload.</dd>
+<dt>Decodes to</dt><dd>One nonconsecutive Constraint: no two orthogonally adjacent cells hold values exactly 1 apart. Read in value mode — a doubler&#x27;s folded value or an S-cell&#x27;s combined s_value, not the raw digit.</dd>
+<dt>Verdict</dt><dd>Accept an enabled block. A disabled block is skipped.</dd>
 </dl>
 </section>
 </section>
