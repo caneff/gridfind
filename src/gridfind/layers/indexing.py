@@ -31,8 +31,10 @@ slots (`C == d0` or, for an S-cell, `C == d1`) and a control **indexes from
 every digit it holds** — an S-cell control holding `{a, b}` sends its
 coordinate to both position `a` and position `b`. Realized per marked cell
 as one implication per line position `p` and per control slot: "control
-holds `p`" ⟹ "line cell at `p` holds the coordinate" (`engine.reify_holds`
-+ `add_bool_or(...).only_enforce_if(...)`, the house-rule idiom). Both sides
+holds `p`" ⟹ "line cell at `p` holds the coordinate". That walk is
+`_base.emit_indexed_position_match`, shared with `numbered_rooms`, whose
+control cell's digit names a position the same way; this layer supplies only
+the match — "the line cell holds the coordinate". Both sides
 read their slots through `engine.real_digit_values`, whose `real_digit_slots`
 base is the one place a non-S-cell's second slot is explained as a sentinel
 above every real digit — it never
@@ -52,8 +54,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
+from ortools.sat.python import cp_model
+
 from gridfind.cell_geometry import format_address, parse_address
 from gridfind.engine import Engine
+from gridfind.layers._base import emit_indexed_position_match
 
 
 def _line_addresses(engine: Engine, row: int, col: int, axis: str) -> list[str]:
@@ -79,20 +84,21 @@ def _emit_s_aware_indexing_cell(
     engine: Engine, address: str, row: int, col: int, axis: str
 ) -> None:
     coordinate = col if axis == "col" else row
-    control_slots = engine.real_digit_values(address)
-    engine.model.add(control_slots[0] != 0)
-    for position, target in enumerate(_line_addresses(engine, row, col, axis), start=1):
-        control_holds = engine.reify_holds(
-            control_slots, position, f"{address}.holds{position}"
-        )
-        target_slots = engine.real_digit_values(target)
-        target_holds = engine.reify_holds(
-            target_slots,
+    engine.model.add(engine.d0(address) != 0)
+
+    def holds_the_coordinate(target: str) -> list[cp_model.IntVar]:
+        return engine.reify_holds(
+            engine.real_digit_values(target),
             coordinate,
             f"{target}.holds{coordinate}.from.{address}",
         )
-        for indicator in control_holds:
-            engine.model.add_bool_or(target_holds).only_enforce_if(indicator)
+
+    emit_indexed_position_match(
+        engine,
+        address,
+        _line_addresses(engine, row, col, axis),
+        holds_the_coordinate,
+    )
 
 
 def _emit_indexing_cell(engine: Engine, address: str, axis: str) -> None:

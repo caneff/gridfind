@@ -6,10 +6,10 @@ calls `refuse_s_blind_over_widening` to reject the pair up front and name the
 offending layer, rather than let the s-blind layer read past a widened cell's
 first slot alone deep in the solve.
 
-`_S_BLIND_LAYER_TYPES` is empty: every layer now declares a reading mode —
-value or digit — and so composes with a widening layer on its own terms
-(ADR-0019 decision 5). The refusal therefore never fires, and the whole
-mechanism is dead code awaiting its deletion on issue #523.
+`_S_BLIND_LAYER_TYPES` is empty: every layer declares a reading mode — value
+or digit — and so composes with a widening layer on its own terms (ADR-0019
+decision 5). The refusal therefore never fires, and the whole mechanism is
+dead code; issue #523 tracks deleting it.
 """
 
 from __future__ import annotations
