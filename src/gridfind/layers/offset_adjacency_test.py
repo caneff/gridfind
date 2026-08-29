@@ -49,8 +49,8 @@ def test_a_nonconsecutive_pair_forced_consecutive_resolves_broke() -> None:
 def test_nonconsecutive_reads_the_doubled_value_not_the_raw_digit() -> None:
     # A doubler cell showing digit 2 folds to value 4 (ADR-0009). Read as its
     # raw digit, 2 sits one apart from a neighbour's 1 -- a naive digit-mode
-    # reading would break here. Read as its folded value (ADR-0019 dec 2,
-    # #749's decision), 4 is three apart from 1, so the pair is `found`.
+    # reading would break here. Read as its folded value (ADR-0019 dec 2),
+    # 4 is three apart from 1, so the pair is `found`.
     puzzle = Puzzle(
         board=BOARD,
         constraints=(Constraint(type="doubler"), Constraint(type="nonconsecutive")),

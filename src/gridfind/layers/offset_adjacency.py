@@ -4,7 +4,7 @@ apart hold, respectively, different digits or values more than one apart.
 Anti-knight ("no two cells a chess-knight's hop apart share a digit") and
 anti-king (the same for a king's step) are one rule over two offset lists.
 Each is an `OffsetAdjacency` instance built with its own offsets. Nonconsecutive
-("no two orthogonal neighbours differ by exactly 1", ADR-0019/#749) is the
+("no two orthogonal neighbours differ by exactly 1", ADR-0019) is the
 same offset-walk shape over a different rule, so it is `OffsetValueGap`, a
 sibling built with `ORTHOGONAL_OFFSETS`, rather than a mode flag bolted onto
 `OffsetAdjacency`. Both layers read the directional stepper off
@@ -69,7 +69,7 @@ def offset_pairs(
     `engine.cell_geometry`'s grid against each of its offsets, skipping an
     offset that steps off the declared cell-address set. The one walk
     `OffsetAdjacency` and `OffsetValueGap` both drive, so a stepper change
-    lands once (#749)."""
+    lands once."""
     geometry = engine.cell_geometry
     for row in geometry.grid:
         for cell in row:
@@ -111,7 +111,7 @@ class OffsetAdjacency:
 @dataclass
 class OffsetValueGap:
     """Every pair of cells one of `offsets` apart holds values that differ by
-    more than 1 — nonconsecutive's rule (#749). Reads the grid and stepper off
+    more than 1 — nonconsecutive's rule. Reads the grid and stepper off
     `board`'s geometry via the shared `offset_pairs` walk; registers nothing,
     emits in phase 2.
 
