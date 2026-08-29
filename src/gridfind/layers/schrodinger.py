@@ -32,10 +32,10 @@ from gridfind.engine import Engine, MalformedPuzzleError
 
 @dataclass
 class Schrodinger:
-    """Gives every cell a second content slot (`d1`) — a layer that reads
-    only a cell's single slot has no defined meaning once this is in the
-    stack, so `layers.s_blind` names `NumberedRooms` directly and
-    `build_stack` refuses the combination up front."""
+    """Gives every cell a second content slot (`d1`), so a reader of a cell
+    faces a digit set rather than one digit. Every layer declares how it
+    reads that pair — value or digit (ADR-0019) — so any layer composes with
+    this one."""
 
     name: str = "schrodinger"
     depends_on: tuple[str, ...] = ("board",)
