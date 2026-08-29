@@ -5,7 +5,7 @@ committed public surface is exactly `__all__` below: `build_stack`, the
 constraint dispatch API `verdict.py` consumes. The door itself —
 `build_stack`, `expand_constraints`, `UnknownLayerError`, and the
 layer/preset/alias registries — lives in `layers/door.py`; the
-compose-time refusal of `NumberedRooms` over `schrodinger` and its
+compose-time refusal of an `s_blind` layer over `schrodinger` and its
 `SBlindLayerError` live in `layers/s_blind.py`. Everything beyond
 `__all__` is implementation detail:
 used in-tree, not part of the committed surface, and free to change. Tests

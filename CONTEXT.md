@@ -543,9 +543,10 @@ on [ADR-0009](docs/adr/0009-cage-distinctness-mode-digit-or-value.md).
 
 - **s_blind** — a transitional flag for a layer that declares **no** reading
   mode and reads a bare single slot. Such a layer cannot compose over a widening
-  (S-cell) or modifier layer, so the stack is refused. It is being retired as
-  each holdout declares a mode; the flag and its refusal become dead once none
-  remain (#523). _Avoid_ treating it as a permanent capability — it is not one.
+  (S-cell) or modifier layer, so the stack is refused. No layer carries it any
+  more: every one declares a mode, so the flag and its refusal are dead code
+  awaiting deletion (#523). _Avoid_ treating it as a permanent capability — it
+  is not one.
 
 ---
 
