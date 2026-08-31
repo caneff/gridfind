@@ -7,7 +7,12 @@ from gridfind.layers.conftest import all_different_groups
 from gridfind.layers.distinct import DistinctOverGroups, cols, regions, rows
 from gridfind.layers.door import UnknownLayerError
 from gridfind.layers.numbered_rooms import NumberedRooms
-from gridfind.layers.offset_adjacency import KNIGHT_OFFSETS, OffsetAdjacency
+from gridfind.layers.offset_adjacency import (
+    KNIGHT_OFFSETS,
+    ORTHOGONAL_OFFSETS,
+    OffsetAdjacency,
+    OffsetValueGap,
+)
 from gridfind.layers.outside_cells import OutsideCells
 from gridfind.layers.pair_difference import differs_by
 from gridfind.layers.pair_ratio import ratio_of
@@ -215,6 +220,21 @@ def test_offset_adjacency_composes_with_a_widening_layer() -> None:
         BOARD,
         OUTSIDE_CELLS,
         OffsetAdjacency("anti-knight", KNIGHT_OFFSETS),
+        Schrodinger(),
+    ]
+
+
+def test_offset_value_gap_composes_with_a_widening_layer() -> None:
+    # offset_value_gap reads engine.value_expr like the pair-relation family,
+    # so it is not s-blind and stacks freely with schrodinger.
+    constraints = (Constraint(type="nonconsecutive"), Constraint(type="schrodinger"))
+
+    _, layers = build_stack(constraints, size=9)
+
+    assert layers == [
+        BOARD,
+        OUTSIDE_CELLS,
+        OffsetValueGap("nonconsecutive", ORTHOGONAL_OFFSETS),
         Schrodinger(),
     ]
 

@@ -43,7 +43,9 @@ from gridfind.layers.numbered_rooms import NumberedRooms
 from gridfind.layers.offset_adjacency import (
     KING_OFFSETS,
     KNIGHT_OFFSETS,
+    ORTHOGONAL_OFFSETS,
     OffsetAdjacency,
+    OffsetValueGap,
 )
 from gridfind.layers.outside_cells import OutsideCells
 from gridfind.layers.pair_difference import differs_by
@@ -74,6 +76,7 @@ LAYER_REGISTRY = {
     "line-count-distinct": LineCountDistinct(),
     "anti-knight": OffsetAdjacency("anti-knight", KNIGHT_OFFSETS),
     "anti-king": OffsetAdjacency("anti-king", KING_OFFSETS),
+    "nonconsecutive": OffsetValueGap("nonconsecutive", ORTHOGONAL_OFFSETS),
     "pair-difference": PairRelation("pair-difference", relation=differs_by),
     "pair-ratio": PairRelation("pair-ratio", relation=ratio_of),
     "schrodinger": Schrodinger(),

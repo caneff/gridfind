@@ -63,6 +63,7 @@ from gridfind.sudokumaker.wire_types import (
     KROPKI_WHITE_TYPE,
     LOCKOUT_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
+    NONCONSECUTIVE_TYPE,
     ODD_TYPE,
     PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
@@ -266,6 +267,12 @@ DECODER_REGISTRY: dict[int, DecodedType] = {
         handler=_global_toggle_handler(DISJOINT_GROUPS_TYPE, "disjoint-groups"),
         live_keys=(),
         name="disjoint-groups",
+        is_toggle=True,
+    ),
+    NONCONSECUTIVE_TYPE: DecodedType(
+        handler=_global_toggle_handler(NONCONSECUTIVE_TYPE, "nonconsecutive"),
+        live_keys=(),
+        name="nonconsecutive",
         is_toggle=True,
     ),
 }

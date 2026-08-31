@@ -37,6 +37,7 @@ from gridfind.sudokumaker.wire_types import (
     KROPKI_WHITE_TYPE,
     LOCKOUT_TYPE,
     NEGATIVE_DIAGONAL_TYPE,
+    NONCONSECUTIVE_TYPE,
     ODD_TYPE,
     PALINDROME_TYPE,
     POSITIVE_DIAGONAL_TYPE,
@@ -388,6 +389,15 @@ SETTER_DOCS: dict[int, SetterDoc] = {
         " skipped; no regions-distinct, or regions of unequal size, is"
         " rejected as malformed.",
     ),
+    NONCONSECUTIVE_TYPE: SetterDoc(
+        display_name="Nonconsecutive",
+        wire_block="type 15 — a bare toggle, no payload.",
+        decode_result="One nonconsecutive Constraint: no two orthogonally"
+        " adjacent cells hold values exactly 1 apart. Read in value mode — a"
+        " doubler's folded value or an S-cell's combined s_value, not the"
+        " raw digit.",
+        verdict="Accept an enabled block. A disabled block is skipped.",
+    ),
 }
 
 # One representative "found" corpus link per setter-facing constraint, keyed by
@@ -424,6 +434,7 @@ _EXAMPLE_LINK_STEMS: dict[str, str] = {
     "negative-diagonal": "found-x-sudoku-4x4",
     "positive-diagonal": "found-x-sudoku-4x4",
     "disjoint-groups": "found-disjoint-groups-4x4",
+    "nonconsecutive": "found-nonconsecutive-6x6",
 }
 
 # One canonical display label per cage-name role, paired with `MARKER_LABELS`'s

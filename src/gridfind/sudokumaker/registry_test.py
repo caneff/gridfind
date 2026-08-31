@@ -21,6 +21,7 @@ from gridfind.sudokumaker.conftest import EMPTY_CELLS, WIRE_CONSTRAINTS
         pytest.param({"type": 12}, "anti-king", id="anti-king"),
         pytest.param({"type": 13}, "anti-knight", id="anti-knight"),
         pytest.param({"type": 14}, "disjoint-groups", id="disjoint-groups"),
+        pytest.param({"type": 15}, "nonconsecutive", id="nonconsecutive"),
         # The real diagonal blocks carry a cosmetic `style` alongside the type;
         # it is purely visual, so the toggle still decodes to its constraint.
         pytest.param(
