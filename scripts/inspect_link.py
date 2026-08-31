@@ -86,6 +86,43 @@ def _display_size(data: dict[str, object], cell_count: int) -> int:
     return math.isqrt(cell_count)
 
 
+def _ring_state(cells: Sequence[object], size: int) -> tuple[int, int]:
+    """`(filled, total)` for the board's outer ring — row and column `0` and
+    `size - 1`.
+
+    Edge-clue puzzles (Numbered Rooms, Skyscraper) store their outside clues in
+    the ring, so how much of it is filled says how much of the puzzle is spelled
+    out: a full ring means every outside clue is given away. Reported, never
+    judged — a link that wants all of them is legitimate.
+
+    `(0, 0)` when the cells don't fill a square board, since `size` is a display
+    guess there and the ring would be a fiction.
+    """
+    if size <= 0 or len(cells) != size * size:
+        return 0, 0
+    ring = [
+        index
+        for index in range(size * size)
+        for row, col in [divmod(index, size)]
+        if row in (0, size - 1) or col in (0, size - 1)
+    ]
+    return sum(1 for index in ring if cells[index]), len(ring)
+
+
+def _entered(cells: Sequence[object]) -> int:
+    """How many non-given cells hold a value or a pencil mark.
+
+    A shared link is meant to open empty; anything a non-given cell carries is
+    the solver's work already done for them. `probe_link` in
+    sudokumaker-custom-constraints strips exactly these before a timing run,
+    because the app reports a verdict "based on already entered values" instead
+    of searching.
+    """
+    return sum(
+        1 for cell in cells if isinstance(cell, dict) and cell and not cell.get("given")
+    )
+
+
 def _verdict_word(link: str) -> str:
     """The verdict word for a link, or `rejected (<reason>)` when the decoder
     refuses it — so one bad link reports itself instead of killing the batch.
@@ -106,8 +143,9 @@ def _fmt_bucket(tags: list[str]) -> str:
 
 
 def inspect_link(link: str) -> str:
-    """One report line: size, givens, the constraint types present, each
-    classification bucket that isn't empty, and the verdict."""
+    """One report line: size, givens, ring state, entered cells, the constraint
+    types present, each classification bucket that isn't empty, and the
+    verdict."""
     data: Any = decode_payload(link)
     cells = data.get("cells") or []
     constraints = data.get("constraints") or []
@@ -125,10 +163,18 @@ def inspect_link(link: str) -> str:
         name = constraint_name(constraint)
         buckets[label].append(f"{ctype}({name})" if name else f"{ctype}")
 
+    ring_filled, ring_total = _ring_state(cells, size)
+
     segments = [
         f"{size}x{size}",
         f"{len(cells)} cells",
         f"{givens} given{'' if givens == 1 else 's'}",
+    ]
+    # Dropped on a board the cells don't square up to, where the ring is a guess.
+    if ring_total:
+        segments.append(f"ring: {ring_filled}/{ring_total}")
+    segments += [
+        f"entered: {_entered(cells)}",
         "types {" + ",".join(str(t) for t in types) + "}",
     ]
     segments += [
