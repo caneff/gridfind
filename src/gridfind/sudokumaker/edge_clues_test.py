@@ -374,7 +374,7 @@ def test_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
 ) -> None:
     # The negative rule reuses `differs_by`, the same value_expr-reading
     # emitter the positive clue uses, so it composes with a doubler/S-cell
-    # board for free rather than refusing it as `s_blind`.
+    # board for free.
     document: dict[str, object] = {
         "cells": EMPTY_CELLS,
         "constraints": [
@@ -540,7 +540,7 @@ def test_black_kropki_negative_rule_composes_with_a_doubler_or_s_cell_board(
 ) -> None:
     # The negative rule reuses `ratio_of`, the same value_expr-reading
     # emitter the positive clue uses, so it composes with a doubler/S-cell
-    # board for free rather than refusing it as `s_blind`.
+    # board for free.
     document: dict[str, object] = {
         "cells": EMPTY_CELLS,
         "constraints": [
@@ -635,7 +635,7 @@ def test_a_positive_kropki_link_composes_with_a_doubler_or_s_cell_board(
 ) -> None:
     # Both kropki colours read `value_expr` (the same seam XV reads), not a
     # single content slot, so a positive kropki clue composes with a doubler
-    # or S-cell marker board rather than refusing it as `s_blind`.
+    # or S-cell marker board.
     document: dict[str, object] = {
         "cells": EMPTY_CELLS,
         "constraints": [

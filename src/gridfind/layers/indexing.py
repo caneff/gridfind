@@ -19,7 +19,7 @@ placed. A doubler on a marked or indexed cell is therefore transparent to
 the rule, with no special case: the read never reaches `value_expr` in the
 first place.
 
-Not `s_blind`: with no widening layer in the stack, a marked cell's `V` is
+With no widening layer in the stack, a marked cell's `V` is
 its sole slot and one `add_element` per marked cell realizes the rule
 directly — `V-1` selects the line's cell at that 0-based position, which
 must equal the coordinate, native OR-Tools (ADR-0001), no reified

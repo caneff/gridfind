@@ -242,9 +242,8 @@ alias later.
 Both `pair-difference` and `pair-ratio` read each cell through
 `engine.value_expr` (ADR-0009), not a raw content slot — a
 doubler's `2·value` or an S-cell's combined `s_value` on a plain digit's
-footing, no per-candidate rule (ADR-0010). Neither carries an `s_blind`
-flag, so a kropki-white/black link composes with a doubler or Schrödinger
-board.
+footing, no per-candidate rule (ADR-0010), so a kropki-white/black link
+composes with a doubler or Schrödinger board.
 
 - **pair-difference** — the constraint and the rule it emits:
   `{type: pair-difference, cells: [a, b], diff: k}`, or, with `negate: true`,
@@ -540,13 +539,6 @@ on [ADR-0009](docs/adr/0009-cage-distinctness-mode-digit-or-value.md).
   mapped value and the S-cell's combined value, composed in a precedence the
   engine fixes (ADR-0009, ADR-0010). A third channel — a negator — is the
   deferred trigger to replace that hard-coded precedence with a registry (#293).
-
-- **s_blind** — a transitional flag for a layer that declares **no** reading
-  mode and reads a bare single slot. Such a layer cannot compose over a widening
-  (S-cell) or modifier layer, so the stack is refused. Every layer declares a
-  mode, so nothing carries the flag: it and its refusal are dead code, and
-  #523 tracks their deletion. _Avoid_ treating it as a permanent capability —
-  it is not one.
 
 ---
 

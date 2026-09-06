@@ -98,15 +98,12 @@ digit sets.
 **5. The `s_blind` flag and its refusal retire.** `s_blind` marked a layer that
 reads a bare single slot and so had no defined meaning over a widening layer.
 Under decisions 1–4 every reading is now one of two S-aware modes, so nothing
-genuinely lacks a defined meaning over an S-cell; `s_blind` is transitional, not
-a permanent capability. Every layer declares a mode — value or digit — and the
-flag, the compose-time refusal `refuse_s_blind_over_widening`, and `s_blind.py`
-become dead code. Until the last holdout (`thermo`, `offset_adjacency`)
-declares its mode, the refusal stays **unchanged** as a transitional guard: a
-still-mode-less layer over a widening layer is still refused. The deletion is
-executed on issue #523, whose goal this broadens from "every layer reads
-`value_expr`" to "every layer declares a mode (value or digit)" — so a
-digit-mode lift retires the flag just as a value-mode lift does.
+genuinely lacks a defined meaning over an S-cell; `s_blind` was transitional,
+not a permanent capability. **Done:** the holdout set reached zero — `thermo`
+lifted to value mode, `offset_adjacency` to digit mode — and issue #714 deleted
+the machinery: `s_blind.py`, `SBlindLayerError`, and `build_stack`'s
+`refuse_s_blind_over_widening` call are gone. A layer's declared mode is now
+the only thing that governs how it composes over a widening layer.
 
 **6. The engine seam is explicit per-mode calls, not a unified dispatcher.**
 Value mode returns one expression; digit mode returns a gated slot list — two
@@ -149,9 +146,9 @@ sentinel.
 ## Consequences
 
 - The reading model is settled; the build has ticket homes and this ADR is the
-  reference each reads against. Issue #523 builds `real_digit_slots`, lifts the
-  holdouts (`thermo` to value, `offset_adjacency` to digit), and deletes the
-  `s_blind` machinery. The four cell-property clues (issue #408) each declare
+  reference each reads against. Issue #523 built `real_digit_slots`, lifted the
+  holdouts (`thermo` to value, `offset_adjacency` to digit), and deleted the
+  `s_blind` machinery (#714). The four cell-property clues (issue #408) each declare
   their own digit-mode quantifier against decision 4. Thermo on the value seam
   is issue #590; the `concat` combine build is issue #535.
 - ADR-0009 keeps decisions 1–3 and 5–7; its decision 4 (combine as a
