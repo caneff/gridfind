@@ -21,8 +21,8 @@ class LineCountDistinct:
     toward the line's total, the same as `rows-distinct`'s is_S-gated house
     rule treats them. `grid_content` resolves each slot through
     `Engine.real_digit_values`, so a non-S-cell's second slot drops out of the
-    count on its own with no gate here — it is not s-blind, this layer counts
-    over whole content slots like `regions-distinct` does.
+    count on its own with no gate here: this layer counts over whole content
+    slots like `regions-distinct` does.
     """
 
     name: str = "line-count-distinct"

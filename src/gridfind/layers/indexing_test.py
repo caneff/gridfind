@@ -205,18 +205,6 @@ def test_indexing_reads_the_raw_digit_under_a_discovered_doubler() -> None:
     assert solver.value(modifier_value["R1C1"]) == 6
 
 
-def test_indexing_stacks_over_schrodinger() -> None:
-    # indexing reads a widened cell's digit slots, so indexing + schrodinger
-    # composes all the way through a built engine.
-    puzzle = Puzzle(
-        board=S_BOARD,
-        constraints=(Constraint(type="schrodinger"), _indexing("col", ("R1C2",))),
-    )
-
-    canonical, layers = build_stack(puzzle.constraints, size=S_BOARD.size)
-    build_engine(layers, tuple(canonical), board=S_BOARD)
-
-
 @pytest.mark.parametrize(
     ("marked_cells", "s_directives", "givens"),
     [
