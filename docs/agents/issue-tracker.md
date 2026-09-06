@@ -37,6 +37,8 @@ Never file a ticket label-less. A bare issue reads as *untriaged / unknown*, not
 
 A quick sanity check the implementer can do while building (read the code, confirm one behavior) is neither grilling nor a human touch — write the constraint into the ticket and still mark it `ready-for-agent`.
 
+A `backlog` ticket names its unpark trigger in the body where it has one — the dependency, decision, or condition that moves it, and which `ready-*` label it moves to. A park with no trigger says so explicitly ("no trigger; parked indefinitely") rather than leaving it unstated. `/triage` re-reads these every run, so an unnamed gate is a gate nobody checks.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
