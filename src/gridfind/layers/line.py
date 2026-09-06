@@ -86,7 +86,7 @@ equality, needing no special case.
 Region-sum is the fifth value-mode row, and the family's one **cross-relation**
 seam: every other relation is closed over its own path, its knobs, and the
 value/digit seam, but region-sum reaches past that to cross the existing
-`region_map_for_constraints` door (`layers/regions.py`) and resolve the
+`RegionMap.from_constraints` door (`layers/regions.py`) and resolve the
 board's own partition — a setter's jigsaw map, the classic box tiling, or
 (with no `regions-distinct` constraint at all) one region covering the whole
 board. It segments the ordered path against that partition **per visit**: a
@@ -119,7 +119,7 @@ from gridfind.engine import (
 )
 from gridfind.layers._base import abs_diff_var, emit_over_pairs
 from gridfind.layers.bitmask_group import group_index_table, validate_partition
-from gridfind.layers.regions import RegionMap, region_map_for_constraints
+from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import Constraint as PuzzleConstraint
 from gridfind.puzzle import JsonValue
 
@@ -264,7 +264,7 @@ def _double_arrow(
 def _region_index_by_address(region_map: RegionMap) -> dict[str, int]:
     """Every cell address the region map covers, mapped to its own region's
     index — the lookup `_region_sum` segments the ordered path against,
-    built fresh off whatever partition `region_map_for_constraints` resolved
+    built fresh off whatever partition `RegionMap.from_constraints` resolved
     (a setter's jigsaw map, the classic box tiling, or the one-whole-board
     fallback)."""
     return {
@@ -297,7 +297,7 @@ def _region_sum(
         )
         raise GridfindError(msg)
 
-    region_map = region_map_for_constraints(
+    region_map = RegionMap.from_constraints(
         cast("Iterable[PuzzleConstraint]", engine.constraints), engine.board.size
     )
     if len(region_map) == 1:

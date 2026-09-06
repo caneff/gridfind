@@ -7,7 +7,7 @@ present matrix is compared against (`RegionMap.to_labels`).
 from __future__ import annotations
 
 from gridfind.cell_geometry import BOX_SHAPE
-from gridfind.layers.regions import region_map_for
+from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import Constraint
 from gridfind.sudokumaker.boundary import ConstraintBuckets, enabled_blocks
 from gridfind.sudokumaker.wire_types import REGIONS_TYPE
@@ -32,7 +32,7 @@ def regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     matrix = _regions_matrix(buckets)
     if matrix is None:
         return []
-    if size in BOX_SHAPE and matrix == region_map_for(size).to_labels(size):
+    if size in BOX_SHAPE and matrix == RegionMap.for_size(size).to_labels(size):
         return [Constraint("regions-distinct")]
     return [Constraint("regions-distinct", params={"regions": matrix})]
 

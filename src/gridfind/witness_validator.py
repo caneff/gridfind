@@ -25,7 +25,7 @@ cite, so a layout drift in `render()` fails this parse loudly (`None`, then
 `False`) instead of silently reading the wrong cells.
 
 Regions come straight off the puzzle's own `regions-distinct` constraint, via
-`region_map_for_constraints` (one door: bare resolves to the board's box tiling, jigsaw
+`RegionMap.from_constraints` (one door: bare resolves to the board's box tiling, jigsaw
 to `params["regions"]`) — the same shapes
 `link_to_puzzle` itself ever emits, so this stays in lockstep with the decoder.
 That resolver is the same one the witness render path crosses, so a
@@ -47,7 +47,7 @@ from __future__ import annotations
 
 from gridfind import grid_text
 from gridfind.cell_geometry import parse_address
-from gridfind.layers.regions import region_map_for_constraints
+from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import Puzzle
 
 Cell = tuple[int, ...]
@@ -172,5 +172,5 @@ def _regions(
     regions all ask "carries rule X" the same way."""
     if not has_regions:
         return []
-    region_map = region_map_for_constraints(puzzle.constraints, size)
+    region_map = RegionMap.from_constraints(puzzle.constraints, size)
     return [[grid[row - 1][col - 1] for row, col in group] for group in region_map]

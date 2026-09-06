@@ -53,7 +53,7 @@ from gridfind.layers.pair_ratio import ratio_of
 from gridfind.layers.pair_relation import PairRelation
 from gridfind.layers.parity import Parity
 from gridfind.layers.quadruple import Quadruple
-from gridfind.layers.regions import region_map_for_constraints
+from gridfind.layers.regions import RegionMap
 from gridfind.layers.rellik_cage import RellikCage
 from gridfind.layers.s_blind import refuse_s_blind_over_widening
 from gridfind.layers.schrodinger import Schrodinger
@@ -163,7 +163,7 @@ def _type_directed_layer(constraint: Constraint, size: int) -> Layer | None:
     Two cases, both param-agnostic (only the instance the door builds them
     with differs): a `regions-distinct` constraint carrying
     `params["regions"]` resolves through the shared
-    `region_map_for_constraints` rather than re-deriving the jigsaw-vs-box
+    `RegionMap.from_constraints` rather than re-deriving the jigsaw-vs-box
     branch inline, and builds a fresh `DistinctOverGroups` closed over that
     partition; a `constant` constraint carrying `params["value"]` builds a
     fresh `ConstantModifier(value=k)` instead of dispatching to the
@@ -172,7 +172,7 @@ def _type_directed_layer(constraint: Constraint, size: int) -> Layer | None:
     (`_extra_region_layer`) rather than this per-constraint one.
     """
     if constraint.type == "regions-distinct" and "regions" in constraint.params:
-        region_map = region_map_for_constraints([constraint], size)
+        region_map = RegionMap.from_constraints([constraint], size)
         return DistinctOverGroups(constraint.type, regions_from(region_map))
     if constraint.type == "constant" and "value" in constraint.params:
         value = cast("int", constraint.params["value"])
@@ -208,7 +208,7 @@ def _disjoint_groups_layer(
     `None` when the puzzle draws no `disjoint-groups` constraint at all.
 
     A `disjoint-groups` constraint with no sibling `regions-distinct` would
-    otherwise fall through `region_map_for_constraints`'s own whole-board
+    otherwise fall through `RegionMap.from_constraints`'s own whole-board
     fallback — one region covering everything, which transposes into
     `size*size` groups of one cell each, a silent no-op — so that absence is
     refused here instead of quietly accepted.
@@ -218,7 +218,7 @@ def _disjoint_groups_layer(
     if not any(constraint.type == "regions-distinct" for constraint in constraints):
         msg = "disjoint-groups needs a regions-distinct constraint; none is present"
         raise MalformedPuzzleError(msg)
-    region_map = region_map_for_constraints(constraints, size)
+    region_map = RegionMap.from_constraints(constraints, size)
     return DistinctOverGroups("disjoint-groups", disjoint_groups_from(region_map))
 
 

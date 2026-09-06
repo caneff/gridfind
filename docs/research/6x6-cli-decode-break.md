@@ -35,7 +35,7 @@ witness render all handle non-9 already:
 
 - With `BOARD_SIZE` patched to 6 in a throwaway probe, the same link decodes and
   `verdict()` returns **found**.
-- `region_map_for(6)` yields six 3-wide × 2-tall boxes, which match the link's
+- `RegionMap.for_size(6)` yields six 3-wide × 2-tall boxes, which match the link's
   own `type 1` regions matrix.
 - The witness renders correctly, showing the discovered S-cells as `{a b}`:
 

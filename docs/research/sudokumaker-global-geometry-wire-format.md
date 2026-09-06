@@ -142,7 +142,7 @@ Source: `https://sudokumaker.app/assets/main-D44ZZMA9.js` (fetched
 
 **Jigsaw position order (#750/#756 follow-up, verified 2026-08-28).** #750
 resolved the rule's home as a second `DistinctOverGroups` whose partition
-transposes `region_map_for_constraints`'s `RegionMap` — group *k* is the
+transposes `RegionMap.from_constraints`'s `RegionMap` — group *k* is the
 *k*-th cell of every region, row-major-within-region — but flagged that
 order as an assumption to verify against SudokuMaker for a jigsaw. No real
 jigsaw-plus-disjoint-groups link was available to capture, so this was

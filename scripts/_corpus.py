@@ -23,7 +23,7 @@ from pathlib import Path
 from types import ModuleType
 
 from gridfind.cell_geometry import row_col_to_index
-from gridfind.layers.regions import box_regions
+from gridfind.layers.regions import RegionMap
 
 LINKS_DIR = Path(__file__).resolve().parent.parent / "src" / "gridfind" / "links"
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -90,7 +90,7 @@ def wrap_document(
     """The outermost shape every synthesized document shares: `cells` and
     `constraints` under a `size`x`size` `puzzle`, inside `formatVersion` —
     with no assumption about how `constraints` derives its regions, so a
-    jigsaw fixture (a literal region array, not `box_regions`) wraps through
+    jigsaw fixture (a literal region array, not `RegionMap.boxes`) wraps through
     this the same as a boxed one."""
     return {
         "formatVersion": "1.5.0",
@@ -116,7 +116,7 @@ def boxed_document(
         cells = blank_cells(size)
     if givens:
         place_givens(cells, size, givens)
-    region_numbers = box_regions(size, box_h, box_w).to_labels(size)
+    region_numbers = RegionMap.boxes(size, box_h, box_w).to_labels(size)
     return wrap_document(
         cells,
         size,
@@ -135,7 +135,7 @@ def jigsaw_document(
     """The jigsaw sibling of `boxed_document`: blank `size`x`size` cells (or a
     caller-built `cells`) with `givens` placed, wrapped with the classic
     `type 0`/`type 1` pair — but `regions` is a literal label array a fixture
-    authors directly, not `box_regions`, for a puzzle whose regions aren't
+    authors directly, not `RegionMap.boxes`, for a puzzle whose regions aren't
     rectangles."""
     if cells is None:
         cells = blank_cells(size)

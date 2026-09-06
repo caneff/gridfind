@@ -255,7 +255,7 @@ LOCKOUT_TYPE = 407
 # sixth **value-mode** relation of the nine-relation line-clue family (spec
 # #672), and the family's one **cross-relation** seam: at the `Line` layer it
 # reaches past its own params into the region door
-# (`region_map_for_constraints`, `layers/regions.py`) to resolve the board's
+# (`RegionMap.from_constraints`, `layers/regions.py`) to resolve the board's
 # partition, segments the path per-visit against it, and asserts equal
 # segment sums. `singleRegionTotals = True` names per-region pooling, which
 # gridfind does not model, so the `Line` layer raises rather than guess a

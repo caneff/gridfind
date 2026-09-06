@@ -6,7 +6,7 @@ from gridfind.cell_geometry import format_address
 from gridfind.conftest import JIGSAW_TETROMINOES
 from gridfind.engine import GridfindError, MalformedPuzzleError
 from gridfind.layers.door import UnknownLayerError
-from gridfind.layers.regions import box_regions
+from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import (
     EMPTY,
     Board,
@@ -94,7 +94,7 @@ def test_verdict_found_witness_carries_the_boards_box_region_map() -> None:
     result = verdict(puzzle)
 
     assert result.witness is not None
-    assert result.witness.region_map == box_regions(9, 3, 3)
+    assert result.witness.region_map == RegionMap.boxes(9, 3, 3)
 
 
 def test_verdict_found_witness_draws_no_boxes_without_a_regions_constraint() -> None:
@@ -1062,7 +1062,7 @@ def _cols(size: int) -> list[list[str]]:
 def _boxes(size: int, box_rows: int, box_cols: int) -> list[list[str]]:
     return [
         [format_address(row, col) for row, col in group]
-        for group in box_regions(size, box_rows, box_cols)
+        for group in RegionMap.boxes(size, box_rows, box_cols)
     ]
 
 

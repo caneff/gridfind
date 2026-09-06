@@ -27,7 +27,7 @@ SCHRODINGER_PUZZLE = Puzzle(
 )
 
 # A hand-built jigsaw partition (params["regions"]), the shape
-# region_map_for_constraints' other branch resolves. Shared with
+# RegionMap.from_constraints' other branch resolves. Shared with
 # verdict_test.py via conftest.py: it must be a genuine tetromino shape, not
 # the box default FOUND_4X4_DOC and SCHRODINGER_PUZZLE both exercise, or a
 # render/validate path that silently fell back to box tiling would still
@@ -115,7 +115,7 @@ def test_validate_witness_rejects_a_schrodinger_grid_that_violates_the_reading()
 
 def test_validate_witness_round_trips_a_jigsaw_partition() -> None:
     # The render path and validate_witness both cross
-    # region_map_for_constraints. A jigsaw regions-distinct constraint
+    # RegionMap.from_constraints. A jigsaw regions-distinct constraint
     # (params["regions"], not the box default) proves they still resolve the
     # identical partition, not just the bare box case the other tests cover.
     result = verdict(JIGSAW_PUZZLE)

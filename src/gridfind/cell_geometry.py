@@ -22,7 +22,7 @@ from typing import Protocol
 # tiles by — a 6x6 as six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3,
 # never a 6x6 as four 3x3 mini-grids. A size absent here has no classic box
 # convention: `cell_geometry` leaves `box_shape` `None` rather than guessing
-# one, and `layers.regions.region_map_for` refuses a bare `regions-distinct`
+# one, and `RegionMap.for_size` refuses a bare `regions-distinct`
 # at that size on the same table.
 BOX_SHAPE: dict[int, tuple[int, int]] = {4: (2, 2), 6: (2, 3), 9: (3, 3)}
 
