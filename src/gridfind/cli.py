@@ -32,6 +32,17 @@ from gridfind.puzzle import Puzzle, WorkingState
 from gridfind.sudokumaker import link_to_puzzle
 from gridfind.verdict import Result, verdict
 
+# The malformed bucket: everything the front door refuses as a
+# `malformed puzzle document` (exit 2). The one home — `scripts/verify_links.py`
+# and `links_test.py` assert `malformed-*` fixtures against this same set.
+MALFORMED_ERRORS = (
+    json.JSONDecodeError,
+    KeyError,
+    TypeError,
+    ValueError,
+    GridfindError,
+)
+
 
 def _is_link(value: str) -> bool:
     """A SudokuMaker share link, not a file path or a JSON document (a document
@@ -85,13 +96,7 @@ def main(argv: Sequence[str], stdin: TextIO) -> int:
 
     try:
         result = _verdict_of(text)
-    except (
-        json.JSONDecodeError,
-        KeyError,
-        TypeError,
-        ValueError,
-        GridfindError,
-    ) as err:
+    except MALFORMED_ERRORS as err:
         print(f"gridfind: malformed puzzle document: {err}", file=sys.stderr)
         return 2
 

@@ -62,8 +62,10 @@ slow:
 
 # On-demand solution-link oracle (spec #244, issue #249): for every link
 # under src/gridfind/links/, prints a found link's witness filled back in as
-# an openable sudokumaker.app solution-link, or `broke` for a broke link.
-# CP-SAT-slow, kept out of `just check` and `just e2e`.
+# an openable sudokumaker.app solution-link, `broke` for a broke link, or
+# `malformed` for a malformed-* link the front door refuses (the run fails if
+# such a link verdicts cleanly). CP-SAT-slow, so deliberately NOT part of
+# `just check` — excluded alongside `e2e`/`slow`; run it on demand.
 verify-links:
     uv run python scripts/verify_links.py
 
