@@ -58,7 +58,7 @@ def test_region_map_round_trips_through_labels_up_to_relabeling() -> None:
     # assertion of that contract.
     region_map = RegionMap.boxes(4, 2, 2)
 
-    rebuilt = RegionMap.from_labels(4, region_map.to_labels(4))
+    rebuilt = RegionMap.from_labels(4, region_map.to_labels())
 
     assert sorted(rebuilt) == sorted(region_map)
 
@@ -117,8 +117,27 @@ def test_region_map_from_labels_refuses_any_wrong_length(labels: list[int]) -> N
 def test_size_reads_the_board_edge_from_the_cell_count() -> None:
     # Derived, not stored: a jigsaw with unequal regions still covers size**2
     # cells, so the edge falls out of the total however the map was built.
-    assert RegionMap.boxes(6, 2, 3).size == 6
+    # Every case here has a region count that differs from the edge, so a
+    # `len(self)` derivation — a different definition that happens to agree on
+    # a box tiling — fails instead of passing by coincidence.
+    assert RegionMap.from_labels(4, [0] * 8 + [1] * 8).size == 4
     assert RegionMap.from_labels(2, [0, 0, 0, 1]).size == 2
+    assert RegionMap.from_constraints([], 3).size == 3
+
+
+def test_size_refuses_a_map_that_does_not_cover_a_square_board() -> None:
+    # `extra_regions_from` builds a `RegionMap` of windoku windows, which
+    # covers part of a board, not all of it. A floored square root would hand
+    # that caller a wrong edge with nothing red, so the partial map is refused.
+    windows = RegionMap(
+        [
+            [(row, col) for row in rows for col in cols]
+            for rows, cols in (((2, 3, 4), (2, 3, 4)), ((2, 3, 4), (6, 7, 8)))
+        ]
+    )
+
+    with pytest.raises(GridfindError):
+        _ = windows.size
 
 
 def test_from_constraints_resolves_jigsaw_box_and_bare_boards() -> None:

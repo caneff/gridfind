@@ -56,12 +56,15 @@ class RegionMap(list[list[tuple[int, int]]]):
     (`to_labels`/`from_labels`) has a named home.
     """
 
-    def to_labels(self, size: int) -> list[int]:
+    def to_labels(self) -> list[int]:
         """This region map as SudokuMaker's flat, row-major `type 1` array: entry
         `row_col_to_index(row, col, size)` is the number of the region holding cell
         `RxCy`. The one home for serializing a `RegionMap` to the wire form,
         shared by the decode-time classic-tiling check and the corpus synthesizers.
+        The board edge comes from `size`, not from the caller: the map already
+        determines it, and a second source could only disagree.
         """
+        size = self.size
         region_numbers = [0] * (size * size)
         for number, region in enumerate(self):
             for row, col in region:
@@ -92,11 +95,21 @@ class RegionMap(list[list[tuple[int, int]]]):
 
     @property
     def size(self) -> int:
-        """The board edge this map covers, derived from its cell count: every
+        """The board edge this map covers, derived from its cell count: a
         partition of a `size`x`size` board holds `size**2` cells however it was
         built, so the edge falls out of the total without being stored.
+
+        Not every `RegionMap` is a whole-board partition — `extra_regions_from`
+        builds one from windoku's windows, which cover part of a board. A
+        floored square root would hand that caller a plausible wrong edge, so
+        a cell count that is not a perfect square is refused instead.
         """
-        return isqrt(sum(len(region) for region in self))
+        cells = sum(len(region) for region in self)
+        edge = isqrt(cells)
+        if edge * edge != cells:
+            msg = f"region map covers {cells} cells, not a square board"
+            raise GridfindError(msg)
+        return edge
 
     @classmethod
     def boxes(cls, size: int, box_rows: int, box_cols: int) -> RegionMap:

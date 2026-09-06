@@ -116,7 +116,7 @@ def boxed_document(
         cells = blank_cells(size)
     if givens:
         place_givens(cells, size, givens)
-    region_numbers = RegionMap.boxes(size, box_h, box_w).to_labels(size)
+    region_numbers = RegionMap.boxes(size, box_h, box_w).to_labels()
     return wrap_document(
         cells,
         size,

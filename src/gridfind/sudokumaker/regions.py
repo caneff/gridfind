@@ -32,7 +32,7 @@ def regions_constraints(buckets: ConstraintBuckets, size: int) -> list[Constrain
     matrix = _regions_matrix(buckets)
     if matrix is None:
         return []
-    if size in BOX_SHAPE and matrix == RegionMap.for_size(size).to_labels(size):
+    if size in BOX_SHAPE and matrix == RegionMap.for_size(size).to_labels():
         return [Constraint("regions-distinct")]
     return [Constraint("regions-distinct", params={"regions": matrix})]
 
