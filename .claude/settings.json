@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs\" session-start",
+            "command": "sh -c 'cd \"${CLAUDE_PROJECT_DIR:-.}\" && [ -d graft ] || { m=\"$(git rev-parse --path-format=absolute --git-common-dir)/../graft\"; [ -d \"$m\" ] && cp -r \"$m\" graft; }; node .claude/helpers/graft-hooks.cjs session-start'",
             "timeout": 8000
           }
         ]
