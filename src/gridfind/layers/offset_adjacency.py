@@ -90,9 +90,8 @@ class OffsetAdjacency:
     `add_all_different` per pair — the same digit-mode read `cage.py`'s
     digits-distinct mode folds a whole group through, here over just the two
     cells an offset relates. A non-S-cell's sentinel second slot never
-    collides (`real_digit_slots`'s docstring), so no `is_s` branch is needed;
-    no `s_blind` flag, so this composes with a widening (Schrödinger) layer
-    instead of `build_stack` refusing the combination."""
+    collides (`real_digit_slots`'s docstring), so no `is_s` branch is
+    needed, and this composes with a widening (Schrödinger) layer."""
 
     name: str
     offsets: tuple[tuple[int, int], ...]
@@ -120,9 +119,8 @@ class OffsetValueGap:
     in place of the bare digit, so a modifier composes without a special
     case. No `mode` argument — value mode only; a digit-mode ∀ read (no S-cell
     digit consecutive with any neighbour digit) is the named upgrade path if a
-    digit-mode neighbour rule ever arrives. No `s_blind` flag, so this
-    composes with a widening (Schrödinger) layer instead of `build_stack`
-    refusing the combination. `abs_diff_var` (`_base.py`) mints the one aux
+    digit-mode neighbour rule ever arrives; this composes with a widening
+    (Schrödinger) layer. `abs_diff_var` (`_base.py`) mints the one aux
     var per pair the way `pair_difference.differs_by` does; pinning it `!= 1`
     is the negated-pair-difference shape with a fixed target of 1, applied to
     every walked pair instead of one named clue."""
