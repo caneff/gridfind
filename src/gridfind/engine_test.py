@@ -444,3 +444,13 @@ def test_discovered_modifiers_names_each_placed_modifier_by_its_type() -> None:
     solver.solve(engine.model)
 
     assert engine.discovered_modifiers(solver) == {"a": "doubler"}
+
+
+def test_register_structure_raises_on_duplicate_name() -> None:
+    # A second layer publishing an existing name would silently replace the
+    # first's channel — fail loud instead (#777).
+    engine = build_engine([], board=BOARD)
+    engine.register_structure("x", 1)
+    with pytest.raises(GridfindError, match=r"'x'.*already registered"):
+        engine.register_structure("x", 2)
+    assert engine.structures["x"] == 1

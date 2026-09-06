@@ -179,7 +179,13 @@ class Engine:
         """Publish `value` under `name` in the structure registry — the
         late-binding channel (ADR-0004) a producing layer writes to and a
         consuming layer later reads back through its own typed accessor
-        (`is_s`, `is_modifier`, `modifier_types`), without the two meeting."""
+        (`is_s`, `is_modifier`, `modifier_types`), without the two meeting.
+
+        A duplicate name raises: two layers publishing the same channel would
+        silently lose the first, and silence is the forbidden response."""
+        if name in self.structures:
+            msg = f"structure {name!r} already registered"
+            raise GridfindError(msg)
         self.structures[name] = value
 
     def is_s(self) -> dict[str, cp_model.IntVar] | None:
