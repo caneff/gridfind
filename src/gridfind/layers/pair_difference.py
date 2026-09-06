@@ -24,8 +24,8 @@ primitive itself, so there is nothing a table would buy.
 
 Reads each cell's value through `PairRelation`'s `engine.value_expr` seam
 (ADR-0009) — a plain digit, a doubler's `2·value`, or an S-cell's combined
-`s_value` — never a raw content slot, so it is not s-blind and
-composes with a doubler or Schrödinger board.
+`s_value` — never a raw content slot, so it composes with a doubler or
+Schrödinger board.
 """
 
 from __future__ import annotations

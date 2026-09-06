@@ -184,8 +184,7 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
     pair_relation_type: str,
 ) -> None:
     # Both kropki pair layers read `engine.value_expr`, not a cell's single
-    # content slot, so they are not s-blind and stack freely with
-    # schrodinger.
+    # content slot, so they stack freely with schrodinger.
     constraints = (Constraint(type=pair_relation_type), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -200,7 +199,7 @@ def test_a_pair_relation_layer_composes_with_a_widening_layer(
 
 def test_thermo_composes_with_a_widening_layer() -> None:
     # thermo reads engine.value_expr like the pair-relation family, so it
-    # is not s-blind and stacks freely with schrodinger.
+    # stacks freely with schrodinger.
     constraints = (Constraint(type="thermo"), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -210,8 +209,7 @@ def test_thermo_composes_with_a_widening_layer() -> None:
 
 def test_offset_adjacency_composes_with_a_widening_layer() -> None:
     # offset_adjacency reads engine.real_digit_values (ADR-0019 dec 6), not a
-    # cell's single content slot, so it is not s-blind and stacks freely with
-    # schrodinger.
+    # cell's single content slot, so it stacks freely with schrodinger.
     constraints = (Constraint(type="anti-knight"), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -226,7 +224,7 @@ def test_offset_adjacency_composes_with_a_widening_layer() -> None:
 
 def test_offset_value_gap_composes_with_a_widening_layer() -> None:
     # offset_value_gap reads engine.value_expr like the pair-relation family,
-    # so it is not s-blind and stacks freely with schrodinger.
+    # so it stacks freely with schrodinger.
     constraints = (Constraint(type="nonconsecutive"), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)
@@ -241,8 +239,7 @@ def test_offset_value_gap_composes_with_a_widening_layer() -> None:
 
 def test_numbered_rooms_composes_with_a_widening_layer() -> None:
     # numbered_rooms reads engine.real_digit_slots (ADR-0019 dec 6), not a
-    # cell's single content slot, so it is not s-blind and stacks freely with
-    # schrodinger.
+    # cell's single content slot, so it stacks freely with schrodinger.
     constraints = (Constraint(type="numbered-rooms"), Constraint(type="schrodinger"))
 
     _, layers = build_stack(constraints, size=9)

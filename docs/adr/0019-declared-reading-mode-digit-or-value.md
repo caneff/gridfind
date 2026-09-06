@@ -148,9 +148,9 @@ sentinel.
 - The reading model is settled; the build has ticket homes and this ADR is the
   reference each reads against. Issue #523 built `real_digit_slots`, lifted the
   holdouts (`thermo` to value, `offset_adjacency` to digit), and deleted the
-  `s_blind` machinery (#714). The four cell-property clues (issue #408) each declare
-  their own digit-mode quantifier against decision 4. Thermo on the value seam
-  is issue #590; the `concat` combine build is issue #535.
+  `s_blind` machinery. The four cell-property clues (issue #408) each
+  declare their own digit-mode quantifier against decision 4; the `concat`
+  combine build is issue #535.
 - ADR-0009 keeps decisions 1–3 and 5–7; its decision 4 (combine as a
   gridfind-owned default) is superseded by decision 3 here, and its decision 7
   is relaxed — the combine mode now reaches gridfind through the cosmetic-cage

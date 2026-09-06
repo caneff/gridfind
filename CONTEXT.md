@@ -402,7 +402,7 @@ forces a cell to become an S-cell.
 - **killer cage** — a `cage` (no-repeats) composed with a `group-sum` (the
   total) over the same cells, not one bundled layer (spec #240). The two
   capabilities carry their own Schrödinger semantics: the cage's no-repeats
-  half is S-ready, the sum is S-blind — "not Schrödinger-ready yet" over a
+  half is S-ready, the sum is not — "not Schrödinger-ready yet" over a
   named S-cell comes from `group-sum`, never the cage.
 
 - **cosmetic cage** — a cage a setter draws for display (SudokuMaker's
@@ -440,9 +440,9 @@ their content to it, one rule per clue. A clue-looping layer structured like
 only the total — never an `add_all_different`, so a bare group-sum carries
 no implied uniqueness: a target of 10 over a non-house pair may be met as
 5+5. Where a setter wants distinctness too, it composes alongside this layer
-rather than folding into it. S-blind by decision: reads the singular
-`content()` seam and raises "not Schrödinger-ready yet" over a named S-cell
-rather than guessing which of its two digits counts. Its arithmetic still
+rather than folding into it. Refuses a widening layer by decision: reads
+the singular `content()` seam and raises "not Schrödinger-ready yet" over a
+named S-cell rather than guessing which of its two digits counts. Its arithmetic still
 reads a modifier cell's `modifier_value` in place of the raw digit, so a
 discovered doubler folds into the total.
 
