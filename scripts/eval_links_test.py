@@ -71,7 +71,7 @@ def test_eval_link_shows_witness_and_solution_for_a_found_case() -> None:
 
 # A 4x4 board's 2x2 boxes as a type-1 regions matrix, row-major — a doubler
 # needs a real box convention to build its engine layer, which a bare 2x2 has
-# none of (`region_map_for`).
+# none of (`RegionMap.for_size`).
 _REGIONS_4X4 = [(i // 4 // 2) * 2 + (i % 4 // 2) for i in range(16)]
 
 

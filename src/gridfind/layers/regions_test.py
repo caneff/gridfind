@@ -3,7 +3,8 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from gridfind.engine import GridfindError, MalformedPuzzleError
-from gridfind.layers.regions import RegionMap, box_regions, region_map_for
+from gridfind.layers.regions import RegionMap
+from gridfind.puzzle import Constraint
 
 
 # Spelled out rather than read from BOX_SHAPE on purpose: an independent
@@ -17,14 +18,14 @@ from gridfind.layers.regions import RegionMap, box_regions, region_map_for
         pytest.param(9, 3, 3, id="9x9-tiles-3x3"),
     ],
 )
-def test_box_regions_tiles_the_board_and_covers_every_cell_once(
+def test_boxes_tiles_the_board_and_covers_every_cell_once(
     size: int, box_rows: int, box_cols: int
 ) -> None:
     # Every size tiles into `size` regions of `size` cells that partition the
     # board — a 6x6 as six 2x3 boxes, never as four 3x3 quattro quadri. The
     # coverage half is what a count-only assertion misses: a partition that
     # duplicated one cell and dropped another would still count right.
-    region_map = box_regions(size, box_rows, box_cols)
+    region_map = RegionMap.boxes(size, box_rows, box_cols)
     every_cell = [
         (row, col) for row in range(1, size + 1) for col in range(1, size + 1)
     ]
@@ -35,29 +36,29 @@ def test_box_regions_tiles_the_board_and_covers_every_cell_once(
     assert sorted(cell for region in region_map for cell in region) == every_cell
 
 
-def test_region_map_for_falls_back_to_the_boards_box_tiling() -> None:
+def test_for_size_falls_back_to_the_boards_box_tiling() -> None:
     # With no setter-supplied map, the box convention is the default source:
     # a 6x6 comes back tiled 2x3, R1C1's box holding its two rows of three.
-    region_map = region_map_for(6)
+    region_map = RegionMap.for_size(6)
 
     assert len(region_map) == 6
     assert region_map[0] == [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)]
 
 
-def test_region_map_for_refuses_a_size_with_no_box_convention() -> None:
+def test_for_size_refuses_a_size_with_no_box_convention() -> None:
     # The refusal lives on the fallback: only a board asking to be tiled by
     # convention needs a convention to exist.
     with pytest.raises(GridfindError):
-        region_map_for(5)
+        RegionMap.for_size(5)
 
 
 def test_region_map_round_trips_through_labels_up_to_relabeling() -> None:
     # to_labels/from_labels round-trip group membership, not the original
     # label values or region order — sorted comparison is the honest
     # assertion of that contract.
-    region_map = box_regions(4, 2, 2)
+    region_map = RegionMap.boxes(4, 2, 2)
 
-    rebuilt = RegionMap.from_labels(4, region_map.to_labels(4))
+    rebuilt = RegionMap.from_labels(4, region_map.to_labels())
 
     assert sorted(rebuilt) == sorted(region_map)
 
@@ -111,3 +112,44 @@ def test_region_map_from_labels_refuses_any_wrong_length(labels: list[int]) -> N
     assume(len(labels) != size * size)
     with pytest.raises(MalformedPuzzleError):
         RegionMap.from_labels(size, labels)
+
+
+def test_size_reads_the_board_edge_from_the_cell_count() -> None:
+    # Derived, not stored: a jigsaw with unequal regions still covers size**2
+    # cells, so the edge falls out of the total however the map was built.
+    # Every case here has a region count that differs from the edge, so a
+    # `len(self)` derivation — a different definition that happens to agree on
+    # a box tiling — fails instead of passing by coincidence.
+    assert RegionMap.from_labels(4, [0] * 8 + [1] * 8).size == 4
+    assert RegionMap.from_labels(2, [0, 0, 0, 1]).size == 2
+    assert RegionMap.from_constraints([], 3).size == 3
+
+
+def test_size_refuses_a_map_that_does_not_cover_a_square_board() -> None:
+    # `extra_regions_from` builds a `RegionMap` of windoku windows, which
+    # covers part of a board, not all of it. A floored square root would hand
+    # that caller a wrong edge with nothing red, so the partial map is refused.
+    windows = RegionMap(
+        [
+            [(row, col) for row in rows for col in cols]
+            for rows, cols in (((2, 3, 4), (2, 3, 4)), ((2, 3, 4), (6, 7, 8)))
+        ]
+    )
+
+    with pytest.raises(GridfindError):
+        _ = windows.size
+
+
+def test_from_constraints_resolves_jigsaw_box_and_bare_boards() -> None:
+    # The three-way branch in one place: a setter's own matrix wins, a bare
+    # regions-distinct falls back to the box tiling, and no such constraint
+    # at all means one region covering the whole board.
+    jigsaw = RegionMap.from_constraints(
+        [Constraint("regions-distinct", params={"regions": [0, 1, 1, 0]})], 2
+    )
+    boxed = RegionMap.from_constraints([Constraint("regions-distinct")], 4)
+    bare = RegionMap.from_constraints([], 2)
+
+    assert sorted(jigsaw) == [[(1, 1), (2, 2)], [(1, 2), (2, 1)]]
+    assert boxed == RegionMap.boxes(4, 2, 2)
+    assert bare == [[(1, 1), (1, 2), (2, 1), (2, 2)]]

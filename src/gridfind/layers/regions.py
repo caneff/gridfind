@@ -13,10 +13,10 @@ partition maps this address partition onto the live grid.
 six 2x3 boxes, a 4x4 as four 2x2, a 9x9 as nine 3x3 — never a 6x6 as four 3x3
 mini-grids), lives on `CellGeometry` (ADR-0004): `cell_geometry.BOX_SHAPE`
 is the one table, and `CellGeometry.box_shape` is a board's own resolved
-entry from it. `box_regions` is the one tiling generator, here because it is
+entry from it. `RegionMap.boxes` is the one tiling generator, here because it is
 region-specific, not shared infrastructure.
 
-`region_map_for` is the one door onto the classic box tiling: the table
+`RegionMap.for_size` is the one door onto the classic box tiling: the table
 lookup by size.
 
 `RegionMap.from_labels` reads the setter-supplied shape: a
@@ -28,10 +28,10 @@ beyond length and entry type. An over-large region (more cells than the
 digit domain) is not this method's concern — that is a satisfiability fact
 the solver reports as broke, never a validator's judgment.
 
-`region_map_for_constraints` is the one door onto a whole
+`RegionMap.from_constraints` is the one door onto a whole
 constraint list rather than a single already-found constraint: it scans for
 `regions-distinct` and picks jigsaw (`RegionMap.from_labels`) vs. box tiling
-(`region_map_for`), but also owns the third case neither of the above two
+(`RegionMap.for_size`), but also owns the third case neither of the above two
 decide alone — no `regions-distinct` constraint at all, which resolves to one
 region covering the whole board. `build_stack`, the witness render path, and
 `witness_validator` all cross this one seam instead of each re-deriving
@@ -42,6 +42,7 @@ different partitions.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from math import isqrt
 
 from gridfind.cell_geometry import BOX_SHAPE, row_col_to_index
 from gridfind.engine import GridfindError, MalformedPuzzleError
@@ -55,12 +56,15 @@ class RegionMap(list[list[tuple[int, int]]]):
     (`to_labels`/`from_labels`) has a named home.
     """
 
-    def to_labels(self, size: int) -> list[int]:
+    def to_labels(self) -> list[int]:
         """This region map as SudokuMaker's flat, row-major `type 1` array: entry
         `row_col_to_index(row, col, size)` is the number of the region holding cell
         `RxCy`. The one home for serializing a `RegionMap` to the wire form,
         shared by the decode-time classic-tiling check and the corpus synthesizers.
+        The board edge comes from `size`, not from the caller: the map already
+        determines it, and a second source could only disagree.
         """
+        size = self.size
         region_numbers = [0] * (size * size)
         for number, region in enumerate(self):
             for row, col in region:
@@ -89,59 +93,77 @@ class RegionMap(list[list[tuple[int, int]]]):
             groups.setdefault(label, []).append((row + 1, col + 1))
         return cls(groups.values())
 
+    @property
+    def size(self) -> int:
+        """The board edge this map covers, derived from its cell count: a
+        partition of a `size`x`size` board holds `size**2` cells however it was
+        built, so the edge falls out of the total without being stored.
 
-def box_regions(size: int, box_rows: int, box_cols: int) -> RegionMap:
-    """The box partition of a `size`x`size` board tiled by `box_rows` x
-    `box_cols` boxes: row/col bands read left-to-right,
-    top-to-bottom. The one box-tiling generator — `box_regions(9, 3, 3)` is
-    the classic 3x3 partition, no separate 9x9-only formula needed.
-    """
-    row_bands = size // box_rows
-    col_bands = size // box_cols
-    return RegionMap(
-        [
-            (band_row * box_rows + r, band_col * box_cols + c)
-            for r in range(1, box_rows + 1)
-            for c in range(1, box_cols + 1)
-        ]
-        for band_row in range(row_bands)
-        for band_col in range(col_bands)
-    )
+        Not every `RegionMap` is a whole-board partition — `extra_regions_from`
+        builds one from windoku's windows, which cover part of a board. A
+        floored square root would hand that caller a plausible wrong edge, so
+        a cell count that is not a perfect square is refused instead.
+        """
+        cells = sum(len(region) for region in self)
+        edge = isqrt(cells)
+        if edge * edge != cells:
+            msg = f"region map covers {cells} cells, not a square board"
+            raise GridfindError(msg)
+        return edge
 
+    @classmethod
+    def boxes(cls, size: int, box_rows: int, box_cols: int) -> RegionMap:
+        """The box partition of a `size`x`size` board tiled by `box_rows` x
+        `box_cols` boxes: row/col bands read left-to-right,
+        top-to-bottom. The one box-tiling generator — `RegionMap.boxes(9, 3, 3)`
+        is the classic 3x3 partition, no separate 9x9-only formula needed.
+        """
+        row_bands = size // box_rows
+        col_bands = size // box_cols
+        return cls(
+            [
+                (band_row * box_rows + r, band_col * box_cols + c)
+                for r in range(1, box_rows + 1)
+                for c in range(1, box_cols + 1)
+            ]
+            for band_row in range(row_bands)
+            for band_col in range(col_bands)
+        )
 
-def region_map_for(size: int) -> RegionMap:
-    """The region map a `size`x`size` board tiles by convention — the
-    `BOX_SHAPE` table by size. A setter's own jigsaw map goes through
-    `RegionMap.from_labels` instead; this door only resolves the classic
-    box tiling.
+    @classmethod
+    def for_size(cls, size: int) -> RegionMap:
+        """The region map a `size`x`size` board tiles by convention — the
+        `BOX_SHAPE` table by size. A setter's own jigsaw map goes through
+        `RegionMap.from_labels` instead; this door only resolves the classic
+        box tiling.
 
-    The refusal sits here, on the fallback, not on the consumer: only a board
-    asking to be tiled by convention needs a convention to exist, so a 5x5
-    carrying its own region map is perfectly legal.
-    """
-    resolved = BOX_SHAPE.get(size)
-    if resolved is None:
-        msg = f"no classic box convention for a {size}x{size} board"
-        raise GridfindError(msg)
-    return box_regions(size, *resolved)
+        The refusal sits here, on the fallback, not on the consumer: only a board
+        asking to be tiled by convention needs a convention to exist, so a 5x5
+        carrying its own region map is perfectly legal.
+        """
+        resolved = BOX_SHAPE.get(size)
+        if resolved is None:
+            msg = f"no classic box convention for a {size}x{size} board"
+            raise GridfindError(msg)
+        return cls.boxes(size, *resolved)
 
-
-def region_map_for_constraints(
-    constraints: Iterable[Constraint], size: int
-) -> RegionMap:
-    """The region map a `size`x`size` board's own constraints imply: the setter's jigsaw
-    matrix when the `regions-distinct` constraint
-    carries `params["regions"]`, the board's box tiling by convention when
-    it's bare, or one region covering the whole board when no
-    `regions-distinct` constraint is present — a Latin square draws no
-    interior lines the solver never enforced. The one door callers cross
-    instead of each re-deriving this same three-way branch.
-    """
-    for constraint in constraints:
-        if constraint.type == "regions-distinct":
-            if "regions" in constraint.params:
-                return RegionMap.from_labels(size, constraint.params["regions"])
-            return region_map_for(size)
-    return RegionMap(
-        [[(row, col) for row in range(1, size + 1) for col in range(1, size + 1)]]
-    )
+    @classmethod
+    def from_constraints(
+        cls, constraints: Iterable[Constraint], size: int
+    ) -> RegionMap:
+        """The region map a `size`x`size` board's own constraints imply: the setter's
+        jigsaw matrix when the `regions-distinct` constraint
+        carries `params["regions"]`, the board's box tiling by convention when
+        it's bare, or one region covering the whole board when no
+        `regions-distinct` constraint is present — a Latin square draws no
+        interior lines the solver never enforced. The one door callers cross
+        instead of each re-deriving this same three-way branch.
+        """
+        for constraint in constraints:
+            if constraint.type == "regions-distinct":
+                if "regions" in constraint.params:
+                    return cls.from_labels(size, constraint.params["regions"])
+                return cls.for_size(size)
+        return cls(
+            [[(row, col) for row in range(1, size + 1) for col in range(1, size + 1)]]
+        )

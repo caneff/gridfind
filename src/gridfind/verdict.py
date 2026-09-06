@@ -30,7 +30,7 @@ from ortools.sat.python import cp_model
 from gridfind.applier import apply
 from gridfind.engine import Engine, build_engine
 from gridfind.layers import build_stack
-from gridfind.layers.regions import RegionMap, region_map_for_constraints
+from gridfind.layers.regions import RegionMap
 from gridfind.puzzle import EMPTY, Constraint, Puzzle, WorkingState
 from gridfind.witness import Witness, WitnessIdentity
 
@@ -116,7 +116,7 @@ def verdict(
     solved = _build_and_solve(puzzle, working_state, time_limit_s=time_limit_s)
 
     if solved.status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
+        region_map = RegionMap.from_constraints(solved.canonical, puzzle.board.size)
         witness = _witness_from(solved.engine, solved.solver, region_map)
         return Result(kind="found", witness=witness)
     if solved.status == cp_model.INFEASIBLE:
@@ -195,7 +195,7 @@ def enumerate_witnesses(
     if solved.status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return Enumeration(kind="unknown")
 
-    region_map = region_map_for_constraints(solved.canonical, puzzle.board.size)
+    region_map = RegionMap.from_constraints(solved.canonical, puzzle.board.size)
     collector = _WitnessCollector(solved.engine, region_map, limit)
     solver = cp_model.CpSolver()
     solver.parameters.enumerate_all_solutions = True

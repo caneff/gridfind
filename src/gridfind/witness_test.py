@@ -1,4 +1,4 @@
-from gridfind.layers.regions import RegionMap, box_regions
+from gridfind.layers.regions import RegionMap
 from gridfind.witness import Witness
 
 
@@ -26,7 +26,9 @@ def test_witness_render_draws_classic_box_borders_for_a_box_partition() -> None:
     assignment: dict[str, tuple[int, ...]] = {
         address: (i % 9 + 1,) for i, row in enumerate(grid) for address in row
     }
-    witness = Witness(grid=grid, assignment=assignment, region_map=box_regions(4, 2, 2))
+    witness = Witness(
+        grid=grid, assignment=assignment, region_map=RegionMap.boxes(4, 2, 2)
+    )
 
     assert witness.render() == (
         "┌───────┬───────┐\n"

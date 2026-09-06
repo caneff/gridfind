@@ -30,7 +30,7 @@ from typing import TypeVar
 from gridfind.cell_geometry import main_diagonals, parse_address
 from gridfind.engine import Engine, MalformedPuzzleError
 from gridfind.layers._base import emit_distinct_group, grid_content
-from gridfind.layers.regions import RegionMap, region_map_for
+from gridfind.layers.regions import RegionMap
 
 Cell = TypeVar("Cell")
 Grid = list[list[Cell]]
@@ -63,7 +63,7 @@ def regions(grid: Grid) -> Iterable[list[Cell]]:
     the resolver's fallback, not here, so it surfaces at emit time rather
     than tiling something wrong.
     """
-    return _cells_for(grid, region_map_for(len(grid)))
+    return _cells_for(grid, RegionMap.for_size(len(grid)))
 
 
 def negative_diagonal(grid: Grid) -> tuple[list[Cell]]:
