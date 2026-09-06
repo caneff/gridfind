@@ -20,7 +20,13 @@ from typing import Any, cast
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from verify_links import emit_solution_link, fill_witness, verify_case, verify_link
+from verify_links import (
+    NotMalformedError,
+    emit_solution_link,
+    fill_witness,
+    verify_case,
+    verify_link,
+)
 
 from gridfind.cell_geometry import format_address
 from gridfind.layers.regions import RegionMap
@@ -318,13 +324,22 @@ def test_verify_case_reports_malformed_when_the_front_door_refuses_the_link() ->
     assert verify_case("malformed-off-domain-2x2", [link]) == "malformed"
 
 
+def test_verify_case_buckets_every_front_door_rejection_as_malformed() -> None:
+    # The malformed bucket is the front door's (`cli.MALFORMED_ERRORS`), not
+    # just `MalformedPuzzleError`: a sizeless link is refused with a plain
+    # `ValueError` (ADR-0011), and must report `malformed` rather than crash.
+    link = _encode({"cells": [{}, {}, {}, {}], "constraints": _WIRE_CONSTRAINTS})
+
+    assert verify_case("malformed-sizeless", [link]) == "malformed"
+
+
 def test_verify_case_fails_loud_when_a_malformed_case_decodes_cleanly() -> None:
     # The run must fail only when a `malformed-*` fixture does *not* raise —
     # a clean verdict means the fixture no longer exercises the rejection.
     cells = [{"given": True, "value": 1}, {}, {}, {}]
     link = _encode({"cells": cells, "size": 2, "constraints": _WIRE_CONSTRAINTS})
 
-    with pytest.raises(ValueError, match="malformed-but-fine-2x2"):
+    with pytest.raises(NotMalformedError, match="malformed-but-fine-2x2"):
         verify_case("malformed-but-fine-2x2", [link])
 
 

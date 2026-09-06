@@ -9,7 +9,9 @@ re-encoded via `document_to_link`, so the printed link opens in the app with
 the answer already filled in, showing which digits the setter placed and
 which the rules decided; reusing the original document keeps the fields
 (`size`, `type`) the app needs to render the real puzzle. A `broke` link
-prints `broke` and no URL, since there is no witness to show.
+prints `broke` and no URL, since there is no witness to show. A `malformed`
+link (the `malformed-*` fixtures) prints `malformed` when the front door
+refuses it, and the run fails if such a link verdicts cleanly.
 
     uv run python scripts/verify_links.py
 """
@@ -23,7 +25,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from gridfind.cell_geometry import format_address, index_to_row_col
-from gridfind.engine import MalformedPuzzleError
+from gridfind.cli import MALFORMED_ERRORS
 from gridfind.sudokumaker import (
     classify,
     colorize_marker_cages,
@@ -185,22 +187,28 @@ def emit_solution_link(link: str, witness: Witness, size: int) -> str:
     return document_to_link(colorize_marker_cages(filled))
 
 
+class NotMalformedError(Exception):
+    """A `malformed-*` fixture the oracle accepted: the run's own failure,
+    deliberately outside `MALFORMED_ERRORS` so it cannot be read as the link
+    re-entering the malformed bucket."""
+
+
 def verify_case(stem: str, argv: Sequence[str]) -> str:
     """One case file's report, keyed off its expected-outcome prefix like
     `eval_links.view_for`. A `malformed-*` fixture is a link the front door
-    refuses (decode or verdict raises `MalformedPuzzleError`), so its report
-    is `malformed` when the oracle raises — and a clean run is the failure,
-    raised loud so the script exits non-zero: the fixture no longer exercises
-    the rejection it was written for. Every other stem routes through
-    `verify_link`."""
+    refuses (decode or verdict raises one of `cli.MALFORMED_ERRORS`, the same
+    bucket `links_test.py` asserts), so its report is `malformed` when the
+    oracle raises — and a clean run is the failure, raised loud so the script
+    exits non-zero: the fixture no longer exercises the rejection it was
+    written for. Every other stem routes through `verify_link`."""
     if stem.partition("-")[0] != "malformed":
         return verify_link(argv)
     try:
         oracle_witness(argv[-1])
-    except MalformedPuzzleError:
+    except MALFORMED_ERRORS:
         return "malformed"
     msg = f"{stem}: verdicted cleanly, expected a malformed puzzle document"
-    raise ValueError(msg)
+    raise NotMalformedError(msg)
 
 
 def main() -> int:
