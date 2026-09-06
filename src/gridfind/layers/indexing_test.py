@@ -205,20 +205,6 @@ def test_indexing_reads_the_raw_digit_under_a_discovered_doubler() -> None:
     assert solver.value(modifier_value["R1C1"]) == 6
 
 
-def test_indexing_stacks_over_schrodinger_without_s_blind_refusal() -> None:
-    # indexing declares no s_blind, so the compose-time refusal
-    # (`build_stack`'s own `refuse_s_blind_over_widening` call) that rejects
-    # e.g. thermo + schrodinger must leave indexing + schrodinger standing —
-    # no `SBlindLayerError`, all the way through a built engine.
-    puzzle = Puzzle(
-        board=S_BOARD,
-        constraints=(Constraint(type="schrodinger"), _indexing("col", ("R1C2",))),
-    )
-
-    canonical, layers = build_stack(puzzle.constraints, size=S_BOARD.size)
-    build_engine(layers, tuple(canonical), board=S_BOARD)
-
-
 @pytest.mark.parametrize(
     ("marked_cells", "s_directives", "givens"),
     [

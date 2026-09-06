@@ -55,7 +55,6 @@ from gridfind.layers.parity import Parity
 from gridfind.layers.quadruple import Quadruple
 from gridfind.layers.regions import RegionMap
 from gridfind.layers.rellik_cage import RellikCage
-from gridfind.layers.s_blind import refuse_s_blind_over_widening
 from gridfind.layers.schrodinger import Schrodinger
 from gridfind.layers.thermo import Thermo
 from gridfind.layers.window_groups import WindowGroups
@@ -281,5 +280,4 @@ def build_stack(
             layers[constraint.type] = override
         else:
             layers.setdefault(constraint.type, LAYER_REGISTRY[constraint.type])
-    refuse_s_blind_over_widening(layers)
     return canonical, list(layers.values())

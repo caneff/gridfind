@@ -242,9 +242,8 @@ alias later.
 Both `pair-difference` and `pair-ratio` read each cell through
 `engine.value_expr` (ADR-0009), not a raw content slot — a
 doubler's `2·value` or an S-cell's combined `s_value` on a plain digit's
-footing, no per-candidate rule (ADR-0010). Neither carries an `s_blind`
-flag, so a kropki-white/black link composes with a doubler or Schrödinger
-board.
+footing, no per-candidate rule (ADR-0010), so a kropki-white/black link
+composes with a doubler or Schrödinger board.
 
 - **pair-difference** — the constraint and the rule it emits:
   `{type: pair-difference, cells: [a, b], diff: k}`, or, with `negate: true`,
@@ -403,8 +402,9 @@ forces a cell to become an S-cell.
 - **killer cage** — a `cage` (no-repeats) composed with a `group-sum` (the
   total) over the same cells, not one bundled layer (spec #240). The two
   capabilities carry their own Schrödinger semantics: the cage's no-repeats
-  half is S-ready, the sum is S-blind — "not Schrödinger-ready yet" over a
-  named S-cell comes from `group-sum`, never the cage.
+  half is S-ready and the sum is too: `group-sum` reads each cell through
+  `value_expr`, so a named S-cell folds in as its `s_value` (issue #235
+  retired the old refusal; ADR-0010).
 
 - **cosmetic cage** — a cage a setter draws for display (SudokuMaker's
   `type 2001` block), carrying no enforced killer constraint of its own.
@@ -441,9 +441,9 @@ their content to it, one rule per clue. A clue-looping layer structured like
 only the total — never an `add_all_different`, so a bare group-sum carries
 no implied uniqueness: a target of 10 over a non-house pair may be met as
 5+5. Where a setter wants distinctness too, it composes alongside this layer
-rather than folding into it. S-blind by decision: reads the singular
-`content()` seam and raises "not Schrödinger-ready yet" over a named S-cell
-rather than guessing which of its two digits counts. Its arithmetic still
+rather than folding into it. Composes with a widening layer: reads each
+cell through the `value_expr` seam, so a named S-cell contributes its
+combined `s_value` (issue #235; ADR-0010). Its arithmetic still
 reads a modifier cell's `modifier_value` in place of the raw digit, so a
 discovered doubler folds into the total.
 
@@ -540,13 +540,6 @@ on [ADR-0009](docs/adr/0009-cage-distinctness-mode-digit-or-value.md).
   mapped value and the S-cell's combined value, composed in a precedence the
   engine fixes (ADR-0009, ADR-0010). A third channel — a negator — is the
   deferred trigger to replace that hard-coded precedence with a registry (#293).
-
-- **s_blind** — a transitional flag for a layer that declares **no** reading
-  mode and reads a bare single slot. Such a layer cannot compose over a widening
-  (S-cell) or modifier layer, so the stack is refused. Every layer declares a
-  mode, so nothing carries the flag: it and its refusal are dead code, and
-  #523 tracks their deletion. _Avoid_ treating it as a permanent capability —
-  it is not one.
 
 ---
 
