@@ -13,3 +13,7 @@ Grid-puzzle constraint solving and validation: decide found / broke / unknown. C
 - Issue tracker → `docs/agents/issue-tracker.md`
 - Triage labels → `docs/agents/triage-labels.md`
 - Design reasoning → `docs/agents/design-reasoning.md`
+
+## SudokuMaker links (always on)
+
+Load the global `sm-link` skill before generating, editing, or sharing a SudokuMaker link. It holds the givens/ring/pencilmark rules, the pre-share decode check, and the sudokumaker.app wire-format pointers (single home, moved from vault memory in second-brain-v2 #140).
