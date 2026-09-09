@@ -204,11 +204,22 @@ def test_domain_on_an_off_board_address_raises() -> None:
         engine.domain("nope")
 
 
-def test_require_in_domain_passes_a_digit_the_board_offers() -> None:
+def test_require_in_domain_passes_exactly_the_digits_the_board_offers() -> None:
+    # The guard's only observable is whether it raises, so the post-condition
+    # worth asserting is the *set* it lets through: the board's own declared
+    # values, no wider and no narrower.
     engine = build_engine([], board=BOARD)
     engine.add_cell("x", low=1, high=9)
 
-    engine.require_in_domain("x", (5,))  # no raise
+    accepted = []
+    for digit in range(-1, 12):
+        try:
+            engine.require_in_domain("x", (digit,))
+        except MalformedPuzzleError:
+            continue
+        accepted.append(digit)
+
+    assert accepted == list(BOARD.values)
 
 
 def test_require_in_domain_rejects_a_digit_the_board_never_offered() -> None:
