@@ -88,8 +88,26 @@ def test_validate_s_cell_pair_refuses_a_pair_that_is_not_two_distinct_digits(
         validate_s_cell_pair(pair)
 
 
-def test_validate_s_cell_pair_accepts_two_distinct_digits() -> None:
-    validate_s_cell_pair(frozenset({2, 7}))
+def test_validate_s_cell_pair_accepts_only_two_distinct_digits() -> None:
+    # The guard's only observable is whether it raises, so the post-condition
+    # worth asserting is the *set* it lets through: exactly two distinct
+    # digits, counted after the frozenset collapses duplicates.
+    candidates = [
+        frozenset[int](),
+        frozenset({2}),
+        frozenset({2, 7}),
+        frozenset({2, 7, 9}),
+    ]
+
+    accepted = []
+    for pair in candidates:
+        try:
+            validate_s_cell_pair(pair)
+        except MalformedPuzzleError:
+            continue
+        accepted.append(sorted(pair))
+
+    assert accepted == [[2, 7]]
 
 
 @pytest.mark.parametrize(
