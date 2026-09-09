@@ -46,9 +46,6 @@ fmt:
 typecheck:
     uv run ty check
 
-# The assertion-free gate (issue #792) rides this recipe rather than adding one
-# of its own: `src/gridfind/assertion_free_gate_test.py` shells out to
-# test-audit's `--gate` mode, so a test that cannot fail fails the build here.
 test:
     uv run pytest
 

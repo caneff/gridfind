@@ -212,7 +212,7 @@ def test_require_in_domain_passes_exactly_the_digits_the_board_offers() -> None:
     engine.add_cell("x", low=1, high=9)
 
     accepted = []
-    for digit in range(-1, 12):
+    for digit in range(BOARD.values.start - 2, BOARD.values.stop + 2):
         try:
             engine.require_in_domain("x", (digit,))
         except MalformedPuzzleError:
