@@ -15,8 +15,9 @@ Three things the audit cannot do for itself, so they are done here:
   once: `[tool.ty.environment] root` is already the repo's declaration of where
   its Python lives, so a directory added there is gated without a second edit.
 - **A root that does not exist exits 0** (caneff/agent-skills#685, open), so a
-  mis-derived path would leave this gate permanently and silently green.
-  `test_the_gate_has_a_root_to_scan` fails in that case instead.
+  mis-derived path, an emptied root list, or a checkout under a directory the
+  audit exempts would all leave this gate permanently and silently green.
+  `test_every_root_holds_tests_the_audit_can_see` fails in those cases instead.
 - **A `--gate` that stopped existing also exits 0.** `audit.py` matches the
   flag positionally and otherwise falls through to its report mode, which
   exits 0 whatever it finds; an upstream rename would silently retire this
@@ -65,10 +66,29 @@ def _require_audit() -> None:
         )
 
 
-def test_the_gate_has_a_root_to_scan() -> None:
-    missing = [root for root in _roots() if not (REPO / root).is_dir()]
-    assert not missing, (
-        f"no such directory under {REPO}: {missing} — the gate would scan nothing"
+def test_every_root_holds_tests_the_audit_can_see() -> None:
+    roots = _roots()
+    assert roots, (
+        f"{REPO / 'pyproject.toml'} declares no Python root — "
+        "the gate would scan nothing"
+    )
+
+    for root in roots:
+        assert (REPO / root).is_dir(), (
+            f"no such directory under {REPO}: {root} — the gate would scan nothing"
+        )
+        found = [*(REPO / root).rglob("*_test.py"), *(REPO / root).rglob("test_*.py")]
+        assert found, (
+            f"{root}/ holds no test file — either the root is stale or the gate is "
+            "no longer covering the tests that moved out of it"
+        )
+
+    # `gate()` drops any finding whose *absolute* path carries a `fixtures`
+    # segment, so a checkout under such a directory disables the gate outright
+    # while every test here still passes (caneff/agent-skills#685, open).
+    assert "fixtures" not in REPO.parts, (
+        f"{REPO} sits under a `fixtures` directory — the audit exempts the whole "
+        "checkout and the gate below would pass without checking anything"
     )
 
 

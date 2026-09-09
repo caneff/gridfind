@@ -91,7 +91,7 @@ def test_validate_s_cell_pair_refuses_a_pair_that_is_not_two_distinct_digits(
 def test_validate_s_cell_pair_accepts_only_two_distinct_digits() -> None:
     # The guard's only observable is whether it raises, so the post-condition
     # worth asserting is the *set* it lets through: exactly two distinct
-    # digits, counted after the frozenset collapses duplicates (ADR-0006).
+    # digits, counted after the frozenset collapses duplicates.
     candidates = [
         frozenset[int](),
         frozenset({2}),
