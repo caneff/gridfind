@@ -163,11 +163,17 @@ offline via `lzstring`. `formatVersion "1.5.0"`. `puzzle.cells` is an 81-element
 No `minDigit`/`maxDigit` on a classic, so the digit domain is **1–9** — the
 `minDigit:0` Schrödinger sample is the only thing that shifts it.
 
-**Constraints.** A classic carries two: `{type:0}` (no params — the normal-sudoku
-ruleset: row + column + box all-distinct) and `{type:1, regions:[…81 ids…]}` (the
-box geometry: the standard 3×3 partition, region ids 0–8, row-major). Rows and
-columns are **never explicit** — `type 0` implies them. So gridfind emits all three
-variants `rows-distinct`, `cols-distinct`, `regions-distinct`. A `type 1` matrix
+**Constraints.** A classic carries two: `{type:0}` (no params — the givens
+constraint, `ConstraintType.Givens` in the solver) and `{type:1, regions:[…81
+ids…]}` (the box geometry: the standard 3×3 partition, region ids 0–8,
+row-major). Rows and columns are **never explicit** on the wire, and `type 0`
+does *not* carry them: the solver adds its row and column houses only when the
+puzzle-level `type` header is `"sudoku"` or absent (the classic default). A
+`"type": "custom"` document with the same two constraints is boxes-only
+(corrected 2026-09-13; probe and bundle citation in
+sudokumaker-custom-constraints `docs/research/validate-only-probe.md`). gridfind
+emits all three variants `rows-distinct`, `cols-distinct`, `regions-distinct`
+without reading that header, so a custom-type link decodes over-constrained. A `type 1` matrix
 that is *not* the standard 3×3 partition means jigsaw/irregular regions — a variant
 past the classic path, which the classic decoder should reject.
 

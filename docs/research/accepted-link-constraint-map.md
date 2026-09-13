@@ -133,12 +133,15 @@ emitted unconditionally (`sudokumaker.py:285`).
 
 - **(a)** Default sudoku ruleset — the setter builds a normal grid; boxes come
   from the "Regions" / sudoku ruleset.
-- **(b)** `type 0` (no params, the sudoku ruleset) + `type 1`
+- **(b)** `type 0` (no params, the givens constraint — not the sudoku ruleset,
+  which hangs off the puzzle-level `type` header; see sudoku-link-formats.md
+  §4a) + `type 1`
   `{regions:[…N² ids…]}` (the box tiling as a flat row-major region-id array).
   Confirmed: `found-classic-4x4` carries `type 0` + `type 1`.
 - **(c)** `rows-distinct` + `cols-distinct` are emitted unconditionally
-  (`sudokumaker.py:285`); rows/cols are *never* explicit on the wire (`type 0`
-  implies them). The `type 1` matrix: if it equals the board's box tiling
+  (`sudokumaker.py:285`); rows/cols are *never* explicit on the wire (the
+  `"sudoku"`/absent puzzle `type` header implies them; a `"custom"` header
+  does not, and the decoder does not check it). The `type 1` matrix: if it equals the board's box tiling
   (`_classic_regions_for`, `sudokumaker.py:496-504`) → bare
   `Constraint("regions-distinct")`; otherwise → jigsaw (§3.2)
   (`_regions_constraints`, `sudokumaker.py:464-485`).
