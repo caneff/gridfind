@@ -13,6 +13,7 @@ Grid-puzzle constraint solving and validation: decide found / broke / unknown. C
 - Issue tracker → `docs/agents/issue-tracker.md`
 - Triage labels → `docs/agents/triage-labels.md`
 - Design reasoning → `docs/agents/design-reasoning.md`
+- Long solver runs → `docs/agents/long-runs.md`
 
 ## SudokuMaker links (always on)
 
