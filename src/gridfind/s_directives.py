@@ -7,7 +7,7 @@ dataclasses — `SingletonPin`, `SCellPin`, `BareSingleton`, `BareSCell`,
 dataclasses, the closed `SDirective` union, the `kind`-tag dispatch that reads
 one back from a parsed JSON object, its mirror that writes one out, and the
 guard that refuses an `SCellPin` whose pair is not exactly two distinct
-digits (CONTEXT.md `schrodinger` layer). `puzzle.py`'s `WorkingState` imports
+digits (GLOSSARY.md `schrodinger` layer). `puzzle.py`'s `WorkingState` imports
 this module for the `SDirective` type and calls the codec from its own
 `to_json`/`from_json`; nothing here imports `puzzle`.
 """
@@ -36,7 +36,7 @@ def validate_s_cell_pair(pair: frozenset[int]) -> None:
 @dataclass(frozen=True)
 class SingletonPin:
     """A Schrödinger directive: this cell is a **singleton** holding `digit` —
-    not an S-cell (CONTEXT.md `schrodinger`). The Schrödinger analog of a
+    not an S-cell (GLOSSARY.md `schrodinger`). The Schrödinger analog of a
     settled given or placement alike — under a `schrodinger` layer both carry
     the extra "not an S-cell" claim (`is_s == 0`). `kind` is the wire tag
     `to_json`/`from_json` dispatch on (ADR-0006)."""
@@ -49,7 +49,7 @@ class SingletonPin:
 @dataclass(frozen=True)
 class SCellPin:
     """A Schrödinger directive: this cell **is** an S-cell holding the pair
-    `{a, b}` (CONTEXT.md `schrodinger`). The pair mirrors `Candidate.digits` as
+    `{a, b}` (GLOSSARY.md `schrodinger`). The pair mirrors `Candidate.digits` as
     a `frozenset[int]`. Its shape is guarded here at construction so a malformed
     S-cell pin can never exist in memory (ADR-0006): the pair must be exactly
     two distinct digits, counted after the frozenset collapses duplicates."""
@@ -65,7 +65,7 @@ class SCellPin:
 @dataclass(frozen=True)
 class BareSingleton:
     """A Schrödinger directive: this cell **is a singleton** (not an S-cell),
-    digit unstated (CONTEXT.md `schrodinger`). A singleton pin minus its
+    digit unstated (GLOSSARY.md `schrodinger`). A singleton pin minus its
     digit — it fixes S-cell-ness, leaves the digit free."""
 
     address: str
@@ -75,7 +75,7 @@ class BareSingleton:
 @dataclass(frozen=True)
 class BareSCell:
     """A Schrödinger directive: this cell **is an S-cell**, both digits unstated
-    (CONTEXT.md `schrodinger`). An S-cell pin minus its pair."""
+    (GLOSSARY.md `schrodinger`). An S-cell pin minus its pair."""
 
     address: str
     kind: ClassVar[str] = "bare-s-cell"
@@ -84,7 +84,7 @@ class BareSCell:
 @dataclass(frozen=True)
 class HalfSCell:
     """A Schrödinger directive: this cell **is an S-cell** and `digit` is one of
-    its two digits, partner unstated (CONTEXT.md `schrodinger`) — a reified
+    its two digits, partner unstated (GLOSSARY.md `schrodinger`) — a reified
     "digit appears among the two slots" claim, between an S-cell pin and a bare
     S-cell."""
 
@@ -96,7 +96,7 @@ class HalfSCell:
 @dataclass(frozen=True)
 class SCellMarkRestriction:
     """A Schrödinger directive: a caged S-cell's center marks, layered as a
-    consistency restriction over the cage's own directive (CONTEXT.md
+    consistency restriction over the cage's own directive (GLOSSARY.md
     `schrodinger`). Every one of the cell's real slots must draw from `digits`.
     It never selects the S-cell — the cage's `value` does that — so it only
     tightens the cage-chosen pin/half/bare or, when the marks cannot hold the

@@ -101,7 +101,7 @@ LAYER_REGISTRY = {
 # are not the same shape — one type becoming many is a preset, one type
 # becoming another is an alias.
 #
-# A **preset** is the decided word for a named, reusable bundle (CONTEXT.md):
+# A **preset** is the decided word for a named, reusable bundle (GLOSSARY.md):
 # `sudoku` is the three basic distinct rules. Board is not here — it comes
 # from the Puzzle's board field, not a constraint.
 PRESET_REGISTRY: dict[str, list[str]] = {

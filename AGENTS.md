@@ -9,7 +9,7 @@ Grid-puzzle constraint solving and validation: decide found / broke / unknown. C
 - Commands → `docs/agents/commands.md`
 - Where things are → `docs/agents/where-things-are.md`
 - Coding + testing standards → `CODING_STANDARDS.md`
-- Domain / context → `CONTEXT.md`, `docs/agents/domain.md`
+- Domain / context → `GLOSSARY.md`, `docs/agents/domain.md`
 - Issue tracker → `docs/agents/issue-tracker.md`
 - Triage labels → `docs/agents/triage-labels.md`
 - Design reasoning → `docs/agents/design-reasoning.md`

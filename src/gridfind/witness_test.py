@@ -94,7 +94,7 @@ def test_witness_render_draws_an_s_cell_as_a_curly_brace_pair() -> None:
 
 def test_witness_render_draws_an_outside_cell_above_its_column() -> None:
     # An escape-the-grid outside cell rides in `assignment` off an address
-    # `grid` never lays out (CONTEXT.md, "outside cell") — its own dot on the
+    # `grid` never lays out (GLOSSARY.md, "outside cell") — its own dot on the
     # border ring, one line above the box, aligned under its column.
     grid = [["R1C1", "R1C2"], ["R2C1", "R2C2"]]
     assignment: dict[str, tuple[int, ...]] = {

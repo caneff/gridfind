@@ -237,13 +237,13 @@ that obey strict locality invariants — hence the allowlist.
 **gridfind stance: MIRROR implicit (already cleaner), DEVIATE/DEFER explicit.**
 gridfind's structure registry + two-phase build is a *tidier* version of implicit
 composition: build-time wiring, zero solve-time cost, layers reference each other
-through named structures rather than shared indices (`CONTEXT.md` → structure
+through named structures rather than shared indices (`GLOSSARY.md` → structure
 registry, decision 9). Keep that. For **explicit disjunction**, gridfind gets it
 almost free: an "OR of constraints" is a reified-bool / `add_bool_or` /
 channeling pattern in CP-SAT — no scratch-grid speculation, no per-branch-state
 allowlist. ISS's entire composite-safety apparatus is **N/A — CP-SAT** (it exists
 because ISS hand-unions propagation state). gridfind's related concept is the
-**bridge layer** (`CONTEXT.md`) for pairs that can't reconcile through cell content
+**bridge layer** (`GLOSSARY.md`) for pairs that can't reconcile through cell content
 — a different, more principled mechanism. No action; note the parallel.
 
 ## 1.8 Grid cells vs. "var cells" (cells outside the grid)
@@ -256,7 +256,7 @@ var cells = "search cells."
 **Why.** Many variants need a value that isn't on the board. Making outside cells
 first-class and uniformly addressed means the solver core needs no special case.
 
-**gridfind stance: MIRROR — already designed in.** gridfind's `CONTEXT.md` already
+**gridfind stance: MIRROR — already designed in.** gridfind's `GLOSSARY.md` already
 names **grid cell** vs. **outside cell** ("an arrow target, a room member … obeys
 no grid rule, participates only through clues that name it"). ISS confirms the
 design and the key discipline: outside cells share the cell/variable machinery and
@@ -331,7 +331,7 @@ bitmasks make intersection/union/count one instruction and cap the grid at 16
 values.
 
 **gridfind stance: N/A — CP-SAT.** gridfind's `Cell.content` is a sequence of
-plain integer CP-SAT variables (`CONTEXT.md`: "Domains are plain integer only; a
+plain integer CP-SAT variables (`GLOSSARY.md`: "Domains are plain integer only; a
 layer may add a one-hot channel locally for one rule if it wants"). CP-SAT owns
 the candidate representation and its propagation. The one echo: a layer that *wants*
 set-style reasoning adds a **one-hot bool channel** locally — the CP-SAT-native
@@ -441,7 +441,7 @@ threshold solutions), and `validateLayout`.
 solution space, not just find one grid.
 
 **gridfind stance: DEVIATE, decided — gridfind is a *verdict* tool, not a solver.**
-`CONTEXT.md` is explicit: the whole point is classify **found / broke / unknown**,
+`GLOSSARY.md` is explicit: the whole point is classify **found / broke / unknown**,
 "the first solution CP-SAT returns, with no enumeration and **no uniqueness
 claim**." Uniqueness, counting, near-miss, rank-error were all deliberately dropped
 (map decision 15, out of scope). So ISS's mode menu is intentionally *not*
@@ -549,7 +549,7 @@ lemma is genuinely clarifying), not to reimplement its propagation.
 | 1.5 | relation-as-data pairwise primitive | **MIRROR** idea, **DEVIATE** encoding — **built** (#42 decision 5): `emit_over_pairs`, 2nd caller `pair-difference` |
 | 1.6 | sequential rules via NFA | **OPEN** — prefer CP-SAT `add_automaton` |
 | 1.7 | flat composition + `Or`/`And` w/ nesting rules | **MIRROR** implicit; explicit is **N/A — CP-SAT** |
-| 1.8 | grid cells vs. var (outside) cells | **MIRROR** — already in CONTEXT.md |
+| 1.8 | grid cells vs. var (outside) cells | **MIRROR** — already in GLOSSARY.md |
 | 2.1 | integer indices internal, cellId at boundary | **DEVIATE** (names→vars deferred), keep one chokepoint |
 | 2.2 | geometry descriptor `CellGeometry` | **MIRROR** ownership — settled in ADR-0004 (#43); adjacency is a declared slot, unbuilt |
 | 2.3 | 16-bit candidate bitmask + LookupTables | **N/A — CP-SAT**; one-hot channel locally if needed |

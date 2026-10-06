@@ -89,7 +89,7 @@ to the reviewer of the diff that produced it. Write what the code *does* and
 - **Cite the durable doc, not the closed ticket.** A citation earns its place
   only when a reader would open it and find *more* than the comment already
   says. That test passes for the in-repo design record — `ADR-NNNN`
-  (`docs/adr/`), `CONTEXT.md`, `(map #1, decision N)` — which points forward to
+  (`docs/adr/`), `GLOSSARY.md`, `(map #1, decision N)` — which points forward to
   reasoning that still lives somewhere navigable. It fails for a bare
   `(issue #NNN)` trailer: the issue closed when the work merged, its conclusion
   is already in the code and the comment beside it, and the number just

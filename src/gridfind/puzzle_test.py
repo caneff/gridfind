@@ -209,7 +209,7 @@ def test_puzzle_serializes_its_constraints_under_the_constraints_key() -> None:
 
 def test_working_state_round_trips_an_s_cell_mark_restriction() -> None:
     # The one directive kind layered over another rather than naming a point
-    # of its own (CONTEXT.md `schrodinger`) — round-tripped here alongside the
+    # of its own (GLOSSARY.md `schrodinger`) — round-tripped here alongside the
     # S-cell pin it restricts, its usual real-world pairing.
     state = WorkingState(
         s_directives=(
@@ -239,7 +239,7 @@ def test_from_json_refuses_an_s_cell_pin_with_a_mis_sized_pair() -> None:
 
 
 def test_from_json_treats_an_unknown_directive_kind_as_broken_json() -> None:
-    # "Malformed" is content-only (ADR-0006, CONTEXT.md): a structurally broken
+    # "Malformed" is content-only (ADR-0006, GLOSSARY.md): a structurally broken
     # save — an unknown directive kind — is ordinary broken JSON, a KeyError,
     # never a MalformedPuzzleError.
     text = json.dumps(
