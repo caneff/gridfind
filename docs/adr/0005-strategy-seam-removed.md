@@ -16,7 +16,7 @@ decision 15a records the same reasoning: the racer "does not hardwire
 pure-satisfaction — it takes a witness-search strategy."
 
 That expected second occupant never arrived, and a later decision removed its
-reason to. `GLOSSARY.md`'s Verdicts section states plainly that the core races
+reason to. `CONTEXT.md`'s Verdicts section states plainly that the core races
 a broke-proof against a witness-find, "never an objective solve," and that
 **unknown** "carries no near-miss and no rank-error (both dropped with the
 objective solve; map #1, out of scope)." Near-miss and rank-error were the
@@ -63,4 +63,4 @@ alternate witness-search and (b) has a result shape for that search's output
 to feed (a near-miss, a rank, or similar) to fit through. A speculative
 "someday a variant might want this" is not the trigger — a concrete second
 implementation is. Until one lands, `verdict` runs pure-satisfaction search
-directly, which is what `GLOSSARY.md` already says it does.
+directly, which is what `CONTEXT.md` already says it does.

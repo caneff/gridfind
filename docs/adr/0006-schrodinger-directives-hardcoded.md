@@ -13,7 +13,7 @@
 
 ## Context
 
-`GLOSSARY.md` describes the working-state grammar as extensible: "Each active
+`CONTEXT.md` describes the working-state grammar as extensible: "Each active
 layer registers its own directives on top." Issue #142, which adds the
 Schrödinger directives (singleton pin, S-cell pin, bare singleton, bare S-cell,
 half S-cell), inherits that language and reads, on its face, as a mandate to

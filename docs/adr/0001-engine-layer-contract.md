@@ -15,7 +15,7 @@ deliberately.
 The seam a layer actually codes against today is wider than it first looks:
 
 - The **`Layer` protocol** — `name`, `depends_on`, `register(engine)`,
-  `emit(engine)` — the [two-phase build](../../GLOSSARY.md) every layer
+  `emit(engine)` — the [two-phase build](../../CONTEXT.md) every layer
   implements.
 - The **`Engine` handle** passed to both phases, and through it:
   - `engine.model` — the raw OR-Tools `CpModel`. Every rule-emitting layer
