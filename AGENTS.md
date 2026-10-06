@@ -18,3 +18,9 @@ Grid-puzzle constraint solving and validation: decide found / broke / unknown. C
 ## SudokuMaker links (always on)
 
 Load the global `sm-link` skill before generating, editing, or sharing a SudokuMaker link. It holds the givens/ring/pencilmark rules, the pre-share decode check, and the sudokumaker.app wire-format pointers (single home, moved from vault memory in second-brain-v2 #140).
+
+## Cleanup
+
+`merge-cleanup --discard` is pre-approved here for regenerable caches (Chris, 2026-10-06): the test framework's `.hypothesis/` cache and graft's `graft/` graph cache (`graft build` rebuilds it). Anything else it names still goes to Chris first.
+
+**Discardable**: `.hypothesis`, `graft`
