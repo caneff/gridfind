@@ -86,7 +86,7 @@ class Witness:
     modifier layer, never `None`.
 
     `assignment` may hold more addresses than `grid` lays out: an
-    escape-the-grid puzzle's solved outside cells (CONTEXT.md, "outside
+    escape-the-grid puzzle's solved outside cells (GLOSSARY.md, "outside
     cell") ride in the same dict, off `Engine.cells`, keyed by their padded
     `RxCy` address (row/col `0` or `N + 1`) — `render()` draws each as part
     of the border ring around `grid`, blank wherever no outside cell was

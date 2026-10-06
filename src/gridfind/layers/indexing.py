@@ -12,7 +12,7 @@ is emitted.
 of clues; each is independent.
 
 Reads the placed digit (`Engine.d0`/`Engine.real_digit_values`), never `value_expr`
-(ADR-0009's digit-read exception, `CONTEXT.md`) — "digit `C` sits at the
+(ADR-0009's digit-read exception, `GLOSSARY.md`) — "digit `C` sits at the
 indexed cell" is a statement about the placed symbol, and a doubler's folded
 value would make its own match fail (`2C != C`) though `C` is plainly
 placed. A doubler on a marked or indexed cell is therefore transparent to

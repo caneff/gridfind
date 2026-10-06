@@ -33,7 +33,7 @@ is decoded" by hand.
 Declared variants are inferred from named cosmetic cages, never sniffed from a
 color or declared out of band. An `S-cell`/`Schrödinger`-named cage relaxes the
 `minDigit` guard to read the widened domain, declares its cells S-cells, and
-synthesizes the `schrodinger` constraint from marker presence alone (CONTEXT.md
+synthesizes the `schrodinger` constraint from marker presence alone (GLOSSARY.md
 `schrodinger` layer); a `Doubler`-named cage marks its cells modifiers and
 stands up the `doubler` constraint the same way. A `Constant <N>`/`Nullifier`-
 named cage is the second modifier variant (ADR-0016): it marks its cells

@@ -20,7 +20,7 @@ completions a puzzle solver counts as real. So the identity rule and the solver
 settings that honor it are one decision, not two.
 
 ISS is no guide here: it stops at the first solution and makes no uniqueness or
-count claim (CONTEXT.md, **found**). The authority is gridfind's own witness
+count claim (GLOSSARY.md, **found**). The authority is gridfind's own witness
 model and #381's acceptance.
 
 ## Decision

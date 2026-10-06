@@ -1482,7 +1482,7 @@ def test_verdict_breaks_a_placement_absent_from_the_s_cells_content() -> None:
 
 def test_verdict_given_vs_placement_diverge_on_an_s_cells_upper_digit() -> None:
     # The headline divergence: on a Schrödinger board a placement refines
-    # to d ∈ content but a given stays literal d0 = d (CONTEXT.md's given /
+    # to d ∈ content but a given stays literal d0 = d (GLOSSARY.md's given /
     # placement glossary entries). Force R1C1 to the S-cell {0, 4} (a=0 <
     # b=4): a placement of b is honored (the upper-digit test above), a
     # given of b is broke since it forces d0 == 4 against the forced d0 == 0.

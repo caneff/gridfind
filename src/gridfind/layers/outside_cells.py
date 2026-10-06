@@ -1,6 +1,6 @@
 """The `outside-cells` layer: the border-ring cells it registers.
 
-Mirrors `board` for cells off the grid (CONTEXT.md, "outside cell"): the sole
+Mirrors `board` for cells off the grid (GLOSSARY.md, "outside cell"): the sole
 creator of an outside cell, so two clues that both name the same border
 address bind the one cell `engine.add_board_domain_cell` first creates rather
 than each registering — and silently orphaning — their own (the `add_cell`

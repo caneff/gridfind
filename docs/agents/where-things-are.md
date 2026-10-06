@@ -3,7 +3,7 @@
 Source layout, debugging tools, and conventions for navigating gridfind.
 
 - Coding + testing standards → [`CODING_STANDARDS.md`](../../CODING_STANDARDS.md)
-- Domain / context → `CONTEXT.md` (see `docs/agents/` for consumer rules)
+- Domain / context → `GLOSSARY.md` (see `docs/agents/` for consumer rules)
 - Source: `src/gridfind/`; tests are interleaved as `*_test.py` next to the code
 - **Debugging a SudokuMaker link** (why it rejects, what constraints it carries) → `uv run python scripts/inspect_link.py '<link>' ...` — decodes and classifies each constraint (known/disabled/active/inert) and prints the verdict, one line per link. Reach for this instead of hand-rolling a decode probe.
 - **Building a test link** — corpus links under `src/gridfind/links/` are synthesized in code, never hand-authored on SudokuMaker.com: assemble a puzzle document and run it through `sudokumaker.document_to_link` (the exact reverse of `link_to_puzzle`). See `src/gridfind/cli_test.py` for the classic-Schrödinger synthesis pattern, and `scripts/synthesize_scell_links.py` for the marking-case set — every synthesizer builds on the shared `scripts/_corpus.py` harness (`boxed_document`/`jigsaw_document`, `authored_cage_style`) and `_corpus.synthesize()` (`uv run python scripts/_corpus.py`) regenerates the whole corpus in one pass.

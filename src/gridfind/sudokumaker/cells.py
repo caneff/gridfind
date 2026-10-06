@@ -26,7 +26,7 @@ _SCELL_PIN_DIGITS = 2
 
 # A single-digit domain's largest representable digit — a cage `value` of two
 # bare digit characters (no comma) is the pair shorthand only when every
-# domain digit fits in one character (CONTEXT.md, "Cage-value pair source"); a
+# domain digit fits in one character (GLOSSARY.md, "Cage-value pair source"); a
 # wider domain (e.g. 16x16's 10..16) needs the unambiguous comma form for a
 # pair, so a bare two-character value there reads as one two-digit half-cell
 # digit instead.
@@ -167,7 +167,7 @@ def _parse_scell_value(value: object, domain: range) -> tuple[int, ...]:
     one digit. A value that is absent, empty, or doesn't cleanly fit one of
     those shapes parses to `()` — a bare S-cell, never a crash. A cleanly
     parsed digit outside `domain` is kept, not dropped: it rides into the
-    directive for the verdict-time domain guard to refuse (CONTEXT.md,
+    directive for the verdict-time domain guard to refuse (GLOSSARY.md,
     "malformed")."""
     if not isinstance(value, str) or not value.strip():
         return ()
@@ -201,7 +201,7 @@ def _parse_digit(text: str) -> int | None:
     """One digit string parsed to an `int`, or `None` when `text` is not a
     clean integer. An out-of-domain digit is returned as-is, never masked: it
     rides into the S-cell directive so the verdict-time domain guard refuses it
-    as malformed, exactly as an out-of-domain given does (CONTEXT.md,
+    as malformed, exactly as an out-of-domain given does (GLOSSARY.md,
     "malformed"). Only genuine non-numeric text reads as a bare S-cell."""
     try:
         return int(text.strip())

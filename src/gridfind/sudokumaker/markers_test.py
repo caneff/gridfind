@@ -453,7 +453,7 @@ def test_s_cell_marker_without_center_marks_emits_no_restriction() -> None:
 
 def test_s_cell_marker_cage_value_out_of_domain_digit_is_refused_as_malformed() -> None:
     # A cage `value` naming a digit outside the board's domain rides into the
-    # S-cell directive and is refused at verdict as malformed (CONTEXT.md,
+    # S-cell directive and is refused at verdict as malformed (GLOSSARY.md,
     # "malformed"), exactly as an out-of-domain given is — never softened to a
     # bare S-cell that a wrong `found` could slip through.
     payload = _s_cell_cage_link("2,15")
@@ -469,7 +469,7 @@ def test_s_cell_cage_value_1234_is_one_out_of_domain_half() -> None:
     # A value too long for the pin/half shorthand parses as one digit, not a
     # pair: `"1234"` is the half-cell digit 1234, never {1,2,3,4} and never
     # bare. No board holds 1234, so it is refused as malformed at verdict — the
-    # same guard an out-of-domain given hits (CONTEXT.md, "malformed").
+    # same guard an out-of-domain given hits (GLOSSARY.md, "malformed").
     payload = _s_cell_cage_link("1234")
 
     puzzle, state = link_to_puzzle(payload)

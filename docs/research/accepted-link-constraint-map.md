@@ -7,7 +7,7 @@ how the decoder reads it, and the exact accept / ignore / reject boundary.
 
 The authority is the decoder source, `src/gridfind/sudokumaker.py`, read
 field-by-field. Every claim below cites `sudokumaker.py:NNN` or the ADR/doc it
-came from. **Code wins over prose** — where the CONTEXT.md glossary disagrees
+came from. **Code wins over prose** — where the GLOSSARY.md glossary disagrees
 with the decoder, the decoder is right and the glossary is flagged.
 
 ---
@@ -34,10 +34,10 @@ with the decoder, the decoder is right and the glossary is flagged.
   emitted), *ignore* (silently, or with a stderr warning when live data is
   dropped), *reject* (`ValueError` before a `Puzzle` exists, or
   `MalformedPuzzleError` later from `verdict`).
-- **Glossary caveat.** The CONTEXT.md glossary update (issue **#330**) is still
+- **Glossary caveat.** The GLOSSARY.md glossary update (issue **#330**) is still
   open, so its prose lags the code in at least one decoder-facing spot — it
   still calls a doubler "a color-marked cell in a SudokuMaker link"
-  (`CONTEXT.md:373`), the retired channel. Treat the decoder as authoritative;
+  (`GLOSSARY.md:373`), the retired channel. Treat the decoder as authoritative;
   the recognized-name naming (`Doubler` / `S-cell` / `Schrödinger` / `Sum` /
   `Killer`) may still be renamed by #330 — see "Naming risks" at the end.
 
@@ -416,17 +416,17 @@ not the puzzle.
 
 ---
 
-## 5. Naming risks — CONTEXT.md glossary (#330 still open)
+## 5. Naming risks — GLOSSARY.md glossary (#330 still open)
 
 Flagged per the caveat: the decoder is authoritative; these glossary spots may
 still be reworded by #330, and the recognized-name tokens themselves could be
 renamed.
 
-- **`CONTEXT.md:373`** still describes a modifier's declared position as "a
+- **`GLOSSARY.md:373`** still describes a modifier's declared position as "a
   color-marked cell in a SudokuMaker link, ADR-0008" — the **retired** red-bit
   channel. Post-#328 the declaration channel is a named `Doubler` cosmetic cage
   (`sudokumaker.py:783-790`). This is a decoder-facing staleness #330 should fix.
-- **`CONTEXT.md:325-327` / `349-352`** still say the killer sum is "S-blind" and
+- **`GLOSSARY.md:325-327` / `349-352`** still say the killer sum is "S-blind" and
   that `group-sum` "raises not-Schrödinger-ready yet" over a named S-cell.
   ADR-0010's consequences note this was already stale — issue #235 retired that
   refusal and `group-sum` reads `s_value` through `value_expr` today

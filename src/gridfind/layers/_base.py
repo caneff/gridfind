@@ -7,7 +7,7 @@ each one atomic relation over cell content; and one rule may cost many
 bridges the bottom two: it is where a single rule expands into many solver
 constraints, which is why `emit_distinct_count` exists rather than one
 `add_all_different` call. *Solver constraint* names that level without naming
-a vendor (CONTEXT.md, map #1 decision 13).
+a vendor (GLOSSARY.md, map #1 decision 13).
 
 `grid_content` and `emit_distinct_count` are package-internal APIs imported by
 `rows`, `cols`, `regions`, and `line_count`. `emit_distinct_group` is imported

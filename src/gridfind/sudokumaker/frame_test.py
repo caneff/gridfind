@@ -536,7 +536,7 @@ def test_cli_main_broke_when_a_numbered_rooms_group_conflicts_with_a_kropki_dot(
     # The Numbered Rooms group above forces R0C3 = 1 (see the found test).
     # A black-kropki ratio-2 dot to R1C3 (given 3) instead demands R0C3 = 6
     # (3 x 2, R0C3's only in-range ratio-2 partner) — two live rules on the
-    # one shared outside cell (CONTEXT.md, "two clues bind the one cell"),
+    # one shared outside cell (GLOSSARY.md, "two clues bind the one cell"),
     # neither orphaning the other, that share no value.
     link = frame_link(
         inner_solution=_INNER_SOLUTION,

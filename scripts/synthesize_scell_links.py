@@ -6,7 +6,7 @@ through `sudokumaker.document_to_link`, so a reviewer can read exactly what mark
 case a fixture exercises and regenerate the whole set with `_corpus.synthesize()`.
 
 Every S-cell link declares its variant through a named `type 2001` marker cage
-(`name: "S-cell"`), the sole decode-time S-cell channel (CONTEXT.md
+(`name: "S-cell"`), the sole decode-time S-cell channel (GLOSSARY.md
 `schrodinger`, ADR-0012). A cell's directive rides the marker cage's own
 `value`: a comma-split `"a,b"` pins the pair, one digit is a half S-cell, an
 absent value is a bare S-cell. Doublers ride a `name: "Doubler"` marker cage
@@ -145,7 +145,7 @@ class _SchrodingerGrid:
     def give_first_own_value(self, digit: int) -> _SchrodingerGrid:
         """Settle the first S-cell's own large digit alongside its marker cage.
         The cage's directive and the cell's own singleton pin collide on
-        S-cell-ness (CONTEXT.md `schrodinger`)."""
+        S-cell-ness (GLOSSARY.md `schrodinger`)."""
         self.cells[self.first] = {"given": True, "value": digit}
         return self
 

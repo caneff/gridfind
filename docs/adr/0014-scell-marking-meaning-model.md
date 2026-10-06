@@ -27,7 +27,7 @@ channel: a settled large digit became a **singleton pin**
 ([#349](https://github.com/caneff/gridfind/issues/349)); and the cell's center
 marks stopped selecting the directive and became a consistency layer over it
 ([#350](https://github.com/caneff/gridfind/issues/350)). Each ticket updated
-`CONTEXT.md` in its own diff. This ADR gathers the result into one table so a
+`GLOSSARY.md` in its own diff. This ADR gathers the result into one table so a
 reader settles any marking against a single record instead of reassembling it
 from three merged branches.
 
@@ -109,13 +109,13 @@ the solver report the ordinary infeasibility — **broke** (spec #348, resolving
 [#346](https://github.com/caneff/gridfind/issues/346)). This is the one place
 this ADR reads differently from #352's drafted acceptance line, which still
 called it a "hard error": #348 settled #346 the other way — broke — before this
-ADR was written, and `CONTEXT.md` and the decoder already agree.
+ADR was written, and `GLOSSARY.md` and the decoder already agree.
 
 **Out-of-domain digits stay malformed.** A `value` (or given/placement) that
 parses a digit the board never declared is not softened to bare; it rides into
 the directive and is refused as **malformed** at verdict, exactly as an
 out-of-domain given is (ADR-0009's value rules; the malformed contract in
-`CONTEXT.md`). Malformed is a claim about what the puzzle says; broke is a claim
+`GLOSSARY.md`). Malformed is a claim about what the puzzle says; broke is a claim
 that no completion exists. A well-formed marking whose completion is impossible
 is broke, not malformed.
 
@@ -138,7 +138,7 @@ is broke, not malformed.
 
 ## Considered options
 
-- **Leave the model spread across the three tickets' `CONTEXT.md` edits.**
+- **Leave the model spread across the three tickets' `GLOSSARY.md` edits.**
   Rejected: a marking is settled by reading four merged branches together, with
   no one record that says the retired mark-count scheme is gone. The single table
   is the point.
@@ -151,7 +151,7 @@ is broke, not malformed.
 
 - A reader settles any S-cell marking against one table, and the three behavior
   tickets have a single downstream reference instead of three scattered
-  `CONTEXT.md` paragraphs.
+  `GLOSSARY.md` paragraphs.
 - The retired mark-count-selects scheme is on record as retired: selection is a
   cage-`value` property, center marks are a consistency layer, and a settled
   digit is a flat "not an S-cell" — no "lower digit," no "either slot," no

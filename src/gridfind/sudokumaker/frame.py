@@ -12,7 +12,7 @@ runs two cells past the digit domain.
 document — inner cells, size `N` (domain `1..N`), and the inner sub-block of
 the `type 1` region matrix as the board's boxes — paired with the canonical
 `Constraint`s a border-touching kropki dot (`type 200`/`201`) decodes to
-against the padded outside-cell addressing (CONTEXT.md, "outside cell"; a
+against the padded outside-cell addressing (GLOSSARY.md, "outside cell"; a
 border row/col reads `0` or `N + 1`, never colliding with the inner `1..N`).
 Everything else on the border ring drops with a stderr warning, never a
 raise: the cosmetic outline art (`type 2000`), the JSON-postproc custom
@@ -140,7 +140,7 @@ def _padded_pair(edge: int, frame: int) -> tuple[tuple[int, int], tuple[int, int
     the one home for the edge arithmetic) and shifted down to the padded
     outside-cell coordinate: the frame's own 1-indexed row/col minus one is
     exactly `0..N+1`, with `0`/`N+1` the border ring and `1..N` the inner
-    grid's own addressing (CONTEXT.md, "outside cell")."""
+    grid's own addressing (GLOSSARY.md, "outside cell")."""
     a, b = edge_to_pair(edge, frame)
     return _shift(a), _shift(b)
 
